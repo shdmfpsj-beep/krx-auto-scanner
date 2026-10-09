@@ -1,0 +1,42 @@
+{
+  "run_kst": "2026-10-10T02:08:51.938243+09:00",
+  "tests": {
+    "FDR_KRX-DESC": {
+      "success": false,
+      "error": "HTTPError: HTTP Error 404: Not Found"
+    },
+    "FDR_KRX": {
+      "success": true,
+      "rows": 2872,
+      "columns": [
+        "Code",
+        "ISU_CD",
+        "Name",
+        "Market",
+        "Dept",
+        "Close",
+        "ChangeCode",
+        "Changes",
+        "ChagesRatio",
+        "Open",
+        "High",
+        "Low",
+        "Volume",
+        "Amount",
+        "Marcap",
+        "Stocks",
+        "MarketId",
+        "lateInfoMsgCd"
+      ],
+      "note": "Current listing only; historical membership not verified"
+    },
+    "pykrx_KOSPI_historical": {
+      "success": false,
+      "count": 0
+    },
+    "pykrx_KOSDAQ_historical": {
+      "success": false,
+      "count": 0
+    }
+  }
+}
