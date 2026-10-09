@@ -1,0 +1,79 @@
+{
+  "version": "C3 portfolio exploratory scenario comparison 0.3",
+  "run_kst": "2026-10-10T00:56:01.594200+09:00",
+  "evaluation_days": 365,
+  "initial_capital_krw": 1000000,
+  "round_trip_cost_pct": 0.35,
+  "max_entry_gap_pct": 3.0,
+  "requested_sample_count": 20,
+  "successful_tickers": 20,
+  "errors": [],
+  "scenarios": [
+    {
+      "scenario": "tight",
+      "stop_pct": 2.0,
+      "target_pct": 4.0,
+      "max_hold_days": 3,
+      "initial_capital_krw": 1000000,
+      "final_equity_krw": 574615.15,
+      "total_return_pct": -42.538,
+      "max_drawdown_pct": -47.163,
+      "completed_trades": 87,
+      "win_rate_pct": 29.89,
+      "average_net_return_pct": -0.601,
+      "profit_factor": 0.599
+    },
+    {
+      "scenario": "balanced",
+      "stop_pct": 3.0,
+      "target_pct": 6.0,
+      "max_hold_days": 5,
+      "initial_capital_krw": 1000000,
+      "final_equity_krw": 764209.17,
+      "total_return_pct": -23.579,
+      "max_drawdown_pct": -34.406,
+      "completed_trades": 70,
+      "win_rate_pct": 34.29,
+      "average_net_return_pct": -0.298,
+      "profit_factor": 0.81
+    },
+    {
+      "scenario": "wide",
+      "stop_pct": 4.0,
+      "target_pct": 8.0,
+      "max_hold_days": 7,
+      "initial_capital_krw": 1000000,
+      "final_equity_krw": 1078926.04,
+      "total_return_pct": 7.893,
+      "max_drawdown_pct": -26.671,
+      "completed_trades": 52,
+      "win_rate_pct": 38.46,
+      "average_net_return_pct": 0.305,
+      "profit_factor": 1.056
+    },
+    {
+      "scenario": "legacy_comparison",
+      "stop_pct": 3.0,
+      "target_pct": 3.3,
+      "max_hold_days": 5,
+      "initial_capital_krw": 1000000,
+      "final_equity_krw": 503770.57,
+      "total_return_pct": -49.623,
+      "max_drawdown_pct": -52.445,
+      "completed_trades": 77,
+      "win_rate_pct": 38.96,
+      "average_net_return_pct": -0.841,
+      "profit_factor": 0.549
+    }
+  ],
+  "trade_approval": "NO",
+  "limitations": [
+    "Current candidates only: severe selection and survivorship bias",
+    "Scenario comparison is exploratory and not an optimized or out-of-sample result",
+    "Daily OHLCV cannot establish intraday stop/target order; stop assumed first",
+    "One-stock allocation and next-open fills are hypothetical",
+    "No market-wide historical point-in-time screening, liquidity constraints or realistic slippage model",
+    "Open positions at end are marked to market with estimated exit fees",
+    "No guarantee of profitability or live trade suitability"
+  ]
+}
