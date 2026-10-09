@@ -22,6 +22,10 @@ jobs:
         id: collect
         continue-on-error: true
         run: python scripts/run.py
+
+      - name: Rank C3 and K100 candidates
+        run: python scripts/rank_candidates.py
+  
       - name: Save reports
         if: always()
         shell: bash
