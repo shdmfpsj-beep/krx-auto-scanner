@@ -99,47 +99,90 @@ def collect_data(codes, fetch_start, fetch_end, delay):
     return price_data, signals, errors
 
 
-def simulate(price_data, signals, start_date, end_date, initial_capital, cost_pct, max_gap_pct, scenario):
+
+# Baseline matches v0.3's wide scenario. Improvements are experiments, not proven rules.
+POLICIES = [
+    {'name': 'baseline_wide', 'cooldown': 0, 'risk_pct': None, 'filter': False},
+    {'name': 'cooldown_5', 'cooldown': 5, 'risk_pct': None, 'filter': False},
+    {'name': 'cooldown_10', 'cooldown': 10, 'risk_pct': None, 'filter': False},
+    {'name': 'risk_1pct', 'cooldown': 0, 'risk_pct': 1.0, 'filter': False},
+    {'name': 'combined', 'cooldown': 5, 'risk_pct': 1.0, 'filter': True},
+]
+
+
+def signal_filter(item, df):
+    """An exploratory stricter entry filter, using only signal-day data."""
+    day = item['signal_date']
+    loc = df.index.get_loc(day)
+    if loc < 21:
+        return False
+    close = df['종가'].astype(float)
+    vol = df['거래량'].astype(float)
+    ma20 = close.rolling(20).mean()
+    # Prefer rising short-term trend, positive daily candle and above-average liquidity.
+    return bool(
+        close.iloc[loc] > close.iloc[loc - 1]
+        and ma20.iloc[loc] > ma20.iloc[loc - 5]
+        and vol.iloc[loc] >= vol.iloc[loc - 20:loc].median()
+    )
+
+
+def simulate_policy(prices, signals, start_date, end_date, initial_capital,
+                    cost_pct, max_gap_pct, scenario, policy):
     capital = float(initial_capital)
     trades, equity = [], []
-    if not price_data:
+    if not prices:
         return trades, equity
-    all_dates = sorted(set().union(*(set(df.index) for df in price_data.values())))
+    dates = sorted(set().union(*(set(df.index) for df in prices.values())))
     by_date = {}
     for item in signals:
-        if start_date <= item['signal_date'].date() <= end_date:
-            by_date.setdefault(item['signal_date'], []).append(item)
-    for items in by_date.values():
-        items.sort(key=lambda x: (-x['score'], x['ticker'], x['setup']))
+        if not (start_date <= item['signal_date'].date() <= end_date):
+            continue
+        if policy['filter'] and not signal_filter(item, prices[item['ticker']]):
+            continue
+        by_date.setdefault(item['signal_date'], []).append(item)
+    for choices in by_date.values():
+        choices.sort(key=lambda x: (-x['score'], x['ticker'], x['setup']))
 
     position, pending = None, None
-    for day in all_dates:
-        if day.date() < start_date:
+    cooldown_until = {}
+    last_close = {}
+    for day in dates:
+        if day.date() < start_date or day.date() > end_date:
             continue
-        if day.date() > end_date:
-            break
-        # A signal from the prior close is eligible only on the next market session.
-        if position is None and pending is not None:
-            code = pending['ticker']
-            df = price_data[code]
+        for code, df in prices.items():
             if day in df.index:
+                last_close[code] = float(df.loc[day, '종가'])
+
+        if position is None and pending is not None:
+            item = pending
+            pending = None
+            code = item['ticker']
+            df = prices[code]
+            # Pending orders are valid only on the immediately following market session.
+            if day in df.index and day > item['signal_date']:
                 opening = float(df.loc[day, '시가'])
-                gap_pct = (opening / pending['signal_close'] - 1) * 100
-                if opening > 0 and gap_pct <= max_gap_pct:
-                    # Half the round-trip percentage is charged on each side.
-                    shares = int(capital / (opening * (1 + cost_pct / 200)))
-                    if shares >= 1:
+                gap = (opening / item['signal_close'] - 1) * 100
+                if opening > 0 and gap <= max_gap_pct:
+                    max_shares = int(capital / (opening * (1 + cost_pct / 200)))
+                    if policy['risk_pct'] is not None:
+                        # Include estimated round-trip fees in planned per-share stop risk.
+                        planned_loss = (opening * scenario['stop_pct'] / 100
+                                        + opening * (2 - scenario['stop_pct'] / 100) * cost_pct / 200)
+                        risk_shares = int(capital * policy['risk_pct'] / 100 / planned_loss)
+                        max_shares = min(max_shares, risk_shares)
+                    if max_shares >= 1:
                         position = {
-                            'ticker': code, 'setup': pending['setup'],
-                            'signal_date': str(pending['signal_date'].date()),
+                            'ticker': code, 'setup': item['setup'],
+                            'signal_date': str(item['signal_date'].date()),
                             'entry_date': str(day.date()), 'entry_price': opening,
-                            'shares': shares, 'entry_amount': opening * shares,
+                            'shares': max_shares, 'entry_amount': opening * max_shares,
                             'days_held': 0,
                         }
-            pending = None
 
-        if position is not None and day in price_data[position['ticker']].index:
-            row = price_data[position['ticker']].loc[day]
+        sold_today = False
+        if position is not None and day in prices[position['ticker']].index:
+            row = prices[position['ticker']].loc[day]
             entry = position['entry_price']
             opening, high, low, closing = (float(row[c]) for c in ('시가', '고가', '저가', '종가'))
             stop = entry * (1 - scenario['stop_pct'] / 100)
@@ -158,70 +201,77 @@ def simulate(price_data, signals, start_date, end_date, initial_capital, cost_pc
                 exit_price, reason = closing, 'TIME_EXIT'
             if exit_price is not None:
                 shares = position['shares']
-                gross_pct = (exit_price / entry - 1) * 100
+                gross = (exit_price / entry - 1) * 100
                 buy_fee = entry * shares * cost_pct / 200
                 sell_fee = exit_price * shares * cost_pct / 200
                 profit = (exit_price - entry) * shares - buy_fee - sell_fee
                 capital += profit
                 trades.append({
-                    'scenario': scenario['name'], 'ticker': position['ticker'],
+                    'policy': policy['name'], 'ticker': position['ticker'],
                     'setup': position['setup'], 'signal_date': position['signal_date'],
                     'entry_date': position['entry_date'], 'exit_date': str(day.date()),
                     'entry_price': round(entry, 2), 'exit_price': round(exit_price, 2),
                     'shares': shares, 'entry_amount': round(position['entry_amount'], 2),
-                    'exit_reason': reason, 'gross_return_pct': round(gross_pct, 4),
+                    'exit_reason': reason, 'gross_return_pct': round(gross, 4),
                     'net_return_pct': round(profit / (entry * shares) * 100, 4),
                     'net_profit_krw': round(profit, 2), 'capital_after': round(capital, 2),
                 })
+                if reason in ('GAP_STOP', 'STOP_FIRST_ASSUMPTION') and policy['cooldown']:
+                    # Count subsequent trading sessions for this ticker, not calendar days.
+                    ticker_dates = prices[position['ticker']].index
+                    idx = ticker_dates.get_loc(day)
+                    cooldown_until[position['ticker']] = ticker_dates[
+                        min(idx + policy['cooldown'], len(ticker_dates) - 1)
+                    ]
                 position = None
+                sold_today = True
 
-        # No same-day re-entry after a sale: signals are evaluated after the close.
+        # Evaluate closing signals even after an intraday exit, as in v0.3.
+        # Cooldown policies independently block re-entry to a stopped ticker.
         if position is None and pending is None:
-            choices = by_date.get(day, [])
-            if choices:
-                pending = choices[0]
+            for item in by_date.get(day, []):
+                blocked_until = cooldown_until.get(item['ticker'])
+                if blocked_until is not None and day <= blocked_until:
+                    continue
+                pending = item
+                break
 
         estimated = capital
         if position is not None:
             code = position['ticker']
-            df = price_data[code]
-            if day in df.index:
-                closing = float(df.loc[day, '종가'])
-                estimated += (closing - position['entry_price']) * position['shares']
-                estimated -= (position['entry_price'] + closing) * position['shares'] * cost_pct / 200
-        equity.append({
-            'scenario': scenario['name'], 'date': str(day.date()),
-            'equity_krw': round(estimated, 2),
-            'holding_ticker': position['ticker'] if position is not None else '',
-        })
+            closing = last_close.get(code, position['entry_price'])
+            estimated += (closing - position['entry_price']) * position['shares']
+            estimated -= (position['entry_price'] + closing) * position['shares'] * cost_pct / 200
+        equity.append({'policy': policy['name'], 'date': str(day.date()),
+                       'equity_krw': round(estimated, 2),
+                       'holding_ticker': position['ticker'] if position else ''})
     return trades, equity
 
 
-def summarize(trades, equity, initial_capital, scenario):
+def summarize_policy(trades, equity, capital, policy):
     df, curve = pd.DataFrame(trades), pd.DataFrame(equity)
-    final_equity = float(curve.iloc[-1]['equity_krw']) if not curve.empty else float(initial_capital)
+    final = float(curve.iloc[-1]['equity_krw']) if not curve.empty else float(capital)
     if not curve.empty:
-        values = pd.concat([pd.Series([float(initial_capital)]), curve['equity_krw'].astype(float)], ignore_index=True)
-        mdd = float(((values / values.cummax()) - 1).min() * 100)
+        values = pd.concat([pd.Series([float(capital)]), curve['equity_krw'].astype(float)], ignore_index=True)
+        mdd = float((values / values.cummax() - 1).min() * 100)
     else:
         mdd = 0.0
     if not df.empty:
         pnl = df['net_profit_krw'].astype(float)
-        wins, losses = pnl[pnl > 0].sum(), -pnl[pnl < 0].sum()
-        win_rate = float((pnl > 0).mean() * 100)
-        pf = float(wins / losses) if losses > 0 else None
+        gains, losses = pnl[pnl > 0].sum(), -pnl[pnl < 0].sum()
+        pf = float(gains / losses) if losses > 0 else None
+        win = float((pnl > 0).mean() * 100)
         avg = float(df['net_return_pct'].mean())
+        setups = df.groupby('setup')['net_profit_krw'].agg(['count', 'sum']).to_dict('index')
     else:
-        win_rate, pf, avg = 0.0, None, 0.0
-    return {
-        'scenario': scenario['name'], 'stop_pct': scenario['stop_pct'],
-        'target_pct': scenario['target_pct'], 'max_hold_days': scenario['max_hold_days'],
-        'initial_capital_krw': initial_capital, 'final_equity_krw': round(final_equity, 2),
-        'total_return_pct': round((final_equity / initial_capital - 1) * 100, 3),
-        'max_drawdown_pct': round(mdd, 3), 'completed_trades': len(trades),
-        'win_rate_pct': round(win_rate, 2), 'average_net_return_pct': round(avg, 3),
-        'profit_factor': round(pf, 3) if pf is not None else None,
-    }
+        pf, win, avg, setups = None, 0.0, 0.0, {}
+    return {'policy': policy['name'], 'initial_capital_krw': capital,
+            'final_equity_krw': round(final, 2),
+            'total_return_pct': round((final / capital - 1) * 100, 3),
+            'max_drawdown_pct': round(mdd, 3), 'completed_trades': len(trades),
+            'win_rate_pct': round(win, 2), 'average_net_return_pct': round(avg, 3),
+            'profit_factor': round(pf, 3) if pf is not None else None,
+            'setup_breakdown': setups}
 
 
 def main():
@@ -233,44 +283,44 @@ def main():
     parser.add_argument('--cost-pct', type=float, default=0.35)
     parser.add_argument('--max-gap-pct', type=float, default=3.0)
     args = parser.parse_args()
-    if args.limit < 1 or args.days < 30 or args.capital <= 0 or args.delay < 0 or args.cost_pct < 0:
-        parser.error('Invalid limit, days, capital, delay or cost')
+    if (args.limit < 1 or args.days < 30 or args.capital <= 0 or args.delay < 0
+            or args.cost_pct < 0):
+        parser.error('Invalid arguments')
     now = datetime.now(ZoneInfo('Asia/Seoul'))
     end_date = now.date()
     start_date = end_date - timedelta(days=args.days)
     fetch_start = start_date - timedelta(days=550)
     codes = load_codes(args.limit)
     prices, signals, errors = collect_data(codes, fetch_start, end_date, args.delay)
+    scenario = {'stop_pct': 4.0, 'target_pct': 8.0, 'max_hold_days': 7}
     all_trades, all_equity, summaries = [], [], []
-    for scenario in SCENARIOS:
-        trades, equity = simulate(prices, signals, start_date, end_date, args.capital,
-                                  args.cost_pct, args.max_gap_pct, scenario)
+    for policy in POLICIES:
+        trades, equity = simulate_policy(prices, signals, start_date, end_date,
+                                         args.capital, args.cost_pct, args.max_gap_pct,
+                                         scenario, policy)
         all_trades.extend(trades)
         all_equity.extend(equity)
-        summaries.append(summarize(trades, equity, args.capital, scenario))
-    pd.DataFrame(all_trades, columns=TRADE_COLUMNS).to_csv(
-        OUT / 'backtest_portfolio_trades.csv', index=False, encoding='utf-8-sig')
-    pd.DataFrame(all_equity, columns=['scenario', 'date', 'equity_krw', 'holding_ticker']).to_csv(
-        OUT / 'backtest_equity.csv', index=False, encoding='utf-8-sig')
-    pd.DataFrame(summaries).to_csv(OUT / 'backtest_scenarios.csv', index=False, encoding='utf-8-sig')
-    status = {
-        'version': 'C3 portfolio exploratory scenario comparison 0.3',
-        'run_kst': now.isoformat(), 'evaluation_days': args.days,
-        'initial_capital_krw': args.capital, 'round_trip_cost_pct': args.cost_pct,
-        'max_entry_gap_pct': args.max_gap_pct, 'requested_sample_count': len(codes),
-        'successful_tickers': len(prices), 'errors': errors, 'scenarios': summaries,
-        'trade_approval': 'NO',
-        'limitations': [
-            'Current candidates only: severe selection and survivorship bias',
-            'Scenario comparison is exploratory and not an optimized or out-of-sample result',
-            'Daily OHLCV cannot establish intraday stop/target order; stop assumed first',
-            'One-stock allocation and next-open fills are hypothetical',
-            'No market-wide historical point-in-time screening, liquidity constraints or realistic slippage model',
-            'Open positions at end are marked to market with estimated exit fees',
-            'No guarantee of profitability or live trade suitability',
-        ],
-    }
-    (OUT / 'backtest_portfolio_status.json').write_text(
+        summaries.append(summarize_policy(trades, equity, args.capital, policy))
+    columns = ['policy'] + [x for x in TRADE_COLUMNS if x != 'scenario']
+    pd.DataFrame(all_trades, columns=columns).to_csv(
+        OUT / 'backtest_v04_trades.csv', index=False, encoding='utf-8-sig')
+    pd.DataFrame(all_equity, columns=['policy', 'date', 'equity_krw', 'holding_ticker']).to_csv(
+        OUT / 'backtest_v04_equity.csv', index=False, encoding='utf-8-sig')
+    pd.DataFrame([{k: v for k, v in x.items() if k != 'setup_breakdown'} for x in summaries]).to_csv(
+        OUT / 'backtest_v04_comparison.csv', index=False, encoding='utf-8-sig')
+    status = {'version': 'C3 exploratory v0.4', 'run_kst': now.isoformat(),
+              'evaluation_days': args.days, 'initial_capital_krw': args.capital,
+              'sample_count': len(codes), 'successful_tickers': len(prices),
+              'errors': errors, 'scenarios': summaries, 'trade_approval': 'NO',
+              'limitations': [
+                  'Current candidate universe creates severe survivorship and selection bias',
+                  'Wide 4/8/7 baseline was selected after observing v0.3 results: in-sample bias',
+                  'Risk limits are planned losses, not guarantees against gap losses',
+                  'Daily OHLCV cannot establish intraday fill order; stop assumed first',
+                  'Hypothetical next-open executions, simplified costs and no liquidity impact',
+                  'Results are not independent out-of-sample validation',
+              ]}
+    (OUT / 'backtest_v04_status.json').write_text(
         json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(status, ensure_ascii=False, indent=2))
 
