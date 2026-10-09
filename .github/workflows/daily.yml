@@ -1,13 +1,26 @@
 name: KRX daily candidate scan
+
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run full collection or rerank existing candidates.csv'
+        required: true
+        type: choice
+        default: rerank_only
+        options:
+          - rerank_only
+          - full_scan
   schedule:
     - cron: '30 8 * * 1-5' # 17:30 KST weekdays
+
 permissions:
   contents: write
+
 concurrency:
   group: krx-report-main
   cancel-in-progress: false
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -18,16 +31,36 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
+
+      - name: Verify saved candidate data for rerank
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'rerank_only'
+        shell: bash
+        run: |
+          test -s reports/candidates.csv || { echo 'Missing or empty reports/candidates.csv'; exit 1; }
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          with Path('reports/candidates.csv').open(encoding='utf-8-sig', newline='') as f:
+              reader = csv.DictReader(f)
+              required = {'ticker', 'close', 'ma20', 'ma60', 'ma120', 'rvol20'}
+              if not required.issubset(set(reader.fieldnames or [])):
+                  raise SystemExit('Existing candidates.csv is missing required columns')
+              if next(reader, None) is None:
+                  raise SystemExit('Existing candidates.csv has no data rows')
+          PY
+
       - name: Collect and screen
         id: collect
+        if: github.event_name == 'schedule' || inputs.mode == 'full_scan'
         continue-on-error: true
         run: python scripts/run.py
 
       - name: Rank C3 and K100 candidates
+        if: steps.collect.outcome != 'failure'
         run: python scripts/rank_candidates.py
-  
+
       - name: Save reports
-        if: always()
+        if: steps.collect.outcome != 'failure'
         shell: bash
         run: |
           set -e
@@ -49,6 +82,7 @@ jobs:
           done
           echo 'Failed to push reports after retries'
           exit 1
+
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -56,6 +90,7 @@ jobs:
           name: krx-scan-report
           path: reports/
           if-no-files-found: warn
+
       - name: Fail job if collection failed
         if: steps.collect.outcome == 'failure'
         run: exit 1
