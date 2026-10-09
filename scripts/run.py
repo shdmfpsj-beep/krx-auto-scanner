@@ -16,7 +16,8 @@ status = {'run_kst': NOW.isoformat(), 'requested_end': END, 'universe': 0,
           'download_attempted': 0, 'download_succeeded': 0, 'valid_ohlcv': 0,
           'screened': 0, 'failed': 0, 'external_screener_count': 0,
           'full_chart_verified': 0, 'duplicates_removed': 0,
-          'market_data_date': None, 'universe_source': None, 'errors': [],
+          'market_data_date': None, 'universe_source': None, 'ohlcv_sources': {},
+          'coverage_ratio': 0, 'scan_complete': False, 'errors': [],
           'note': 'Candidate scan only; no trade approvals. Flows, volume profile and account cash not verified.'}
 
 def save_status():
@@ -26,9 +27,12 @@ def record_error(message):
     if len(status['errors']) < 40:
         status['errors'].append(str(message)[:300])
 
+def normalize_codes(series):
+    return sorted({s for x in series if (s := str(x).strip()).isdigit() and len(s) == 6})
+
 def fetch_universe():
-    # Primary: pykrx, checking up to 20 calendar days for holidays.
-    for offset in range(20):
+    # pykrx is optional; do not retry 20 times when its upstream API is unavailable.
+    for offset in (0, 1, 2, 3, 5, 7, 10):
         day = (CUTOFF - timedelta(days=offset)).strftime('%Y%m%d')
         try:
             a = stock.get_market_ticker_list(day, market='KOSPI')
@@ -39,29 +43,53 @@ def fetch_universe():
                 status['universe_reference_date'] = day
                 status['duplicates_removed'] = len(a) + len(b) - len(codes)
                 return codes
-            record_error(f'pykrx universe {day}: only {len(codes)} tickers')
         except Exception as e:
             record_error(f'pykrx universe {day}: {type(e).__name__}: {e}')
-        time.sleep(0.3)
-    # Secondary: KRX listed-symbol snapshot via FinanceDataReader.
-    # This is a CURRENT listing, not a historical point-in-time universe.
+    # FDR's KRX endpoint may share the same failing upstream. Try KRX-DESC first.
     try:
         import FinanceDataReader as fdr
-        listing = fdr.StockListing('KRX')
-        if listing is None or listing.empty or 'Code' not in listing.columns:
-            raise ValueError('missing Code or empty listing')
-        if 'Market' in listing.columns:
-            listing = listing[listing['Market'].astype(str).str.upper().isin(['KOSPI', 'KOSDAQ'])]
-        codes = sorted({str(x).zfill(6) for x in listing['Code'].dropna()
-                        if str(x).strip().isdigit() and len(str(x).strip()) <= 6})
-        if len(codes) <= 1000:
-            raise ValueError(f'only {len(codes)} tickers')
-        status['universe_source'] = 'FinanceDataReader current KRX listing (not historical)'
-        status['universe_reference_date'] = NOW.date().isoformat()
-        return codes
-    except Exception as e:
-        record_error(f'FDR universe: {type(e).__name__}: {e}')
+        for source in ('KRX-DESC', 'KRX'):
+            try:
+                listing = fdr.StockListing(source)
+                if listing is None or listing.empty:
+                    raise ValueError('empty listing')
+                col = next((c for c in ('Code', 'Symbol') if c in listing.columns), None)
+                if col is None:
+                    raise ValueError(f'unknown columns: {list(listing.columns)}')
+                if 'Market' in listing.columns:
+                    listing = listing[listing['Market'].astype(str).str.upper().isin(['KOSPI', 'KOSDAQ'])]
+                codes = normalize_codes(listing[col].dropna())
+                if len(codes) <= 1000:
+                    raise ValueError(f'only {len(codes)} codes')
+                status['universe_source'] = f'FDR {source} (current listing; not point-in-time)'
+                status['universe_reference_date'] = NOW.date().isoformat()
+                return codes
+            except Exception as e:
+                record_error(f'FDR {source}: {type(e).__name__}: {e}')
+    except ImportError as e:
+        record_error(f'FDR missing: {e}')
     return []
+
+def fetch_ohlcv(code):
+    errors = []
+    try:
+        df = stock.get_market_ohlcv_by_date(START, END, code, adjusted=True)
+        if df is not None and not df.empty:
+            return df, 'pykrx'
+        errors.append('pykrx empty')
+    except Exception as e:
+        errors.append(f'pykrx {type(e).__name__}: {str(e)[:80]}')
+    try:
+        import FinanceDataReader as fdr
+        raw = fdr.DataReader(code, START[:4]+'-'+START[4:6]+'-'+START[6:], END[:4]+'-'+END[4:6]+'-'+END[6:])
+        if raw is None or raw.empty:
+            raise ValueError('empty FDR dataframe')
+        rename = {'Open':'시가', 'High':'고가', 'Low':'저가', 'Close':'종가', 'Volume':'거래량'}
+        df = raw.rename(columns=rename)
+        return df, 'FinanceDataReader'
+    except Exception as e:
+        errors.append(f'FDR {type(e).__name__}: {str(e)[:80]}')
+    raise ValueError('; '.join(errors))
 
 def classify(df):
     c = df['종가'].astype(float)
@@ -90,7 +118,7 @@ def main():
     status['universe'] = len(codes)
     save_status()
     if not codes:
-        record_error('Universe download unavailable; no candidate report generated.')
+        record_error('Universe unavailable; no candidate report generated.')
         (OUT / 'candidates.csv').unlink(missing_ok=True)
         save_status()
         raise RuntimeError('Unable to retrieve KOSPI/KOSDAQ universe')
@@ -98,7 +126,7 @@ def main():
     for code in codes:
         status['download_attempted'] += 1
         try:
-            df = stock.get_market_ohlcv_by_date(START, END, code, adjusted=True)
+            df, source = fetch_ohlcv(code)
             if df is None or df.empty:
                 raise ValueError('empty OHLCV')
             df = df[~df.index.duplicated(keep='last')].sort_index()
@@ -107,20 +135,22 @@ def main():
             for col in ('시가', '고가', '저가', '종가', '거래량'):
                 if col not in df.columns:
                     raise ValueError('missing ' + col)
+            if df[['시가','고가','저가','종가','거래량']].tail(120).isna().any().any():
+                raise ValueError('missing OHLCV values')
             if (df['종가'].tail(120) <= 0).any():
                 raise ValueError('nonpositive close')
-            if df.index[-1].date() > CUTOFF:
-                raise ValueError('future market data date')
-            if (CUTOFF - df.index[-1].date()).days > 7:
-                raise ValueError('stale market data')
+            latest = df.index[-1].date()
+            if latest > CUTOFF or (CUTOFF - latest).days > 7:
+                raise ValueError(f'invalid/stale market data {latest}')
             status['download_succeeded'] += 1
             rec = classify(df)
             status['valid_ohlcv'] += 1
+            status['ohlcv_sources'][source] = status['ohlcv_sources'].get(source, 0) + 1
             if any(rec[k] for k in ('breakout', 'first_pullback_proxy', 'reversal_proxy')):
-                rec.update(ticker=code, latest_date=str(df.index[-1].date()), sessions=len(df))
+                rec.update(ticker=code, latest_date=str(latest), sessions=len(df), data_source=source)
                 rows.append(rec)
             status['screened'] += 1
-            last = str(df.index[-1].date())
+            last = str(latest)
             if status['market_data_date'] is None or last > status['market_data_date']:
                 status['market_data_date'] = last
         except Exception as e:
@@ -129,6 +159,8 @@ def main():
         if status['download_attempted'] % 50 == 0:
             save_status()
         time.sleep(float(os.getenv('REQUEST_DELAY', '0.2')))
+    status['coverage_ratio'] = round(status['screened'] / len(codes), 4)
+    status['scan_complete'] = status['coverage_ratio'] >= 0.95
     if rows:
         pd.DataFrame(rows).sort_values(['score', 'rvol20'], ascending=False).to_csv(
             OUT / 'candidates.csv', index=False, encoding='utf-8-sig')
@@ -136,8 +168,8 @@ def main():
         (OUT / 'candidates.csv').unlink(missing_ok=True)
     save_status()
     print(json.dumps(status, ensure_ascii=False))
-    if status['valid_ohlcv'] == 0:
-        raise RuntimeError('No valid OHLCV downloaded; see reports/status.json')
+    if not status['scan_complete']:
+        raise RuntimeError(f'Incomplete KRX scan: {status["coverage_ratio"]:.1%} coverage; see reports/status.json')
 
 if __name__ == '__main__':
     try:
