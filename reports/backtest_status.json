@@ -1,0 +1,26 @@
+{
+  "version": "C3 exploratory backtest 0.1",
+  "run_kst": "2026-10-09T22:00:19.562335+09:00",
+  "sample_method": "CURRENT_CANDIDATES_ONLY (SURVIVORSHIP AND SELECTION BIAS)",
+  "sample_count": 20,
+  "successful_count": 20,
+  "signals_count": 637,
+  "evaluation_days": 365,
+  "holding_days": [
+    1,
+    3,
+    5
+  ],
+  "round_trip_cost_pct": 0.35,
+  "trade_approval": "NO",
+  "errors": [],
+  "limitations": [
+    "Current candidate sample is not historical point-in-time universe",
+    "Signals may overlap; statistics are not a tradable portfolio",
+    "Entry at next-day open and exit at closing price are hypothetical",
+    "No intraday stops, liquidity impact or actual order execution",
+    "Adjusted OHLCV and estimated transaction costs may differ from real trades",
+    "Weekly/monthly filters use previous completed periods conservatively",
+    "Not an out-of-sample validation or a strategy performance claim"
+  ]
+}
