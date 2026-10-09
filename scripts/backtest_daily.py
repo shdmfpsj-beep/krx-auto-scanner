@@ -106,16 +106,48 @@ def collect_data(codes, start, end, delay):
 
 
 def load_market_gates(start, end):
-    """Signal-day index close > MA60 and MA60 rising over 5 sessions."""
+    """Use pykrx indices, falling back to FinanceDataReader if KRX metadata fails.
+
+    Never replace missing index observations with a permissive gate.
+    """
     gates = {}
-    for label, ticker in (('KOSPI', '1001'), ('KOSDAQ', '2001')):
-        df = stock.get_index_ohlcv_by_date(start.strftime('%Y%m%d'),
-                                           end.strftime('%Y%m%d'), ticker)
-        if df is None or df.empty or '종가' not in df:
-            raise RuntimeError(f'Missing market index history: {label} ({ticker})')
-        close = pd.to_numeric(df['종가'], errors='coerce').dropna().sort_index()
+    for label, ticker, fdr_symbol in (
+        ('KOSPI', '1001', 'KS11'), ('KOSDAQ', '2001', 'KQ11')
+    ):
+        primary_error = None
+        try:
+            df = stock.get_index_ohlcv_by_date(
+                start.strftime('%Y%m%d'), end.strftime('%Y%m%d'), ticker
+            )
+            if df is None or df.empty or '종가' not in df.columns:
+                raise ValueError('No valid index OHLCV returned')
+            close = pd.to_numeric(df['종가'], errors='coerce')
+            close.index = pd.to_datetime(close.index)
+            close = close.dropna().sort_index()
+        except Exception as exc:
+            primary_error = f'{type(exc).__name__}: {exc}'
+            try:
+                import FinanceDataReader as fdr
+                fallback = fdr.DataReader(fdr_symbol, start.strftime('%Y-%m-%d'),
+                                          (end + timedelta(days=1)).strftime('%Y-%m-%d'))
+                if fallback is None or fallback.empty or 'Close' not in fallback.columns:
+                    raise ValueError('No valid fallback index Close returned')
+                close = pd.to_numeric(fallback['Close'], errors='coerce')
+                close.index = pd.to_datetime(close.index)
+                close = close.dropna().sort_index()
+                print(f'{label}: pykrx failed ({primary_error}); '
+                      'using FinanceDataReader fallback', flush=True)
+            except Exception as fallback_exc:
+                raise RuntimeError(
+                    f'{label} index data unavailable. pykrx: {primary_error}; '
+                    f'FinanceDataReader: {type(fallback_exc).__name__}: {fallback_exc}. '
+                    'Market filter was NOT bypassed.'
+                ) from fallback_exc
+        close = close[~close.index.duplicated(keep='last')]
+        close = close[(close.index.date >= start) & (close.index.date <= end)]
         if len(close) < 70:
-            raise RuntimeError(f'Insufficient market index history: {label}')
+            raise RuntimeError(f'Insufficient market index history: {label} '
+                               f'({len(close)} rows); market filter NOT bypassed')
         ma60 = close.rolling(60).mean()
         gates[label] = ((close > ma60) & (ma60 > ma60.shift(5))).fillna(False)
     return gates
