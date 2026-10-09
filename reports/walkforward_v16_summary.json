@@ -1,0 +1,52 @@
+{
+  "version": "C3 v1.6",
+  "run_kst": "2026-10-10T02:39:06.126172+09:00",
+  "survivorship_bias": true,
+  "point_in_time_universe": false,
+  "live_trade_approval": false,
+  "universe_source": "FDR current KRX; imperfect name filter",
+  "requested_universe": 30,
+  "downloaded_universe": 29,
+  "fetch_failures": 1,
+  "signal_count": 196,
+  "completed_trades_including_post_period": 43,
+  "completed_trades_within_period": 42,
+  "initial_capital": 300000,
+  "holding_sessions": 3,
+  "holding_definition": "entry open to open after 3 shared-calendar sessions",
+  "cost_bps_each_side": 15.0,
+  "period_return_mark_to_market": -0.36916521000000013,
+  "daily_equity_mdd": -0.40242912806214104,
+  "by_setup_all_completed_trades": {
+    "breakout": {
+      "trades": 14,
+      "win_rate": 0.42857142857142855,
+      "avg_net_return": -0.005249886302094354,
+      "total_pnl_krw": -18761.744000000006
+    },
+    "pullback": {
+      "trades": 29,
+      "win_rate": 0.3793103448275862,
+      "avg_net_return": -0.013442533155196244,
+      "total_pnl_krw": -93707.719
+    }
+  },
+  "period_end_cash": 1210.4369999999471,
+  "period_end_equity": 189250.43699999995,
+  "period_realized_pnl_krw": -106741.923,
+  "period_unrealized_pnl_krw": -4007.640000000014,
+  "accounting_reconciliation_delta_krw": -2.9103830456733704e-11,
+  "accounting_reconciliation_ok": true,
+  "open_position_at_period_end": true,
+  "open_position_after_extended_simulation": false,
+  "delayed_exit_count": 1,
+  "skipped_events": 35,
+  "warnings": [
+    "NOT a historical point-in-time universe; survivorship bias",
+    "Historical adjusted OHLCV may not represent executable prices",
+    "Shared calendar may include non-common trading days",
+    "Missing ticker quotes can delay exits; see exit_delayed and skipped",
+    "No realistic tax, market impact, trading halt or corporate action model",
+    "Period returns exclude exits after end date; full trade log includes them"
+  ]
+}
