@@ -1,10 +1,11 @@
+
 name: KRX daily candidate scan
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Select scan, rerank or C3 backtest'
+        description: 'Select scan, rerank, backtest or diagnosis'
         required: true
         type: choice
         default: rerank_only
@@ -13,6 +14,7 @@ on:
           - full_scan
           - backtest_c3
           - pit_test_v10
+          - diagnose_universe
   schedule:
     - cron: '30 8 * * 1-5' # 17:30 KST weekdays
 
@@ -71,6 +73,10 @@ jobs:
       - name: Test v1.0 historical candidate selection
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'pit_test_v10'
         run: python scripts/backtest_pit_candidates_v10.py --days 30 --limit 30
+
+      - name: Diagnose historical universe access
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_universe'
+        run: python scripts/diagnose_universe.py
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
