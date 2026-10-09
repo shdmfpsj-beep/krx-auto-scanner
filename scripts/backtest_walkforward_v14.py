@@ -1,4 +1,4 @@
-"""C3 v1.9: current-listing stratified-sample, independent yearly scenario backtests.
+"""C3 v2.0: current-listing stratified-sample, independent yearly scenario backtests.
 Research only. NOT historical point-in-time; NOT trade approval.
 Replace scripts/backtest_walkforward_v14.py; workflow mode remains walkforward_v14.
 """
@@ -182,6 +182,86 @@ def simulate(year, scenario, book, signals, args):
     return result, td, ed, pd.DataFrame(delayed)
 
 
+def diagnose_trades(trade_frames, book, selected, args):
+    """Ex-post descriptive analysis only; never feeds future bars into signals."""
+    if not trade_frames or not any(not x.empty for x in trade_frames):
+        return {'analyzed_trades': 0}, pd.DataFrame(), pd.DataFrame()
+    all_trades = pd.concat([t for t in trade_frames if not t.empty], ignore_index=True)
+    # OPEN only: avoid triple-counting the same trades under scenario variants.
+    t = all_trades[all_trades.scenario == 'open'].copy()
+    lookup = selected.set_index('Code')[['Market', 'tier', 'stratum']].to_dict('index')
+    records = []
+    for row in t.itertuples(index=False):
+        x = book[row.ticker]['data']
+        dt = pd.Timestamp(row.entry_date)
+        tradable = x[(x.Volume > 0) & (x.index >= dt)]
+        if dt not in tradable.index:
+            continue
+        j = tradable.index.get_loc(dt)
+        entry = float(row.entry_price)
+        rec = {'year': int(row.year), 'ticker': row.ticker, 'name': row.name,
+               'setup': row.setup, 'entry_date': row.entry_date,
+               'exit_date': row.exit_date, 'entry_price': entry,
+               'realized_pnl_krw': float(row.pnl_krw),
+               'realized_net_return': float(row.pnl_krw / (row.shares * entry * (1 + args.cost_bps / 10000))),
+               'exit_delayed': bool(row.exit_delayed),
+               'market': lookup.get(row.ticker, {}).get('Market', 'unknown'),
+               'tier_current': lookup.get(row.ticker, {}).get('tier', 'unknown'),
+               'stratum_current': lookup.get(row.ticker, {}).get('stratum', 'unknown')}
+        for n in (1, 2, 3):
+            # +n is the nth tradable ticker session AFTER entry, not the entry day.
+            if j + n < len(tradable):
+                z = tradable.iloc[j + 1:j + n + 1]
+                rec[f'close_return_d{n}'] = float(z.Close.iloc[-1] / entry - 1)
+                rec[f'mfe_d{n}'] = float(z.High.max() / entry - 1)
+                rec[f'mae_d{n}'] = float(z.Low.min() / entry - 1)
+            else:
+                rec[f'close_return_d{n}'] = None
+                rec[f'mfe_d{n}'] = None
+                rec[f'mae_d{n}'] = None
+        # Entry-session excursion is included separately, not mixed with future bars.
+        e = tradable.loc[dt]
+        rec['entry_day_high_return'] = float(e.High / entry - 1)
+        rec['entry_day_low_return'] = float(e.Low / entry - 1)
+        records.append(rec)
+    detail = pd.DataFrame(records)
+    if detail.empty:
+        return {'analyzed_trades': 0}, detail, pd.DataFrame()
+    def aggregate(frame, dims):
+        rows = []
+        for key, g in frame.groupby(dims, dropna=False):
+            key = key if isinstance(key, tuple) else (key,)
+            r = dict(zip(dims, key))
+            r.update({'trades': len(g), 'win_rate_realized': float((g.realized_net_return > 0).mean()),
+                      'mean_realized_net_return': float(g.realized_net_return.mean()),
+                      'sum_realized_pnl_krw': float(g.realized_pnl_krw.sum())})
+            for n in (1, 2, 3):
+                for metric in ('close_return', 'mfe', 'mae'):
+                    c = f'{metric}_d{n}'
+                    r[f'mean_{c}'] = float(g[c].mean()) if g[c].notna().any() else None
+                r[f'observations_d{n}'] = int(g[f'close_return_d{n}'].notna().sum())
+            rows.append(r)
+        return rows
+    summary = {'analyzed_trades': int(len(detail)),
+               'basis': 'OPEN scenario completed trades only, each counted once',
+               'forward_definition': '1/2/3 ticker-tradable sessions after entry, excluding entry session',
+               'returns_before_fees': 'close_return_dN, mfe_dN, mae_dN',
+               'realized_returns_after_fees': True,
+               'by_year': aggregate(detail, ['year']),
+               'by_setup': aggregate(detail, ['setup']),
+               'by_year_setup': aggregate(detail, ['year', 'setup']),
+               'by_market_current': aggregate(detail, ['market']),
+               'by_tier_current': aggregate(detail, ['tier_current']),
+               'by_market_tier_current': aggregate(detail, ['stratum_current'])}
+    grouped = []
+    for name, dims in [('year', ['year']), ('setup', ['setup']),
+                       ('year_setup', ['year', 'setup']), ('market', ['market']),
+                       ('tier', ['tier_current']), ('market_tier', ['stratum_current'])]:
+        for r in aggregate(detail, dims):
+            grouped.append({'group_type': name, **r})
+    return summary, detail, pd.DataFrame(grouped)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--limit', type=int, default=120)
@@ -232,26 +312,34 @@ def main():
             delays.append(delayed)
     def concat(frames):
         return pd.concat(frames, ignore_index=True) if any(not x.empty for x in frames) else pd.DataFrame()
-    concat(trades).to_csv(OUT / 'walkforward_v19_trades.csv', index=False, encoding='utf-8-sig')
-    concat(equity).to_csv(OUT / 'walkforward_v19_equity.csv', index=False, encoding='utf-8-sig')
-    concat(delays).to_csv(OUT / 'walkforward_v19_reopenings.csv', index=False, encoding='utf-8-sig')
-    pd.DataFrame(failures).to_csv(OUT / 'walkforward_v19_failures.csv', index=False, encoding='utf-8-sig')
-    selected.to_csv(OUT / 'walkforward_v19_universe.csv', index=False, encoding='utf-8-sig')
-    summary = {'version': 'C3 v1.9', 'run_kst': datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+    concat(trades).to_csv(OUT / 'walkforward_v20_trades.csv', index=False, encoding='utf-8-sig')
+    concat(equity).to_csv(OUT / 'walkforward_v20_equity.csv', index=False, encoding='utf-8-sig')
+    concat(delays).to_csv(OUT / 'walkforward_v20_reopenings.csv', index=False, encoding='utf-8-sig')
+    pd.DataFrame(failures).to_csv(OUT / 'walkforward_v20_failures.csv', index=False, encoding='utf-8-sig')
+    selected.to_csv(OUT / 'walkforward_v20_universe.csv', index=False, encoding='utf-8-sig')
+    diagnostics, detail, groups = diagnose_trades(trades, book, selected, a)
+    detail.to_csv(OUT / 'walkforward_v20_trade_diagnostics.csv', index=False, encoding='utf-8-sig')
+    groups.to_csv(OUT / 'walkforward_v20_group_diagnostics.csv', index=False, encoding='utf-8-sig')
+    (OUT / 'walkforward_v20_diagnostics.json').write_text(
+        json.dumps(diagnostics, ensure_ascii=False, indent=2), encoding='utf-8')
+    summary = {'version': 'C3 v2.0', 'run_kst': datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
                'survivorship_bias': True, 'point_in_time_universe': False, 'live_trade_approval': False,
                'initial_capital_each_year': a.capital, 'years_independent_reset': True,
                'requested_universe': len(selected), 'downloaded_universe': len(book),
                'fetch_failures': len(failures), 'signal_count': len(sig),
                'holding_sessions': a.hold, 'cost_bps_each_side': a.cost_bps,
-               'sample': sample_info, 'results': all_results,
+               'sample': sample_info, 'results': all_results, 'diagnostics': diagnostics,
                'warnings': ['Present-day listing and market cap are NOT historical PIT; survivorship bias',
                             'Industry stratification unavailable; stratification uses market and present-day cap if available',
                             'Adjusted OHLCV may not be executable historical prices',
                             'Shared-calendar holding sessions and approximate common-stock filter',
                             'Reopening CLOSE/LOW are sensitivity proxies, not guaranteed fills',
                             'Each year resets to initial capital; do not compound annual returns',
-                            'No realistic taxes, impact, true halt records, or corporate action model']}
-    (OUT / 'walkforward_v19_summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+                            'No realistic taxes, impact, true halt records, or corporate action model',
+                            'Forward excursions use ticker-tradable sessions, while exit uses shared calendar; horizons differ',
+                            'MFE/MAE are descriptive extremes, not guaranteed executable prices',
+                            'Current market-cap tiers are not historical PIT classifications']}
+    (OUT / 'walkforward_v20_summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
