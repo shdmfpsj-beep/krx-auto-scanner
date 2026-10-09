@@ -13,11 +13,16 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'reports'
 OUT.mkdir(parents=True, exist_ok=True)
 
+BASE = {'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0,
+        'risk_pct': None, 'market': 'none', 'streak_limit': 0, 'streak_pause': 0}
 POLICIES = [
-    {'name': 'B_no_breakout', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0, 'risk_pct': None, 'market': 'none'},
-    {'name': 'E_market_own_index', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0, 'risk_pct': None, 'market': 'own'},
-    {'name': 'F_market_both_indices', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0, 'risk_pct': None, 'market': 'both'},
-    {'name': 'G_market_own_risk1', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0, 'risk_pct': 1.0, 'market': 'own'},
+    dict(BASE, name='B_no_breakout'),
+    dict(BASE, name='H_ticker_cooldown5', cooldown=5),
+    dict(BASE, name='I_streak3_pause5', streak_limit=3, streak_pause=5),
+    dict(BASE, name='J_combined', cooldown=5, streak_limit=3, streak_pause=5),
+    dict(BASE, name='E_market_own_index', market='own'),
+    dict(BASE, name='F_market_both_indices', market='both'),
+    dict(BASE, name='G_market_own_risk1', market='own', risk_pct=1.0),
 ]
 
 TRADE_COLUMNS = [
@@ -106,10 +111,7 @@ def collect_data(codes, start, end, delay):
 
 
 def load_market_gates(start, end):
-    """Use pykrx indices, falling back to FinanceDataReader if KRX metadata fails.
-
-    Never replace missing index observations with a permissive gate.
-    """
+    """Fail closed on missing index observations, with FDR fallback."""
     gates = {}
     for label, ticker, fdr_symbol in (
         ('KOSPI', '1001', 'KS11'), ('KOSDAQ', '2001', 'KQ11')
@@ -154,7 +156,7 @@ def load_market_gates(start, end):
 
 
 def load_market_membership(codes, end_date):
-    """Classify current KRX listings; never infer a market from ticker digits."""
+    """Classify current KRX listings; never infer market from ticker digits."""
     requested = set(codes)
     kospi, kosdaq = set(), set()
     errors = []
@@ -165,7 +167,6 @@ def load_market_membership(codes, end_date):
                 destination.update(set(map(str, found)) & requested)
         except Exception as exc:
             errors.append(f'pykrx {market}: {type(exc).__name__}: {exc}')
-
     missing = requested - kospi - kosdaq
     if missing:
         try:
@@ -187,7 +188,6 @@ def load_market_membership(codes, end_date):
             print('Market classification: FinanceDataReader KRX fallback checked', flush=True)
         except Exception as exc:
             errors.append(f'FinanceDataReader KRX listing: {type(exc).__name__}: {exc}')
-
     ambiguous = kospi & kosdaq
     if ambiguous:
         raise RuntimeError(f'Ambiguous market membership: {sorted(ambiguous)}')
@@ -201,12 +201,9 @@ def load_market_membership(codes, end_date):
 
 
 def ticker_market(code):
-    # pykrx market classification; do not guess if unavailable.
-    kospi = ticker_market.kospi
-    kosdaq = ticker_market.kosdaq
-    if code in kospi:
+    if code in ticker_market.kospi:
         return 'KOSPI'
-    if code in kosdaq:
+    if code in ticker_market.kosdaq:
         return 'KOSDAQ'
     return None
 
@@ -220,18 +217,20 @@ def market_pass(day, code, mode, gates):
     targets = (own,) if mode == 'own' else ('KOSPI', 'KOSDAQ')
     for label in targets:
         series = gates[label]
-        # Require a genuine observation on signal date, not a future index value.
         if day not in series.index or not bool(series.loc[day]):
             return False
     return True
 
 
 def simulate(prices, signals, start_date, end_date, capital, cost_pct,
-             max_gap_pct, stop_pct, target_pct, max_hold_days, policy, gates):
+             max_gap_pct, stop_pct, target_pct, max_hold_days, policy, gates,
+             return_diagnostics=False):
     capital = float(capital)
     trades, equity = [], []
+    diagnostics = {'ticker_cooldown_blocks': 0, 'streak_pause_blocks': 0,
+                   'streak_pause_triggers': 0, 'max_consecutive_stops': 0}
     if not prices:
-        return trades, equity
+        return (trades, equity, diagnostics) if return_diagnostics else (trades, equity)
     dates = sorted(set().union(*(set(df.index) for df in prices.values())))
     date_positions = {day: i for i, day in enumerate(dates)}
     by_date = {}
@@ -249,6 +248,8 @@ def simulate(prices, signals, start_date, end_date, capital, cost_pct,
 
     position, pending = None, None
     cooldown_until = {}
+    pause_until = None
+    consecutive_stops = 0
     last_close = {}
     fee_rate = cost_pct / 200.0
     for day in dates:
@@ -263,7 +264,6 @@ def simulate(prices, signals, start_date, end_date, capital, cost_pct,
             pending = None
             code = item['ticker']
             df = prices[code]
-            # Only next global trading session; never fill an old signal later.
             if (date_positions[day] == date_positions[item['signal_date']] + 1
                     and day in df.index):
                 opening = float(df.loc[day, '시가'])
@@ -315,20 +315,35 @@ def simulate(prices, signals, start_date, end_date, capital, cost_pct,
                     'net_return_pct': round(pnl / (entry * shares) * 100, 4),
                     'net_profit_krw': round(pnl, 2), 'capital_after': round(capital, 2),
                 })
-                if reason in ('GAP_STOP', 'STOP_FIRST_ASSUMPTION') and policy['cooldown']:
-                    ticker_dates = prices[position['ticker']].index
-                    idx = ticker_dates.get_loc(day)
-                    cooldown_until[position['ticker']] = ticker_dates[
-                        min(idx + policy['cooldown'], len(ticker_dates) - 1)]
+                is_stop = reason in ('GAP_STOP', 'STOP_FIRST_ASSUMPTION')
+                if is_stop:
+                    consecutive_stops += 1
+                    diagnostics['max_consecutive_stops'] = max(
+                        diagnostics['max_consecutive_stops'], consecutive_stops)
+                    if policy['cooldown']:
+                        # Block exactly the next N global trading signal dates.
+                        cooldown_until[position['ticker']] = date_positions[day] + policy['cooldown']
+                    if (policy['streak_limit'] and
+                            consecutive_stops >= policy['streak_limit']):
+                        pause_until = date_positions[day] + policy['streak_pause']
+                        diagnostics['streak_pause_triggers'] += 1
+                        consecutive_stops = 0  # Reset on trigger, no repeated triggers during pause.
+                else:
+                    consecutive_stops = 0
                 position = None
 
         if position is None and pending is None:
-            for item in by_date.get(day, []):
-                blocked = cooldown_until.get(item['ticker'])
-                if blocked is not None and day <= blocked:
-                    continue
-                pending = item
-                break
+            choices = by_date.get(day, [])
+            if pause_until is not None and date_positions[day] <= pause_until:
+                diagnostics['streak_pause_blocks'] += len(choices)
+            else:
+                for item in choices:
+                    blocked = cooldown_until.get(item['ticker'])
+                    if blocked is not None and date_positions[day] <= blocked:
+                        diagnostics['ticker_cooldown_blocks'] += 1
+                        continue
+                    pending = item
+                    break
 
         estimated = capital
         if position is not None:
@@ -340,7 +355,7 @@ def simulate(prices, signals, start_date, end_date, capital, cost_pct,
             'equity_krw': round(estimated, 2),
             'holding_ticker': position['ticker'] if position else '',
         })
-    return trades, equity
+    return (trades, equity, diagnostics) if return_diagnostics else (trades, equity)
 
 
 def summarize(trades, equity, initial_capital, name):
@@ -371,7 +386,6 @@ def summarize(trades, equity, initial_capital, name):
 
 
 def write_diagnostics(prices, signals, gates, start_date, end_date, trades):
-    """Audit market gates and actual executed trades without changing simulation."""
     days = sorted(set(gates['KOSPI'].index) | set(gates['KOSDAQ'].index))
     rows = []
     for day in days:
@@ -382,15 +396,14 @@ def write_diagnostics(prices, signals, gates, start_date, end_date, trades):
         rows.append({'date': str(day.date()), 'kospi_pass': k1,
                      'kosdaq_pass': k2, 'both_pass': k1 and k2,
                      'gates_disagree': k1 != k2})
-    pd.DataFrame(rows).to_csv(OUT / 'backtest_v07_index_gate_audit.csv',
+    pd.DataFrame(rows).to_csv(OUT / 'backtest_v08_index_gate_audit.csv',
                               index=False, encoding='utf-8-sig')
-
     signal_rows = []
     for item in signals:
         day = item['signal_date']
         if not start_date <= day.date() <= end_date:
             continue
-        if item['setup'] not in POLICIES[0]['setups']:
+        if item['setup'] not in BASE['setups']:
             continue
         own = ticker_market(item['ticker'])
         own_pass = market_pass(day, item['ticker'], 'own', gates)
@@ -404,34 +417,30 @@ def write_diagnostics(prices, signals, gates, start_date, end_date, trades):
     pd.DataFrame(signal_rows, columns=[
         'signal_date', 'ticker', 'market', 'setup', 'own_index_pass',
         'both_indices_pass', 'different_gate_result'
-    ]).to_csv(OUT / 'backtest_v07_signal_gate_audit.csv',
+    ]).to_csv(OUT / 'backtest_v08_signal_gate_audit.csv',
               index=False, encoding='utf-8-sig')
-
-    executions = pd.DataFrame(trades)
-    comparison = []
-    if not executions.empty:
-        for policy in ('B_no_breakout', 'E_market_own_index',
-                       'F_market_both_indices', 'G_market_own_risk1'):
-            part = executions[executions['policy'] == policy].copy()
-            keys = set(zip(part['ticker'], part['signal_date'],
-                           part['entry_date'], part['exit_date'], part['setup']))
-            comparison.append((policy, keys))
-        base = comparison[0][1]
-        audit = []
-        for name, keys in comparison:
-            audit.append({'policy': name, 'trade_count': len(keys),
-                          'only_in_B_count': len(base - keys),
-                          'only_in_policy_count': len(keys - base),
-                          'same_trades_as_B': keys == base})
-        pd.DataFrame(audit).to_csv(OUT / 'backtest_v07_execution_audit.csv',
-                                   index=False, encoding='utf-8-sig')
-        e = executions[executions['policy'] == 'E_market_own_index'].copy()
-        e['is_stop'] = e['exit_reason'].isin(('GAP_STOP', 'STOP_FIRST_ASSUMPTION'))
-        e['stop_streak'] = e['is_stop'].groupby((~e['is_stop']).cumsum()).cumsum()
-        e[['ticker', 'signal_date', 'entry_date', 'exit_date', 'exit_reason',
-           'net_return_pct', 'net_profit_krw', 'stop_streak']].to_csv(
-               OUT / 'backtest_v07_stop_streak_audit.csv', index=False,
-               encoding='utf-8-sig')
+    executions = pd.DataFrame(trades, columns=TRADE_COLUMNS)
+    audit = []
+    base = executions[executions['policy'] == 'B_no_breakout']
+    base_keys = set(zip(base['ticker'], base['signal_date'], base['entry_date'],
+                        base['exit_date'], base['setup']))
+    for policy in POLICIES:
+        part = executions[executions['policy'] == policy['name']]
+        keys = set(zip(part['ticker'], part['signal_date'], part['entry_date'],
+                       part['exit_date'], part['setup']))
+        audit.append({'policy': policy['name'], 'trade_count': len(keys),
+                      'only_in_B_count': len(base_keys - keys),
+                      'only_in_policy_count': len(keys - base_keys),
+                      'same_trades_as_B': keys == base_keys})
+    pd.DataFrame(audit).to_csv(OUT / 'backtest_v08_execution_audit.csv',
+                               index=False, encoding='utf-8-sig')
+    e = executions[executions['policy'] == 'E_market_own_index'].copy()
+    e['is_stop'] = e['exit_reason'].isin(('GAP_STOP', 'STOP_FIRST_ASSUMPTION'))
+    e['stop_streak'] = e['is_stop'].groupby((~e['is_stop']).cumsum()).cumsum()
+    e[['ticker', 'signal_date', 'entry_date', 'exit_date', 'exit_reason',
+       'net_return_pct', 'net_profit_krw', 'stop_streak']].to_csv(
+           OUT / 'backtest_v08_stop_streak_audit.csv', index=False,
+           encoding='utf-8-sig')
     return {'index_gate_disagreement_days': sum(r['gates_disagree'] for r in rows),
             'signal_gate_disagreements': sum(r['different_gate_result'] for r in signal_rows),
             'signal_count': len(signal_rows)}
@@ -460,24 +469,25 @@ def main():
     fetch_start = start_date - timedelta(days=550)
     codes = load_codes(args.limit)
     prices, signals, errors = collect_data(codes, fetch_start, end_date, args.delay)
+    if not prices:
+        raise RuntimeError('No valid price histories; see errors above')
     gates = load_market_gates(fetch_start, end_date)
     ticker_market.kospi, ticker_market.kosdaq = load_market_membership(
         list(prices), end_date
     )
-    if not prices:
-        raise RuntimeError('No valid price histories; see errors above')
 
-    all_trades, all_equity, comparisons, splits = [], [], [], []
+    all_trades, all_equity, comparisons, splits, controls = [], [], [], [], []
     mid_date = start_date + timedelta(days=args.days // 2)
     for policy in POLICIES:
-        trades, equity = simulate(prices, signals, start_date, end_date, args.capital,
-                                  args.cost_pct, args.max_gap_pct, args.stop_pct,
-                                  args.target_pct, args.max_hold_days, policy, gates)
+        trades, equity, control = simulate(
+            prices, signals, start_date, end_date, args.capital,
+            args.cost_pct, args.max_gap_pct, args.stop_pct,
+            args.target_pct, args.max_hold_days, policy, gates,
+            return_diagnostics=True)
         all_trades.extend(trades)
         all_equity.extend(equity)
         comparisons.append(summarize(trades, equity, args.capital, policy['name']))
-        # Independent flat-start half-period tests. This is NOT true out-of-sample
-        # because policies and the present-day candidate universe were already selected.
+        controls.append({'policy': policy['name'], **control})
         for label, period_start, period_end in (
             ('first_half', start_date, mid_date - timedelta(days=1)),
             ('second_half', mid_date, end_date),
@@ -493,29 +503,38 @@ def main():
             splits.append(result)
 
     pd.DataFrame(all_trades, columns=TRADE_COLUMNS).to_csv(
-        OUT / 'backtest_v07_trades.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v08_trades.csv', index=False, encoding='utf-8-sig')
     pd.DataFrame(all_equity, columns=EQUITY_COLUMNS).to_csv(
-        OUT / 'backtest_v07_equity.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v08_equity.csv', index=False, encoding='utf-8-sig')
     pd.DataFrame(comparisons).to_csv(
-        OUT / 'backtest_v07_comparison.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v08_comparison.csv', index=False, encoding='utf-8-sig')
     pd.DataFrame(splits).to_csv(
-        OUT / 'backtest_v07_periods.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v08_periods.csv', index=False, encoding='utf-8-sig')
+    pd.DataFrame(controls).to_csv(
+        OUT / 'backtest_v08_controls.csv', index=False, encoding='utf-8-sig')
     diagnostics = write_diagnostics(prices, signals, gates, start_date, end_date, all_trades)
     status = {
-        'version': 'C3 exploratory v0.7 diagnostic', 'run_kst': now.isoformat(),
-        'evaluation_days': args.days, 'initial_capital_krw': args.capital,
+        'version': 'C3 exploratory v0.8 stop-control experiment',
+        'run_kst': now.isoformat(), 'evaluation_days': args.days,
+        'initial_capital_krw': args.capital,
         'sample_count': len(codes), 'successful_tickers': len(prices),
         'errors': errors, 'stop_pct': args.stop_pct,
         'target_pct': args.target_pct, 'max_hold_days': args.max_hold_days,
-        'comparison': comparisons, 'period_comparison': splits, 'diagnostics': diagnostics,
+        'comparison': comparisons, 'period_comparison': splits,
+        'controls': controls, 'diagnostics': diagnostics,
         'market_gate': 'signal-day index close > MA60 and MA60 > MA60 five sessions ago',
+        'stop_control_rules': {
+            'H': 'Same ticker blocked on next 5 global trading signal dates after stop',
+            'I': 'After 3 consecutive stop exits, block all new signals for next 5 global trading dates',
+            'J': 'Combine H and I; streak resets when pause triggers or a non-stop exit occurs',
+            'entry_timing': 'Restrictions checked on signal date; existing holdings not liquidated',
+        },
         'trade_approval': 'NO',
         'limitations': [
             'Present-day candidate selection creates severe look-ahead and survivorship bias',
             'Strategies and parameters were developed after reviewing prior test results',
+            'v0.8 stop-control rules were introduced after inspecting losing streaks: overfitting risk',
             'Period splits are diagnostic only, NOT genuine out-of-sample validation',
-            'Market filters were introduced after viewing v0.5 results: additional overfitting risk',
-            'v0.7 is diagnostics only; policy logic unchanged from v0.6',
             'Current market classification may not match historical listing market',
             'Historical signals use simplified proxies and not full C3 screening rules',
             'Daily OHLCV cannot resolve intraday order; stop assumed first',
@@ -524,7 +543,7 @@ def main():
             'Single position at a time; stop-loss can gap beyond planned risk',
         ],
     }
-    (OUT / 'backtest_v07_status.json').write_text(
+    (OUT / 'backtest_v08_status.json').write_text(
         json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(status, ensure_ascii=False, indent=2))
 
