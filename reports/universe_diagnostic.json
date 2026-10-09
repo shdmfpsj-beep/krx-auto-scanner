@@ -1,42 +1,54 @@
 {
-  "run_kst": "2026-10-10T02:08:51.938243+09:00",
+  "version": "C3 v1.2 data access diagnostic",
+  "run_kst": "2026-10-10T02:12:16.670977+09:00",
   "tests": {
-    "FDR_KRX-DESC": {
-      "success": false,
-      "error": "HTTPError: HTTP Error 404: Not Found"
-    },
-    "FDR_KRX": {
+    "FDR_current_universe": {
       "success": true,
-      "rows": 2872,
+      "rows": 2715,
+      "note": "Current listing, not historical PIT universe"
+    },
+    "FDR_OHLCV_Samsung_Electronics": {
+      "success": true,
+      "rows": 58,
       "columns": [
-        "Code",
-        "ISU_CD",
-        "Name",
-        "Market",
-        "Dept",
-        "Close",
-        "ChangeCode",
-        "Changes",
-        "ChagesRatio",
         "Open",
         "High",
         "Low",
+        "Close",
         "Volume",
-        "Amount",
-        "Marcap",
-        "Stocks",
-        "MarketId",
-        "lateInfoMsgCd"
+        "Change"
       ],
-      "note": "Current listing only; historical membership not verified"
+      "first_date": "2025-01-02",
+      "last_date": "2025-03-31"
     },
-    "pykrx_KOSPI_historical": {
-      "success": false,
-      "count": 0
+    "FDR_OHLCV_GST": {
+      "success": true,
+      "rows": 58,
+      "columns": [
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+        "Change"
+      ],
+      "first_date": "2025-01-02",
+      "last_date": "2025-03-31"
     },
-    "pykrx_KOSDAQ_historical": {
-      "success": false,
-      "count": 0
+    "FDR_OHLCV_Hyundai_Motor": {
+      "success": true,
+      "rows": 58,
+      "columns": [
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+        "Change"
+      ],
+      "first_date": "2025-01-02",
+      "last_date": "2025-03-31"
     }
-  }
+  },
+  "trade_approval": "NO"
 }
