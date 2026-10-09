@@ -1,16 +1,18 @@
+
 name: KRX daily candidate scan
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Run full collection or rerank existing candidates.csv'
+        description: 'Select scan, rerank or C3 backtest'
         required: true
         type: choice
         default: rerank_only
         options:
           - rerank_only
           - full_scan
+          - backtest_c3
   schedule:
     - cron: '30 8 * * 1-5' # 17:30 KST weekdays
 
@@ -27,10 +29,13 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install -r requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: Verify saved candidate data for rerank
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'rerank_only'
@@ -56,8 +61,12 @@ jobs:
         run: python scripts/run.py
 
       - name: Rank C3 and K100 candidates
-        if: steps.collect.outcome != 'failure'
+        if: steps.collect.outcome != 'failure' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'rerank_only')
         run: python scripts/rank_candidates.py
+
+      - name: Run C3 exploratory backtest
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'backtest_c3'
+        run: python scripts/backtest_daily.py --limit 20 --days 365
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
@@ -71,7 +80,7 @@ jobs:
             echo 'No report changes'
             exit 0
           fi
-          git commit -m 'Update KRX scan reports'
+          git commit -m 'Update KRX scan and backtest reports'
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             if git rebase origin/main && git push origin HEAD:main; then
