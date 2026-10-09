@@ -11,36 +11,58 @@ OUT = Path(__file__).resolve().parents[1] / "reports"
 OUT.mkdir(parents=True, exist_ok=True)
 
 result = {
-    "run_kst": datetime.now(ZoneInfo("Asia/Seoul")).isoformat(),
+    "version": "C3 v1.2 data access diagnostic",
+    "run_kst": datetime.now(
+        ZoneInfo("Asia/Seoul")
+    ).isoformat(),
     "tests": {},
+    "trade_approval": "NO",
 }
 
-for source in ("KRX-DESC", "KRX"):
+try:
+    listing = fdr.StockListing("KRX")
+    market = listing[
+        listing["Market"].astype(str).str.upper().isin(
+            ["KOSPI", "KOSDAQ"]
+        )
+    ]
+    result["tests"]["FDR_current_universe"] = {
+        "success": not market.empty,
+        "rows": len(market),
+        "note": "Current listing, not historical PIT universe",
+    }
+except Exception as exc:
+    result["tests"]["FDR_current_universe"] = {
+        "success": False,
+        "error": str(exc)[:300],
+    }
+
+test_codes = {
+    "Samsung_Electronics": "005930",
+    "GST": "083450",
+    "Hyundai_Motor": "005380",
+}
+
+for name, code in test_codes.items():
     try:
-        df = fdr.StockListing(source)
-        result["tests"][f"FDR_{source}"] = {
+        df = fdr.DataReader(
+            code, "2025-01-01", "2025-03-31"
+        )
+        result["tests"][f"FDR_OHLCV_{name}"] = {
             "success": df is not None and not df.empty,
             "rows": 0 if df is None else len(df),
             "columns": [] if df is None else list(df.columns),
-            "note": "Current listing only; historical membership not verified",
+            "first_date": (
+                None if df is None or df.empty
+                else str(df.index.min().date())
+            ),
+            "last_date": (
+                None if df is None or df.empty
+                else str(df.index.max().date())
+            ),
         }
     except Exception as exc:
-        result["tests"][f"FDR_{source}"] = {
-            "success": False,
-            "error": f"{type(exc).__name__}: {exc}"[:300],
-        }
-
-for market in ("KOSPI", "KOSDAQ"):
-    try:
-        codes = stock.get_market_ticker_list(
-            "20260930", market=market
-        )
-        result["tests"][f"pykrx_{market}_historical"] = {
-            "success": len(codes) > 0,
-            "count": len(codes),
-        }
-    except Exception as exc:
-        result["tests"][f"pykrx_{market}_historical"] = {
+        result["tests"][f"FDR_OHLCV_{name}"] = {
             "success": False,
             "error": f"{type(exc).__name__}: {exc}"[:300],
         }
