@@ -370,6 +370,73 @@ def summarize(trades, equity, initial_capital, name):
     }
 
 
+def write_diagnostics(prices, signals, gates, start_date, end_date, trades):
+    """Audit market gates and actual executed trades without changing simulation."""
+    days = sorted(set(gates['KOSPI'].index) | set(gates['KOSDAQ'].index))
+    rows = []
+    for day in days:
+        if not start_date <= day.date() <= end_date:
+            continue
+        k1 = bool(gates['KOSPI'].get(day, False))
+        k2 = bool(gates['KOSDAQ'].get(day, False))
+        rows.append({'date': str(day.date()), 'kospi_pass': k1,
+                     'kosdaq_pass': k2, 'both_pass': k1 and k2,
+                     'gates_disagree': k1 != k2})
+    pd.DataFrame(rows).to_csv(OUT / 'backtest_v07_index_gate_audit.csv',
+                              index=False, encoding='utf-8-sig')
+
+    signal_rows = []
+    for item in signals:
+        day = item['signal_date']
+        if not start_date <= day.date() <= end_date:
+            continue
+        if item['setup'] not in POLICIES[0]['setups']:
+            continue
+        own = ticker_market(item['ticker'])
+        own_pass = market_pass(day, item['ticker'], 'own', gates)
+        both_pass = market_pass(day, item['ticker'], 'both', gates)
+        signal_rows.append({
+            'signal_date': str(day.date()), 'ticker': item['ticker'],
+            'market': own, 'setup': item['setup'],
+            'own_index_pass': own_pass, 'both_indices_pass': both_pass,
+            'different_gate_result': own_pass != both_pass,
+        })
+    pd.DataFrame(signal_rows, columns=[
+        'signal_date', 'ticker', 'market', 'setup', 'own_index_pass',
+        'both_indices_pass', 'different_gate_result'
+    ]).to_csv(OUT / 'backtest_v07_signal_gate_audit.csv',
+              index=False, encoding='utf-8-sig')
+
+    executions = pd.DataFrame(trades)
+    comparison = []
+    if not executions.empty:
+        for policy in ('B_no_breakout', 'E_market_own_index',
+                       'F_market_both_indices', 'G_market_own_risk1'):
+            part = executions[executions['policy'] == policy].copy()
+            keys = set(zip(part['ticker'], part['signal_date'],
+                           part['entry_date'], part['exit_date'], part['setup']))
+            comparison.append((policy, keys))
+        base = comparison[0][1]
+        audit = []
+        for name, keys in comparison:
+            audit.append({'policy': name, 'trade_count': len(keys),
+                          'only_in_B_count': len(base - keys),
+                          'only_in_policy_count': len(keys - base),
+                          'same_trades_as_B': keys == base})
+        pd.DataFrame(audit).to_csv(OUT / 'backtest_v07_execution_audit.csv',
+                                   index=False, encoding='utf-8-sig')
+        e = executions[executions['policy'] == 'E_market_own_index'].copy()
+        e['is_stop'] = e['exit_reason'].isin(('GAP_STOP', 'STOP_FIRST_ASSUMPTION'))
+        e['stop_streak'] = e['is_stop'].groupby((~e['is_stop']).cumsum()).cumsum()
+        e[['ticker', 'signal_date', 'entry_date', 'exit_date', 'exit_reason',
+           'net_return_pct', 'net_profit_krw', 'stop_streak']].to_csv(
+               OUT / 'backtest_v07_stop_streak_audit.csv', index=False,
+               encoding='utf-8-sig')
+    return {'index_gate_disagreement_days': sum(r['gates_disagree'] for r in rows),
+            'signal_gate_disagreements': sum(r['different_gate_result'] for r in signal_rows),
+            'signal_count': len(signal_rows)}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--limit', type=int, default=20)
@@ -426,20 +493,21 @@ def main():
             splits.append(result)
 
     pd.DataFrame(all_trades, columns=TRADE_COLUMNS).to_csv(
-        OUT / 'backtest_v06_trades.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v07_trades.csv', index=False, encoding='utf-8-sig')
     pd.DataFrame(all_equity, columns=EQUITY_COLUMNS).to_csv(
-        OUT / 'backtest_v06_equity.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v07_equity.csv', index=False, encoding='utf-8-sig')
     pd.DataFrame(comparisons).to_csv(
-        OUT / 'backtest_v06_comparison.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v07_comparison.csv', index=False, encoding='utf-8-sig')
     pd.DataFrame(splits).to_csv(
-        OUT / 'backtest_v06_periods.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v07_periods.csv', index=False, encoding='utf-8-sig')
+    diagnostics = write_diagnostics(prices, signals, gates, start_date, end_date, all_trades)
     status = {
-        'version': 'C3 exploratory v0.6', 'run_kst': now.isoformat(),
+        'version': 'C3 exploratory v0.7 diagnostic', 'run_kst': now.isoformat(),
         'evaluation_days': args.days, 'initial_capital_krw': args.capital,
         'sample_count': len(codes), 'successful_tickers': len(prices),
         'errors': errors, 'stop_pct': args.stop_pct,
         'target_pct': args.target_pct, 'max_hold_days': args.max_hold_days,
-        'comparison': comparisons, 'period_comparison': splits,
+        'comparison': comparisons, 'period_comparison': splits, 'diagnostics': diagnostics,
         'market_gate': 'signal-day index close > MA60 and MA60 > MA60 five sessions ago',
         'trade_approval': 'NO',
         'limitations': [
@@ -447,6 +515,7 @@ def main():
             'Strategies and parameters were developed after reviewing prior test results',
             'Period splits are diagnostic only, NOT genuine out-of-sample validation',
             'Market filters were introduced after viewing v0.5 results: additional overfitting risk',
+            'v0.7 is diagnostics only; policy logic unchanged from v0.6',
             'Current market classification may not match historical listing market',
             'Historical signals use simplified proxies and not full C3 screening rules',
             'Daily OHLCV cannot resolve intraday order; stop assumed first',
@@ -455,7 +524,7 @@ def main():
             'Single position at a time; stop-loss can gap beyond planned risk',
         ],
     }
-    (OUT / 'backtest_v06_status.json').write_text(
+    (OUT / 'backtest_v07_status.json').write_text(
         json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(status, ensure_ascii=False, indent=2))
 
