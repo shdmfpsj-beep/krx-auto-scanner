@@ -1,53 +1,99 @@
 {
-  "version": "C3 v1.2 data access diagnostic",
-  "run_kst": "2026-10-10T02:12:16.670977+09:00",
+  "version": "C3 v1.3 delisting availability diagnostic",
+  "run_kst": "2026-10-10T02:15:14.239051+09:00",
   "tests": {
-    "FDR_current_universe": {
-      "success": true,
-      "rows": 2715,
-      "note": "Current listing, not historical PIT universe"
+    "KRX-DELISTING": {
+      "success": false,
+      "rows": 0,
+      "columns": [],
+      "date_columns": []
     },
-    "FDR_OHLCV_Samsung_Electronics": {
+    "KRX": {
       "success": true,
-      "rows": 58,
+      "rows": 2872,
       "columns": [
+        "Code",
+        "ISU_CD",
+        "Name",
+        "Market",
+        "Dept",
+        "Close",
+        "ChangeCode",
+        "Changes",
+        "ChagesRatio",
         "Open",
         "High",
         "Low",
-        "Close",
         "Volume",
-        "Change"
+        "Amount",
+        "Marcap",
+        "Stocks",
+        "MarketId",
+        "lateInfoMsgCd"
       ],
-      "first_date": "2025-01-02",
-      "last_date": "2025-03-31"
-    },
-    "FDR_OHLCV_GST": {
-      "success": true,
-      "rows": 58,
-      "columns": [
-        "Open",
-        "High",
-        "Low",
-        "Close",
-        "Volume",
-        "Change"
-      ],
-      "first_date": "2025-01-02",
-      "last_date": "2025-03-31"
-    },
-    "FDR_OHLCV_Hyundai_Motor": {
-      "success": true,
-      "rows": 58,
-      "columns": [
-        "Open",
-        "High",
-        "Low",
-        "Close",
-        "Volume",
-        "Change"
-      ],
-      "first_date": "2025-01-02",
-      "last_date": "2025-03-31"
+      "date_columns": [],
+      "sample": [
+        {
+          "Code": "005930",
+          "ISU_CD": "KR7005930003",
+          "Name": "삼성전자",
+          "Market": "KOSPI",
+          "Dept": "",
+          "Close": "262000",
+          "ChangeCode": "2",
+          "Changes": "-6500",
+          "ChagesRatio": "-2.42",
+          "Open": "269500",
+          "High": "270000",
+          "Low": "262000",
+          "Volume": "21259056",
+          "Amount": "5617134619618",
+          "Marcap": "1531724995296000",
+          "Stocks": "5846278608",
+          "MarketId": "STK",
+          "lateInfoMsgCd": "ME005"
+        },
+        {
+          "Code": "000660",
+          "ISU_CD": "KR7000660001",
+          "Name": "SK하이닉스",
+          "Market": "KOSPI",
+          "Dept": "",
+          "Close": "1681000",
+          "ChangeCode": "2",
+          "Changes": "-42000",
+          "ChagesRatio": "-2.44",
+          "Open": "1722000",
+          "High": "1759000",
+          "Low": "1681000",
+          "Volume": "3203231",
+          "Amount": "5457112818080",
+          "Marcap": "1227957665565000",
+          "Stocks": "730492365",
+          "MarketId": "STK",
+          "lateInfoMsgCd": "ME005"
+        },
+        {
+          "Code": "005935",
+          "ISU_CD": "KR7005931001",
+          "Name": "삼성전자우",
+          "Market": "KOSPI",
+          "Dept": "",
+          "Close": "194000",
+          "ChangeCode": "2",
+          "Changes": "-4000",
+          "ChagesRatio": "-2.02",
+          "Open": "200000",
+          "High": "200000",
+          "Low": "194000",
+          "Volume": "2240206",
+          "Amount": "440665689450",
+          "Marcap": "155660013382000",
+          "Stocks": "802371203",
+          "MarketId": "STK",
+          "lateInfoMsgCd": "ME005"
+        }
+      ]
     }
   },
   "trade_approval": "NO"
