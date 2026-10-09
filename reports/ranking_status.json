@@ -1,15 +1,24 @@
 {
+  "version": "2.0",
   "source_rows": 138,
   "ranked_rows": 138,
-  "note": "Heuristic preliminary ranking, not backtested; NO trade approvals.",
+  "instrument_type_counts": {
+    "UNKNOWN": 138
+  },
+  "excluded_special_instruments": 0,
+  "unverified_instrument_types": 138,
+  "rvol_gt_10": 9,
+  "extended_gt_12pct": 43,
+  "trade_approvals": 0,
+  "note": "Technical-only preliminary ranks; scores are not win probabilities. No trade approvals.",
   "limitations": [
     "Current-listing survivorship bias",
     "No independent price reconciliation",
-    "No turnover/liquidity",
+    "No verified turnover or liquidity",
     "No institutional/foreign flows",
     "No earnings/catalysts",
-    "No account cash validation"
-  ],
-  "rvol_gt_10": 9,
-  "extended_gt_12pct": 43
+    "No account cash validation",
+    "First-pullback flag is only a proxy",
+    "Unknown instrument types require source metadata"
+  ]
 }
