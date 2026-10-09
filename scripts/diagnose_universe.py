@@ -5,13 +5,12 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import FinanceDataReader as fdr
-from pykrx import stock
 
 OUT = Path(__file__).resolve().parents[1] / "reports"
 OUT.mkdir(parents=True, exist_ok=True)
 
 result = {
-    "version": "C3 v1.2 data access diagnostic",
+    "version": "C3 v1.3 delisting availability diagnostic",
     "run_kst": datetime.now(
         ZoneInfo("Asia/Seoul")
     ).isoformat(),
@@ -19,58 +18,69 @@ result = {
     "trade_approval": "NO",
 }
 
-try:
-    listing = fdr.StockListing("KRX")
-    market = listing[
-        listing["Market"].astype(str).str.upper().isin(
-            ["KOSPI", "KOSDAQ"]
-        )
-    ]
-    result["tests"]["FDR_current_universe"] = {
-        "success": not market.empty,
-        "rows": len(market),
-        "note": "Current listing, not historical PIT universe",
-    }
-except Exception as exc:
-    result["tests"]["FDR_current_universe"] = {
-        "success": False,
-        "error": str(exc)[:300],
-    }
+sources = [
+    "KRX-DELISTING",
+    "KRX",
+]
 
-test_codes = {
-    "Samsung_Electronics": "005930",
-    "GST": "083450",
-    "Hyundai_Motor": "005380",
-}
-
-for name, code in test_codes.items():
+for source in sources:
     try:
-        df = fdr.DataReader(
-            code, "2025-01-01", "2025-03-31"
-        )
-        result["tests"][f"FDR_OHLCV_{name}"] = {
-            "success": df is not None and not df.empty,
-            "rows": 0 if df is None else len(df),
-            "columns": [] if df is None else list(df.columns),
-            "first_date": (
-                None if df is None or df.empty
-                else str(df.index.min().date())
-            ),
-            "last_date": (
-                None if df is None or df.empty
-                else str(df.index.max().date())
-            ),
+        df = fdr.StockListing(source)
+
+        if df is None:
+            raise ValueError("Returned None")
+
+        info = {
+            "success": not df.empty,
+            "rows": len(df),
+            "columns": list(df.columns),
         }
+
+        date_columns = [
+            col for col in df.columns
+            if any(
+                word in str(col).lower()
+                for word in (
+                    "date", "listing", "delist",
+                    "상장", "폐지"
+                )
+            )
+        ]
+
+        info["date_columns"] = date_columns
+
+        if not df.empty:
+            info["sample"] = (
+                df.head(3)
+                .fillna("")
+                .astype(str)
+                .to_dict(orient="records")
+            )
+
+        result["tests"][source] = info
+
     except Exception as exc:
-        result["tests"][f"FDR_OHLCV_{name}"] = {
+        result["tests"][source] = {
             "success": False,
-            "error": f"{type(exc).__name__}: {exc}"[:300],
+            "error": (
+                f"{type(exc).__name__}: {exc}"
+            )[:300],
         }
 
 path = OUT / "universe_diagnostic.json"
 path.write_text(
-    json.dumps(result, ensure_ascii=False, indent=2),
+    json.dumps(
+        result,
+        ensure_ascii=False,
+        indent=2
+    ),
     encoding="utf-8",
 )
 
-print(json.dumps(result, ensure_ascii=False, indent=2))
+print(
+    json.dumps(
+        result,
+        ensure_ascii=False,
+        indent=2
+    )
+)
