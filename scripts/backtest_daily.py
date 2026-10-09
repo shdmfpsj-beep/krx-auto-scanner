@@ -153,6 +153,53 @@ def load_market_gates(start, end):
     return gates
 
 
+def load_market_membership(codes, end_date):
+    """Classify current KRX listings; never infer a market from ticker digits."""
+    requested = set(codes)
+    kospi, kosdaq = set(), set()
+    errors = []
+    for market, destination in (('KOSPI', kospi), ('KOSDAQ', kosdaq)):
+        try:
+            found = stock.get_market_ticker_list(end_date.strftime('%Y%m%d'), market=market)
+            if found:
+                destination.update(set(map(str, found)) & requested)
+        except Exception as exc:
+            errors.append(f'pykrx {market}: {type(exc).__name__}: {exc}')
+
+    missing = requested - kospi - kosdaq
+    if missing:
+        try:
+            import FinanceDataReader as fdr
+            listing = fdr.StockListing('KRX')
+            if listing is None or listing.empty:
+                raise ValueError('Empty KRX listing')
+            code_col = next((c for c in ('Code', 'Symbol', '종목코드') if c in listing.columns), None)
+            market_col = next((c for c in ('Market', '시장구분', '시장') if c in listing.columns), None)
+            if code_col is None or market_col is None:
+                raise ValueError(f'Listing columns lack code/market: {list(listing.columns)}')
+            for code, market in zip(listing[code_col], listing[market_col]):
+                normalized = str(code).strip().split('.')[0].zfill(6)
+                if normalized not in missing:
+                    continue
+                label = str(market).strip().upper()
+                if label in ('KOSPI', 'KOSDAQ'):
+                    (kospi if label == 'KOSPI' else kosdaq).add(normalized)
+            print('Market classification: FinanceDataReader KRX fallback checked', flush=True)
+        except Exception as exc:
+            errors.append(f'FinanceDataReader KRX listing: {type(exc).__name__}: {exc}')
+
+    ambiguous = kospi & kosdaq
+    if ambiguous:
+        raise RuntimeError(f'Ambiguous market membership: {sorted(ambiguous)}')
+    missing = requested - kospi - kosdaq
+    if missing:
+        raise RuntimeError(
+            f'Market classification unavailable for {sorted(missing)}; '
+            f'errors={errors}. Market filter NOT bypassed.'
+        )
+    return kospi, kosdaq
+
+
 def ticker_market(code):
     # pykrx market classification; do not guess if unavailable.
     kospi = ticker_market.kospi
@@ -347,10 +394,9 @@ def main():
     codes = load_codes(args.limit)
     prices, signals, errors = collect_data(codes, fetch_start, end_date, args.delay)
     gates = load_market_gates(fetch_start, end_date)
-    ticker_market.kospi = set(stock.get_market_ticker_list(end_date.strftime('%Y%m%d'), market='KOSPI'))
-    ticker_market.kosdaq = set(stock.get_market_ticker_list(end_date.strftime('%Y%m%d'), market='KOSDAQ'))
-    if not ticker_market.kospi or not ticker_market.kosdaq:
-        raise RuntimeError('Market classification unavailable; cannot safely test market filters')
+    ticker_market.kospi, ticker_market.kosdaq = load_market_membership(
+        list(prices), end_date
+    )
     if not prices:
         raise RuntimeError('No valid price histories; see errors above')
 
