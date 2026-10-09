@@ -18,7 +18,7 @@ status = {'run_kst': NOW.isoformat(), 'requested_end': END, 'universe': 0,
           'full_chart_verified': 0, 'duplicates_removed': 0,
           'market_data_date': None, 'universe_source': None, 'ohlcv_sources': {},
           'coverage_ratio': 0, 'scan_complete': False, 'errors': [],
-          'note': 'Candidate scan only; no trade approvals. Flows, volume profile and account cash not verified.'}
+          'note': 'Candidate scan only; no trade approvals. Flows and account cash not verified.'}
 
 def save_status():
     (OUT / 'status.json').write_text(json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -31,7 +31,6 @@ def normalize_codes(series):
     return sorted({s for x in series if (s := str(x).strip()).isdigit() and len(s) == 6})
 
 def fetch_universe():
-    # pykrx is optional; do not retry 20 times when its upstream API is unavailable.
     for offset in (0, 1, 2, 3, 5, 7, 10):
         day = (CUTOFF - timedelta(days=offset)).strftime('%Y%m%d')
         try:
@@ -45,7 +44,6 @@ def fetch_universe():
                 return codes
         except Exception as e:
             record_error(f'pykrx universe {day}: {type(e).__name__}: {e}')
-    # FDR's KRX endpoint may share the same failing upstream. Try KRX-DESC first.
     try:
         import FinanceDataReader as fdr
         for source in ('KRX-DESC', 'KRX'):
@@ -84,8 +82,7 @@ def fetch_ohlcv(code):
         raw = fdr.DataReader(code, START[:4]+'-'+START[4:6]+'-'+START[6:], END[:4]+'-'+END[4:6]+'-'+END[6:])
         if raw is None or raw.empty:
             raise ValueError('empty FDR dataframe')
-        rename = {'Open':'시가', 'High':'고가', 'Low':'저가', 'Close':'종가', 'Volume':'거래량'}
-        df = raw.rename(columns=rename)
+        df = raw.rename(columns={'Open':'시가', 'High':'고가', 'Low':'저가', 'Close':'종가', 'Volume':'거래량'})
         return df, 'FinanceDataReader'
     except Exception as e:
         errors.append(f'FDR {type(e).__name__}: {str(e)[:80]}')
@@ -105,13 +102,28 @@ def classify(df):
     monthly = c.resample('ME').last().dropna()
     w_ok = bool(len(weekly) >= 30 and weekly.iloc[-1] > weekly.rolling(10).mean().iloc[-1])
     m_ok = bool(len(monthly) >= 8 and monthly.iloc[-1] > monthly.rolling(6).mean().iloc[-1])
-    return {'close': int(c.iloc[-1]), 'ma20': round(ma20.iloc[-1], 2),
-            'ma60': round(ma60.iloc[-1], 2), 'ma120': round(ma120.iloc[-1], 2),
-            'rvol20': round(rvol, 3) if rvol is not None else None,
-            'breakout': breakout, 'first_pullback_proxy': pullback,
-            'reversal_proxy': reversal, 'weekly_filter': w_ok,
-            'monthly_filter': m_ok,
-            'score': 3 * (int(breakout) + int(pullback) + int(reversal)) + int(w_ok) + int(m_ok)}
+    rec = {'close': int(c.iloc[-1]), 'ma20': round(ma20.iloc[-1], 2),
+           'ma60': round(ma60.iloc[-1], 2), 'ma120': round(ma120.iloc[-1], 2),
+           'rvol20': round(rvol, 3) if rvol is not None else None,
+           'breakout': breakout, 'first_pullback_proxy': pullback,
+           'reversal_proxy': reversal, 'weekly_filter': w_ok,
+           'monthly_filter': m_ok,
+           'score': 3 * (int(breakout) + int(pullback) + int(reversal)) + int(w_ok) + int(m_ok)}
+    # Explicit OHLCV turnover is preferable; close*volume is only an estimate.
+    if '거래대금' in df.columns and pd.notna(df['거래대금'].iloc[-1]):
+        rec['turnover_krw'] = int(float(df['거래대금'].iloc[-1]))
+        rec['turnover_source'] = 'SOURCE_REPORTED'
+    else:
+        rec['turnover_krw'] = int(float(c.iloc[-1]) * float(v.iloc[-1]))
+        rec['turnover_source'] = 'ESTIMATED_CLOSE_X_VOLUME'
+    return rec
+
+def special_type_from_name(name):
+    # A name can prove some special types; absence of keywords does NOT prove common stock.
+    upper = name.upper()
+    if any(token in upper for token in ('ETF', 'ETN', '스팩', 'SPAC', '리츠', 'REIT')):
+        return 'NON_COMMON_OR_SPECIAL'
+    return 'UNKNOWN'
 
 def main():
     codes = fetch_universe()
@@ -159,6 +171,19 @@ def main():
         if status['download_attempted'] % 50 == 0:
             save_status()
         time.sleep(float(os.getenv('REQUEST_DELAY', '0.2')))
+    # Fetch names only for screened candidates, keeping 2600+ OHLCV requests unchanged.
+    names_ok = 0
+    for rec in rows:
+        try:
+            name = str(stock.get_market_ticker_name(rec['ticker']) or '').strip()
+        except Exception:
+            name = ''
+        rec['name'] = name
+        rec['instrument_type'] = special_type_from_name(name) if name else 'UNKNOWN'
+        names_ok += bool(name)
+    status['candidate_names_resolved'] = names_ok
+    status['candidate_instrument_type_unknown'] = sum(r['instrument_type'] == 'UNKNOWN' for r in rows)
+    status['candidate_turnover_estimated'] = sum(r['turnover_source'] != 'SOURCE_REPORTED' for r in rows)
     status['coverage_ratio'] = round(status['screened'] / len(codes), 4)
     status['scan_complete'] = status['coverage_ratio'] >= 0.95
     if rows:
