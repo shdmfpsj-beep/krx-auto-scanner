@@ -1,0 +1,1 @@
+# krx-auto-scanner
