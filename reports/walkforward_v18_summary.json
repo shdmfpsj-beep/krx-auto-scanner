@@ -1,0 +1,62 @@
+{
+  "version": "C3 v1.8",
+  "run_kst": "2026-10-10T03:06:24.298065+09:00",
+  "survivorship_bias": true,
+  "point_in_time_universe": false,
+  "live_trade_approval": false,
+  "initial_capital": 300000,
+  "requested_universe": 30,
+  "downloaded_universe": 29,
+  "fetch_failures": 1,
+  "signal_count": 196,
+  "holding_sessions": 3,
+  "cost_bps_each_side": 15.0,
+  "zero_volume_ticker_days": 17,
+  "scenarios": {
+    "open": {
+      "scenario": "open",
+      "period_return": -0.36916521000000013,
+      "daily_mdd": -0.40242912806214104,
+      "period_end_equity": 189250.43699999995,
+      "period_realized_pnl": -106741.923,
+      "period_unrealized_pnl": -4007.640000000014,
+      "accounting_delta": -2.9103830456733704e-11,
+      "completed_trades": 43,
+      "delayed_exit_count": 1,
+      "open_position_at_period_end": true
+    },
+    "close": {
+      "scenario": "close",
+      "period_return": -0.4068875433333333,
+      "daily_mdd": -0.43801821360379856,
+      "period_end_equity": 177933.737,
+      "period_realized_pnl": -118392.59299999996,
+      "period_unrealized_pnl": -3673.670000000013,
+      "accounting_delta": -2.9103830456733704e-11,
+      "completed_trades": 43,
+      "delayed_exit_count": 1,
+      "open_position_at_period_end": true
+    },
+    "low": {
+      "scenario": "low",
+      "period_return": -0.4649625433333334,
+      "daily_mdd": -0.49308437018799156,
+      "period_end_equity": 160511.23699999996,
+      "period_realized_pnl": -136149.063,
+      "period_unrealized_pnl": -3339.7000000000116,
+      "accounting_delta": -2.9103830456733704e-11,
+      "completed_trades": 43,
+      "delayed_exit_count": 1,
+      "open_position_at_period_end": true
+    }
+  },
+  "warnings": [
+    "Current KRX universe: survivorship bias, not historical PIT",
+    "Adjusted historical OHLCV may not be executable prices",
+    "Reopening CLOSE assumes exit at closing price; execution not guaranteed",
+    "Reopening LOW is an adverse sensitivity proxy, NOT a tradable fill",
+    "Reopening scenario is applied only to delayed exits",
+    "Shared-calendar session count and imperfect common-stock filter remain",
+    "No market impact, taxes, true halt records, or corporate-action model"
+  ]
+}
