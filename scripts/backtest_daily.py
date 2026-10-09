@@ -14,11 +14,12 @@ OUT = ROOT / 'reports'
 OUT.mkdir(parents=True, exist_ok=True)
 
 POLICIES = [
-    {'name': 'A_baseline_wide', 'setups': None, 'cooldown': 0, 'risk_pct': None},
-    {'name': 'B_no_breakout', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0, 'risk_pct': None},
-    {'name': 'C_no_breakout_cooldown10', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 10, 'risk_pct': None},
-    {'name': 'D_no_breakout_cooldown10_risk1', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 10, 'risk_pct': 1.0},
+    {'name': 'B_no_breakout', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0, 'risk_pct': None, 'market': 'none'},
+    {'name': 'E_market_own_index', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0, 'risk_pct': None, 'market': 'own'},
+    {'name': 'F_market_both_indices', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0, 'risk_pct': None, 'market': 'both'},
+    {'name': 'G_market_own_risk1', 'setups': ('PULLBACK_PROXY', 'REVERSAL_PROXY'), 'cooldown': 0, 'risk_pct': 1.0, 'market': 'own'},
 ]
+
 TRADE_COLUMNS = [
     'policy', 'ticker', 'setup', 'signal_date', 'entry_date', 'exit_date',
     'entry_price', 'exit_price', 'shares', 'entry_amount', 'exit_reason',
@@ -104,8 +105,50 @@ def collect_data(codes, start, end, delay):
     return prices, signals, errors
 
 
+def load_market_gates(start, end):
+    """Signal-day index close > MA60 and MA60 rising over 5 sessions."""
+    gates = {}
+    for label, ticker in (('KOSPI', '1001'), ('KOSDAQ', '2001')):
+        df = stock.get_index_ohlcv_by_date(start.strftime('%Y%m%d'),
+                                           end.strftime('%Y%m%d'), ticker)
+        if df is None or df.empty or '종가' not in df:
+            raise RuntimeError(f'Missing market index history: {label} ({ticker})')
+        close = pd.to_numeric(df['종가'], errors='coerce').dropna().sort_index()
+        if len(close) < 70:
+            raise RuntimeError(f'Insufficient market index history: {label}')
+        ma60 = close.rolling(60).mean()
+        gates[label] = ((close > ma60) & (ma60 > ma60.shift(5))).fillna(False)
+    return gates
+
+
+def ticker_market(code):
+    # pykrx market classification; do not guess if unavailable.
+    kospi = ticker_market.kospi
+    kosdaq = ticker_market.kosdaq
+    if code in kospi:
+        return 'KOSPI'
+    if code in kosdaq:
+        return 'KOSDAQ'
+    return None
+
+
+def market_pass(day, code, mode, gates):
+    if mode == 'none':
+        return True
+    own = ticker_market(code)
+    if own is None:
+        return False
+    targets = (own,) if mode == 'own' else ('KOSPI', 'KOSDAQ')
+    for label in targets:
+        series = gates[label]
+        # Require a genuine observation on signal date, not a future index value.
+        if day not in series.index or not bool(series.loc[day]):
+            return False
+    return True
+
+
 def simulate(prices, signals, start_date, end_date, capital, cost_pct,
-             max_gap_pct, stop_pct, target_pct, max_hold_days, policy):
+             max_gap_pct, stop_pct, target_pct, max_hold_days, policy, gates):
     capital = float(capital)
     trades, equity = [], []
     if not prices:
@@ -118,6 +161,8 @@ def simulate(prices, signals, start_date, end_date, capital, cost_pct,
         if not (start_date <= day.date() <= end_date):
             continue
         if policy['setups'] is not None and item['setup'] not in policy['setups']:
+            continue
+        if not market_pass(day, item['ticker'], policy['market'], gates):
             continue
         by_date.setdefault(day, []).append(item)
     for choices in by_date.values():
@@ -269,6 +314,11 @@ def main():
     fetch_start = start_date - timedelta(days=550)
     codes = load_codes(args.limit)
     prices, signals, errors = collect_data(codes, fetch_start, end_date, args.delay)
+    gates = load_market_gates(fetch_start, end_date)
+    ticker_market.kospi = set(stock.get_market_ticker_list(end_date.strftime('%Y%m%d'), market='KOSPI'))
+    ticker_market.kosdaq = set(stock.get_market_ticker_list(end_date.strftime('%Y%m%d'), market='KOSDAQ'))
+    if not ticker_market.kospi or not ticker_market.kosdaq:
+        raise RuntimeError('Market classification unavailable; cannot safely test market filters')
     if not prices:
         raise RuntimeError('No valid price histories; see errors above')
 
@@ -277,7 +327,7 @@ def main():
     for policy in POLICIES:
         trades, equity = simulate(prices, signals, start_date, end_date, args.capital,
                                   args.cost_pct, args.max_gap_pct, args.stop_pct,
-                                  args.target_pct, args.max_hold_days, policy)
+                                  args.target_pct, args.max_hold_days, policy, gates)
         all_trades.extend(trades)
         all_equity.extend(equity)
         comparisons.append(summarize(trades, equity, args.capital, policy['name']))
@@ -290,7 +340,7 @@ def main():
             part_trades, part_equity = simulate(
                 prices, signals, period_start, period_end, args.capital,
                 args.cost_pct, args.max_gap_pct, args.stop_pct,
-                args.target_pct, args.max_hold_days, policy)
+                args.target_pct, args.max_hold_days, policy, gates)
             result = summarize(part_trades, part_equity, args.capital, policy['name'])
             result['period'] = label
             result['start_date'] = str(period_start)
@@ -298,25 +348,28 @@ def main():
             splits.append(result)
 
     pd.DataFrame(all_trades, columns=TRADE_COLUMNS).to_csv(
-        OUT / 'backtest_v05_trades.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v06_trades.csv', index=False, encoding='utf-8-sig')
     pd.DataFrame(all_equity, columns=EQUITY_COLUMNS).to_csv(
-        OUT / 'backtest_v05_equity.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v06_equity.csv', index=False, encoding='utf-8-sig')
     pd.DataFrame(comparisons).to_csv(
-        OUT / 'backtest_v05_comparison.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v06_comparison.csv', index=False, encoding='utf-8-sig')
     pd.DataFrame(splits).to_csv(
-        OUT / 'backtest_v05_periods.csv', index=False, encoding='utf-8-sig')
+        OUT / 'backtest_v06_periods.csv', index=False, encoding='utf-8-sig')
     status = {
-        'version': 'C3 exploratory v0.5', 'run_kst': now.isoformat(),
+        'version': 'C3 exploratory v0.6', 'run_kst': now.isoformat(),
         'evaluation_days': args.days, 'initial_capital_krw': args.capital,
         'sample_count': len(codes), 'successful_tickers': len(prices),
         'errors': errors, 'stop_pct': args.stop_pct,
         'target_pct': args.target_pct, 'max_hold_days': args.max_hold_days,
         'comparison': comparisons, 'period_comparison': splits,
+        'market_gate': 'signal-day index close > MA60 and MA60 > MA60 five sessions ago',
         'trade_approval': 'NO',
         'limitations': [
             'Present-day candidate selection creates severe look-ahead and survivorship bias',
             'Strategies and parameters were developed after reviewing prior test results',
             'Period splits are diagnostic only, NOT genuine out-of-sample validation',
+            'Market filters were introduced after viewing v0.5 results: additional overfitting risk',
+            'Current market classification may not match historical listing market',
             'Historical signals use simplified proxies and not full C3 screening rules',
             'Daily OHLCV cannot resolve intraday order; stop assumed first',
             'Assumed next-open fills, simple symmetric costs, no liquidity/slippage impact',
@@ -324,7 +377,7 @@ def main():
             'Single position at a time; stop-loss can gap beyond planned risk',
         ],
     }
-    (OUT / 'backtest_v05_status.json').write_text(
+    (OUT / 'backtest_v06_status.json').write_text(
         json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(status, ensure_ascii=False, indent=2))
 
