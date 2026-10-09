@@ -1,4 +1,4 @@
-"""C3 v2.0: current-listing stratified-sample, independent yearly scenario backtests.
+"""C3 v2.0.1: current-listing stratified-sample, independent yearly scenario backtests.
 Research only. NOT historical point-in-time; NOT trade approval.
 Replace scripts/backtest_walkforward_v14.py; workflow mode remains walkforward_v14.
 """
@@ -262,6 +262,19 @@ def diagnose_trades(trade_frames, book, selected, args):
     return summary, detail, pd.DataFrame(grouped)
 
 
+def json_safe(obj):
+    """Convert NumPy/Pandas scalars into JSON-native values."""
+    if isinstance(obj, np.generic):
+        return obj.item()
+    if isinstance(obj, (pd.Timestamp, datetime)):
+        return obj.isoformat()
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if obj is pd.NA:
+        return None
+    raise TypeError(f'Unsupported JSON type: {type(obj).__name__}')
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--limit', type=int, default=120)
@@ -321,8 +334,8 @@ def main():
     detail.to_csv(OUT / 'walkforward_v20_trade_diagnostics.csv', index=False, encoding='utf-8-sig')
     groups.to_csv(OUT / 'walkforward_v20_group_diagnostics.csv', index=False, encoding='utf-8-sig')
     (OUT / 'walkforward_v20_diagnostics.json').write_text(
-        json.dumps(diagnostics, ensure_ascii=False, indent=2), encoding='utf-8')
-    summary = {'version': 'C3 v2.0', 'run_kst': datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+        json.dumps(diagnostics, ensure_ascii=False, indent=2, default=json_safe), encoding='utf-8')
+    summary = {'version': 'C3 v2.0.1', 'run_kst': datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
                'survivorship_bias': True, 'point_in_time_universe': False, 'live_trade_approval': False,
                'initial_capital_each_year': a.capital, 'years_independent_reset': True,
                'requested_universe': len(selected), 'downloaded_universe': len(book),
@@ -339,8 +352,8 @@ def main():
                             'Forward excursions use ticker-tradable sessions, while exit uses shared calendar; horizons differ',
                             'MFE/MAE are descriptive extremes, not guaranteed executable prices',
                             'Current market-cap tiers are not historical PIT classifications']}
-    (OUT / 'walkforward_v20_summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    (OUT / 'walkforward_v20_summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2, default=json_safe), encoding='utf-8')
+    print(json.dumps(summary, ensure_ascii=False, indent=2, default=json_safe))
 
 
 if __name__ == '__main__':
