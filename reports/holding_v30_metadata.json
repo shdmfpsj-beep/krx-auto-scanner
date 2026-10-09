@@ -1,0 +1,48 @@
+{
+  "version": "C3 v3.0 fixed holding horizon exploratory test",
+  "run_kst": "2026-10-10T08:38:15.207405+09:00",
+  "settings": {
+    "limit": 120,
+    "start_year": 2023,
+    "end_year": 2025,
+    "seed": 42,
+    "max_hold": 20,
+    "cost_bps": 15.0,
+    "capital": 300000.0
+  },
+  "sample": {
+    "population_count": 2474,
+    "sampling_method": "deterministic_sha256_stratified_round_robin",
+    "seed": 42,
+    "cap_column": "Marcap",
+    "market_cap_is_current_not_historical": true,
+    "sample_by_stratum": {
+      "KOSDAQ/large": 20,
+      "KOSDAQ/mid": 20,
+      "KOSDAQ/small": 20,
+      "KOSPI/large": 20,
+      "KOSPI/mid": 20,
+      "KOSPI/small": 20
+    }
+  },
+  "requested_tickers": 120,
+  "downloaded_tickers": 117,
+  "signal_count": 2107,
+  "download_failures": 3,
+  "simulation_failures": [],
+  "descriptive_best_hold_open_by_mean_yearly_return": 1,
+  "not_out_of_sample_optimum": true,
+  "live_trade_approval": false,
+  "warnings": [
+    "Current KRX listings and present-day market-cap strata: NOT historical PIT, survivorship bias.",
+    "Fixed holding horizon comparison, not an independently validated trading strategy.",
+    "All 1..N horizons evaluated on same years: selecting the best is multiple-testing overfit.",
+    "2025 was already inspected in previous runs; cannot claim untouched holdout.",
+    "Different holding horizons change subsequent trades; do not treat rows as paired trade outcomes.",
+    "Shared-market calendar and price adjustments may diverge from actual execution.",
+    "Open/close/low scenarios differ only for delayed reopening exits; not three independent samples.",
+    "15 bps per side is a model assumption; taxes, slippage and market impact not fully modeled.",
+    "Yearly accounts reset to initial capital; yearly returns must not be compounded directly.",
+    "No fundamental filters in this test; Open DART key not required."
+  ]
+}
