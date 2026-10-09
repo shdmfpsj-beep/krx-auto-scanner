@@ -1,4 +1,4 @@
-"""C3 v1.6 exploratory walk-forward backtest. NOT a PIT universe; NOT live trading.
+"""C3 v1.7 exploratory walk-forward backtest. NOT a PIT universe; NOT live trading.
 
 Uses a current KRX listing (survivorship bias), past-only signals, next-session
 open entry, and an explicitly defined 3-session holding period. Prices may be
@@ -41,9 +41,10 @@ def prices(code, start, end):
     x = x[~x.index.duplicated(keep='last')].sort_index()
     for c in required:
         x[c] = pd.to_numeric(x[c], errors='coerce')
+    # Keep zero-volume rows to audit non-tradable intervals.
     x = x.dropna()
-    x = x[(x[['Open', 'High', 'Low', 'Close']] > 0).all(axis=1) & (x.Volume > 0)]
-    return x if len(x) >= 130 else None
+    x = x[(x[['Open', 'High', 'Low', 'Close']] > 0).all(axis=1)]
+    return x if int((x.Volume > 0).sum()) >= 130 else None
 
 
 def indicators(x):
@@ -89,7 +90,8 @@ def main():
                 failures.append({'ticker': code, 'reason': 'missing/insufficient OHLCV'})
                 continue
             book[code] = {'name': name, 'market': market, 'data': x}
-            y = indicators(x)
+            # Preserve v1.6 signal calculations: zero-volume sessions are excluded.
+            y = indicators(x[x.Volume > 0])
             for dt, r in y.loc[start:end].iterrows():
                 if bool(r.signal):
                     signals.append({'date': dt, 'ticker': code, 'name': name,
@@ -112,21 +114,38 @@ def main():
     calendar_index = {d: i for i, d in enumerate(calendar)}
 
     cash, position, pending = float(a.capital), None, None
-    trades, daily, skipped = [], [], []
+    trades, daily, skipped, nontradable, reopenings = [], [], [], [], []
     end_snapshot = None
+    for code, item in book.items():
+        df = item['data']
+        zero = df[(df.Volume <= 0) & (df.index >= start) & (df.index <= end)]
+        for dt, row in zero.iterrows():
+            nontradable.append({'date': str(dt.date()), 'ticker': code, 'name': item['name'],
+                                'reason': 'zero_volume', 'reference_close': float(row.Close)})
     for day in calendar:
         # A position is exited on the first actual observed open ON/AFTER its
         # target calendar date; an abnormal delay is logged, never hidden.
         if position is not None and day >= position['target_exit_day']:
             code = position['ticker']
             x = book[code]['data']
-            if day in x.index:
+            if day in x.index and float(x.at[day, 'Volume']) > 0:
                 px = float(x.at[day, 'Open'])
+                if day > position['target_exit_day']:
+                    reopenings.append({'ticker': code, 'entry_date': position['entry_date'],
+                                       'target_exit_date': str(position['target_exit_day'].date()),
+                                       'actual_exit_date': str(day.date()),
+                                       'open': px, 'low': float(x.at[day, 'Low']),
+                                       'close': float(x.at[day, 'Close']),
+                                       'volume': float(x.at[day, 'Volume']),
+                                       'shares': position['shares'],
+                                       'open_exit_pnl_krw': position['shares'] * px * (1 - a.cost_bps / 10000) - position['total_entry_cost'],
+                                       'close_exit_pnl_krw_scenario': position['shares'] * float(x.at[day, 'Close']) * (1 - a.cost_bps / 10000) - position['total_entry_cost'],
+                                       'low_exit_pnl_krw_scenario': position['shares'] * float(x.at[day, 'Low']) * (1 - a.cost_bps / 10000) - position['total_entry_cost']})
                 proceeds = position['shares'] * px * (1 - a.cost_bps / 10000)
                 cash += proceeds
                 if day > position['target_exit_day']:
                     skipped.append({'date': str(day.date()), 'ticker': code,
-                                    'reason': 'delayed_exit_missing_quote',
+                                    'reason': 'delayed_exit_nontradable_or_missing_quote',
                                     'target_exit_day': str(position['target_exit_day'].date())})
                 trades.append({**{k: position[k] for k in
                                   ('signal_date', 'entry_date', 'ticker', 'name', 'setup',
@@ -140,14 +159,14 @@ def main():
                 position = None
             else:
                 skipped.append({'date': str(day.date()), 'ticker': code,
-                                'reason': 'exit_open_missing'})
+                                'reason': 'exit_zero_volume' if day in x.index else 'exit_open_missing'})
 
         if position is None and pending is not None:
             if day == pending['entry_day']:
                 for _, cand in pending['group'].iterrows():
                     code = cand['ticker']
                     x = book[code]['data']
-                    if day not in x.index:
+                    if day not in x.index or float(x.at[day, 'Volume']) <= 0:
                         continue
                     px = float(x.at[day, 'Open'])
                     shares = int(cash // (px * (1 + a.cost_bps / 10000)))
@@ -177,9 +196,9 @@ def main():
             x = book[position['ticker']]['data']
             available = x.loc[:day, 'Close']
             mark = float(available.iloc[-1]) if not available.empty else position['entry_price']
-            if day not in x.index:
+            if day not in x.index or float(x.at[day, 'Volume']) <= 0:
                 skipped.append({'date': str(day.date()), 'ticker': position['ticker'],
-                                'reason': 'stale_mark'})
+                                'reason': 'zero_volume_mark' if day in x.index else 'stale_mark'})
             equity += position['shares'] * mark
         if start <= day <= end:
             daily.append({'date': str(day.date()), 'equity': equity, 'cash': cash,
@@ -222,7 +241,7 @@ def main():
         raise RuntimeError(f'Accounting reconciliation failed: {reconcile_delta:.6f} KRW')
 
     summary = {
-        'version': 'C3 v1.6', 'run_kst': datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+        'version': 'C3 v1.7', 'run_kst': datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
         'survivorship_bias': True, 'point_in_time_universe': False,
         'live_trade_approval': False,
         'universe_source': 'FDR current KRX; imperfect name filter',
@@ -231,7 +250,7 @@ def main():
         'completed_trades_including_post_period': len(trade_df),
         'completed_trades_within_period': len(period_trades),
         'initial_capital': a.capital, 'holding_sessions': a.hold,
-        'holding_definition': 'entry open to open after 3 shared-calendar sessions',
+        'holding_definition': 'entry open to open after 3 shared-calendar sessions; zero-volume days cannot execute',
         'cost_bps_each_side': a.cost_bps,
         'period_return_mark_to_market': period_return,
         'daily_equity_mdd': mdd, 'by_setup_all_completed_trades': by_setup,
@@ -245,22 +264,28 @@ def main():
         'open_position_after_extended_simulation': bool(position),
         'delayed_exit_count': int(trade_df.exit_delayed.sum()) if not trade_df.empty else 0,
         'skipped_events': len(skipped),
+        'zero_volume_ticker_days': len(nontradable),
+        'reopening_exit_events': len(reopenings),
+        'reopening_exit_scenarios_are_not_executable_fills': True,
         'warnings': [
             'NOT a historical point-in-time universe; survivorship bias',
             'Historical adjusted OHLCV may not represent executable prices',
             'Shared calendar may include non-common trading days',
-            'Missing ticker quotes can delay exits; see exit_delayed and skipped',
+            'Zero-volume sessions are non-tradable and may delay exits',
+            'Reopening close/low P&L are sensitivity scenarios, NOT guaranteed executable fills',
             'No realistic tax, market impact, trading halt or corporate action model',
             'Period returns exclude exits after end date; full trade log includes them',
         ],
     }
-    (OUT / 'walkforward_v16_summary.json').write_text(
+    (OUT / 'walkforward_v17_summary.json').write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
-    sig.to_csv(OUT / 'walkforward_v16_candidates.csv', index=False, encoding='utf-8-sig')
-    trade_df.to_csv(OUT / 'walkforward_v16_trades.csv', index=False, encoding='utf-8-sig')
-    daily_df.to_csv(OUT / 'walkforward_v16_equity.csv', index=False, encoding='utf-8-sig')
-    pd.DataFrame(failures).to_csv(OUT / 'walkforward_v16_failures.csv', index=False, encoding='utf-8-sig')
-    pd.DataFrame(skipped).to_csv(OUT / 'walkforward_v16_skipped.csv', index=False, encoding='utf-8-sig')
+    sig.to_csv(OUT / 'walkforward_v17_candidates.csv', index=False, encoding='utf-8-sig')
+    trade_df.to_csv(OUT / 'walkforward_v17_trades.csv', index=False, encoding='utf-8-sig')
+    daily_df.to_csv(OUT / 'walkforward_v17_equity.csv', index=False, encoding='utf-8-sig')
+    pd.DataFrame(failures).to_csv(OUT / 'walkforward_v17_failures.csv', index=False, encoding='utf-8-sig')
+    pd.DataFrame(skipped).to_csv(OUT / 'walkforward_v17_skipped.csv', index=False, encoding='utf-8-sig')
+    pd.DataFrame(nontradable, columns=['date','ticker','name','reason','reference_close']).to_csv(OUT / 'walkforward_v17_nontradable.csv', index=False, encoding='utf-8-sig')
+    pd.DataFrame(reopenings, columns=['ticker','entry_date','target_exit_date','actual_exit_date','open','low','close','volume','shares','open_exit_pnl_krw','close_exit_pnl_krw_scenario','low_exit_pnl_krw_scenario']).to_csv(OUT / 'walkforward_v17_reopenings.csv', index=False, encoding='utf-8-sig')
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
