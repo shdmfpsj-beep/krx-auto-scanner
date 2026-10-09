@@ -1,0 +1,145 @@
+{
+  "version": "C3 exploratory v0.4",
+  "run_kst": "2026-10-10T01:06:28.704043+09:00",
+  "evaluation_days": 365,
+  "initial_capital_krw": 1000000,
+  "sample_count": 20,
+  "successful_tickers": 20,
+  "errors": [],
+  "scenarios": [
+    {
+      "policy": "baseline_wide",
+      "initial_capital_krw": 1000000,
+      "final_equity_krw": 1078926.04,
+      "total_return_pct": 7.893,
+      "max_drawdown_pct": -26.671,
+      "completed_trades": 52,
+      "win_rate_pct": 38.46,
+      "average_net_return_pct": 0.305,
+      "profit_factor": 1.056,
+      "setup_breakdown": {
+        "BREAKOUT": {
+          "count": 9,
+          "sum": -63645.23000000001
+        },
+        "PULLBACK_PROXY": {
+          "count": 37,
+          "sum": 45284.23999999999
+        },
+        "REVERSAL_PROXY": {
+          "count": 6,
+          "sum": 97287.01999999999
+        }
+      }
+    },
+    {
+      "policy": "cooldown_5",
+      "initial_capital_krw": 1000000,
+      "final_equity_krw": 1014325.27,
+      "total_return_pct": 1.433,
+      "max_drawdown_pct": -30.984,
+      "completed_trades": 51,
+      "win_rate_pct": 37.25,
+      "average_net_return_pct": 0.187,
+      "profit_factor": 1.01,
+      "setup_breakdown": {
+        "BREAKOUT": {
+          "count": 11,
+          "sum": -181424.37
+        },
+        "PULLBACK_PROXY": {
+          "count": 34,
+          "sum": 96397.62
+        },
+        "REVERSAL_PROXY": {
+          "count": 6,
+          "sum": 99351.99999999999
+        }
+      }
+    },
+    {
+      "policy": "cooldown_10",
+      "initial_capital_krw": 1000000,
+      "final_equity_krw": 1164700.61,
+      "total_return_pct": 16.47,
+      "max_drawdown_pct": -26.644,
+      "completed_trades": 47,
+      "win_rate_pct": 40.43,
+      "average_net_return_pct": 0.483,
+      "profit_factor": 1.126,
+      "setup_breakdown": {
+        "BREAKOUT": {
+          "count": 11,
+          "sum": -194330.87
+        },
+        "PULLBACK_PROXY": {
+          "count": 30,
+          "sum": 243480.27000000002
+        },
+        "REVERSAL_PROXY": {
+          "count": 6,
+          "sum": 115551.20000000001
+        }
+      }
+    },
+    {
+      "policy": "risk_1pct",
+      "initial_capital_krw": 1000000,
+      "final_equity_krw": 1034017.69,
+      "total_return_pct": 3.402,
+      "max_drawdown_pct": -6.705,
+      "completed_trades": 52,
+      "win_rate_pct": 38.46,
+      "average_net_return_pct": 0.305,
+      "profit_factor": 1.112,
+      "setup_breakdown": {
+        "BREAKOUT": {
+          "count": 9,
+          "sum": -8482.760000000002
+        },
+        "PULLBACK_PROXY": {
+          "count": 37,
+          "sum": 19671.579999999994
+        },
+        "REVERSAL_PROXY": {
+          "count": 6,
+          "sum": 22828.829999999994
+        }
+      }
+    },
+    {
+      "policy": "combined",
+      "initial_capital_krw": 1000000,
+      "final_equity_krw": 953675.41,
+      "total_return_pct": -4.632,
+      "max_drawdown_pct": -10.759,
+      "completed_trades": 36,
+      "win_rate_pct": 33.33,
+      "average_net_return_pct": -0.557,
+      "profit_factor": 0.801,
+      "setup_breakdown": {
+        "BREAKOUT": {
+          "count": 20,
+          "sum": -61918.21
+        },
+        "PULLBACK_PROXY": {
+          "count": 11,
+          "sum": -15546.26
+        },
+        "REVERSAL_PROXY": {
+          "count": 5,
+          "sum": 31139.87
+        }
+      }
+    }
+  ],
+  "trade_approval": "NO",
+  "limitations": [
+    "Current candidate universe creates severe survivorship and selection bias",
+    "Wide 4/8/7 baseline was selected after observing v0.3 results: in-sample bias",
+    "Risk limits are planned losses, not guarantees against gap losses",
+    "Daily OHLCV cannot establish intraday fill order; stop assumed first",
+    "Hypothetical next-open executions, simplified costs and no liquidity impact",
+    "Results are not independent out-of-sample validation"
+  ]
+}
