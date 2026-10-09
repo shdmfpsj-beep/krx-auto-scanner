@@ -66,7 +66,7 @@ jobs:
 
       - name: Run C3 exploratory backtest
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'backtest_c3'
-        run: python scripts/backtest_daily.py --limit 20 --days 365
+        run: python scripts/backtest_daily.py --limit 50 --days 730
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
