@@ -15,6 +15,7 @@ on:
           - pit_test_v10
           - diagnose_universe
           - walkforward_v14
+          - holding_v30
 
   schedule:
     - cron: '30 8 * * 1-5'
@@ -110,8 +111,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_universe'
         run: python scripts/diagnose_universe.py
 
-      # C3 v1.9 백테스트 실행 오류 수정
-      - name: Run C3 v1.9 walk-forward backtest
+      - name: Run C3 v2.0.1 walk-forward backtest
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'walkforward_v14'
         run: |
           python scripts/backtest_walkforward_v14.py \
@@ -120,6 +120,18 @@ jobs:
             --end-year 2025 \
             --seed 42 \
             --hold 3 \
+            --cost-bps 15 \
+            --capital 300000
+
+      - name: Compare C3 v3.0 holding periods 1 to 20 sessions
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'holding_v30'
+        run: |
+          python scripts/backtest_holding_v30.py \
+            --limit 120 \
+            --start-year 2023 \
+            --end-year 2025 \
+            --seed 42 \
+            --max-hold 20 \
             --cost-bps 15 \
             --capital 300000
 
