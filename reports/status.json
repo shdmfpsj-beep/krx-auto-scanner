@@ -1,5 +1,6 @@
 {
-  "run_kst": "2026-10-09T20:17:37.886991+09:00",
+  "version": "2.2",
+  "run_kst": "2026-10-09T21:12:20.816117+09:00",
   "requested_end": "20261009",
   "universe": 2629,
   "download_attempted": 2629,
@@ -11,12 +12,19 @@
   "full_chart_verified": 0,
   "duplicates_removed": 0,
   "market_data_date": "2026-10-08",
+  "market_data_date_counts": {
+    "2026-10-08": 2607
+  },
+  "reference_market_date": "2026-10-08",
+  "reference_date_source": "MOST_COMMON_VALID_OHLCV_DATE",
+  "candidate_date_mismatch": 0,
   "universe_source": "FDR KRX (current listing; not point-in-time)",
   "ohlcv_sources": {
     "pykrx": 2607
   },
   "coverage_ratio": 0.9916,
   "scan_complete": true,
+  "data_date_verified": true,
   "errors": [
     "FDR KRX-DESC: HTTPError: HTTP Error 404: Not Found",
     "153890: ValueError: only 69 sessions",
@@ -42,9 +50,9 @@
     "493280: ValueError: only 136 sessions",
     "950260: ValueError: only 35 sessions"
   ],
-  "note": "Candidate scan only; no trade approvals. Flows and account cash not verified.",
+  "note": "Technical candidate scan only; no trade approvals. Flows and account cash not verified.",
   "universe_reference_date": "2026-10-09",
   "candidate_names_resolved": 138,
-  "candidate_instrument_type_unknown": 126,
+  "candidate_instrument_type_unknown": 124,
   "candidate_turnover_estimated": 138
 }
