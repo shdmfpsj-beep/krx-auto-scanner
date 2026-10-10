@@ -23,6 +23,7 @@ on:
           - audit_v35
           - realism_v36
           - split_v37
+          - dip_v38
           - diagnose_v363
 
   schedule:
@@ -206,6 +207,18 @@ jobs:
             --take-pct 0.15 \
             --cost-bps 15 \
             --slip-bps 10
+
+      - name: Run C3 v3.8 dip-buy and cash-exposure control study
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'dip_v38'
+        run: |
+          python scripts/backtest_realism_v36.py \
+            --capitals 300000,500000,1000000,3000000,10000000 \
+            --holds 5,10,15,20 \
+            --stop-pct 0.07 \
+            --take-pct 0.15 \
+            --cost-bps 15 \
+            --slip-bps 10 \
+            --dip-study
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
