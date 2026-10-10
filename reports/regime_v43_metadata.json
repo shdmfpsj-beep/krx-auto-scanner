@@ -1,0 +1,17 @@
+{
+  "version": "v4.3 audit",
+  "source": "regime_v42_comparison.csv",
+  "scenarios": 192,
+  "summary_rows": 48,
+  "status": "paired scenario audit, NOT an independent backtest",
+  "limitations": [
+    "Actual market exposure and time in market are NOT available in v4.2 summary; cannot calculate them honestly.",
+    "MDD is portfolio daily-close drawdown, not intraday worst loss.",
+    "Scenario counts are correlated parameter variations, NOT independent trials.",
+    "2025 has been repeatedly inspected and is not untouched out-of-sample.",
+    "Past-universe point-in-time integrity and signal lookahead have not been independently certified.",
+    "Research capital is not a fixed live trading budget.",
+    "Do not authorize live averaging down based on this report."
+  ],
+  "next_requirement": "Export daily equity curves, open-position exposure and transaction-level fills from replay for a true exposure-matched audit."
+}
