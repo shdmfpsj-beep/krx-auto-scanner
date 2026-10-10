@@ -22,6 +22,7 @@ on:
           - portfolio_v34
           - audit_v35
           - realism_v36
+          - diagnose_v363
 
   schedule:
     - cron: '30 8 * * 1-5'
@@ -192,6 +193,10 @@ jobs:
             --take-pct 0.15 \
             --cost-bps 15 \
             --slip-bps 10
+
+      - name: Diagnose C3 v3.6.3 OHLCV failures
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
+        run: python scripts/diagnose_ohlcv_v363.py
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
