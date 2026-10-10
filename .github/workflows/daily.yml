@@ -20,6 +20,7 @@ on:
           - entry_v32
           - rules_v33
           - portfolio_v34
+          - audit_v35
 
   schedule:
     - cron: '30 8 * * 1-5'
@@ -175,6 +176,10 @@ jobs:
             --capitals 300000,500000,1000000,3000000,10000000 \
             --holds 5,10,15,20 \
             --cost-bps 15
+
+      - name: Audit C3 v3.5 portfolio robustness
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'audit_v35'
+        run: python scripts/backtest_audit_v35.py
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
