@@ -1,0 +1,22 @@
+{
+  "version": "v4.2",
+  "completed": 192,
+  "rejected": 0,
+  "capital_research_only": 1000000,
+  "holds": [
+    5,
+    10
+  ],
+  "regime": "Prior-session KOSPI and KOSDAQ close/MA20/MA60/MA120, with strict asof lag; down regime holds cash under regime_switch",
+  "limitations": [
+    "Research only; survivor bias and signal feature point-in-time not independently audited.",
+    "2025 has been inspected previously, NOT a pristine out-of-sample test.",
+    "Index data is fetched by FinanceDataReader and may be revised; source accuracy and point-in-time index constituents are not audited.",
+    "Daily OHLCV cannot identify intraday path; v3.9 conservative stop-first assumption.",
+    "Different arms may trade different numbers of positions; compare exposure and trade count.",
+    "Capital is research normalization; live sizing uses actual orderable cash.",
+    "Regime thresholds were designed after reviewing prior periods, so 2025 is NOT independent validation.",
+    "Regime-switch holds cash in down/unknown regimes; compare number of trades and exposure.",
+    "Index MA values are calculated on adjusted or unadjusted provider closes as supplied; no guarantee of historic revision-free data."
+  ]
+}
