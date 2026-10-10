@@ -1,0 +1,41 @@
+{
+  "version": "C3 v3.1 paired signal holding study",
+  "run_kst": "2026-10-10T09:30:47.191935+09:00",
+  "settings": {
+    "limit": 120,
+    "start_year": 2023,
+    "end_year": 2025,
+    "seed": 42,
+    "max_hold": 20,
+    "cost_bps": 15.0
+  },
+  "sample": {
+    "population_count": 2474,
+    "sampling_method": "deterministic_sha256_stratified_round_robin",
+    "seed": 42,
+    "cap_column": "Marcap",
+    "market_cap_is_current_not_historical": true,
+    "sample_by_stratum": {
+      "KOSDAQ/large": 20,
+      "KOSDAQ/mid": 20,
+      "KOSDAQ/small": 20,
+      "KOSPI/large": 20,
+      "KOSPI/mid": 20,
+      "KOSPI/small": 20
+    }
+  },
+  "paired_signal_count": 2107,
+  "live_trade_approval": false,
+  "warnings": [
+    "Present-day listed universe and cap tiers; severe survivorship/PIT bias.",
+    "Every qualifying signal is an independent hypothetical trade; overlapping entries are correlated.",
+    "Not a capital-constrained portfolio; do not interpret mean trade returns as account returns.",
+    "Exit at next-session OPEN N ticker-tradable sessions after entry; no stop/target.",
+    "All horizons share the exact same entry signal IDs; late signals without 20-day follow-up excluded.",
+    "Entry at next tradable session OPEN may be impossible after suspension/delisting.",
+    "Fees approximated as bps per side; taxes, slippage and market impact not fully included.",
+    "Bootstrap clusters by signal day only; cross-day dependence and repeated tickers remain.",
+    "2023-2025 data already inspected; results are exploratory, not clean out-of-sample validation.",
+    "Picking best of 20 horizons on these same observations causes multiple-comparison bias."
+  ]
+}
