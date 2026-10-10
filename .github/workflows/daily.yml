@@ -19,6 +19,7 @@ on:
           - paired_v31
           - entry_v32
           - rules_v33
+          - portfolio_v34
 
   schedule:
     - cron: '30 8 * * 1-5'
@@ -166,6 +167,14 @@ jobs:
           python scripts/backtest_entry_rules_v33.py \
             --bootstrap 500 \
             --seed 42
+
+      - name: Compare C3 v3.4 one-position portfolio and capital sensitivity
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'portfolio_v34'
+        run: |
+          python scripts/backtest_portfolio_v34.py \
+            --capitals 300000,500000,1000000,3000000,10000000 \
+            --holds 5,10,15,20 \
+            --cost-bps 15
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
