@@ -1,4 +1,4 @@
-"""C3 v3.6.1 research-only daily OHLCV one-position replay.
+"""C3 v3.6.2 research-only daily OHLCV one-position replay.
 Usage: python scripts/backtest_realism_v36.py
 Requires reports/entry_v32_paired_trades.csv and FinanceDataReader.
 NOT point-in-time universe; never use for live trade approval.
@@ -74,7 +74,7 @@ def _covers_required_signals(d, entries, end):
     """
     if d.empty:
         return False, 'empty_history'
-    needed = set(pd.to_datetime(entries).normalize())
+    needed = set(pd.DatetimeIndex(pd.to_datetime(entries, errors='raise')).normalize())
     missing = sorted(needed - set(d.index))
     if missing:
         return False, f'missing_entry_bars:{len(missing)} first={missing[0].date()}'
@@ -273,7 +273,7 @@ def main():
     REPORTS.mkdir(parents=True,exist_ok=True)
     pd.DataFrame(errors,columns=['ticker','error']).to_csv(REPORTS/'realism_v36_failures.csv',index=False,encoding='utf-8-sig')
     coverage=len(bars)/len(tickers) if tickers else 0
-    meta={'version':'C3 v3.6.1 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+    meta={'version':'C3 v3.6.2 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
           'signals':len(x),'tickers_requested':len(tickers),'tickers_valid':len(bars),
           'tickers_failed':len(errors),'ohlcv_coverage_pct':round(100*coverage,2),
           'cache_hits':sum(v=='cache' for v in sources.values()),
@@ -310,7 +310,7 @@ def main():
     pd.DataFrame(equities).to_csv(REPORTS/'realism_v36_daily_equity.csv',index=False,encoding='utf-8-sig')
     meta['scenarios']=len(summaries)
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(f'C3 v3.6.1 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
+    print(f'C3 v3.6.2 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
 
 
 if __name__=='__main__':
