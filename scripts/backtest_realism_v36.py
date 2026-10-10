@@ -1,4 +1,4 @@
-"""C3 v3.6.4 research-only daily OHLCV one-position replay.
+"""C3 v3.6.5 research-only daily OHLCV one-position replay.
 Usage: python scripts/backtest_realism_v36.py
 Requires reports/entry_v32_paired_trades.csv and FinanceDataReader.
 NOT point-in-time universe; never use for live trade approval.
@@ -134,6 +134,20 @@ def history(ticker, start, end, entries, refresh=False, attempts=4, delay=1.5):
     raise RuntimeError(' | '.join(issues)[-900:])
 
 
+def rejection_detail(reason, ticker='', dt=None, position=None, candle=None):
+    """Audit a rejected scenario without altering the execution or acceptance rules."""
+    p = position or {}
+    row = {'reason': reason, 'ticker': str(ticker),
+           'failure_date': dt.date().isoformat() if dt is not None else '',
+           'signal_id': str(p.get('signal_id', '')),
+           'position_entry_date': p['entry_date'].date().isoformat()
+           if p.get('entry_date') is not None else '',
+           'shares': p.get('shares', ''), 'entry_fill': p.get('entry_fill', '')}
+    for col in ('Open', 'High', 'Low', 'Close', 'Volume'):
+        row[col] = candle.get(col, '') if candle is not None else ''
+    return row
+
+
 def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
            take_pct, cost_bps, slip_bps):
     eligible = signals if strategy == 'A_baseline' else signals.loc[signals.improved]
@@ -145,7 +159,7 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
     states = {ticker: classify_history(d) for ticker, d in bars.items()}
     dates = sorted(set().union(*(set(d.index) for d in bars.values())))
     if not dates:
-        return None, [], []
+        return None, [], [rejection_detail('no_calendar_dates')]
     groups = {k:v for k,v in eligible.groupby('entry_date', sort=False)}
     cash = float(capital)
     position = None
@@ -169,7 +183,8 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
                     invalid_holding_days += 1
                     # An unresolvable mark/exit makes this entire scenario
                     # unreportable, not merely the offending trade.
-                    return None, [], []
+                    return None, [], [rejection_detail(
+                        'invalid_bar_while_holding', p['ticker'], dt, p, d.loc[dt])]
                 if state == 'nontrading':
                     nontrading_holding_days += 1
                     # No stop/take/time exit on a non-trading day.
@@ -237,7 +252,10 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
             d = bars[position['ticker']]
             last = d.loc[:dt]
             if not last.empty and states[position['ticker']].loc[last.index[-1]] == 'invalid':
-                return None, [], []
+                bad_dt = last.index[-1]
+                return None, [], [rejection_detail(
+                    'invalid_close_mark', position['ticker'], bad_dt,
+                    position, last.iloc[-1])]
             px = float(last.iloc[-1]['Close']) if not last.empty else position['entry_fill']
             equity = cash + position['shares'] * px * sell_mult * (1 - fee_rate)
         ledger.append({'date':dt.date().isoformat(),'strategy':strategy,
@@ -320,7 +338,7 @@ def main():
                                   'invalid_days','entry_days_nontradable']).to_csv(
         REPORTS/'realism_v364_data_quality.csv',index=False,encoding='utf-8-sig')
     coverage=len(bars)/len(tickers) if tickers else 0
-    meta={'version':'C3 v3.6.4 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+    meta={'version':'C3 v3.6.5 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
           'signals':len(x),'tickers_requested':len(tickers),'tickers_valid':len(bars),
           'tickers_failed':len(errors),'ohlcv_coverage_pct':round(100*coverage,2),
           'cache_hits':sum(v=='cache' for v in sources.values()),
@@ -352,6 +370,7 @@ def main():
         raise SystemExit(f"Insufficient tradable signal entry coverage: {meta['signal_entry_coverage_pct']}%; refusing misleading report")
     summaries,trades,equities=[],[],[]
     rejected_scenarios=[]
+    rejection_details=[]
     for hold in holds:
         for capital in capitals:
             for strat in ('A_baseline','B_improved'):
@@ -361,21 +380,33 @@ def main():
                     if result:
                         summaries.append(result);trades.extend(ts);equities.extend(eq)
                     else:
+                        diagnostics = eq or [rejection_detail('unknown_replay_rejection')]
+                        for detail in diagnostics:
+                            rejection_details.append({'hold':hold,'capital':capital,
+                                                      'strategy':strat,'selection':policy,
+                                                      **detail})
                         rejected_scenarios.append({'hold':hold,'capital':capital,
                                                    'strategy':strat,'selection':policy,
-                                                   'reason':'invalid_bar_while_holding_or_no_dates'})
-    pd.DataFrame(rejected_scenarios).to_csv(
-        REPORTS/'realism_v364_rejected_scenarios.csv',index=False,encoding='utf-8-sig')
+                                                   'reason':diagnostics[0]['reason']})
+    pd.DataFrame(rejected_scenarios, columns=['hold','capital','strategy','selection','reason']).to_csv(
+        REPORTS/'realism_v365_rejected_scenarios.csv',index=False,encoding='utf-8-sig')
+    detail_columns=['hold','capital','strategy','selection','reason','ticker',
+                    'failure_date','signal_id','position_entry_date','shares',
+                    'entry_fill','Open','High','Low','Close','Volume']
+    pd.DataFrame(rejection_details, columns=detail_columns).to_csv(
+        REPORTS/'realism_v365_rejection_details.csv',index=False,encoding='utf-8-sig')
     if rejected_scenarios:
         meta['rejected_scenarios']=len(rejected_scenarios)
+        meta['rejection_detail_file']='realism_v365_rejection_details.csv'
         (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
+        print('Rejection detail written: realism_v365_rejection_details.csv', flush=True)
         raise SystemExit(f'{len(rejected_scenarios)} scenarios contain unresolved holding-period prices; refusing partial comparative report')
     pd.DataFrame(summaries).to_csv(REPORTS/'realism_v36_summary.csv',index=False,encoding='utf-8-sig')
     pd.DataFrame(trades).to_csv(REPORTS/'realism_v36_trades.csv',index=False,encoding='utf-8-sig')
     pd.DataFrame(equities).to_csv(REPORTS/'realism_v36_daily_equity.csv',index=False,encoding='utf-8-sig')
     meta['scenarios']=len(summaries)
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(f'C3 v3.6.4 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
+    print(f'C3 v3.6.5 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
 
 
 if __name__=='__main__':
