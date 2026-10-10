@@ -432,7 +432,7 @@ def main():
     p.add_argument('--slip-bps',type=float,default=10)
     p.add_argument('--refresh-cache',action='store_true')
     p.add_argument('--verified-bars',default='',help='Optional independently verified OHLCV CSV with source URLs')
-    p.add_argument('--provider-comparison',default='',help='Research-only CSV from provider comparison workflow; no auto price replacement')
+    p.add_argument('--provider-comparison',default=str(REPORTS/'verify_088980_provider_comparison.csv'),help='Research-only CSV from provider comparison workflow; no auto price replacement')
     p.add_argument('--max-tickers',type=int,default=0,help='Research smoke-test only; 0=all')
     p.add_argument('--download-attempts',type=int,default=4)
     p.add_argument('--download-delay',type=float,default=1.5)
