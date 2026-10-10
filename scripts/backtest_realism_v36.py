@@ -1,4 +1,4 @@
-"""C3 v3.6.2 research-only daily OHLCV one-position replay.
+"""C3 v3.6.4 research-only daily OHLCV one-position replay.
 Usage: python scripts/backtest_realism_v36.py
 Requires reports/entry_v32_paired_trades.csv and FinanceDataReader.
 NOT point-in-time universe; never use for live trade approval.
@@ -59,26 +59,45 @@ def _normalize_bars(d):
     return d
 
 
-def validate_history(d):
+def classify_history(d):
+    """Retain raw dates. Never repair a quoted price or fabricate an execution."""
     if d.empty or d.index.has_duplicates:
-        return False
+        raise ValueError('empty_or_duplicate_history')
     v = d[['Open','High','Low','Close']]
-    return bool(v.notna().all().all() and (v > 0).all().all() and
-                (d.High >= d[['Open','Close','Low']].max(axis=1)).all() and
-                (d.Low <= d[['Open','Close','High']].min(axis=1)).all())
+    finite = v.notna().all(axis=1) & np.isfinite(v).all(axis=1)
+    valid = (finite & (v > 0).all(axis=1) &
+             (d.High >= d[['Open','Close','Low']].max(axis=1)) &
+             (d.Low <= d[['Open','Close','High']].min(axis=1)))
+    # Non-trading candidate, NOT an asserted exchange suspension.
+    # Positive close is usable only as a stale mark; never for execution.
+    inactive = (finite & d.Open.eq(0) & d.High.eq(0) & d.Low.eq(0) &
+                d.Close.gt(0) & d.Volume.eq(0))
+    state = pd.Series('invalid', index=d.index, dtype='object')
+    state.loc[inactive] = 'nontrading'
+    state.loc[valid] = 'tradable'
+    return state
 
 
 def _covers_required_signals(d, entries, end):
-    """Check availability on required entry days, not calendar-day continuity.
-    Signals may include delisted/suspended securities; don't invent missing bars.
-    """
     if d.empty:
         return False, 'empty_history'
     needed = set(pd.DatetimeIndex(pd.to_datetime(entries, errors='raise')).normalize())
     missing = sorted(needed - set(d.index))
     if missing:
         return False, f'missing_entry_bars:{len(missing)} first={missing[0].date()}'
+    # A nontradable entry does not invalidate the entire ticker, but must be
+    # separately counted and prohibited from opening a position.
     return True, ''
+
+
+def assess_history(d, entries, end):
+    states = classify_history(d)
+    ok, reason = _covers_required_signals(d, entries, end)
+    if not ok:
+        raise ValueError(reason)
+    if not states.eq('tradable').any():
+        raise ValueError('no_tradable_bars')
+    return states
 
 
 def history(ticker, start, end, entries, refresh=False, attempts=4, delay=1.5):
@@ -89,13 +108,8 @@ def history(ticker, start, end, entries, refresh=False, attempts=4, delay=1.5):
         try:
             cached = _normalize_bars(pd.read_csv(path, parse_dates=['Date']).set_index('Date'))
             cached = cached.loc[(cached.index >= start) & (cached.index <= end)]
-            if validate_history(cached):
-                covered, reason = _covers_required_signals(cached, entries, end)
-                if covered:
-                    return cached, 'cache'
-                issues.append('cache_' + reason)
-            else:
-                issues.append('cache_integrity_failure')
+            assess_history(cached, entries, end)
+            return cached, 'cache'
         except Exception as exc:
             issues.append(f'cache_read_error:{type(exc).__name__}:{exc}')
     for attempt in range(1, attempts + 1):
@@ -104,11 +118,7 @@ def history(ticker, start, end, entries, refresh=False, attempts=4, delay=1.5):
             end_query = (end + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
             d = _normalize_bars(fdr.DataReader(ticker, start.strftime('%Y-%m-%d'), end_query))
             d = d.loc[(d.index >= start) & (d.index <= end)]
-            if not validate_history(d):
-                raise ValueError('OHLCV integrity failure')
-            covered, reason = _covers_required_signals(d, entries, end)
-            if not covered:
-                raise ValueError(reason)
+            assess_history(d, entries, end)
             # Atomic cache replacement avoids corrupting a usable file.
             temp = path.with_suffix('.tmp')
             d.to_csv(temp)
@@ -132,6 +142,7 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
                                         ascending=[True,False,True], kind='stable')
     else:
         eligible = eligible.sort_values(['entry_date','ticker'], kind='stable')
+    states = {ticker: classify_history(d) for ticker, d in bars.items()}
     dates = sorted(set().union(*(set(d.index) for d in bars.values())))
     if not dates:
         return None, [], []
@@ -140,6 +151,10 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
     position = None
     ledger, trades = [], []
     skipped_missing = 0
+    invalid_holding_days = 0
+    nontrading_holding_days = 0
+    blocked_entry_days = 0
+    tradable_ages = {}
     buy_mult = 1 + slip_bps / 10000
     sell_mult = 1 - slip_bps / 10000
     fee_rate = cost_bps / 20000
@@ -149,42 +164,57 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
             p = position
             d = bars[p['ticker']]
             if dt in d.index and dt > p['entry_date']:
-                candle = d.loc[dt]
-                age = d.index.get_loc(dt) - d.index.get_loc(p['entry_date'])
-                op, hi, lo = (float(candle[k]) for k in ('Open','High','Low'))
-                stop_price = p['entry_fill'] * (1 - stop_pct)
-                take_price = p['entry_fill'] * (1 + take_pct)
-                exit_price, reason = None, None
-                if op <= stop_price:
-                    exit_price, reason = op, 'stop_gap'
-                elif op >= take_price:
-                    exit_price, reason = op, 'take_gap'
-                elif age >= hold:
-                    exit_price, reason = op, 'time_open'
-                elif lo <= stop_price:
-                    exit_price, reason = stop_price, 'stop_intraday'
-                elif hi >= take_price:
-                    exit_price, reason = take_price, 'take_intraday'
-                if exit_price is not None:
-                    exit_fill = exit_price * sell_mult
-                    proceeds = p['shares'] * exit_fill * (1 - fee_rate)
-                    cash += proceeds
-                    trades.append({'strategy':strategy,'selection':selection,'hold':hold,
-                                   'capital':capital,'ticker':p['ticker'],
-                                   'signal_id':p['signal_id'],
-                                   'entry_date':p['entry_date'].date().isoformat(),
-                                   'exit_date':dt.date().isoformat(),
-                                   'entry_fill':p['entry_fill'],'exit_fill':exit_fill,
-                                   'shares':p['shares'],'exit_reason':reason,
-                                   'net_pnl':proceeds-p['total_entry_cost'],
-                                   'net_return_pct':100*(proceeds/p['total_entry_cost']-1)})
-                    position = None
-                    exited_open = reason in ('time_open','stop_gap','take_gap')
+                state = states[p['ticker']].loc[dt]
+                if state == 'invalid':
+                    invalid_holding_days += 1
+                    # An unresolvable mark/exit makes this entire scenario
+                    # unreportable, not merely the offending trade.
+                    return None, [], []
+                if state == 'nontrading':
+                    nontrading_holding_days += 1
+                    # No stop/take/time exit on a non-trading day.
+                    pass
+                else:
+                    tradable_ages[p['ticker']] = tradable_ages.get(p['ticker'], 0) + 1
+                    candle = d.loc[dt]
+                    age = tradable_ages[p['ticker']]
+                    op, hi, lo = (float(candle[k]) for k in ('Open','High','Low'))
+                    stop_price = p['entry_fill'] * (1 - stop_pct)
+                    take_price = p['entry_fill'] * (1 + take_pct)
+                    exit_price, reason = None, None
+                    if op <= stop_price:
+                        exit_price, reason = op, 'stop_gap'
+                    elif op >= take_price:
+                        exit_price, reason = op, 'take_gap'
+                    elif age >= hold:
+                        exit_price, reason = op, 'time_open'
+                    elif lo <= stop_price:
+                        exit_price, reason = stop_price, 'stop_intraday'
+                    elif hi >= take_price:
+                        exit_price, reason = take_price, 'take_intraday'
+                    if exit_price is not None:
+                        exit_fill = exit_price * sell_mult
+                        proceeds = p['shares'] * exit_fill * (1 - fee_rate)
+                        cash += proceeds
+                        trades.append({'strategy':strategy,'selection':selection,'hold':hold,
+                                       'capital':capital,'ticker':p['ticker'],
+                                       'signal_id':p['signal_id'],
+                                       'entry_date':p['entry_date'].date().isoformat(),
+                                       'exit_date':dt.date().isoformat(),
+                                       'entry_fill':p['entry_fill'],'exit_fill':exit_fill,
+                                       'shares':p['shares'],'exit_reason':reason,
+                                       'net_pnl':proceeds-p['total_entry_cost'],
+                                       'net_return_pct':100*(proceeds/p['total_entry_cost']-1)})
+                        position = None
+                        exited_open = reason in ('time_open','stop_gap','take_gap')
         if position is None and (dt in groups) and (not trades or trades[-1]['exit_date'] != dt.date().isoformat() or exited_open):
             for _, sig in groups[dt].iterrows():
                 d = bars.get(sig.ticker)
                 if d is None or dt not in d.index:
                     skipped_missing += 1
+                    continue
+                if states[sig.ticker].loc[dt] != 'tradable':
+                    blocked_entry_days += 1
                     continue
                 op = float(d.loc[dt,'Open'])
                 if abs(op / float(sig.entry_open) - 1) > .03:
@@ -196,6 +226,7 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
                     continue
                 total = shares * fill * (1 + fee_rate)
                 cash -= total
+                tradable_ages[sig.ticker] = 0
                 position = {'ticker':sig.ticker,'signal_id':sig.signal_id,
                             'entry_date':dt,'entry_fill':fill,'shares':shares,
                             'total_entry_cost':total}
@@ -205,6 +236,8 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
         else:
             d = bars[position['ticker']]
             last = d.loc[:dt]
+            if not last.empty and states[position['ticker']].loc[last.index[-1]] == 'invalid':
+                return None, [], []
             px = float(last.iloc[-1]['Close']) if not last.empty else position['entry_fill']
             equity = cash + position['shares'] * px * sell_mult * (1 - fee_rate)
         ledger.append({'date':dt.date().isoformat(),'strategy':strategy,
@@ -219,6 +252,9 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
                'capital':capital,'stop_pct':stop_pct,'take_pct':take_pct,
                'trades_closed':len(trades),'open_position':bool(position),
                'skipped_missing_or_price_mismatch':skipped_missing,
+               'blocked_nontradable_entries':blocked_entry_days,
+               'nontrading_holding_days':nontrading_holding_days,
+               'invalid_holding_days':invalid_holding_days,
                'total_return_pct':100*(vals[-1]/capital-1),
                'cagr_pct':100*((vals[-1]/capital)**(1/years)-1) if vals[-1]>0 else None,
                'daily_close_mdd_pct':mdd,
@@ -258,6 +294,7 @@ def main():
     start=x.entry_date.min()-pd.Timedelta(days=10)
     end=x.entry_date.max()+pd.Timedelta(days=max(60,max(holds)*3))
     bars, errors, sources={},[],{}
+    quality=[]
     for i,ticker in enumerate(tickers,1):
         entries=x.loc[x.ticker.eq(ticker),'entry_date']
         try:
@@ -265,6 +302,13 @@ def main():
                               args.download_attempts,args.download_delay)
             bars[ticker]=d
             sources[ticker]=source
+            st=classify_history(d)
+            counts=st.value_counts()
+            quality.append({'ticker':ticker,'source':source,
+                            'tradable_days':int(counts.get('tradable',0)),
+                            'nontrading_days':int(counts.get('nontrading',0)),
+                            'invalid_days':int(counts.get('invalid',0)),
+                            'entry_days_nontradable':int(sum(st.get(dt,'missing')!='tradable' for dt in entries))})
         except Exception as e:
             errors.append({'ticker':ticker,'error':str(e)[:900]})
             print(f'FAILED {ticker}: {str(e)[-250:]}',flush=True)
@@ -272,14 +316,19 @@ def main():
             print(f'OHLCV {i}/{len(tickers)} valid={len(bars)} failed={len(errors)}',flush=True)
     REPORTS.mkdir(parents=True,exist_ok=True)
     pd.DataFrame(errors,columns=['ticker','error']).to_csv(REPORTS/'realism_v36_failures.csv',index=False,encoding='utf-8-sig')
+    pd.DataFrame(quality,columns=['ticker','source','tradable_days','nontrading_days',
+                                  'invalid_days','entry_days_nontradable']).to_csv(
+        REPORTS/'realism_v364_data_quality.csv',index=False,encoding='utf-8-sig')
     coverage=len(bars)/len(tickers) if tickers else 0
-    meta={'version':'C3 v3.6.2 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+    meta={'version':'C3 v3.6.4 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
           'signals':len(x),'tickers_requested':len(tickers),'tickers_valid':len(bars),
           'tickers_failed':len(errors),'ohlcv_coverage_pct':round(100*coverage,2),
           'cache_hits':sum(v=='cache' for v in sources.values()),
           'download_successes':sum(v!='cache' for v in sources.values()),
           'download_attempts':args.download_attempts,'download_delay':args.download_delay,
           'coverage_gate_pct':90,'coverage_gate_passed':coverage>=.90,
+          'ticker_coverage_definition':'history present and at least one tradable bar; NOT all signal entries usable',
+          'signal_entry_coverage_pct':round(100*(1-(sum(q['entry_days_nontradable'] for q in quality) + int(x.ticker.isin(set(tickers)-set(bars)).sum()))/len(x)),2) if len(x) else 0,
           'stop_pct':args.stop_pct,'take_pct':args.take_pct,
           'cost_bps_round_trip':args.cost_bps,'slip_bps_each_side':args.slip_bps,
           'live_trade_approval':False,
@@ -291,12 +340,18 @@ def main():
                       'Close-marked daily MDD ignores intraday equity troughs.',
                       'Factor rank is an experimental proxy, NOT production C3 score.',
                       'No bid/ask, market impact, halt, liquidity, tax or exchange price limit simulation.',
-                      'Missing/invalid histories are excluded; review failure report.']}
+                      'Invalid price dates are not repaired; scenarios holding on invalid dates are suppressed.',
+                      'Nontrading (zero OHLC positive close zero volume) days prohibit execution.',
+                      'Ticker coverage alone does not guarantee signal-level or exit coverage.',
+                      'Missing histories are excluded; review failure report.']}
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
     if coverage < .90:
         raise SystemExit(f'Insufficient OHLCV coverage: {len(bars)}/{len(tickers)} ({coverage:.1%}); '
                          'refusing misleading report; see realism_v36_failures.csv')
+    if meta['signal_entry_coverage_pct'] < 90:
+        raise SystemExit(f"Insufficient tradable signal entry coverage: {meta['signal_entry_coverage_pct']}%; refusing misleading report")
     summaries,trades,equities=[],[],[]
+    rejected_scenarios=[]
     for hold in holds:
         for capital in capitals:
             for strat in ('A_baseline','B_improved'):
@@ -305,12 +360,22 @@ def main():
                                         args.stop_pct,args.take_pct,args.cost_bps,args.slip_bps)
                     if result:
                         summaries.append(result);trades.extend(ts);equities.extend(eq)
+                    else:
+                        rejected_scenarios.append({'hold':hold,'capital':capital,
+                                                   'strategy':strat,'selection':policy,
+                                                   'reason':'invalid_bar_while_holding_or_no_dates'})
+    pd.DataFrame(rejected_scenarios).to_csv(
+        REPORTS/'realism_v364_rejected_scenarios.csv',index=False,encoding='utf-8-sig')
+    if rejected_scenarios:
+        meta['rejected_scenarios']=len(rejected_scenarios)
+        (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
+        raise SystemExit(f'{len(rejected_scenarios)} scenarios contain unresolved holding-period prices; refusing partial comparative report')
     pd.DataFrame(summaries).to_csv(REPORTS/'realism_v36_summary.csv',index=False,encoding='utf-8-sig')
     pd.DataFrame(trades).to_csv(REPORTS/'realism_v36_trades.csv',index=False,encoding='utf-8-sig')
     pd.DataFrame(equities).to_csv(REPORTS/'realism_v36_daily_equity.csv',index=False,encoding='utf-8-sig')
     meta['scenarios']=len(summaries)
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(f'C3 v3.6.2 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
+    print(f'C3 v3.6.4 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
 
 
 if __name__=='__main__':
