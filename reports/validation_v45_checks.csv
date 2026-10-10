@@ -1,0 +1,23 @@
+﻿severity,check,passed,violating_rows,missing,failures,note
+error,summary_scenario_keys_present,True,,,,
+error,trades_scenario_keys_present,True,,,,
+error,daily_scenario_keys_present,True,,,,
+error,unique_scenario_summary,True,,,,
+error,unique_daily_marks,True,,,,
+error,known_period_labels,True,,,,
+error,nonempty_outputs,True,,,,
+error,signal_provenance_columns_present,True,,,,
+error,signal_precedes_entry,True,0.0,,,
+error,unique_source_signal_ids,True,,,,
+error,no_exit_before_entry,True,,,,
+error,positive_traded_shares,True,,,,
+error,finite_trade_pnl,True,,,,
+error,all_trades_have_source_signal,True,,0.0,,
+error,trade_ticker_matches_signal,True,,,,
+error,trade_entry_matches_signal,True,,,,
+error,trade_uses_prior_signal,True,,,,
+error,all_scenario_ledger_checks_pass,True,,,0.0,
+error,nonnegative_daily_shares,True,,,,
+warning,independent_point_in_time_universe_verified,False,,,,Historical universe membership is not independently point-in-time certified
+warning,untouched_out_of_sample_2025,False,,,,2025 was inspected during earlier strategy development; not pristine OOS
+warning,live_fill_validated,False,,,,Daily OHLCV and fixed slippage do not prove executable fills

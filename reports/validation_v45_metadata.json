@@ -1,0 +1,18 @@
+{
+  "version": "v4.5",
+  "research_only": true,
+  "status": "AUDIT_PASSED_WITH_LIMITATIONS",
+  "scenarios": 72,
+  "trades": 4138,
+  "daily_marks": 26316,
+  "hard_failures": [],
+  "scenario_failures": 0,
+  "boundary_exit_trades_counted_across_scenarios": 0,
+  "critical_limitations": [
+    "2025 reused, not untouched OOS",
+    "Universe and signal features not independently PIT-audited",
+    "Daily OHLCV cannot verify fills",
+    "This script audits existing saved v4.4 outputs; it does not create a new holdout"
+  ],
+  "live_strategy_approval": false
+}
