@@ -26,6 +26,7 @@ on:
           - dip_v38
           - entry_v40
           - regime_v41
+          - regime_v42
           - diagnose_v363
 
   schedule:
@@ -238,6 +239,13 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'regime_v41'
         run: |
           python scripts/backtest_regime_v41.py \
+            --capital 1000000 \
+            --holds 5,10
+
+      - name: Run C3 v4.2 index-regime and dip-entry research
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'regime_v42'
+        run: |
+          python scripts/backtest_regime_v42.py \
             --capital 1000000 \
             --holds 5,10
 
