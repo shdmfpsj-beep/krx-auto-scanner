@@ -1,0 +1,37 @@
+{
+  "version": "C3 v3.4 capital sensitivity one-position replay",
+  "run_kst": "2026-10-10T12:45:36.747758+09:00",
+  "source": "/home/runner/work/krx-auto-scanner/krx-auto-scanner/reports/entry_v32_paired_trades.csv",
+  "capitals_krw": [
+    300000,
+    500000,
+    1000000,
+    3000000,
+    10000000
+  ],
+  "holds": [
+    5,
+    10,
+    15,
+    20
+  ],
+  "round_trip_cost_bps": 15.0,
+  "trade_entry": "next ticker session open after signal",
+  "trade_exit": "open after N ticker-tradable sessions",
+  "position_limit": 1,
+  "position_sizing": "all affordable whole shares",
+  "reinvestment": true,
+  "no_averaging_down": true,
+  "live_trade_approval": false,
+  "warnings": [
+    "Current-listed sample, current market-cap tiers: NOT PIT; survivorship bias.",
+    "2023-2025 were previously inspected; NOT clean out-of-sample.",
+    "A/B signals may be different on each day; no causal attribution.",
+    "No intraday stop, limit, slippage, market impact, taxes, halts or liquidity capacity.",
+    "Fee is approximate; fractional model is an unrealistic reference.",
+    "Closed-trade drawdown ignores unrealized losses and is NOT daily equity MDD.",
+    "Idle cash is included; portfolio cannot buy another ticker until exit date.",
+    "Deterministic ticker sorting is not a validated selection/ranking model.",
+    "No 2026 data; not validated for current market conditions."
+  ]
+}
