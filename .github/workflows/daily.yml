@@ -28,6 +28,7 @@ on:
           - regime_v41
           - regime_v42
           - audit_v43
+          - exposure_v44
           - diagnose_v363
 
   schedule:
@@ -253,6 +254,13 @@ jobs:
       - name: Audit C3 v4.3 paired strategy robustness
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'audit_v43'
         run: python scripts/backtest_audit_v43.py
+
+      - name: Run C3 v4.4 trade and daily-exposure audit
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'exposure_v44'
+        run: |
+          python scripts/backtest_exposure_v44.py \
+            --capital 1000000 \
+            --holds 5,10
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
