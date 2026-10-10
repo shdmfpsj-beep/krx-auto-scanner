@@ -1,0 +1,20 @@
+{
+  "version": "v4.1",
+  "completed": 192,
+  "rejected": 0,
+  "capital_research_only": 1000000,
+  "holds": [
+    5,
+    10
+  ],
+  "regime": "previous 60 calendar days signal MA-rising fraction >= 55%; min 20 prior signals",
+  "limitations": [
+    "Research only; survivor bias and signal feature point-in-time not independently audited.",
+    "2025 has been inspected previously, NOT a pristine out-of-sample test.",
+    "Regime is candidate-signal breadth proxy, not independently sourced KOSPI market regime.",
+    "Daily OHLCV cannot identify intraday path; v3.9 conservative stop-first assumption.",
+    "Different arms may trade different numbers of positions; compare exposure and trade count.",
+    "Capital is research normalization; live sizing uses actual orderable cash.",
+    "Regime switch was motivated by previously observed results and is not validated for live use."
+  ]
+}
