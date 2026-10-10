@@ -1,0 +1,17 @@
+{
+  "version": "v4.6",
+  "scope": "STRUCTURAL_AUDIT_ONLY",
+  "status": "STRUCTURAL_PASSED_PIT_NOT_VERIFIED",
+  "source": "/home/runner/work/krx-auto-scanner/krx-auto-scanner/reports/entry_v32_paired_trades.csv",
+  "input_rows": 42140,
+  "hold1_rows": 2107,
+  "unique_hold1_tickers": 114,
+  "structural_error_checks_failed": 0,
+  "pit_approved": false,
+  "live_trade_approved": false,
+  "limitations": [
+    "Historical membership, feature timestamps, survivorship and corporate actions cannot be established from this CSV.",
+    "No independent holdout or real order execution validation.",
+    "This script never changes signals, trading rules, or scheduled scans."
+  ]
+}

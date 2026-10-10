@@ -1,0 +1,12 @@
+﻿check,severity,affected_rows,passed,explanation
+no_hold_1_signals,error,0,True,Backtest input must contain hold=1 rows
+invalid_ticker,error,0,True,Six digit numeric ticker required
+missing_or_invalid_dates,error,0,True,Signal and entry dates must parse
+signal_not_prior_to_entry,error,0,True,Signal must precede entry
+duplicate_signal_ids,error,0,True,One hold=1 row per signal
+invalid_signal_prices,error,0,True,Positive finite prior close required
+invalid_entry_prices,error,0,True,Positive finite entry open required
+negative_rvol,error,0,True,RVOL cannot be negative
+missing_ranking_inputs,warning,0,True,v40 substitutes zero for missing ranking features; flag for review
+current_tier_present,warning,2107,False,Current size tier is present: historical universe and tier assignments are not independently certified
+year_signal_mismatch,warning,0,True,Year field differs from signal year

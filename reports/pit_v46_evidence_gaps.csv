@@ -1,0 +1,8 @@
+﻿gate,status,required_evidence
+historical_universe_membership,NOT_VERIFIED,"Need archived daily listing/universe as-of each signal date, including delisted securities"
+feature_asof_and_formula,NOT_VERIFIED,Need original OHLCV as-of signal date and independent feature recomputation
+corporate_actions_price_basis,NOT_VERIFIED,Need documented point-in-time split/adjustment basis for source bars
+signal_generation_timestamp,NOT_VERIFIED,Need archived signal generation time and immutable original candidate snapshots
+survivorship_bias,NOT_VERIFIED,Need delisted and suspended securities plus historic eligibility filters
+independent_oos,NOT_VERIFIED,2025 was previously inspected; new untouched forward period required
+execution_realism,NOT_VERIFIED,Daily OHLCV cannot establish order-book queue or actual limit fills
