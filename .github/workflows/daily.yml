@@ -16,6 +16,7 @@ on:
           - diagnose_universe
           - walkforward_v14
           - holding_v30
+          - paired_v31
 
   schedule:
     - cron: '30 8 * * 1-5'
@@ -134,6 +135,17 @@ jobs:
             --max-hold 20 \
             --cost-bps 15 \
             --capital 300000
+
+      - name: Compare C3 v3.1 paired holding horizons
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'paired_v31'
+        run: |
+          python scripts/backtest_paired_v31.py \
+            --limit 120 \
+            --start-year 2023 \
+            --end-year 2025 \
+            --seed 42 \
+            --max-hold 20 \
+            --cost-bps 15
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
