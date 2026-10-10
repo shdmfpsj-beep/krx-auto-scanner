@@ -1,0 +1,76 @@
+name: Verify 088980 OHLCV providers
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install --disable-pip-version-check 'FinanceDataReader>=0.9.90' pandas
+      - name: Compare independent provider quotes without changing data
+        shell: bash
+        run: |
+          mkdir -p reports
+          cat > /tmp/verify_088980.py <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import pandas as pd
+          import FinanceDataReader as fdr
+
+          targets = {'2023-06-05', '2024-03-13'}
+          providers = ['088980', 'KRX:088980', 'NAVER:088980', 'YAHOO:088980.KS']
+          rows = []
+          for provider in providers:
+              try:
+                  df = fdr.DataReader(provider, '2023-06-01', '2024-03-16')
+                  if df is None or df.empty:
+                      raise ValueError('empty response')
+                  df = df.copy()
+                  df.index = pd.to_datetime(df.index).normalize()
+                  for day in sorted(targets):
+                      stamp = pd.Timestamp(day)
+                      if stamp not in df.index:
+                          rows.append(dict(provider=provider, date=day, status='missing_date'))
+                          continue
+                      bar = df.loc[stamp]
+                      if isinstance(bar, pd.DataFrame):
+                          rows.append(dict(provider=provider, date=day, status='duplicate_date'))
+                          continue
+                      values = {k: float(bar[k]) if k in bar.index and pd.notna(bar[k]) else None
+                                for k in ('Open', 'High', 'Low', 'Close', 'Volume')}
+                      o, h, l, c = [values[k] for k in ('Open', 'High', 'Low', 'Close')]
+                      valid = all(v is not None and v > 0 for v in (o, h, l, c)) and h >= max(o,l,c) and l <= min(o,h,c)
+                      rows.append(dict(provider=provider, date=day, status='valid' if valid else 'invalid', **values))
+              except Exception as exc:
+                  for day in sorted(targets):
+                      rows.append(dict(provider=provider, date=day, status='provider_error',
+                                       error=f'{type(exc).__name__}: {str(exc)[:250]}'))
+              print(f'Provider checked: {provider}', flush=True)
+          path = Path('reports/verify_088980_provider_comparison.csv')
+          pd.DataFrame(rows).to_csv(path, index=False, encoding='utf-8-sig')
+          Path('reports/verify_088980_metadata.json').write_text(
+              json.dumps({'run_utc': datetime.now(timezone.utc).isoformat(),
+                          'targets': sorted(targets),
+                          'note': 'Provider values may use different adjustment bases. DO NOT automatically patch backtest prices.',
+                          'live_trade_approval': False}, indent=2), encoding='utf-8')
+          print(pd.DataFrame(rows).to_string(index=False))
+          PY
+          python /tmp/verify_088980.py
+      - name: Upload comparison report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-088980-ohlcv
+          path: reports/verify_088980_*
+          if-no-files-found: warn
