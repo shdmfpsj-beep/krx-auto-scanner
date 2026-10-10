@@ -1,0 +1,56 @@
+{
+  "version": "C3 v3.3 fixed entry-rule comparison",
+  "run_kst": "2026-10-10T11:32:56.125926+09:00",
+  "source": "/home/runner/work/krx-auto-scanner/krx-auto-scanner/reports/entry_v32_paired_trades.csv",
+  "signals": 2107,
+  "years": [
+    2023,
+    2024,
+    2025
+  ],
+  "horizons": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "rule_names": [
+    "baseline_all",
+    "no_60d_over_60pct",
+    "rising_ma20_ma60",
+    "breakout_only",
+    "no_ma20_distance_over_15pct",
+    "breakout_rising_no_heat60",
+    "breakout_rising_heat20_10to25",
+    "breakout_rising_no_heat60_no_dist15"
+  ],
+  "bootstrap_iterations": 500,
+  "live_trade_approval": false,
+  "warnings": [
+    "2025 is NOT a pristine holdout: it was already inspected during v3.1/v3.2.",
+    "Thresholds and combinations were informed by prior inspection of the same data.",
+    "Present-day KRX listings and market cap create survivorship and PIT bias.",
+    "Paired hypothetical signals overlap; these are NOT one-position portfolio returns.",
+    "Ticker-cluster bootstrap ignores market-date common shocks and is exploratory.",
+    "No market regime, historical fundamentals, valuation or actual liquidity impact.",
+    "Differences vs baseline reflect filtering, not causal improvement.",
+    "Multiple comparisons across rules/horizons require new independent validation.",
+    "No same-day stop/target fills, taxes or actual order-book slippage modeled."
+  ]
+}
