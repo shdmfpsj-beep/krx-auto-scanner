@@ -1,0 +1,21 @@
+{
+  "version": "v3.7 research-only split-entry sensitivity",
+  "scenarios_expected": 320,
+  "scenarios_completed": 320,
+  "rejections": 0,
+  "price_repairs": 0,
+  "entry_tranche_fraction": 0.5,
+  "add_trigger_dip_prev_close_pct": -3,
+  "dip_limit_prev_close_pct": -5,
+  "add_trigger_rise_prev_close_pct": 3,
+  "max_adds_per_position": 1,
+  "stop_and_take_anchor": "first entry fill, never moved",
+  "execution": "next tradable session open after completed prior-day confirmation; no intraday lookahead",
+  "limitations": [
+    "Daily bars cannot establish intraday order or realistic limit fill.",
+    "Second tranche can be skipped due to integer shares, cash or gaps.",
+    "Not point-in-time universe; financial statement quality not evaluated.",
+    "Multiple overlapping scenarios are NOT independent evidence.",
+    "No live-trade approval."
+  ]
+}
