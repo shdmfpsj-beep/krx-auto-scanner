@@ -461,6 +461,173 @@ def audit_provider_price_basis(bars, comparison_path):
             'note':'Price ratios are diagnostic only; never an approval or repair gate.'}
 
 
+
+def replay_split_v37(signals, bars, capital, strategy, hold, selection,
+                     stop_pct, take_pct, cost_bps, slip_bps, variant):
+    """Research-only split entries. One ticker, one position, no averaging below stop.
+
+    Daily OHLCV cannot establish intraday order: existing stops/takes are
+    evaluated before any add; an add is only eligible on a later session.
+    Initial stop/take anchors are NEVER moved after adding. The entry open
+    must agree with the recorded signal (same 3% gate as v3.6.10).
+    """
+    if variant not in ('dip_50_50','rise_50_50','hybrid_50_50'):
+        raise ValueError('Unknown variant')
+    eligible = signals if strategy == 'A_baseline' else signals.loc[signals.improved]
+    if selection == 'factor_rank':
+        eligible = eligible.sort_values(['entry_date','rank_score','ticker'],
+                                        ascending=[True,False,True],kind='stable')
+    else:
+        eligible = eligible.sort_values(['entry_date','ticker'],kind='stable')
+    states={t:classify_history(d) for t,d in bars.items()}
+    dates=sorted(set().union(*(set(d.index) for d in bars.values())))
+    if not dates:
+        return None,[],[rejection_detail('no_calendar_dates')]
+    groups={k:v for k,v in eligible.groupby('entry_date',sort=False)}
+    cash=float(capital); pos=None; trades=[]; ledger=[]
+    buy_mult=1+slip_bps/10000; sell_mult=1-slip_bps/10000
+    fee=cost_bps/20000
+    skipped=blocked=nontrading=0
+    for dt in dates:
+        exited_open=False
+        if pos is not None:
+            d=bars[pos['ticker']]
+            if dt in d.index and dt>pos['entry_date']:
+                st=states[pos['ticker']].loc[dt]
+                if st=='invalid':
+                    return None,[],[rejection_detail('invalid_bar_while_holding',pos['ticker'],dt,pos,d.loc[dt])]
+                if st=='nontrading':
+                    nontrading+=1
+                else:
+                    candle=d.loc[dt]; op=float(candle.Open); hi=float(candle.High); lo=float(candle.Low)
+                    pos['age']+=1
+                    stop=pos['first_fill']*(1-stop_pct)
+                    take=pos['first_fill']*(1+take_pct)
+                    price=reason=None
+                    if op<=stop: price,reason=op,'stop_gap'
+                    elif op>=take: price,reason=op,'take_gap'
+                    elif pos['age']>=hold: price,reason=op,'time_open'
+                    elif lo<=stop: price,reason=stop,'stop_intraday'
+                    elif hi>=take: price,reason=take,'take_intraday'
+                    if price is not None:
+                        proceeds=pos['shares']*price*sell_mult*(1-fee)
+                        cash+=proceeds
+                        trades.append({'variant':variant,'strategy':strategy,'selection':selection,
+                          'hold':hold,'capital':capital,'ticker':pos['ticker'],
+                          'signal_id':pos['signal_id'],'entry_date':pos['entry_date'].date().isoformat(),
+                          'exit_date':dt.date().isoformat(),'shares':pos['shares'],
+                          'add_executed':pos['added'],'entry_tranches':1+int(pos['added']),
+                          'exit_reason':reason,'net_pnl':proceeds-pos['cost'],
+                          'net_return_pct':100*(proceeds/pos['cost']-1)})
+                        pos=None
+                        exited_open=reason in ('stop_gap','take_gap','time_open')
+                    elif not pos['added']:
+                        # Conservative next-session confirmation: previous completed
+                        # close determines eligibility; current OPEN is executable.
+                        prev=d.loc[d.index<dt]
+                        if not prev.empty and states[pos['ticker']].loc[prev.index[-1]]=='tradable':
+                            prev_close=float(prev.iloc[-1].Close)
+                            first=pos['first_open']
+                            dip=(prev_close<=first*.97 and prev_close>stop and
+                                 prev_close>=first*.95 and op>stop and op<=first)
+                            rise=(prev_close>=first*1.03 and op>=first and op<take)
+                            allow=((variant=='dip_50_50' and dip) or
+                                   (variant=='rise_50_50' and rise) or
+                                   (variant=='hybrid_50_50' and (dip or rise)))
+                            if allow:
+                                fill=op*buy_mult
+                                budget=min(cash,pos['reserved'])
+                                shares=int(budget//(fill*(1+fee)))
+                                if shares>=1:
+                                    total=shares*fill*(1+fee)
+                                    cash-=total; pos['cost']+=total
+                                    pos['shares']+=shares;pos['added']=True
+        if pos is None and dt in groups and (not trades or trades[-1]['exit_date']!=dt.date().isoformat() or exited_open):
+            for _,sig in groups[dt].iterrows():
+                d=bars.get(sig.ticker)
+                if d is None or dt not in d.index:
+                    skipped+=1;continue
+                if states[sig.ticker].loc[dt]!='tradable':
+                    blocked+=1;continue
+                op=float(d.loc[dt,'Open'])
+                if abs(op/float(sig.entry_open)-1)>.03:
+                    skipped+=1;continue
+                fill=op*buy_mult
+                budget=cash*.5
+                shares=int(budget//(fill*(1+fee)))
+                if shares<1:continue
+                total=shares*fill*(1+fee)
+                cash-=total
+                pos={'ticker':sig.ticker,'signal_id':sig.signal_id,'entry_date':dt,
+                     'first_open':op,'first_fill':fill,'entry_fill':fill,
+                     'shares':shares,'cost':total,'reserved':float(capital)*.5,
+                     'added':False,'age':0}
+                break
+        if pos is None: equity=cash
+        else:
+            d=bars[pos['ticker']]; last=d.loc[:dt]
+            if not last.empty and states[pos['ticker']].loc[last.index[-1]]=='invalid':
+                return None,[],[rejection_detail('invalid_close_mark',pos['ticker'],last.index[-1],pos,last.iloc[-1])]
+            mark=float(last.iloc[-1].Close) if not last.empty else pos['first_fill']
+            equity=cash+pos['shares']*mark*sell_mult*(1-fee)
+        ledger.append({'date':dt.date().isoformat(),'variant':variant,'strategy':strategy,
+                       'selection':selection,'hold':hold,'capital':capital,'equity':equity})
+    vals=np.asarray([r['equity'] for r in ledger],dtype=float)
+    peaks=np.maximum.accumulate(vals)
+    years=max((dates[-1]-dates[0]).days/365.25,1e-9)
+    summary={'variant':variant,'strategy':strategy,'selection':selection,'hold':hold,
+             'capital':capital,'trades_closed':len(trades),
+             'adds_executed':sum(int(t['add_executed']) for t in trades),
+             'open_position':bool(pos),'skipped_missing_or_price_mismatch':skipped,
+             'blocked_nontradable_entries':blocked,'nontrading_holding_days':nontrading,
+             'total_return_pct':100*(vals[-1]/capital-1),
+             'cagr_pct':100*((vals[-1]/capital)**(1/years)-1) if vals[-1]>0 else None,
+             'daily_close_mdd_pct':100*np.min(vals/peaks-1),
+             'win_rate_pct':100*np.mean([t['net_pnl']>0 for t in trades]) if trades else None,
+             'ending_equity':vals[-1]}
+    return summary,trades,ledger
+
+
+def write_split_study_v37(x,bars,capitals,holds,args,baseline):
+    """Run 240 extra scenarios; baseline 80 are copied from the unchanged engine."""
+    results=[];trades=[];rejections=[]
+    for row in baseline:
+        results.append({'variant':'all_in_100',**row,'adds_executed':0})
+    for hold in holds:
+        for capital in capitals:
+            for strategy in ('A_baseline','B_improved'):
+                for selection in ('ticker_ascending','factor_rank'):
+                    for variant in ('dip_50_50','rise_50_50','hybrid_50_50'):
+                        result,ts,ledger=replay_split_v37(
+                            x,bars,capital,strategy,hold,selection,
+                            args.stop_pct,args.take_pct,args.cost_bps,args.slip_bps,variant)
+                        if result is None:
+                            rejections.append({'variant':variant,'strategy':strategy,
+                                'selection':selection,'hold':hold,'capital':capital,
+                                'reason':ledger[0]['reason'] if ledger else 'unknown'})
+                        else:
+                            results.append(result);trades.extend(ts)
+    pd.DataFrame(results).to_csv(REPORTS/'realism_v37_split_comparison.csv',index=False,encoding='utf-8-sig')
+    pd.DataFrame(trades).to_csv(REPORTS/'realism_v37_split_trades.csv',index=False,encoding='utf-8-sig')
+    pd.DataFrame(rejections,columns=['variant','strategy','selection','hold','capital','reason']).to_csv(
+        REPORTS/'realism_v37_split_rejections.csv',index=False,encoding='utf-8-sig')
+    (REPORTS/'realism_v37_split_metadata.json').write_text(json.dumps({
+        'version':'v3.7 research-only split-entry sensitivity',
+        'scenarios_expected':320,'scenarios_completed':len(results),
+        'rejections':len(rejections),'price_repairs':0,
+        'entry_tranche_fraction':0.5,'add_trigger_dip_prev_close_pct':-3,
+        'dip_limit_prev_close_pct':-5,'add_trigger_rise_prev_close_pct':3,
+        'max_adds_per_position':1,
+        'stop_and_take_anchor':'first entry fill, never moved',
+        'execution':'next tradable session open after completed prior-day confirmation; no intraday lookahead',
+        'limitations':['Daily bars cannot establish intraday order or realistic limit fill.',
+           'Second tranche can be skipped due to integer shares, cash or gaps.',
+           'Not point-in-time universe; financial statement quality not evaluated.',
+           'Multiple overlapping scenarios are NOT independent evidence.',
+           'No live-trade approval.'],
+    },ensure_ascii=False,indent=2),encoding='utf-8')
+    print(f'v3.7 split study: {len(results)}/320 scenarios, {len(rejections)} rejected',flush=True)
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--input',default=str(REPORTS/'entry_v32_paired_trades.csv'))
@@ -474,6 +641,7 @@ def main():
     p.add_argument('--verified-bars',default='',help='Optional independently verified OHLCV CSV with source URLs')
     p.add_argument('--provider-comparison',default=str(REPORTS/'verify_088980_provider_comparison.csv'),help='Research-only CSV from provider comparison workflow; no auto price replacement')
     p.add_argument('--exclude-tickers',default='088980',help='Comma-separated predeclared out-of-universe tickers; default excludes infrastructure fund 088980')
+    p.add_argument('--split-study',action='store_true',help='Run v3.7 research split-entry comparison after standard replay')
     p.add_argument('--max-tickers',type=int,default=0,help='Research smoke-test only; 0=all')
     p.add_argument('--download-attempts',type=int,default=4)
     p.add_argument('--download-delay',type=float,default=1.5)
@@ -623,7 +791,9 @@ def main():
     pd.DataFrame(equities).to_csv(REPORTS/'realism_v36_daily_equity.csv',index=False,encoding='utf-8-sig')
     meta['scenarios']=len(summaries)
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(f'C3 v3.6.10 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
+    if args.split_study:
+        write_split_study_v37(x,bars,capitals,holds,args,summaries)
+    print(f'C3 v3.7 compatible baseline complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
 
 
 if __name__=='__main__':
