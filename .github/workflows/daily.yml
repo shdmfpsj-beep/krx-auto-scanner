@@ -22,6 +22,7 @@ on:
           - portfolio_v34
           - audit_v35
           - realism_v36
+          - split_v37
           - diagnose_v363
 
   schedule:
@@ -187,6 +188,18 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'realism_v36'
         run: |
           python scripts/backtest_realism_v36.py \
+            --capitals 300000,500000,1000000,3000000,10000000 \
+            --holds 5,10,15,20 \
+            --stop-pct 0.07 \
+            --take-pct 0.15 \
+            --cost-bps 15 \
+            --slip-bps 10
+
+      - name: Compare C3 v3.7 split-entry research strategies
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'split_v37'
+        run: |
+          python scripts/backtest_realism_v36.py \
+            --split-study \
             --capitals 300000,500000,1000000,3000000,10000000 \
             --holds 5,10,15,20 \
             --stop-pct 0.07 \
