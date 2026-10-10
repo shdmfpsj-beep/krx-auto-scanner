@@ -24,6 +24,7 @@ on:
           - realism_v36
           - split_v37
           - dip_v38
+          - entry_v40
           - diagnose_v363
 
   schedule:
@@ -219,6 +220,18 @@ jobs:
             --cost-bps 15 \
             --slip-bps 10 \
             --dip-study
+
+      - name: Run C3 v4.0 chronological entry-quality research
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'entry_v40'
+        run: |
+          python scripts/backtest_entry_v40_full.py \
+            --capitals 300000,500000,1000000,3000000,10000000 \
+            --holds 5,10,15,20 \
+            --stop-pct 0.07 \
+            --take-pct 0.15 \
+            --cost-bps 15 \
+            --slip-bps 10 \
+            --entry-study
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
