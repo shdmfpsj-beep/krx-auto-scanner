@@ -1,0 +1,44 @@
+{
+  "version": "C3 v3.2 entry-quality factor research",
+  "run_kst": "2026-10-10T10:18:30.495913+09:00",
+  "settings": {
+    "limit": 120,
+    "start_year": 2023,
+    "end_year": 2025,
+    "seed": 42,
+    "max_hold": 20,
+    "cost_bps": 15.0
+  },
+  "sampling": {
+    "population_count": 2474,
+    "sampling_method": "deterministic_sha256_stratified_round_robin",
+    "seed": 42,
+    "cap_column": "Marcap",
+    "market_cap_is_current_not_historical": true,
+    "sample_by_stratum": {
+      "KOSDAQ/large": 20,
+      "KOSDAQ/mid": 20,
+      "KOSDAQ/small": 20,
+      "KOSPI/large": 20,
+      "KOSPI/mid": 20,
+      "KOSPI/small": 20
+    }
+  },
+  "paired_signals": 2107,
+  "rows": 42140,
+  "failed_tickers": 2,
+  "live_trade_approval": false,
+  "warnings": [
+    "Present-day listing and cap strata are NOT point-in-time; survivorship bias.",
+    "Signal-day factors use no future OHLCV; this does not eliminate universe bias.",
+    "These are descriptive factor slices, not causal effects or validated trading rules.",
+    "Multiple comparisons and small subgroup counts can create false discoveries.",
+    "Repeated ticker signals and adjacent days are dependent; naive confidence intervals invalid.",
+    "All signals hypothetically entered independently; not executable one-position portfolio.",
+    "Only signal types from v2.0.1 tested; no new entry signal logic yet.",
+    "No fundamental data, index regime, weekly bars, or forward valuation in this version.",
+    "Exit at OPEN of Nth ticker-tradable session after entry, without intraday stops.",
+    "Fees estimated; taxes, slippage, impact and halts not fully modeled.",
+    "2023-2025 data already examined; exploratory, not clean out-of-sample."
+  ]
+}
