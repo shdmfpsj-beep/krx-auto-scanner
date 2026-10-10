@@ -1,4 +1,4 @@
-"""C3 v3.6.5 research-only daily OHLCV one-position replay.
+"""C3 v3.6.6 research-only daily OHLCV one-position replay.
 Usage: python scripts/backtest_realism_v36.py
 Requires reports/entry_v32_paired_trades.csv and FinanceDataReader.
 NOT point-in-time universe; never use for live trade approval.
@@ -281,6 +281,76 @@ def replay(signals, bars, capital, strategy, hold, selection, stop_pct,
     return summary, trades, ledger
 
 
+
+def apply_verified_bars(bars, verified_path):
+    """Use independently verified prices only; never infer or round corrections.
+
+    Optional CSV columns: ticker,date,Open,High,Low,Close,Volume,source,source_url.
+    All supplied rows must match an existing invalid source bar. The original
+    OHLCV is retained in the audit file. Source provenance is mandatory.
+    """
+    columns = ['ticker','date','source','source_url','original_Open','original_High',
+               'original_Low','original_Close','original_Volume','verified_Open',
+               'verified_High','verified_Low','verified_Close','verified_Volume','status']
+    audit = []
+    if not verified_path:
+        return audit
+    path = Path(verified_path)
+    if not path.is_file():
+        raise ValueError(f'Verified source file not found: {path}')
+    frame = pd.read_csv(path, dtype={'ticker':str})
+    required = {'ticker','date','Open','High','Low','Close','Volume','source','source_url'}
+    if missing := required - set(frame.columns):
+        raise ValueError(f'Verified CSV missing columns: {sorted(missing)}')
+    frame['ticker'] = frame.ticker.str.zfill(6)
+    frame['date'] = pd.to_datetime(frame.date, errors='raise').dt.normalize()
+    if frame.duplicated(['ticker','date']).any():
+        raise ValueError('Duplicate verified ticker/date rows')
+    for _, rec in frame.iterrows():
+        ticker, dt = rec.ticker, rec.date
+        if ticker not in bars or dt not in bars[ticker].index:
+            raise ValueError(f'Verified row not in downloaded history: {ticker} {dt.date()}')
+        if not str(rec.source).strip() or not str(rec.source_url).startswith(('http://','https://')):
+            raise ValueError(f'Missing verifiable source provenance: {ticker} {dt.date()}')
+        original = bars[ticker].loc[dt]
+        if classify_history(bars[ticker]).loc[dt] != 'invalid':
+            raise ValueError(f'Original row is not invalid: {ticker} {dt.date()}')
+        vals = pd.to_numeric(rec[['Open','High','Low','Close','Volume']], errors='coerce')
+        o,h,l,c,v = [float(vals[k]) for k in ('Open','High','Low','Close','Volume')]
+        if not all(np.isfinite([o,h,l,c,v])) or min(o,h,l,c)<=0 or v<0 or h<max(o,c,l) or l>min(o,c,h):
+            raise ValueError(f'Verified row fails OHLCV integrity: {ticker} {dt.date()}')
+        # Guard against accidental different price basis or wrong stock.
+        if abs(c / float(original.Close)-1) > .03:
+            raise ValueError(f'Verified close differs >3%: {ticker} {dt.date()}')
+        row={'ticker':ticker,'date':dt.date().isoformat(),
+             'source':str(rec.source),'source_url':str(rec.source_url),'status':'applied_external_verified'}
+        for k in ('Open','High','Low','Close','Volume'):
+            row['original_'+k]=float(original[k])
+            row['verified_'+k]=float(vals[k])
+        audit.append(row)
+    # Commit only after ALL rows pass validation.
+    for row in audit:
+        ticker,dt=row['ticker'],pd.Timestamp(row['date'])
+        for k in ('Open','High','Low','Close','Volume'):
+            bars[ticker].loc[dt,k]=row['verified_'+k]
+    return audit
+
+
+def write_verification_candidates(bars):
+    """Export exact unresolved rows; blank provenance is NOT an approval."""
+    rows=[]
+    for ticker,d in bars.items():
+        st=classify_history(d)
+        for dt in d.index[st.eq('invalid')]:
+            r=d.loc[dt]
+            rows.append({'ticker':ticker,'date':dt.date().isoformat(),
+                         **{k:float(r[k]) for k in ('Open','High','Low','Close','Volume')},
+                         'source':'','source_url':''})
+    pd.DataFrame(rows,columns=['ticker','date','Open','High','Low','Close','Volume',
+                               'source','source_url']).to_csv(
+        REPORTS/'realism_v366_verification_candidates.csv',index=False,encoding='utf-8-sig')
+    return len(rows)
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--input',default=str(REPORTS/'entry_v32_paired_trades.csv'))
@@ -291,6 +361,7 @@ def main():
     p.add_argument('--cost-bps',type=float,default=15)
     p.add_argument('--slip-bps',type=float,default=10)
     p.add_argument('--refresh-cache',action='store_true')
+    p.add_argument('--verified-bars',default='',help='Optional independently verified OHLCV CSV with source URLs')
     p.add_argument('--max-tickers',type=int,default=0,help='Research smoke-test only; 0=all')
     p.add_argument('--download-attempts',type=int,default=4)
     p.add_argument('--download-delay',type=float,default=1.5)
@@ -337,8 +408,17 @@ def main():
     pd.DataFrame(quality,columns=['ticker','source','tradable_days','nontrading_days',
                                   'invalid_days','entry_days_nontradable']).to_csv(
         REPORTS/'realism_v364_data_quality.csv',index=False,encoding='utf-8-sig')
+    verification_candidates = write_verification_candidates(bars)
+    verified_audit = apply_verified_bars(bars, args.verified_bars)
+    pd.DataFrame(verified_audit, columns=['ticker','date','source','source_url',
+        'original_Open','original_High','original_Low','original_Close','original_Volume',
+        'verified_Open','verified_High','verified_Low','verified_Close','verified_Volume',
+        'status']).to_csv(REPORTS/'realism_v366_verified_audit.csv',index=False,encoding='utf-8-sig')
     coverage=len(bars)/len(tickers) if tickers else 0
-    meta={'version':'C3 v3.6.5 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+    meta={'version':'C3 v3.6.6 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+          'verification_candidates':verification_candidates,
+          'externally_verified_bars_applied':len(verified_audit),
+          'verification_file':args.verified_bars or None,
           'signals':len(x),'tickers_requested':len(tickers),'tickers_valid':len(bars),
           'tickers_failed':len(errors),'ohlcv_coverage_pct':round(100*coverage,2),
           'cache_hits':sum(v=='cache' for v in sources.values()),
@@ -361,7 +441,8 @@ def main():
                       'Invalid price dates are not repaired; scenarios holding on invalid dates are suppressed.',
                       'Nontrading (zero OHLC positive close zero volume) days prohibit execution.',
                       'Ticker coverage alone does not guarantee signal-level or exit coverage.',
-                      'Missing histories are excluded; review failure report.']}
+                      'Missing histories are excluded; review failure report.',
+                      'External OHLCV source provenance is user-supplied and not independently authenticated by this script.']}
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
     if coverage < .90:
         raise SystemExit(f'Insufficient OHLCV coverage: {len(bars)}/{len(tickers)} ({coverage:.1%}); '
@@ -389,24 +470,24 @@ def main():
                                                    'strategy':strat,'selection':policy,
                                                    'reason':diagnostics[0]['reason']})
     pd.DataFrame(rejected_scenarios, columns=['hold','capital','strategy','selection','reason']).to_csv(
-        REPORTS/'realism_v365_rejected_scenarios.csv',index=False,encoding='utf-8-sig')
+        REPORTS/'realism_v366_rejected_scenarios.csv',index=False,encoding='utf-8-sig')
     detail_columns=['hold','capital','strategy','selection','reason','ticker',
                     'failure_date','signal_id','position_entry_date','shares',
                     'entry_fill','Open','High','Low','Close','Volume']
     pd.DataFrame(rejection_details, columns=detail_columns).to_csv(
-        REPORTS/'realism_v365_rejection_details.csv',index=False,encoding='utf-8-sig')
+        REPORTS/'realism_v366_rejection_details.csv',index=False,encoding='utf-8-sig')
     if rejected_scenarios:
         meta['rejected_scenarios']=len(rejected_scenarios)
-        meta['rejection_detail_file']='realism_v365_rejection_details.csv'
+        meta['rejection_detail_file']='realism_v366_rejection_details.csv'
         (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
-        print('Rejection detail written: realism_v365_rejection_details.csv', flush=True)
-        raise SystemExit(f'{len(rejected_scenarios)} scenarios contain unresolved holding-period prices; refusing partial comparative report')
+        print('Rejection detail written: realism_v366_rejection_details.csv', flush=True)
+        raise SystemExit(f'{len(rejected_scenarios)} scenarios unresolved; see realism_v366_rejection_details.csv and realism_v366_verification_candidates.csv. No automatic price repair.')
     pd.DataFrame(summaries).to_csv(REPORTS/'realism_v36_summary.csv',index=False,encoding='utf-8-sig')
     pd.DataFrame(trades).to_csv(REPORTS/'realism_v36_trades.csv',index=False,encoding='utf-8-sig')
     pd.DataFrame(equities).to_csv(REPORTS/'realism_v36_daily_equity.csv',index=False,encoding='utf-8-sig')
     meta['scenarios']=len(summaries)
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(f'C3 v3.6.5 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
+    print(f'C3 v3.6.6 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
 
 
 if __name__=='__main__':
