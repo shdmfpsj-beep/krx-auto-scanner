@@ -1,10 +1,10 @@
 {
-  "version": "v4.4",
+  "version": "v4.4.1_boundary_fix",
   "research_only": true,
   "scenarios": 72,
   "rejected": 0,
   "capital_research_normalization": 1000000,
-  "engine": "Unchanged v4.0/v3.9 trade decisions, enriched ledger for exposure",
+  "engine": "Unchanged v4.0/v3.9 trade decisions, enriched ledger; v4.4.1 period-close statistics fix",
   "limitations": [
     "No independent point-in-time universe or untouched out-of-sample.",
     "Daily OHLCV cannot reconstruct intraday order or actual fills.",
@@ -12,7 +12,7 @@
     "Daily capital exposure uses liquidation-mark position value; not intraday peak risk.",
     "Calendar may contain dates from entire bar universe; per-period rows are filtered.",
     "Return from first daily mark is not period-start equity return; inspect initial_equity.",
-    "Trades crossing period end are not closed in period trade metrics.",
+    "Only exits on or before the period end enter closed-trade statistics; open positions remain marked at period end.",
     "No live-trade approval or changes to C3/K100 scheduled scanning."
   ]
 }
