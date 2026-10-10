@@ -1,0 +1,49 @@
+{
+  "version": "v4.0",
+  "study": "entry_filter_chronological_comparison",
+  "periods": [
+    [
+      "development_2023_2024",
+      "2023-01-01",
+      "2024-12-31"
+    ],
+    [
+      "later_2025",
+      "2025-01-01",
+      "2025-12-31"
+    ]
+  ],
+  "predeclared_rules": [
+    "control_all_signals",
+    "trend_ma_rising",
+    "pullback_trend",
+    "breakout_trend",
+    "breakout_rvol_1_5",
+    "trend_positive_20d",
+    "trend_not_extended_10pct"
+  ],
+  "scenarios_completed": 560,
+  "scenarios_rejected": 0,
+  "capitals_research_sensitivity_only": [
+    300000,
+    500000,
+    1000000,
+    3000000,
+    10000000
+  ],
+  "hold_days": [
+    5,
+    10,
+    15,
+    20
+  ],
+  "limitations": [
+    "Research only: NOT point-in-time universe; survivor/lookahead selection bias possible.",
+    "Signal-level columns must have been computed only from data available at T-1; not independently verified.",
+    "2025 is a later-period check, not an untouched statistically independent out-of-sample test.",
+    "Periods share the same full OHLCV date index; returns and MDD are comparable within periods but may reflect cross-period holdings.",
+    "Multiple filter comparisons can overfit; no single winning filter is approved for live trading.",
+    "Capital scenarios are sensitivity checks, not fixed account allocation.",
+    "No intraday sequence, limit order queue, liquidity, tax, or market impact simulation."
+  ]
+}
