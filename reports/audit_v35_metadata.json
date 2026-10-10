@@ -1,0 +1,37 @@
+{
+  "version": "C3 v3.5 audit",
+  "run_kst": "2026-10-10T13:01:18.060133+09:00",
+  "capital_krw": 1000000,
+  "holds": [
+    5,
+    10,
+    15,
+    20
+  ],
+  "cost_bps": 15,
+  "policy_tests": [
+    "ticker_asc",
+    "ticker_desc",
+    "hash_1",
+    "hash_2",
+    "hash_3"
+  ],
+  "stress_test_gain_caps": [
+    0.3,
+    0.5,
+    1.0
+  ],
+  "input_rows": 42140,
+  "issues": [],
+  "live_trade_approval": false,
+  "limitations": [
+    "NOT point-in-time: present-day listing and market-cap survivorship bias.",
+    "2023-2025 already explored: no clean out-of-sample.",
+    "Selection policy stress tests are deterministic, NOT market-realistic ranking.",
+    "Gain caps are hypothetical return winsorization, NOT executable take-profits.",
+    "Only realized closed-trade drawdown available; daily MDD requires daily OHLCV.",
+    "No stops, slippage, market impact, taxes, suspensions or limit-order fills.",
+    "v3.4 fee accounting charges assumed 15bps on entry notional at exit.",
+    "Large compounded returns should not be extrapolated to actual investments."
+  ]
+}
