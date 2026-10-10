@@ -1,0 +1,26 @@
+{
+  "version": "C3 v3.8 research-only dip threshold and exposure controls",
+  "scenarios_expected": 480,
+  "scenarios_completed": 480,
+  "rejections": 0,
+  "dip_thresholds_pct": [
+    2,
+    3,
+    4,
+    5
+  ],
+  "cash_control": "same 50% initial tranche, never adds",
+  "all_in_control": "unchanged v3.6.10 100% initial entry",
+  "max_adds": 1,
+  "entry_execution": "prior completed close triggers next session open",
+  "stop_take_anchor": "original first fill; not moved after add",
+  "dip_floor": "prior close >= 93% of initial open and above original stop",
+  "risk_budget_note": "Comparisons do not equalize maximum exposure; cash control isolates initial cash effect only.",
+  "limitations": [
+    "No point-in-time fundamentals or universe",
+    "Reused historical sample and multiple correlated scenarios",
+    "Daily OHLCV cannot resolve intraday order",
+    "No live trading approval",
+    "A stop intraday on the add day is not simulated after opening add; results may be optimistic."
+  ]
+}
