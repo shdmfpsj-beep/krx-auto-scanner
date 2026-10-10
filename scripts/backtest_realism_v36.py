@@ -1,4 +1,4 @@
-"""C3 v3.6.6 research-only daily OHLCV one-position replay.
+"""C3 v3.6.8 research-only daily OHLCV one-position replay.
 Usage: python scripts/backtest_realism_v36.py
 Requires reports/entry_v32_paired_trades.csv and FinanceDataReader.
 NOT point-in-time universe; never use for live trade approval.
@@ -351,6 +351,76 @@ def write_verification_candidates(bars):
         REPORTS/'realism_v366_verification_candidates.csv',index=False,encoding='utf-8-sig')
     return len(rows)
 
+def audit_provider_price_basis(bars, comparison_path):
+    """Research-only cross-provider audit. NEVER patches execution bars.
+
+    The provider comparison is independent evidence, not proof that the
+    historical adjusted OHLC and raw OHLC share the same price basis.
+    """
+    columns = ['ticker','date','provider','provider_status','reference_provider',
+               'Open','High','Low','Close','Volume','reference_Open','reference_High',
+               'reference_Low','reference_Close','reference_Volume','open_ratio',
+               'high_ratio','low_ratio','close_ratio','ratio_spread_pct',
+               'ohlc_integrity','volume_ratio','assessment','reason']
+    rows=[]
+    if not comparison_path:
+        pd.DataFrame(columns=columns).to_csv(
+            REPORTS/'realism_v368_provider_basis_audit.csv',index=False,encoding='utf-8-sig')
+        return {'comparison_file':None,'compared_rows':0,'consistent_basis_rows':0,
+                'automatic_replacements':0}
+    path=Path(comparison_path)
+    if not path.is_file():
+        raise ValueError(f'Provider comparison file not found: {path}')
+    frame=pd.read_csv(path,dtype={'provider':str,'date':str})
+    needed={'provider','date','status','Open','High','Low','Close','Volume'}
+    if missing:=needed-set(frame.columns):
+        raise ValueError(f'Provider comparison missing columns: {sorted(missing)}')
+    frame['date']=pd.to_datetime(frame.date,errors='raise').dt.normalize()
+    if frame.duplicated(['provider','date']).any():
+        raise ValueError('Duplicate provider/date in comparison')
+    for dt in sorted(frame.date.unique()):
+        reference=frame.loc[(frame.date.eq(dt)) & frame.provider.eq('YAHOO:088980.KS')]
+        if len(reference)!=1:
+            continue
+        ref=reference.iloc[0]
+        for ticker,d in bars.items():
+            if ticker!='088980' or dt not in d.index:
+                continue
+            raw=d.loc[dt]
+            vals=['Open','High','Low','Close']
+            original=np.asarray([float(raw[k]) for k in vals],dtype=float)
+            alternative=np.asarray([float(ref[k]) for k in vals],dtype=float)
+            valid_alt=(np.isfinite(alternative).all() and (alternative>0).all() and
+                       alternative[1]>=max(alternative[0],alternative[2],alternative[3]) and
+                       alternative[2]<=min(alternative[0],alternative[1],alternative[3]))
+            ratios=original/alternative if valid_alt and np.isfinite(original).all() else np.full(4,np.nan)
+            spread=float((np.nanmax(ratios)-np.nanmin(ratios))*100) if np.isfinite(ratios).all() else None
+            # Ratio consistency is a screening indicator only. Even a perfect
+            # match does not authenticate adjustments or execution prices.
+            assessment='comparison_only_not_verified'
+            reason=('Provider has valid OHLC but adjusted/raw basis, corporate actions, '
+                    'and trade-date execution price are not independently established')
+            row={'ticker':ticker,'date':pd.Timestamp(dt).date().isoformat(),
+                 'provider':'FDR cached/default','provider_status':'invalid',
+                 'reference_provider':'YAHOO:088980.KS',
+                 'ratio_spread_pct':spread,'ohlc_integrity':bool(valid_alt),
+                 'volume_ratio':(float(raw.Volume)/float(ref.Volume)
+                                 if pd.notna(ref.Volume) and float(ref.Volume)>0 else None),
+                 'assessment':assessment,'reason':reason}
+            for k in ('Open','High','Low','Close','Volume'):
+                row[k]=float(raw[k]);row['reference_'+k]=float(ref[k])
+            for k,r in zip(('open','high','low','close'),ratios):
+                row[k+'_ratio']=float(r) if np.isfinite(r) else None
+            rows.append(row)
+    pd.DataFrame(rows,columns=columns).to_csv(
+        REPORTS/'realism_v368_provider_basis_audit.csv',index=False,encoding='utf-8-sig')
+    return {'comparison_file':str(path),'compared_rows':len(rows),
+            'consistent_basis_rows':sum(r['ratio_spread_pct'] is not None and
+                r['ratio_spread_pct']<=0.05 for r in rows),
+            'automatic_replacements':0,
+            'note':'Ratio spread <=0.05 percentage points is descriptive only, never an approval gate.'}
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--input',default=str(REPORTS/'entry_v32_paired_trades.csv'))
@@ -362,6 +432,7 @@ def main():
     p.add_argument('--slip-bps',type=float,default=10)
     p.add_argument('--refresh-cache',action='store_true')
     p.add_argument('--verified-bars',default='',help='Optional independently verified OHLCV CSV with source URLs')
+    p.add_argument('--provider-comparison',default='',help='Research-only CSV from provider comparison workflow; no auto price replacement')
     p.add_argument('--max-tickers',type=int,default=0,help='Research smoke-test only; 0=all')
     p.add_argument('--download-attempts',type=int,default=4)
     p.add_argument('--download-delay',type=float,default=1.5)
@@ -409,14 +480,16 @@ def main():
                                   'invalid_days','entry_days_nontradable']).to_csv(
         REPORTS/'realism_v364_data_quality.csv',index=False,encoding='utf-8-sig')
     verification_candidates = write_verification_candidates(bars)
+    basis_audit = audit_provider_price_basis(bars, args.provider_comparison)
     verified_audit = apply_verified_bars(bars, args.verified_bars)
     pd.DataFrame(verified_audit, columns=['ticker','date','source','source_url',
         'original_Open','original_High','original_Low','original_Close','original_Volume',
         'verified_Open','verified_High','verified_Low','verified_Close','verified_Volume',
         'status']).to_csv(REPORTS/'realism_v366_verified_audit.csv',index=False,encoding='utf-8-sig')
     coverage=len(bars)/len(tickers) if tickers else 0
-    meta={'version':'C3 v3.6.6 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+    meta={'version':'C3 v3.6.8 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
           'verification_candidates':verification_candidates,
+          'provider_basis_audit':basis_audit,
           'externally_verified_bars_applied':len(verified_audit),
           'verification_file':args.verified_bars or None,
           'signals':len(x),'tickers_requested':len(tickers),'tickers_valid':len(bars),
@@ -442,7 +515,8 @@ def main():
                       'Nontrading (zero OHLC positive close zero volume) days prohibit execution.',
                       'Ticker coverage alone does not guarantee signal-level or exit coverage.',
                       'Missing histories are excluded; review failure report.',
-                      'External OHLCV source provenance is user-supplied and not independently authenticated by this script.']}
+                      'External OHLCV source provenance is user-supplied and not independently authenticated by this script.',
+                      'Provider price-basis comparisons are diagnostic only; no automatic cross-provider substitutions.']}
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
     if coverage < .90:
         raise SystemExit(f'Insufficient OHLCV coverage: {len(bars)}/{len(tickers)} ({coverage:.1%}); '
@@ -487,7 +561,7 @@ def main():
     pd.DataFrame(equities).to_csv(REPORTS/'realism_v36_daily_equity.csv',index=False,encoding='utf-8-sig')
     meta['scenarios']=len(summaries)
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(f'C3 v3.6.6 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
+    print(f'C3 v3.6.8 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
 
 
 if __name__=='__main__':
