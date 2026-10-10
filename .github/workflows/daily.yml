@@ -29,6 +29,7 @@ on:
           - regime_v42
           - audit_v43
           - exposure_v44
+          - validation_v45
           - diagnose_v363
 
   schedule:
@@ -261,6 +262,10 @@ jobs:
           python scripts/backtest_exposure_v44.py \
             --capital 1000000 \
             --holds 5,10
+
+      - name: Audit C3 v4.5 chronology and period boundaries
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'validation_v45'
+        run: python scripts/backtest_validation_v45.py
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
