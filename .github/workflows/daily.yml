@@ -31,6 +31,7 @@ on:
           - exposure_v44
           - validation_v45
           - pit_audit_v46
+          - universe_audit_v47
           - diagnose_v363
 
   schedule:
@@ -271,6 +272,10 @@ jobs:
       - name: Audit C3 v4.6 PIT evidence and structural integrity
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'pit_audit_v46'
         run: python scripts/backtest_pit_audit_v46.py
+
+      - name: Audit C3 v4.7 historical universe and tier ablation
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'universe_audit_v47'
+        run: python scripts/backtest_universe_audit_v47.py
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
