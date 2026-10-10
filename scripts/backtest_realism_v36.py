@@ -1,4 +1,4 @@
-"""C3 v3.6.8 research-only daily OHLCV one-position replay.
+"""C3 v3.6.9 research-only daily OHLCV one-position replay.
 Usage: python scripts/backtest_realism_v36.py
 Requires reports/entry_v32_paired_trades.csv and FinanceDataReader.
 NOT point-in-time universe; never use for live trade approval.
@@ -352,73 +352,113 @@ def write_verification_candidates(bars):
     return len(rows)
 
 def audit_provider_price_basis(bars, comparison_path):
-    """Research-only cross-provider audit. NEVER patches execution bars.
+    """v3.6.9: diagnostics only; never substitute cross-provider prices.
 
-    The provider comparison is independent evidence, not proof that the
-    historical adjusted OHLC and raw OHLC share the same price basis.
+    Keep the v3.6.8 output for compatibility and write a detailed v3.6.9
+    audit for the two observed 088980 dates. Similar ratios are NOT proof
+    of compatible corporate-action adjustments or executable prices.
     """
     columns = ['ticker','date','provider','provider_status','reference_provider',
                'Open','High','Low','Close','Volume','reference_Open','reference_High',
                'reference_Low','reference_Close','reference_Volume','open_ratio',
                'high_ratio','low_ratio','close_ratio','ratio_spread_pct',
                'ohlc_integrity','volume_ratio','assessment','reason']
-    rows=[]
-    if not comparison_path:
-        pd.DataFrame(columns=columns).to_csv(
-            REPORTS/'realism_v368_provider_basis_audit.csv',index=False,encoding='utf-8-sig')
-        return {'comparison_file':None,'compared_rows':0,'consistent_basis_rows':0,
-                'automatic_replacements':0}
-    path=Path(comparison_path)
-    if not path.is_file():
-        raise ValueError(f'Provider comparison file not found: {path}')
-    frame=pd.read_csv(path,dtype={'provider':str,'date':str})
-    needed={'provider','date','status','Open','High','Low','Close','Volume'}
-    if missing:=needed-set(frame.columns):
-        raise ValueError(f'Provider comparison missing columns: {sorted(missing)}')
-    frame['date']=pd.to_datetime(frame.date,errors='raise').dt.normalize()
-    if frame.duplicated(['provider','date']).any():
-        raise ValueError('Duplicate provider/date in comparison')
-    for dt in sorted(frame.date.unique()):
-        reference=frame.loc[(frame.date.eq(dt)) & frame.provider.eq('YAHOO:088980.KS')]
-        if len(reference)!=1:
-            continue
-        ref=reference.iloc[0]
-        for ticker,d in bars.items():
-            if ticker!='088980' or dt not in d.index:
+    detailed_columns = ['ticker','date','source_status','reference_status',
+                        'fdr_open','fdr_high','fdr_low','fdr_close','fdr_volume',
+                        'reference_open','reference_high','reference_low',
+                        'reference_close','reference_volume','fdr_high_below_close_krw',
+                        'fdr_low_above_close_krw','fdr_ohlc_valid','reference_ohlc_valid',
+                        'ratio_open','ratio_high','ratio_low','ratio_close',
+                        'ratio_spread_percentage_points','median_ohlc_ratio',
+                        'ratio_scaled_reference_high','ratio_scaled_reference_close',
+                        'fdr_high_minus_scaled_reference_high',
+                        'fdr_close_minus_scaled_reference_close',
+                        'volume_ratio','diagnosis','eligible_for_automatic_repair']
+    rows, detailed = [], []
+    if comparison_path:
+        path = Path(comparison_path)
+        if not path.is_file():
+            raise ValueError(f'Provider comparison file not found: {path}')
+        frame = pd.read_csv(path, dtype={'provider':str,'date':str})
+        needed = {'provider','date','status','Open','High','Low','Close','Volume'}
+        if missing := needed-set(frame.columns):
+            raise ValueError(f'Provider comparison missing columns: {sorted(missing)}')
+        frame['date'] = pd.to_datetime(frame.date,errors='raise').dt.normalize()
+        if frame.duplicated(['provider','date']).any():
+            raise ValueError('Duplicate provider/date in comparison')
+        for dt in sorted(frame.date.unique()):
+            ref_rows = frame.loc[frame.date.eq(dt) & frame.provider.eq('YAHOO:088980.KS')]
+            if len(ref_rows) != 1 or '088980' not in bars or dt not in bars['088980'].index:
                 continue
-            raw=d.loc[dt]
-            vals=['Open','High','Low','Close']
-            original=np.asarray([float(raw[k]) for k in vals],dtype=float)
-            alternative=np.asarray([float(ref[k]) for k in vals],dtype=float)
-            valid_alt=(np.isfinite(alternative).all() and (alternative>0).all() and
-                       alternative[1]>=max(alternative[0],alternative[2],alternative[3]) and
-                       alternative[2]<=min(alternative[0],alternative[1],alternative[3]))
-            ratios=original/alternative if valid_alt and np.isfinite(original).all() else np.full(4,np.nan)
-            spread=float((np.nanmax(ratios)-np.nanmin(ratios))*100) if np.isfinite(ratios).all() else None
-            # Ratio consistency is a screening indicator only. Even a perfect
-            # match does not authenticate adjustments or execution prices.
-            assessment='comparison_only_not_verified'
-            reason=('Provider has valid OHLC but adjusted/raw basis, corporate actions, '
-                    'and trade-date execution price are not independently established')
-            row={'ticker':ticker,'date':pd.Timestamp(dt).date().isoformat(),
-                 'provider':'FDR cached/default','provider_status':'invalid',
-                 'reference_provider':'YAHOO:088980.KS',
-                 'ratio_spread_pct':spread,'ohlc_integrity':bool(valid_alt),
-                 'volume_ratio':(float(raw.Volume)/float(ref.Volume)
-                                 if pd.notna(ref.Volume) and float(ref.Volume)>0 else None),
-                 'assessment':assessment,'reason':reason}
+            ref = ref_rows.iloc[0]
+            raw = bars['088980'].loc[dt]
+            keys = ('Open','High','Low','Close')
+            original = np.asarray([float(raw[k]) for k in keys], dtype=float)
+            alternative = pd.to_numeric(ref[list(keys)],errors='coerce').to_numpy(dtype=float)
+            valid_alt = (np.isfinite(alternative).all() and (alternative>0).all() and
+                         alternative[1]>=max(alternative[0],alternative[2],alternative[3]) and
+                         alternative[2]<=min(alternative[0],alternative[1],alternative[3]))
+            valid_orig = (np.isfinite(original).all() and (original>0).all() and
+                          original[1]>=max(original[0],original[2],original[3]) and
+                          original[2]<=min(original[0],original[1],original[3]))
+            ratios = original/alternative if valid_alt and np.isfinite(original).all() else np.full(4,np.nan)
+            spread = float((np.max(ratios)-np.min(ratios))*100) if np.isfinite(ratios).all() else None
+            median = float(np.median(ratios)) if np.isfinite(ratios).all() else None
+            ref_volume = pd.to_numeric(pd.Series([ref['Volume']]),errors='coerce').iloc[0]
+            vol_ratio = float(raw.Volume)/float(ref_volume) if pd.notna(ref_volume) and float(ref_volume)>0 else None
+            reason = ('Provider has valid OHLC but adjusted/raw basis, corporate actions, '
+                      'and trade-date execution price are not independently established')
+            row = {'ticker':'088980','date':pd.Timestamp(dt).date().isoformat(),
+                   'provider':'FDR cached/default','provider_status':
+                   'tradable' if valid_orig else 'invalid',
+                   'reference_provider':'YAHOO:088980.KS',
+                   'ratio_spread_pct':spread,'ohlc_integrity':bool(valid_alt),
+                   'volume_ratio':vol_ratio,'assessment':'comparison_only_not_verified',
+                   'reason':reason}
             for k in ('Open','High','Low','Close','Volume'):
-                row[k]=float(raw[k]);row['reference_'+k]=float(ref[k])
+                row[k] = float(raw[k])
+                row['reference_'+k] = float(ref[k]) if pd.notna(ref[k]) else None
             for k,r in zip(('open','high','low','close'),ratios):
-                row[k+'_ratio']=float(r) if np.isfinite(r) else None
+                row[k+'_ratio'] = float(r) if np.isfinite(r) else None
             rows.append(row)
+            scaled_high = float(alternative[1]*median) if median is not None else None
+            scaled_close = float(alternative[3]*median) if median is not None else None
+            detail = {'ticker':'088980','date':row['date'],
+                      'source_status':row['provider_status'],
+                      'reference_status':str(ref['status']),
+                      'fdr_high_below_close_krw':max(0.,float(raw.Close-raw.High)),
+                      'fdr_low_above_close_krw':max(0.,float(raw.Low-raw.Close)),
+                      'fdr_ohlc_valid':bool(valid_orig),
+                      'reference_ohlc_valid':bool(valid_alt),
+                      'ratio_spread_percentage_points':spread,
+                      'median_ohlc_ratio':median,
+                      'ratio_scaled_reference_high':scaled_high,
+                      'ratio_scaled_reference_close':scaled_close,
+                      'fdr_high_minus_scaled_reference_high':
+                          float(raw.High-scaled_high) if scaled_high is not None else None,
+                      'fdr_close_minus_scaled_reference_close':
+                          float(raw.Close-scaled_close) if scaled_close is not None else None,
+                      'volume_ratio':vol_ratio,
+                      'diagnosis':'OHLC inconsistent; provider price-basis verification required'
+                          if not valid_orig else 'OHLC valid; cross-provider basis still unverified',
+                      'eligible_for_automatic_repair':False}
+            for k in ('Open','High','Low','Close','Volume'):
+                detail['fdr_'+k.lower()] = float(raw[k])
+                detail['reference_'+k.lower()] = float(ref[k]) if pd.notna(ref[k]) else None
+            for k,r in zip(('open','high','low','close'),ratios):
+                detail['ratio_'+k] = float(r) if np.isfinite(r) else None
+            detailed.append(detail)
     pd.DataFrame(rows,columns=columns).to_csv(
         REPORTS/'realism_v368_provider_basis_audit.csv',index=False,encoding='utf-8-sig')
-    return {'comparison_file':str(path),'compared_rows':len(rows),
+    pd.DataFrame(detailed,columns=detailed_columns).to_csv(
+        REPORTS/'realism_v369_price_basis_diagnostics.csv',index=False,encoding='utf-8-sig')
+    return {'comparison_file':str(comparison_path) if comparison_path else None,
+            'compared_rows':len(rows),
             'consistent_basis_rows':sum(r['ratio_spread_pct'] is not None and
                 r['ratio_spread_pct']<=0.05 for r in rows),
             'automatic_replacements':0,
-            'note':'Ratio spread <=0.05 percentage points is descriptive only, never an approval gate.'}
+            'detailed_audit_file':'realism_v369_price_basis_diagnostics.csv',
+            'note':'Price ratios are diagnostic only; never an approval or repair gate.'}
 
 
 def main():
@@ -487,7 +527,7 @@ def main():
         'verified_Open','verified_High','verified_Low','verified_Close','verified_Volume',
         'status']).to_csv(REPORTS/'realism_v366_verified_audit.csv',index=False,encoding='utf-8-sig')
     coverage=len(bars)/len(tickers) if tickers else 0
-    meta={'version':'C3 v3.6.8 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+    meta={'version':'C3 v3.6.9 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
           'verification_candidates':verification_candidates,
           'provider_basis_audit':basis_audit,
           'externally_verified_bars_applied':len(verified_audit),
@@ -561,7 +601,7 @@ def main():
     pd.DataFrame(equities).to_csv(REPORTS/'realism_v36_daily_equity.csv',index=False,encoding='utf-8-sig')
     meta['scenarios']=len(summaries)
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(f'C3 v3.6.8 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
+    print(f'C3 v3.6.9 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
 
 
 if __name__=='__main__':
