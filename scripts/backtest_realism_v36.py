@@ -1,4 +1,4 @@
-"""C3 v3.6.9 research-only daily OHLCV one-position replay.
+"""C3 v3.6.10 research-only daily OHLCV one-position replay.
 Usage: python scripts/backtest_realism_v36.py
 Requires reports/entry_v32_paired_trades.csv and FinanceDataReader.
 NOT point-in-time universe; never use for live trade approval.
@@ -473,6 +473,7 @@ def main():
     p.add_argument('--refresh-cache',action='store_true')
     p.add_argument('--verified-bars',default='',help='Optional independently verified OHLCV CSV with source URLs')
     p.add_argument('--provider-comparison',default=str(REPORTS/'verify_088980_provider_comparison.csv'),help='Research-only CSV from provider comparison workflow; no auto price replacement')
+    p.add_argument('--exclude-tickers',default='088980',help='Comma-separated predeclared out-of-universe tickers; default excludes infrastructure fund 088980')
     p.add_argument('--max-tickers',type=int,default=0,help='Research smoke-test only; 0=all')
     p.add_argument('--download-attempts',type=int,default=4)
     p.add_argument('--download-delay',type=float,default=1.5)
@@ -487,6 +488,20 @@ def main():
     if not capitals or min(capitals)<=0 or not holds or min(holds)<=0:
         p.error('Invalid capital/hold')
     x=load_signals(Path(args.input))
+    original_signals = len(x)
+    original_tickers = x.ticker.nunique()
+    excluded = {t.strip().zfill(6) for t in args.exclude_tickers.split(',') if t.strip()}
+    if any(not (len(t)==6 and t.isdigit()) for t in excluded):
+        p.error('Excluded ticker codes must be six digits')
+    excluded_rows = x.loc[x.ticker.isin(excluded), ['signal_id','ticker','signal_date','entry_date']].copy()
+    excluded_rows['reason'] = 'predeclared_out_of_universe_non_operating_company_infrastructure_fund' 
+    REPORTS.mkdir(parents=True,exist_ok=True)
+    excluded_rows.to_csv(REPORTS/'realism_v3610_excluded_signals.csv',index=False,encoding='utf-8-sig')
+    x = x.loc[~x.ticker.isin(excluded)].copy()
+    if x.empty:
+        raise SystemExit('No signals remain after predeclared universe exclusions')
+    print(f'UNIVERSE: {original_tickers} original tickers, {x.ticker.nunique()} included; '
+          f'{len(excluded_rows)} signals excluded for {sorted(excluded)}',flush=True)
     tickers=sorted(x.ticker.unique())
     if args.max_tickers:
         tickers=tickers[:args.max_tickers]
@@ -527,11 +542,15 @@ def main():
         'verified_Open','verified_High','verified_Low','verified_Close','verified_Volume',
         'status']).to_csv(REPORTS/'realism_v366_verified_audit.csv',index=False,encoding='utf-8-sig')
     coverage=len(bars)/len(tickers) if tickers else 0
-    meta={'version':'C3 v3.6.9 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
+    meta={'version':'C3 v3.6.10 daily OHLCV research','run_kst':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),
           'verification_candidates':verification_candidates,
           'provider_basis_audit':basis_audit,
           'externally_verified_bars_applied':len(verified_audit),
           'verification_file':args.verified_bars or None,
+          'universe_policy':'predeclared non-operating-company exclusion, not an OHLC error repair',
+          'original_signals':original_signals,'original_tickers':original_tickers,
+          'excluded_tickers':sorted(excluded),'excluded_signal_rows':len(excluded_rows),
+          'excluded_signal_file':'realism_v3610_excluded_signals.csv',
           'signals':len(x),'tickers_requested':len(tickers),'tickers_valid':len(bars),
           'tickers_failed':len(errors),'ohlcv_coverage_pct':round(100*coverage,2),
           'cache_hits':sum(v=='cache' for v in sources.values()),
@@ -556,7 +575,9 @@ def main():
                       'Ticker coverage alone does not guarantee signal-level or exit coverage.',
                       'Missing histories are excluded; review failure report.',
                       'External OHLCV source provenance is user-supplied and not independently authenticated by this script.',
-                      'Provider price-basis comparisons are diagnostic only; no automatic cross-provider substitutions.']}
+                      'Provider price-basis comparisons are diagnostic only; no automatic cross-provider substitutions.',
+                      'Excluded infrastructure-fund signals are removed before ranking and replay; outcomes are not comparable to original full-universe results.',
+                      'Financial health screening is NOT implemented by this OHLCV-only backtest; exclusions do not certify remaining companies.']}
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
     if coverage < .90:
         raise SystemExit(f'Insufficient OHLCV coverage: {len(bars)}/{len(tickers)} ({coverage:.1%}); '
@@ -590,6 +611,7 @@ def main():
                     'entry_fill','Open','High','Low','Close','Volume']
     pd.DataFrame(rejection_details, columns=detail_columns).to_csv(
         REPORTS/'realism_v366_rejection_details.csv',index=False,encoding='utf-8-sig')
+    meta['rejected_scenarios']=len(rejected_scenarios)
     if rejected_scenarios:
         meta['rejected_scenarios']=len(rejected_scenarios)
         meta['rejection_detail_file']='realism_v366_rejection_details.csv'
@@ -601,7 +623,7 @@ def main():
     pd.DataFrame(equities).to_csv(REPORTS/'realism_v36_daily_equity.csv',index=False,encoding='utf-8-sig')
     meta['scenarios']=len(summaries)
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
-    print(f'C3 v3.6.9 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
+    print(f'C3 v3.6.10 complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
 
 
 if __name__=='__main__':
