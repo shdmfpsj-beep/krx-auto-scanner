@@ -17,6 +17,7 @@ on:
           - walkforward_v14
           - holding_v30
           - paired_v31
+          - entry_v32
 
   schedule:
     - cron: '30 8 * * 1-5'
@@ -140,6 +141,17 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'paired_v31'
         run: |
           python scripts/backtest_paired_v31.py \
+            --limit 120 \
+            --start-year 2023 \
+            --end-year 2025 \
+            --seed 42 \
+            --max-hold 20 \
+            --cost-bps 15
+
+      - name: Analyze C3 v3.2 entry quality and overheating
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'entry_v32'
+        run: |
+          python scripts/backtest_entry_quality_v32.py \
             --limit 120 \
             --start-year 2023 \
             --end-year 2025 \
