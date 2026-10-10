@@ -588,6 +588,181 @@ def replay_split_v37(signals, bars, capital, strategy, hold, selection,
     return summary,trades,ledger
 
 
+def replay_dip_v38(signals, bars, capital, strategy, hold, selection,
+                     stop_pct, take_pct, cost_bps, slip_bps, variant, dip_threshold):
+    """Research-only split entries. One ticker, one position, no averaging below stop.
+
+    Daily OHLCV cannot establish intraday order: existing stops/takes are
+    evaluated before any add; an add is only eligible on a later session.
+    Initial stop/take anchors are NEVER moved after adding. The entry open
+    must agree with the recorded signal (same 3% gate as v3.6.10).
+    """
+    if variant not in ('dip_50_50','cash_50_no_add'):
+        raise ValueError('Unknown variant')
+    eligible = signals if strategy == 'A_baseline' else signals.loc[signals.improved]
+    if selection == 'factor_rank':
+        eligible = eligible.sort_values(['entry_date','rank_score','ticker'],
+                                        ascending=[True,False,True],kind='stable')
+    else:
+        eligible = eligible.sort_values(['entry_date','ticker'],kind='stable')
+    states={t:classify_history(d) for t,d in bars.items()}
+    dates=sorted(set().union(*(set(d.index) for d in bars.values())))
+    if not dates:
+        return None,[],[rejection_detail('no_calendar_dates')]
+    groups={k:v for k,v in eligible.groupby('entry_date',sort=False)}
+    cash=float(capital); pos=None; trades=[]; ledger=[]
+    buy_mult=1+slip_bps/10000; sell_mult=1-slip_bps/10000
+    fee=cost_bps/20000
+    skipped=blocked=nontrading=0
+    for dt in dates:
+        exited_open=False
+        if pos is not None:
+            d=bars[pos['ticker']]
+            if dt in d.index and dt>pos['entry_date']:
+                st=states[pos['ticker']].loc[dt]
+                if st=='invalid':
+                    return None,[],[rejection_detail('invalid_bar_while_holding',pos['ticker'],dt,pos,d.loc[dt])]
+                if st=='nontrading':
+                    nontrading+=1
+                else:
+                    candle=d.loc[dt]; op=float(candle.Open); hi=float(candle.High); lo=float(candle.Low)
+                    pos['age']+=1
+                    stop=pos['first_fill']*(1-stop_pct)
+                    take=pos['first_fill']*(1+take_pct)
+                    price=reason=None
+                    if op<=stop: price,reason=op,'stop_gap'
+                    elif op>=take: price,reason=op,'take_gap'
+                    elif pos['age']>=hold: price,reason=op,'time_open'
+                    elif lo<=stop: price,reason=stop,'stop_intraday'
+                    elif hi>=take: price,reason=take,'take_intraday'
+                    if price is not None:
+                        proceeds=pos['shares']*price*sell_mult*(1-fee)
+                        cash+=proceeds
+                        trades.append({'variant':variant,'strategy':strategy,'selection':selection,
+                          'hold':hold,'capital':capital,'ticker':pos['ticker'],
+                          'signal_id':pos['signal_id'],'entry_date':pos['entry_date'].date().isoformat(),
+                          'exit_date':dt.date().isoformat(),'shares':pos['shares'],
+                          'dip_threshold_pct':round(dip_threshold*100,2),'add_executed':pos['added'],'entry_tranches':1+int(pos['added']),
+                          'exit_reason':reason,'net_pnl':proceeds-pos['cost'],
+                          'net_return_pct':100*(proceeds/pos['cost']-1)})
+                        pos=None
+                        exited_open=reason in ('stop_gap','take_gap','time_open')
+                    elif not pos['added']:
+                        # Conservative next-session confirmation: previous completed
+                        # close determines eligibility; current OPEN is executable.
+                        prev=d.loc[d.index<dt]
+                        if not prev.empty and states[pos['ticker']].loc[prev.index[-1]]=='tradable':
+                            prev_close=float(prev.iloc[-1].Close)
+                            first=pos['first_open']
+                            dip=(prev_close<=first*(1-dip_threshold) and prev_close>stop and
+                                 prev_close>=first*.93 and op>stop and op<=first)
+                            allow=(variant=='dip_50_50' and dip)
+                            if allow:
+                                fill=op*buy_mult
+                                budget=min(cash,pos['reserved'])
+                                shares=int(budget//(fill*(1+fee)))
+                                if shares>=1:
+                                    total=shares*fill*(1+fee)
+                                    cash-=total; pos['cost']+=total
+                                    pos['shares']+=shares;pos['added']=True
+        if pos is None and dt in groups and (not trades or trades[-1]['exit_date']!=dt.date().isoformat() or exited_open):
+            for _,sig in groups[dt].iterrows():
+                d=bars.get(sig.ticker)
+                if d is None or dt not in d.index:
+                    skipped+=1;continue
+                if states[sig.ticker].loc[dt]!='tradable':
+                    blocked+=1;continue
+                op=float(d.loc[dt,'Open'])
+                if abs(op/float(sig.entry_open)-1)>.03:
+                    skipped+=1;continue
+                fill=op*buy_mult
+                budget=cash*.5
+                shares=int(budget//(fill*(1+fee)))
+                if shares<1:continue
+                total=shares*fill*(1+fee)
+                cash-=total
+                pos={'ticker':sig.ticker,'signal_id':sig.signal_id,'entry_date':dt,
+                     'first_open':op,'first_fill':fill,'entry_fill':fill,
+                     'shares':shares,'cost':total,'reserved':float(capital)*.5,
+                     'added':False,'age':0}
+                break
+        if pos is None: equity=cash
+        else:
+            d=bars[pos['ticker']]; last=d.loc[:dt]
+            if not last.empty and states[pos['ticker']].loc[last.index[-1]]=='invalid':
+                return None,[],[rejection_detail('invalid_close_mark',pos['ticker'],last.index[-1],pos,last.iloc[-1])]
+            mark=float(last.iloc[-1].Close) if not last.empty else pos['first_fill']
+            equity=cash+pos['shares']*mark*sell_mult*(1-fee)
+        ledger.append({'date':dt.date().isoformat(),'variant':variant,'strategy':strategy,
+                       'selection':selection,'hold':hold,'capital':capital,'equity':equity})
+    vals=np.asarray([r['equity'] for r in ledger],dtype=float)
+    peaks=np.maximum.accumulate(vals)
+    years=max((dates[-1]-dates[0]).days/365.25,1e-9)
+    summary={'variant':variant,'strategy':strategy,'selection':selection,'hold':hold,
+             'capital':capital,'dip_threshold_pct':round(dip_threshold*100,2),'trades_closed':len(trades),
+             'adds_executed':sum(int(t['add_executed']) for t in trades),
+             'open_position':bool(pos),'skipped_missing_or_price_mismatch':skipped,
+             'blocked_nontradable_entries':blocked,'nontrading_holding_days':nontrading,
+             'total_return_pct':100*(vals[-1]/capital-1),
+             'cagr_pct':100*((vals[-1]/capital)**(1/years)-1) if vals[-1]>0 else None,
+             'daily_close_mdd_pct':100*np.min(vals/peaks-1),
+             'win_rate_pct':100*np.mean([t['net_pnl']>0 for t in trades]) if trades else None,
+             'ending_equity':vals[-1]}
+    return summary,trades,ledger
+
+
+
+def write_dip_study_v38(x,bars,capitals,holds,args,baseline):
+    """Paired, predeclared thresholds with a same-initial-exposure cash control.
+
+    All variants share original signals, historical prices, costs, initial entry,
+    stop/take anchors, and dates. No extra exposure from borrowing or cash reuse.
+    """
+    variants=[('cash_50_no_add',0.0)]+[('dip_50_50',v) for v in (.02,.03,.04,.05)]
+    rows=[]; trades=[]; rejections=[]
+    for base in baseline:
+        rows.append({'variant':'all_in_100','dip_threshold_pct':None,**base,'adds_executed':0})
+    for hold in holds:
+        for capital in capitals:
+            for strategy in ('A_baseline','B_improved'):
+                for selection in ('ticker_ascending','factor_rank'):
+                    for variant,threshold in variants:
+                        result,ts,ledger=replay_dip_v38(x,bars,capital,strategy,hold,selection,
+                            args.stop_pct,args.take_pct,args.cost_bps,args.slip_bps,variant,threshold)
+                        if result is None:
+                            rejections.append({'variant':variant,'threshold':threshold,'strategy':strategy,
+                                'selection':selection,'hold':hold,'capital':capital,
+                                'reason':ledger[0]['reason'] if ledger else 'unknown'})
+                        else:
+                            rows.append(result);trades.extend(ts)
+    df=pd.DataFrame(rows)
+    df.to_csv(REPORTS/'realism_v38_dip_comparison.csv',index=False,encoding='utf-8-sig')
+    pd.DataFrame(trades).to_csv(REPORTS/'realism_v38_dip_trades.csv',index=False,encoding='utf-8-sig')
+    pd.DataFrame(rejections,columns=['variant','threshold','strategy','selection','hold','capital','reason']).to_csv(
+        REPORTS/'realism_v38_dip_rejections.csv',index=False,encoding='utf-8-sig')
+    # Explicit matched-condition delta vs the cash control, not just full investment.
+    key=['strategy','selection','hold','capital']
+    control=df.loc[df.variant.eq('cash_50_no_add'),key+['total_return_pct','daily_close_mdd_pct','win_rate_pct']]
+    control=control.rename(columns={k:'control_'+k for k in ['total_return_pct','daily_close_mdd_pct','win_rate_pct']})
+    paired=df.loc[df.variant.eq('dip_50_50')].merge(control,on=key,how='left',validate='many_to_one')
+    for metric in ['total_return_pct','daily_close_mdd_pct','win_rate_pct']:
+        paired['delta_'+metric+'_pp']=paired[metric]-paired['control_'+metric]
+    paired.to_csv(REPORTS/'realism_v38_dip_vs_cash_control.csv',index=False,encoding='utf-8-sig')
+    meta={'version':'C3 v3.8 research-only dip threshold and exposure controls',
+          'scenarios_expected':len(baseline)+len(variants)*len(capitals)*len(holds)*4,
+          'scenarios_completed':len(rows),'rejections':len(rejections),
+          'dip_thresholds_pct':[2,3,4,5],
+          'cash_control':'same 50% initial tranche, never adds',
+          'all_in_control':'unchanged v3.6.10 100% initial entry',
+          'max_adds':1,'entry_execution':'prior completed close triggers next session open',
+          'stop_take_anchor':'original first fill; not moved after add',
+          'dip_floor':'prior close >= 93% of initial open and above original stop',
+          'risk_budget_note':'Comparisons do not equalize maximum exposure; cash control isolates initial cash effect only.',
+          'limitations':['No point-in-time fundamentals or universe','Reused historical sample and multiple correlated scenarios',
+                         'Daily OHLCV cannot resolve intraday order','No live trading approval','A stop intraday on the add day is not simulated after opening add; results may be optimistic.']}
+    (REPORTS/'realism_v38_dip_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
+    print(f'v3.8 dip study: {len(rows)}/{meta["scenarios_expected"]} scenarios; {len(rejections)} rejected',flush=True)
+
 def write_split_study_v37(x,bars,capitals,holds,args,baseline):
     """Run 240 extra scenarios; baseline 80 are copied from the unchanged engine."""
     results=[];trades=[];rejections=[]
@@ -641,6 +816,7 @@ def main():
     p.add_argument('--verified-bars',default='',help='Optional independently verified OHLCV CSV with source URLs')
     p.add_argument('--provider-comparison',default=str(REPORTS/'verify_088980_provider_comparison.csv'),help='Research-only CSV from provider comparison workflow; no auto price replacement')
     p.add_argument('--exclude-tickers',default='088980',help='Comma-separated predeclared out-of-universe tickers; default excludes infrastructure fund 088980')
+    p.add_argument('--dip-study',action='store_true',help='Run v3.8 dip-threshold and cash-control study')
     p.add_argument('--split-study',action='store_true',help='Run v3.7 research split-entry comparison after standard replay')
     p.add_argument('--max-tickers',type=int,default=0,help='Research smoke-test only; 0=all')
     p.add_argument('--download-attempts',type=int,default=4)
@@ -791,9 +967,11 @@ def main():
     pd.DataFrame(equities).to_csv(REPORTS/'realism_v36_daily_equity.csv',index=False,encoding='utf-8-sig')
     meta['scenarios']=len(summaries)
     (REPORTS/'realism_v36_metadata.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding='utf-8')
+    if args.dip_study:
+        write_dip_study_v38(x,bars,capitals,holds,args,summaries)
     if args.split_study:
         write_split_study_v37(x,bars,capitals,holds,args,summaries)
-    print(f'C3 v3.7 compatible baseline complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
+    print(f'C3 v3.8 compatible baseline complete: {len(summaries)} scenarios; {len(trades)} trades; {len(errors)} failed tickers')
 
 
 if __name__=='__main__':
