@@ -1,0 +1,7 @@
+﻿gate,status,detail
+current_tier_direct_rank_dependency,NO_DIRECT_DEPENDENCY_IN_V40_FORMULA,Changed daily top signals after dropping tier column: 0; this is only a formula ablation
+historic_universe_asof_membership,NOT_VERIFIED,Static walkforward universe has no effective dates or archived delisted universe
+upstream_universe_selection_bias,NOT_VERIFIED,Same-signal ablation cannot recover securities omitted from the original candidate pool
+signal_feature_asof,NOT_VERIFIED,"Recomputed rank from saved feature values, not independently from historical as-of raw bars"
+survivorship_and_corporate_actions,NOT_VERIFIED,"Historic listings, delistings and as-of adjustment provenance unavailable"
+independent_holdout,NOT_VERIFIED,2025 was inspected previously; new untouched data required
