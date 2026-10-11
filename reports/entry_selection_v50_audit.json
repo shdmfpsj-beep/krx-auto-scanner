@@ -1,0 +1,29 @@
+{
+  "version": "v5.0",
+  "status": "RESEARCH_ONLY_NO_LIVE_BUY",
+  "source": "reports/candidates.csv",
+  "source_dates": [
+    "2026-10-08"
+  ],
+  "evaluated": 138,
+  "instrument_counts": {
+    "UNKNOWN_VERIFY": 124,
+    "EXCLUDE_SPECIAL_NAME": 14
+  },
+  "decision_counts": {
+    "WATCH_VERIFY_INSTRUMENT": 38,
+    "WAIT_ENTRY": 59,
+    "WAIT_DIRECTION": 27,
+    "EXCLUDE": 14
+  },
+  "buy_approved": 0,
+  "independent_common_share_verification": false,
+  "limitations": [
+    "Name and source-type exclusion is conservative but not a complete KRX security-master check",
+    "UNKNOWN is never assumed to be common stock",
+    "Turnover estimated as close times volume does not prove real money flow",
+    "No sector breadth, verified institutional flow, intraday trigger, or executable price levels",
+    "The candidate input may be stale and prefiltered; no full-market coverage guarantee",
+    "No live orders or changes to C3/K100 portfolio rules"
+  ]
+}
