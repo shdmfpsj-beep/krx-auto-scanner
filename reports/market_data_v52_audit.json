@@ -1,56 +1,51 @@
 {
-  "version": "v5.3",
+  "version": "v5.4",
   "research_only": true,
-  "status": "FDR_SNAPSHOT_SAMPLE_INCONSISTENT_RESEARCH_ONLY",
-  "run_kst": "2026-10-11T14:54:39.747212+09:00",
-  "requested_date": "AUTO",
-  "provider": "FinanceDataReader",
-  "row_count": 2568,
-  "live_buy_approved": 0,
+  "run_kst": "2026-10-11T15:04:47.542562+09:00",
+  "status": "DATED_RESEARCH_SUBSET_NO_BUY",
+  "row_count": 2679,
+  "dated_valid_rows": 79,
   "verified_common_stocks": 0,
+  "verified_turnover_rows": 0,
+  "live_buy_approved": 0,
   "date_verified_for_all": false,
   "turnover_independently_reconciled": false,
+  "errors": [],
   "market_diagnostics": {
     "KOSPI": {
-      "raw_rows": 942,
-      "accepted_rows": 890,
+      "raw": 942,
+      "eligible_for_dated_query": 915,
       "rejected": {
-        "bad_or_duplicate_ticker": 27,
-        "invalid_price_volume_amount": 25
+        "bad_or_duplicate_code": 27
       }
     },
     "KOSDAQ": {
-      "raw_rows": 1823,
-      "accepted_rows": 1678,
+      "raw": 1823,
+      "eligible_for_dated_query": 1764,
       "rejected": {
-        "bad_or_duplicate_ticker": 59,
-        "invalid_price_volume_amount": 86
+        "bad_or_duplicate_code": 59
       }
     }
   },
-  "sample_validation": {
-    "sample_size": 40,
-    "statuses": {
-      "MISMATCH": 36,
-      "SAME_PROVIDER_DATED_OHLCV_MATCH_AMOUNT_UNVERIFIED": 4
-    },
-    "date_matches": 40,
-    "ohlcv_matches": 4,
-    "amount_matches": 0,
-    "sample_file": "market_data_v53_dated_sample.csv"
-  },
-  "errors": [],
   "limitations": [
-    "Listing data has no per-security trade date",
-    "Sample cross-check uses SAME provider, not independent verification",
-    "Unqueried listing rows remain undated",
-    "Common-stock classification and sector flows not verified",
-    "No real-time data or BUY approval"
+    "StockListing has no per-security date: its prices are not authoritative",
+    "Only explicitly fetched DataReader rows have dated OHLCV",
+    "Daily-bar adjustment basis and independent exchange reconciliation unverified",
+    "All turnover remains unverified; no sector money flow or BUY approval",
+    "Stock types (common shares/ETF/SPAC) not independently verified"
   ],
   "provider_version": "0.9.202",
   "market_counts": {
-    "KOSPI": 890,
-    "KOSDAQ": 1678
+    "KOSPI": 915,
+    "KOSDAQ": 1764
   },
-  "candidate_session_date_from_anchor": "2026-10-08"
+  "candidate_session_date_from_anchor": "2026-10-08",
+  "dated_requested_rows": 80,
+  "dated_failures": 1,
+  "listing_close_mismatch_count": 68,
+  "dated_market_counts": {
+    "KOSPI": 40,
+    "KOSDAQ": 39
+  },
+  "dated_file": "market_data_v54_dated.csv"
 }
