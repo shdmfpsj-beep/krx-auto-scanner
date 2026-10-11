@@ -65,15 +65,13 @@
   "artifact_error_types": {
     "ValueError": 77
   },
-  "artifacts_examined": 84,
+  "artifacts_examined": 85,
   "batch_date": "2026-10-08",
   "universe_count": 2679,
   "universe_sha256": "ebec1662ccf020b5472841859973f5b2373c06539fc4c3665a09e7ae658f1424",
   "shard_count": 23,
-  "shards_collected": 2,
+  "shards_collected": 5,
   "missing_shards": [
-    0,
-    1,
     2,
     3,
     4,
@@ -85,7 +83,6 @@
     12,
     13,
     14,
-    15,
     16,
     17,
     18,
@@ -94,11 +91,14 @@
     21,
     22
   ],
-  "attempted_tickers": 240,
-  "dated_valid_rows": 224,
-  "failed_or_missing_tickers": 2455,
+  "attempted_tickers": 600,
+  "dated_valid_rows": 577,
+  "failed_or_missing_tickers": 2102,
   "shard_sources": {
-    "10": "current_run",
+    "15": "current_run",
+    "0": "reports/v57_shards/shard_00.zip",
+    "1": "reports/v57_shards/shard_01.zip",
+    "10": "run_artifact_11695723860",
     "8": "run_artifact_11694621192"
   },
   "merged_csv": "market_data_v56_merged.csv"

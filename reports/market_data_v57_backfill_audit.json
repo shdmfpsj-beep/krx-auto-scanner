@@ -1,25 +1,27 @@
 {
   "version": "v5.7",
   "research_only": true,
-  "run_kst": "2026-10-11T16:43:01.958889+09:00",
+  "run_kst": "2026-10-11T17:16:40.016976+09:00",
   "live_buy_approved": 0,
-  "status": "BACKFILL_FAILED_NO_BUY",
+  "status": "BACKFILL_PARTIAL_NO_BUY",
   "selected_shards": [
     0,
     1
   ],
-  "successful_shards": [],
-  "failed_shards": [
+  "successful_shards": [
     {
       "index": 0,
-      "error": "ValueError:NO_SHARD_AUDIT exit=2 output='usage: market_data_collect_v52.py [-h] [--outdir OUTDIR] [--max-runs MAX_RUNS]\\n                                  [--off"
+      "dated_valid_rows": 116,
+      "zip": "reports/v57_shards/shard_00.zip"
     },
     {
       "index": 1,
-      "error": "ValueError:NO_SHARD_AUDIT exit=2 output='usage: market_data_collect_v52.py [-h] [--outdir OUTDIR] [--max-runs MAX_RUNS]\\n                                  [--off"
+      "dated_valid_rows": 119,
+      "zip": "reports/v57_shards/shard_01.zip"
     }
   ],
+  "failed_shards": [],
   "warnings": [],
   "batch_date": "2026-10-08",
-  "missing_before": 21
+  "missing_before": 20
 }
