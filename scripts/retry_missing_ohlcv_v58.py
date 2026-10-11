@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v5.8.1 research-only selective retry with granular OHLCV diagnostics.
+"""v5.8.2 research-only selective retry with granular OHLCV diagnostics.
 Never modifies merged data, never approves trades, historical batch pinned.
 """
 import argparse
@@ -56,12 +56,13 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--outdir', default='reports')
     p.add_argument('--max-tickers', type=int, default=40)
+    p.add_argument('--offset', type=int, default=40, help='Start at missing ticker index; default skips first 40 diagnosed tickers')
     p.add_argument('--delay', type=float, default=0.35)
     p.add_argument('--retries', type=int, default=1)
     a = p.parse_args()
     out = Path(a.outdir)
     out.mkdir(parents=True, exist_ok=True)
-    audit = {'version':'v5.8.1','research_only':True,'status':'FAILED_CLOSED',
+    audit = {'version':'v5.8.2','research_only':True,'status':'FAILED_CLOSED',
              'live_buy_approved':0,'auto_merge':False,
              'turnover_independently_reconciled':False,
              'instrument_type_independently_verified':False,
@@ -75,14 +76,14 @@ def main():
                       'raw_open','raw_high','raw_low','raw_close','raw_volume',
                       'bars_count','available_last_date','attempts']
     try:
-        if not 1 <= a.max_tickers <= 111 or not 0 <= a.retries <= 2 or not 0 <= a.delay <= 5:
+        if not 1 <= a.max_tickers <= 111 or not 0 <= a.offset < 111 or not 0 <= a.retries <= 2 or not 0 <= a.delay <= 5:
             raise ValueError('INVALID_BOUNDS')
         merge = json.loads((out/'market_data_v56_merge_audit.json').read_text(encoding='utf-8'))
         session = merge.get('batch_date')
         if merge.get('shards_collected') != merge.get('shard_count') or merge.get('universe_count') != 2679:
             raise ValueError('INCOMPLETE_OR_CHANGED_UNIVERSE')
         if session != '2026-10-08':
-            raise ValueError('SESSION_CHANGED: this v5.8.1 batch is pinned to 2026-10-08')
+            raise ValueError('SESSION_CHANGED: this v5.8.2 batch is pinned to 2026-10-08')
         universe = read_csv(out/'market_data_v52.csv')
         merged = read_csv(out/'market_data_v56_merged.csv')
         if len(universe) != 2679 or len(merged) != 2568:
@@ -101,7 +102,10 @@ def main():
         start = (date.fromisoformat(session)-timedelta(days=9)).isoformat()
         end = (date.fromisoformat(session)+timedelta(days=1)).isoformat()
         counts = Counter()
-        for row in missing[:a.max_tickers]:
+        selected = missing[a.offset:a.offset + a.max_tickers]
+        if not selected:
+            raise ValueError('EMPTY_SELECTED_RANGE')
+        for row in selected:
             code = row['ticker']
             diagnostic = {'ticker':code,'name':row['name'],'market':row['market'],
                           'reason':'UNKNOWN','diagnostic_codes':'',
@@ -156,9 +160,13 @@ def main():
         write_csv(out/'market_data_v58_retry_candidates.csv',fields,successes)
         write_csv(out/'market_data_v58_retry_failures.csv',failure_fields,failures)
         audit.update(status='RETRY_CANDIDATES_ONLY_NO_BUY',batch_date=session,
-                     missing_total=len(missing),attempted=len(successes)+len(failures),
+                     missing_total=len(missing),offset=a.offset,selected_count=len(selected),
+                     selected_indices=[a.offset,a.offset+len(selected)-1],
+                     attempted=len(successes)+len(failures),
                      candidate_valid=len(successes),still_failed_in_attempt=len(failures),
-                     unattempted=len(missing)-len(successes)-len(failures),error_counts=dict(counts),
+                     unattempted=len(missing)-len(successes)-len(failures),
+                     remaining_after_selected=max(0,len(missing)-a.offset-len(selected)),
+                     error_counts=dict(counts),
                      warnings=['No automatic merge; same-provider data is not independent confirmation.',
                                'ZERO_VOLUME is a diagnostic, NOT proof of a trading halt.'])
     except Exception as exc:
