@@ -44,6 +44,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: krx-report-main
@@ -320,6 +321,15 @@ jobs:
         run: |
           python -m pip install --upgrade pykrx finance-datareader
           python scripts/market_data_collect_v52.py --outdir reports
+
+      - name: Merge v5.5 dated shards from prior GitHub artifacts (v5.6 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'market_data_v52'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python scripts/merge_market_shards_v56.py --outdir reports --max-runs 100
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
