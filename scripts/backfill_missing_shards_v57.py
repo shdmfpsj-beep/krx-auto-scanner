@@ -29,7 +29,10 @@ def main():
     p.add_argument('--max-shards', type=int, default=2)
     p.add_argument('--delay', type=float, default=0.3)
     p.add_argument('--dry-run', action='store_true')
+    p.add_argument('--timeout-seconds', type=int, default=900, help='Per-shard collector timeout')
     a = p.parse_args()
+    if not 120 <= a.timeout_seconds <= 1500:
+        p.error('--timeout-seconds must be 120..1500')
     if not 1 <= a.max_shards <= 3:
         p.error('--max-shards must be between 1 and 3 (bounded API load)')
     out = Path(a.outdir)
@@ -69,11 +72,12 @@ def main():
                    '--shard-index', str(idx), '--batch-size', str(current['batch_size']),
                    '--delay', str(a.delay), '--retries', '1']
             try:
-                # One shard is bounded to 120 requests by the collector; cap wall time.
-                proc = subprocess.run(cmd, text=True, capture_output=True, timeout=420)
+                # One shard is bounded to 120 requests by the collector; cap wall time with configurable timeout.
+                proc = subprocess.run(cmd, text=True, capture_output=True, timeout=a.timeout_seconds)
                 audit_file = folder/FILES[0]
                 if not audit_file.exists():
-                    raise ValueError('NO_SHARD_AUDIT')
+                    detail = ((proc.stderr or '') + '\n' + (proc.stdout or ''))[-1200:]
+                    raise ValueError(f'NO_SHARD_AUDIT exit={proc.returncode} output={detail!r}')
                 audit = json.loads(audit_file.read_text(encoding='utf-8'))
                 if (audit.get('version') != 'v5.5' or audit.get('batch_date') != current['batch_date']
                     or audit.get('universe_count') != current['universe_count']
@@ -88,6 +92,8 @@ def main():
                     for name in FILES:
                         z.write(folder/name, arcname=name)
                 report['successful_shards'].append({'index': idx, 'dated_valid_rows': audit['dated_valid_rows'], 'zip': str(archive)})
+            except subprocess.TimeoutExpired as exc:
+                report['failed_shards'].append({'index': idx, 'error': f'TIMEOUT_AFTER_{a.timeout_seconds}s', 'stdout_tail': str(exc.stdout or b'')[-400:], 'stderr_tail': str(exc.stderr or b'')[-400:]})
             except Exception as exc:
                 report['failed_shards'].append({'index': idx, 'error': f'{type(exc).__name__}:{str(exc)[:150]}'})
         report['status'] = 'BACKFILL_PARTIAL_NO_BUY' if report['successful_shards'] else 'BACKFILL_FAILED_NO_BUY'
