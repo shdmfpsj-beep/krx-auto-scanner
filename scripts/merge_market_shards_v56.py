@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v5.6.2 research-only merger for v5.5 GitHub Actions market-data shards.
+"""v5.6.3 research-only merger for v5.5 GitHub Actions market-data shards.
 
 Reads local v5.5 outputs, and (when authenticated) recent GitHub Actions artifacts.
 Fail-closed: only same session AND identical universe/shard layout are combined.
@@ -62,12 +62,44 @@ def api_json(url, token):
 
 
 def api_zip(url, token):
-    req = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + token,
-                                               'Accept': 'application/vnd.github+json',
-                                               'X-GitHub-Api-Version': '2022-11-28',
-                                               'User-Agent': 'krx-v56-research'})
-    with urllib.request.urlopen(req, timeout=40) as r:
-        return r.read(80_000_001)
+    """Authenticate to GitHub API, but never forward the token to signed ZIP storage."""
+    from urllib.parse import urlparse
+    from urllib.error import HTTPError
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
+    opener = urllib.request.build_opener(NoRedirect)
+    req = urllib.request.Request(url, headers={
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'krx-v56-research'})
+    # The artifacts API responds with a short-lived signed URL (302).
+    # urllib's default redirect can propagate the API Authorization header
+    # to storage, where it conflicts with signed-URL authentication (401).
+    try:
+        with opener.open(req, timeout=40) as r:
+            if r.status != 200:
+                raise ValueError(f'Unexpected GitHub artifact response {r.status}')
+            return r.read(80_000_001)
+    except HTTPError as exc:
+        if exc.code not in (301, 302, 303, 307, 308):
+            raise
+        location = exc.headers.get('Location', '')
+        parsed = urlparse(location)
+        if parsed.scheme != 'https' or not parsed.hostname:
+            raise ValueError('Invalid artifact redirect destination') from exc
+        # Signed storage URL: deliberately omit Authorization.
+        signed_req = urllib.request.Request(location, headers={
+            'User-Agent': 'krx-v56-research',
+            'Accept': 'application/zip'})
+        with urllib.request.urlopen(signed_req, timeout=60) as r:
+            data = r.read(80_000_001)
+            if len(data) > 80_000_000:
+                raise ValueError('Artifact ZIP exceeds 80 MB safety limit')
+            return data
 
 
 def main():
@@ -78,7 +110,7 @@ def main():
     a = p.parse_args()
     out = Path(a.outdir)
     out.mkdir(parents=True, exist_ok=True)
-    result = {'version':'v5.6.2', 'research_only':True, 'status':'UNVERIFIED',
+    result = {'version':'v5.6.3', 'research_only':True, 'status':'UNVERIFIED',
               'live_buy_approved':0, 'turnover_independently_reconciled':False,
               'verified_common_stocks':0, 'complete_market_dated':False,
               'source':'v5.5 dated OHLCV shards; same provider, not independent exchange evidence',
