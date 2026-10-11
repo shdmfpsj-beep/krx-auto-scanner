@@ -9,10 +9,16 @@
   "source": "v5.5 dated OHLCV shards; same provider, not independent exchange evidence",
   "warnings": [],
   "rejected_artifacts": {
-    "artifact_read_error": 80,
+    "artifact_read_error": 81,
     "wrong_version_or_date": 2
   },
   "artifact_error_samples": [
+    {
+      "artifact_id": 11699386515,
+      "run_id": 38131021955,
+      "error_type": "ValueError",
+      "detail": "artifact missing/ambiguous market_data_v52_audit.json"
+    },
     {
       "artifact_id": 11697973807,
       "run_id": 38129962871,
@@ -54,26 +60,18 @@
       "run_id": 38109273883,
       "error_type": "ValueError",
       "detail": "artifact missing/ambiguous market_data_v52.csv"
-    },
-    {
-      "artifact_id": 11688928297,
-      "run_id": 38104368982,
-      "error_type": "ValueError",
-      "detail": "artifact missing/ambiguous market_data_v52.csv"
     }
   ],
   "artifact_error_types": {
-    "ValueError": 80
+    "ValueError": 81
   },
-  "artifacts_examined": 88,
+  "artifacts_examined": 89,
   "batch_date": "2026-10-08",
   "universe_count": 2679,
   "universe_sha256": "ebec1662ccf020b5472841859973f5b2373c06539fc4c3665a09e7ae658f1424",
   "shard_count": 23,
-  "shards_collected": 9,
+  "shards_collected": 11,
   "missing_shards": [
-    6,
-    7,
     9,
     11,
     12,
@@ -82,22 +80,24 @@
     15,
     16,
     17,
-    19,
+    18,
     20,
     21,
     22
   ],
-  "attempted_tickers": 1080,
-  "dated_valid_rows": 1034,
-  "failed_or_missing_tickers": 1645,
+  "attempted_tickers": 1320,
+  "dated_valid_rows": 1275,
+  "failed_or_missing_tickers": 1404,
   "shard_sources": {
-    "18": "current_run",
+    "19": "current_run",
     "0": "reports/v57_shards/shard_00.zip",
     "1": "reports/v57_shards/shard_01.zip",
     "2": "reports/v57_shards/shard_02.zip",
     "3": "reports/v57_shards/shard_03.zip",
     "4": "reports/v57_shards/shard_04.zip",
     "5": "reports/v57_shards/shard_05.zip",
+    "6": "reports/v57_shards/shard_06.zip",
+    "7": "reports/v57_shards/shard_07.zip",
     "10": "run_artifact_11695723860",
     "8": "run_artifact_11694621192"
   },

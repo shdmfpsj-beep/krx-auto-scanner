@@ -1,10 +1,10 @@
 {
   "version": "v5.5",
   "research_only": true,
-  "run_kst": "2026-10-11T19:11:18.088083+09:00",
+  "run_kst": "2026-10-11T19:34:07.958520+09:00",
   "status": "DATED_PARTIAL_BATCH_NO_BUY",
   "row_count": 2679,
-  "dated_valid_rows": 111,
+  "dated_valid_rows": 117,
   "verified_common_stocks": 0,
   "verified_turnover_rows": 0,
   "live_buy_approved": 0,
@@ -41,21 +41,21 @@
     "KOSDAQ": 1764
   },
   "candidate_session_date_from_anchor": "2026-10-08",
-  "shard_index": 18,
+  "shard_index": 19,
   "shard_count": 23,
   "shard_mode": "GITHUB_RUN_NUMBER_ROTATION",
   "batch_size": 120,
-  "batch_start": 2160,
-  "batch_end_exclusive": 2280,
+  "batch_start": 2280,
+  "batch_end_exclusive": 2400,
   "universe_count": 2679,
   "all_market_dated": false,
   "persistence": "PER_RUN_ARTIFACT_ONLY_NOT_MERGED",
   "batch_date": "2026-10-08",
-  "dated_failures": 9,
+  "dated_failures": 3,
   "dated_requested_rows": 120,
-  "listing_close_mismatch_count": 93,
+  "listing_close_mismatch_count": 96,
   "dated_market_counts": {
-    "KOSDAQ": 111
+    "KOSDAQ": 117
   },
   "dated_file": "market_data_v54_dated.csv"
 }
