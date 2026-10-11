@@ -36,6 +36,7 @@ on:
           - entry_geometry_v49
           - entry_selection_v50
           - market_entry_v51
+          - market_data_v52
           - diagnose_v363
 
   schedule:
@@ -313,6 +314,12 @@ jobs:
           python scripts/market_entry_engine_v51.py \
             --input reports/candidates.csv \
             --outdir reports
+
+      - name: Collect KRX v5.2 daily market data (research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'market_data_v52'
+        run: |
+          python -m pip install pykrx
+          python scripts/market_data_collect_v52.py --outdir reports
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
