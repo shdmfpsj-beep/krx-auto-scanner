@@ -38,6 +38,7 @@ on:
           - market_entry_v51
           - market_data_v52
           - retry_missing_v58
+          - preliminary_v59
           - diagnose_v363
 
   schedule:
@@ -359,6 +360,13 @@ jobs:
         run: |
           python -m pip install --upgrade finance-datareader
           python scripts/retry_missing_ohlcv_v58.py --outdir reports --max-tickers 40
+
+      - name: Screen existing dated OHLCV (v5.9 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'preliminary_v59'
+        run: |
+          test -s reports/market_data_v56_merge_audit.json
+          test -s reports/market_data_v56_merged.csv
+          python scripts/krx_v59_preliminary.py --outdir reports
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
