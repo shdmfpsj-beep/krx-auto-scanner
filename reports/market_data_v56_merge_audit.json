@@ -1,5 +1,5 @@
 {
-  "version": "v5.6",
+  "version": "v5.6.2",
   "research_only": true,
   "status": "PARTIAL_SHARDS_NO_BUY",
   "live_buy_approved": 0,
@@ -9,9 +9,62 @@
   "source": "v5.5 dated OHLCV shards; same provider, not independent exchange evidence",
   "warnings": [],
   "rejected_artifacts": {
-    "artifact_read_error": 80
+    "artifact_read_error": 81
   },
-  "artifacts_examined": 80,
+  "artifact_error_samples": [
+    {
+      "artifact_id": 11694621192,
+      "run_id": 38117485502,
+      "error_type": "HTTPError",
+      "detail": "HTTP Error 401: Server failed to authenticate the request. Please refer to the information in the www-authenticate header."
+    },
+    {
+      "artifact_id": 11694544179,
+      "run_id": 38119054550,
+      "error_type": "HTTPError",
+      "detail": "HTTP Error 401: Server failed to authenticate the request. Please refer to the information in the www-authenticate header."
+    },
+    {
+      "artifact_id": 11694240548,
+      "run_id": 38116857733,
+      "error_type": "HTTPError",
+      "detail": "HTTP Error 401: Server failed to authenticate the request. Please refer to the information in the www-authenticate header."
+    },
+    {
+      "artifact_id": 11693692943,
+      "run_id": 38118421619,
+      "error_type": "HTTPError",
+      "detail": "HTTP Error 401: Server failed to authenticate the request. Please refer to the information in the www-authenticate header."
+    },
+    {
+      "artifact_id": 11693089478,
+      "run_id": 38116301089,
+      "error_type": "HTTPError",
+      "detail": "HTTP Error 401: Server failed to authenticate the request. Please refer to the information in the www-authenticate header."
+    },
+    {
+      "artifact_id": 11692168438,
+      "run_id": 38112890387,
+      "error_type": "HTTPError",
+      "detail": "HTTP Error 401: Server failed to authenticate the request. Please refer to the information in the www-authenticate header."
+    },
+    {
+      "artifact_id": 11692124497,
+      "run_id": 38113548926,
+      "error_type": "HTTPError",
+      "detail": "HTTP Error 401: Server failed to authenticate the request. Please refer to the information in the www-authenticate header."
+    },
+    {
+      "artifact_id": 11691501814,
+      "run_id": 38109273883,
+      "error_type": "HTTPError",
+      "detail": "HTTP Error 401: Server failed to authenticate the request. Please refer to the information in the www-authenticate header."
+    }
+  ],
+  "artifact_error_types": {
+    "HTTPError": 81
+  },
+  "artifacts_examined": 81,
   "batch_date": "2026-10-08",
   "universe_count": 2679,
   "universe_sha256": "ebec1662ccf020b5472841859973f5b2373c06539fc4c3665a09e7ae658f1424",
