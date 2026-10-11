@@ -331,6 +331,28 @@ jobs:
         run: |
           python scripts/merge_market_shards_v56.py --outdir reports --max-runs 100
 
+      - name: Backfill missing v5.5 shards (v5.7 research only)
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.mode == 'market_data_v52' }}
+        continue-on-error: true
+        run: |
+          python scripts/backfill_missing_shards_v57.py --outdir reports --max-shards 2
+
+      - name: Merge prior and newly backfilled shards (v5.7 research only)
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.mode == 'market_data_v52' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          shopt -s nullglob
+          shards=(reports/v57_shards/shard_*.zip)
+          if (( ${#shards[@]} > 0 )); then
+            python scripts/merge_market_shards_v56.py --outdir reports --max-runs 100 --offline-artifacts "${shards[@]}"
+          else
+            echo 'No new backfill ZIPs; preserving the first merge result.'
+          fi
+
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
         run: python scripts/diagnose_ohlcv_v363.py
