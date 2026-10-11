@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v5.7: bounded, fail-closed backfill of missing v5.5 dated OHLCV shards.
+"""v5.7.2: bounded, fail-closed backfill of missing v5.5 dated OHLCV shards.
 
 Run AFTER v5.6.3 merge audit is written. Each selected shard is collected into
 an isolated directory and packed as a local artifact ZIP for a SECOND merger
@@ -10,6 +10,9 @@ Example:
  python scripts/merge_market_shards_v56.py --outdir reports --offline-artifacts reports/v57_shards/*.zip
 """
 import argparse
+import csv
+import hashlib
+import io
 import json
 import subprocess
 import sys
@@ -36,7 +39,7 @@ def main():
     if not 1 <= a.max_shards <= 3:
         p.error('--max-shards must be between 1 and 3 (bounded API load)')
     out = Path(a.outdir)
-    report = {'version': 'v5.7', 'research_only': True,
+    report = {'version': 'v5.7.2', 'research_only': True,
               'run_kst': datetime.now(KST).isoformat(),
               'live_buy_approved': 0, 'status': 'NOT_RUN',
               'selected_shards': [], 'successful_shards': [],
@@ -56,10 +59,34 @@ def main():
         # Never backfill an old session with today's StockListing.
         if (datetime.now(KST).date() - datetime.fromisoformat(current['batch_date']).date()).days > 5:
             raise ValueError('SESSION_TOO_OLD_FOR_CURRENT_LISTING_BACKFILL')
-        selected = sorted(set(missing))[:a.max_shards]
+        # The FIRST merge does not include previous run's local v57 ZIPs.
+        # Count only locally cached shards whose session, layout AND full universe
+        # fingerprint match the current run; never skip a shard for a stale ZIP.
+        cached_valid = []
+        for archive in sorted((out/'v57_shards').glob('shard_*.zip')):
+            try:
+                with zipfile.ZipFile(archive) as z:
+                    audit = json.loads(z.read('market_data_v52_audit.json'))
+                    rows = list(csv.DictReader(io.StringIO(z.read('market_data_v52.csv').decode('utf-8-sig'))))
+                    entries = sorted((r['ticker'], r['market']) for r in rows)
+                    digest = hashlib.sha256(json.dumps(entries, separators=(',', ':')).encode()).hexdigest()
+                    idx = audit.get('shard_index')
+                    if (audit.get('version') == 'v5.5'
+                        and audit.get('batch_date') == current['batch_date']
+                        and audit.get('universe_count') == current['universe_count']
+                        and audit.get('shard_count') == current['shard_count']
+                        and audit.get('batch_size') == current['batch_size']
+                        and digest == merged.get('universe_sha256')
+                        and type(idx) is int and 0 <= idx < current['shard_count']
+                        and audit.get('dated_valid_rows', 0) > 0
+                        and len(rows) == current['universe_count']):
+                        cached_valid.append(idx)
+            except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+                report['warnings'].append(f'IGNORED_INVALID_CACHE:{archive.name}')
+        selected = sorted(set(missing) - set(cached_valid))[:a.max_shards]
         report.update(status='DRY_RUN' if a.dry_run else 'IN_PROGRESS',
                       batch_date=current['batch_date'], selected_shards=selected,
-                      missing_before=len(missing))
+                      missing_before=len(missing), valid_cached_shards=sorted(set(cached_valid)))
         if a.dry_run:
             print(json.dumps(report, ensure_ascii=False, indent=2))
             return 0
