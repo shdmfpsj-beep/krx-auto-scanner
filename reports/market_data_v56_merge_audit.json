@@ -9,10 +9,16 @@
   "source": "v5.5 dated OHLCV shards; same provider, not independent exchange evidence",
   "warnings": [],
   "rejected_artifacts": {
-    "artifact_read_error": 83,
+    "artifact_read_error": 84,
     "wrong_version_or_date": 2
   },
   "artifact_error_samples": [
+    {
+      "artifact_id": 11702025766,
+      "run_id": 38136552861,
+      "error_type": "ValueError",
+      "detail": "artifact missing/ambiguous market_data_v52_audit.json"
+    },
     {
       "artifact_id": 11700429997,
       "run_id": 38135568658,
@@ -54,38 +60,30 @@
       "run_id": 38116301089,
       "error_type": "ValueError",
       "detail": "artifact missing/ambiguous market_data_v54_dated.csv"
-    },
-    {
-      "artifact_id": 11692168438,
-      "run_id": 38112890387,
-      "error_type": "ValueError",
-      "detail": "artifact missing/ambiguous market_data_v52.csv"
     }
   ],
   "artifact_error_types": {
-    "ValueError": 83
+    "ValueError": 84
   },
-  "artifacts_examined": 91,
+  "artifacts_examined": 92,
   "batch_date": "2026-10-08",
   "universe_count": 2679,
   "universe_sha256": "ebec1662ccf020b5472841859973f5b2373c06539fc4c3665a09e7ae658f1424",
   "shard_count": 23,
-  "shards_collected": 15,
+  "shards_collected": 17,
   "missing_shards": [
-    14,
-    15,
     16,
     17,
     18,
     19,
     20,
-    22
+    21
   ],
-  "attempted_tickers": 1800,
-  "dated_valid_rows": 1729,
-  "failed_or_missing_tickers": 950,
+  "attempted_tickers": 1959,
+  "dated_valid_rows": 1886,
+  "failed_or_missing_tickers": 793,
   "shard_sources": {
-    "21": "current_run",
+    "22": "current_run",
     "0": "reports/v57_shards/shard_00.zip",
     "1": "reports/v57_shards/shard_01.zip",
     "2": "reports/v57_shards/shard_02.zip",
@@ -98,6 +96,8 @@
     "11": "reports/v57_shards/shard_11.zip",
     "12": "reports/v57_shards/shard_12.zip",
     "13": "reports/v57_shards/shard_13.zip",
+    "14": "reports/v57_shards/shard_14.zip",
+    "15": "reports/v57_shards/shard_15.zip",
     "10": "run_artifact_11695723860",
     "8": "run_artifact_11694621192"
   },
