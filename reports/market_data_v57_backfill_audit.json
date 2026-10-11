@@ -1,0 +1,25 @@
+{
+  "version": "v5.7",
+  "research_only": true,
+  "run_kst": "2026-10-11T16:28:03.249794+09:00",
+  "live_buy_approved": 0,
+  "status": "BACKFILL_FAILED_NO_BUY",
+  "selected_shards": [
+    0,
+    1
+  ],
+  "successful_shards": [],
+  "failed_shards": [
+    {
+      "index": 0,
+      "error": "ValueError:NO_SHARD_AUDIT"
+    },
+    {
+      "index": 1,
+      "error": "ValueError:NO_SHARD_AUDIT"
+    }
+  ],
+  "warnings": [],
+  "batch_date": "2026-10-08",
+  "missing_before": 21
+}
