@@ -9,10 +9,16 @@
   "source": "v5.5 dated OHLCV shards; same provider, not independent exchange evidence",
   "warnings": [],
   "rejected_artifacts": {
-    "wrong_version_or_date": 2,
-    "artifact_read_error": 77
+    "artifact_read_error": 78,
+    "wrong_version_or_date": 2
   },
   "artifact_error_samples": [
+    {
+      "artifact_id": 11696697875,
+      "run_id": 38123977079,
+      "error_type": "ValueError",
+      "detail": "artifact missing/ambiguous market_data_v52_audit.json"
+    },
     {
       "artifact_id": 11693089478,
       "run_id": 38116301089,
@@ -54,18 +60,12 @@
       "run_id": 38099601723,
       "error_type": "ValueError",
       "detail": "artifact missing/ambiguous market_data_v52_audit.json"
-    },
-    {
-      "artifact_id": 11686283352,
-      "run_id": 38098061495,
-      "error_type": "ValueError",
-      "detail": "artifact missing/ambiguous market_data_v52_audit.json"
     }
   ],
   "artifact_error_types": {
-    "ValueError": 77
+    "ValueError": 78
   },
-  "artifacts_examined": 85,
+  "artifacts_examined": 86,
   "batch_date": "2026-10-08",
   "universe_count": 2679,
   "universe_sha256": "ebec1662ccf020b5472841859973f5b2373c06539fc4c3665a09e7ae658f1424",
@@ -83,7 +83,7 @@
     12,
     13,
     14,
-    16,
+    15,
     17,
     18,
     19,
@@ -92,10 +92,10 @@
     22
   ],
   "attempted_tickers": 600,
-  "dated_valid_rows": 577,
-  "failed_or_missing_tickers": 2102,
+  "dated_valid_rows": 573,
+  "failed_or_missing_tickers": 2106,
   "shard_sources": {
-    "15": "current_run",
+    "16": "current_run",
     "0": "reports/v57_shards/shard_00.zip",
     "1": "reports/v57_shards/shard_01.zip",
     "10": "run_artifact_11695723860",
