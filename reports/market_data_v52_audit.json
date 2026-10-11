@@ -1,14 +1,14 @@
 {
-  "version": "v5.2.2",
-  "status": "FDR_LISTING_SNAPSHOT_UNDATED_RESEARCH_ONLY",
+  "version": "v5.3",
   "research_only": true,
-  "run_kst": "2026-10-11T14:03:40.331127+09:00",
+  "status": "FDR_SNAPSHOT_SAMPLE_INCONSISTENT_RESEARCH_ONLY",
+  "run_kst": "2026-10-11T14:54:39.747212+09:00",
   "requested_date": "AUTO",
-  "provider": "FinanceDataReader.StockListing",
+  "provider": "FinanceDataReader",
   "row_count": 2568,
-  "verified_common_stocks": 0,
   "live_buy_approved": 0,
-  "date_verified": false,
+  "verified_common_stocks": 0,
+  "date_verified_for_all": false,
   "turnover_independently_reconciled": false,
   "market_diagnostics": {
     "KOSPI": {
@@ -16,76 +16,41 @@
       "accepted_rows": 890,
       "rejected": {
         "bad_or_duplicate_ticker": 27,
-        "invalid_ohlcv_or_amount": 25
-      },
-      "columns": [
-        "Code",
-        "ISU_CD",
-        "Name",
-        "Market",
-        "Dept",
-        "Close",
-        "ChangeCode",
-        "Changes",
-        "ChagesRatio",
-        "Open",
-        "High",
-        "Low",
-        "Volume",
-        "Amount",
-        "Marcap",
-        "Stocks",
-        "MarketId",
-        "lateInfoMsgCd"
-      ]
+        "invalid_price_volume_amount": 25
+      }
     },
     "KOSDAQ": {
       "raw_rows": 1823,
       "accepted_rows": 1678,
       "rejected": {
         "bad_or_duplicate_ticker": 59,
-        "invalid_ohlcv_or_amount": 86
-      },
-      "columns": [
-        "Code",
-        "ISU_CD",
-        "Name",
-        "Market",
-        "Dept",
-        "Close",
-        "ChangeCode",
-        "Changes",
-        "ChagesRatio",
-        "Open",
-        "High",
-        "Low",
-        "Volume",
-        "Amount",
-        "Marcap",
-        "Stocks",
-        "MarketId",
-        "lateInfoMsgCd"
-      ]
+        "invalid_price_volume_amount": 86
+      }
     }
+  },
+  "sample_validation": {
+    "sample_size": 40,
+    "statuses": {
+      "MISMATCH": 36,
+      "SAME_PROVIDER_DATED_OHLCV_MATCH_AMOUNT_UNVERIFIED": 4
+    },
+    "date_matches": 40,
+    "ohlcv_matches": 4,
+    "amount_matches": 0,
+    "sample_file": "market_data_v53_dated_sample.csv"
   },
   "errors": [],
   "limitations": [
-    "Listing rows have no independently verified per-security trade date",
-    "Amount is provider-reported, not independently reconciled",
-    "Common-stock classification not verified",
-    "No real-time/intraday, institutional flow or sector flow",
-    "No BUY approval; historical --date unsupported"
+    "Listing data has no per-security trade date",
+    "Sample cross-check uses SAME provider, not independent verification",
+    "Unqueried listing rows remain undated",
+    "Common-stock classification and sector flows not verified",
+    "No real-time data or BUY approval"
   ],
   "provider_version": "0.9.202",
   "market_counts": {
     "KOSPI": 890,
     "KOSDAQ": 1678
   },
-  "sample_tickers": [
-    "005930",
-    "000660",
-    "005935",
-    "402340",
-    "009150"
-  ]
+  "candidate_session_date_from_anchor": "2026-10-08"
 }
