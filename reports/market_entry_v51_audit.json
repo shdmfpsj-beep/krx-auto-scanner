@@ -1,0 +1,28 @@
+{
+  "version": "v5.1",
+  "status": "RESEARCH_ONLY",
+  "asof": "2026-10-11",
+  "total_candidates": 138,
+  "market_evidence_rows": 0,
+  "entry_level_rows": 0,
+  "research_ready": 0,
+  "live_buy_approved": 0,
+  "blocking_reasons": {
+    "COMMON_STOCK_NOT_CONFIRMED": 138,
+    "NO_INDEPENDENT_SECURITY_MASTER": 138,
+    "NO_VERIFIED_TURNOVER": 138,
+    "NO_VERIFIED_SECTOR_BREADTH": 138,
+    "NO_VERIFIED_RELATIVE_STRENGTH": 138,
+    "NO_VERIFIED_ENTRY_TRIGGER": 138,
+    "NO_VERIFIED_PRICE_LEVELS": 138,
+    "PRICE_LEVELS_MISSING": 138,
+    "DIRECTION_OR_ENTRY_GATE_FAILED": 100
+  },
+  "limitations": [
+    "Existing candidates are prefiltered, not full-market coverage",
+    "Optional evidence CSV is not automatically verified against exchanges",
+    "MA20 proximity is a setup proxy, not a confirmed support",
+    "No intraday order book, brokerage cash, or verified fills",
+    "No automatic live orders or portfolio-rule changes"
+  ]
+}
