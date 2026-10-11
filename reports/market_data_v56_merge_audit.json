@@ -1,7 +1,7 @@
 {
   "version": "v5.6.3",
   "research_only": true,
-  "status": "PARTIAL_SHARDS_NO_BUY",
+  "status": "ALL_SHARDS_COLLECTED_WITH_FAILURES",
   "live_buy_approved": 0,
   "turnover_independently_reconciled": false,
   "verified_common_stocks": 0,
@@ -9,8 +9,7 @@
   "source": "v5.5 dated OHLCV shards; same provider, not independent exchange evidence",
   "warnings": [],
   "rejected_artifacts": {
-    "artifact_read_error": 87,
-    "wrong_version_or_date": 2
+    "artifact_read_error": 11
   },
   "artifact_error_samples": [
     {
@@ -22,6 +21,12 @@
     {
       "artifact_id": 11702595492,
       "run_id": 38138888642,
+      "error_type": "ValueError",
+      "detail": "artifact missing/ambiguous market_data_v52_audit.json"
+    },
+    {
+      "artifact_id": 11702569225,
+      "run_id": 38141143362,
       "error_type": "ValueError",
       "detail": "artifact missing/ambiguous market_data_v52_audit.json"
     },
@@ -54,34 +59,26 @@
       "run_id": 38131021955,
       "error_type": "ValueError",
       "detail": "artifact missing/ambiguous market_data_v52_audit.json"
-    },
-    {
-      "artifact_id": 11697973807,
-      "run_id": 38129962871,
-      "error_type": "ValueError",
-      "detail": "artifact missing/ambiguous market_data_v52_audit.json"
     }
   ],
   "artifact_error_types": {
-    "ValueError": 87
+    "ValueError": 11
   },
-  "artifacts_examined": 95,
+  "artifacts_examined": 15,
   "batch_date": "2026-10-08",
   "universe_count": 2679,
   "universe_sha256": "ebec1662ccf020b5472841859973f5b2373c06539fc4c3665a09e7ae658f1424",
   "shard_count": 23,
-  "shards_collected": 22,
-  "missing_shards": [
-    22
-  ],
-  "attempted_tickers": 2640,
-  "dated_valid_rows": 2531,
-  "failed_or_missing_tickers": 148,
+  "shards_collected": 23,
+  "missing_shards": [],
+  "attempted_tickers": 2679,
+  "dated_valid_rows": 2568,
+  "failed_or_missing_tickers": 111,
   "shard_sources": {
-    "2": "current_run",
+    "3": "current_run",
     "0": "reports/v57_shards/shard_00.zip",
     "1": "reports/v57_shards/shard_01.zip",
-    "3": "reports/v57_shards/shard_03.zip",
+    "2": "reports/v57_shards/shard_02.zip",
     "4": "reports/v57_shards/shard_04.zip",
     "5": "reports/v57_shards/shard_05.zip",
     "6": "reports/v57_shards/shard_06.zip",
@@ -98,6 +95,7 @@
     "19": "reports/v57_shards/shard_19.zip",
     "20": "reports/v57_shards/shard_20.zip",
     "21": "reports/v57_shards/shard_21.zip",
+    "22": "reports/v57_shards/shard_22.zip",
     "10": "run_artifact_11695723860",
     "8": "run_artifact_11694621192"
   },
