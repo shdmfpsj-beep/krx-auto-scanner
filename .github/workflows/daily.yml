@@ -323,7 +323,7 @@ jobs:
           python scripts/market_data_collect_v52.py --outdir reports
 
       - name: Merge v5.5 dated shards from prior GitHub artifacts (v5.6 research only)
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'market_data_v52'
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.mode == 'market_data_v52' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
