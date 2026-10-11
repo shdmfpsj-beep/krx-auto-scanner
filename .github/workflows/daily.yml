@@ -35,6 +35,7 @@ on:
           - universe_restore_v48
           - entry_geometry_v49
           - entry_selection_v50
+          - market_entry_v51
           - diagnose_v363
 
   schedule:
@@ -305,6 +306,13 @@ jobs:
             --input reports/candidates.csv \
             --outdir reports \
             --top 20
+
+      - name: Validate v5.1 market evidence and entry quality (research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'market_entry_v51'
+        run: |
+          python scripts/market_entry_engine_v51.py \
+            --input reports/candidates.csv \
+            --outdir reports
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
