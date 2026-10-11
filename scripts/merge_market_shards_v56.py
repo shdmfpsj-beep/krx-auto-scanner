@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v5.6 research-only merger for v5.5 GitHub Actions market-data shards.
+"""v5.6.2 research-only merger for v5.5 GitHub Actions market-data shards.
 
 Reads local v5.5 outputs, and (when authenticated) recent GitHub Actions artifacts.
 Fail-closed: only same session AND identical universe/shard layout are combined.
@@ -78,11 +78,11 @@ def main():
     a = p.parse_args()
     out = Path(a.outdir)
     out.mkdir(parents=True, exist_ok=True)
-    result = {'version':'v5.6', 'research_only':True, 'status':'UNVERIFIED',
+    result = {'version':'v5.6.2', 'research_only':True, 'status':'UNVERIFIED',
               'live_buy_approved':0, 'turnover_independently_reconciled':False,
               'verified_common_stocks':0, 'complete_market_dated':False,
               'source':'v5.5 dated OHLCV shards; same provider, not independent exchange evidence',
-              'warnings':[], 'rejected_artifacts':Counter()}
+              'warnings':[], 'rejected_artifacts':Counter(), 'artifact_error_samples':[], 'artifact_error_types':Counter()}
     merged = {}
     try:
         current_audit, universe, current_rows = read_folder(out)
@@ -146,6 +146,11 @@ def main():
                             ingest(*read_artifact(b),f"run_artifact_{artifact['id']}")
                         except Exception as exc:
                             result['rejected_artifacts']['artifact_read_error'] += 1
+                            kind = type(exc).__name__
+                            message = str(exc)[:180]
+                            result['artifact_error_types'][kind] += 1
+                            if len(result['artifact_error_samples']) < 8:
+                                result['artifact_error_samples'].append({'artifact_id':artifact.get('id'), 'run_id':artifact.get('workflow_run',{}).get('id'), 'error_type':kind, 'detail':message})
                     if checked >= a.max_runs or len(shards) == shard_count: break
                 result['artifacts_examined'] = checked
             except Exception as exc:
@@ -177,10 +182,12 @@ def main():
         if len(shards)==shard_count and len(merged)==total:
             result['status']='ALL_SHARDS_COLLECTED_OHLCV_ONLY_NO_BUY'
         result['rejected_artifacts']=dict(result['rejected_artifacts'])
+        result['artifact_error_types']=dict(result['artifact_error_types'])
     except Exception as exc:
         result['status']='MERGE_FAILED_NO_BUY'
         result['warnings'].append(f'{type(exc).__name__}:{str(exc)[:250]}')
         result['rejected_artifacts']=dict(result['rejected_artifacts'])
+        result['artifact_error_types']=dict(result['artifact_error_types'])
     (out/'market_data_v56_merge_audit.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False,indent=2))
     return 2 if result['status']=='MERGE_FAILED_NO_BUY' else 0
