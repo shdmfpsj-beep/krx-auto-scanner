@@ -37,6 +37,7 @@ on:
           - entry_selection_v50
           - market_entry_v51
           - market_data_v52
+          - retry_missing_v58
           - diagnose_v363
 
   schedule:
@@ -352,6 +353,12 @@ jobs:
           else
             echo 'No new backfill ZIPs; preserving the first merge result.'
           fi
+
+      - name: Retry missing 2026-10-08 OHLCV (v5.8 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'retry_missing_v58'
+        run: |
+          python -m pip install --upgrade finance-datareader
+          python scripts/retry_missing_ohlcv_v58.py --outdir reports --max-tickers 40
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
