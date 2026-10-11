@@ -1,5 +1,5 @@
 {
-  "version": "v5.8",
+  "version": "v5.8.1",
   "research_only": true,
   "status": "RETRY_CANDIDATES_ONLY_NO_BUY",
   "live_buy_approved": 0,
@@ -7,11 +7,13 @@
   "turnover_independently_reconciled": false,
   "instrument_type_independently_verified": false,
   "warnings": [
-    "Candidates are NOT merged automatically; independently validate before any merge.",
-    "Same-provider OHLCV retry is not independent exchange confirmation."
+    "No automatic merge; same-provider data is not independent confirmation.",
+    "ZERO_VOLUME is a diagnostic, NOT proof of a trading halt."
   ],
   "error_counts": {
-    "DAILY_OHLCV_INCONSISTENT": 40
+    "ZERO_PRICE": 40,
+    "CLOSE_OUTSIDE_LOW_HIGH": 40,
+    "ZERO_VOLUME": 40
   },
   "batch_date": "2026-10-08",
   "missing_total": 111,
