@@ -1,0 +1,61 @@
+{
+  "version": "v5.5",
+  "research_only": true,
+  "run_kst": "2026-10-11T19:01:10.354187+09:00",
+  "status": "DATED_PARTIAL_BATCH_NO_BUY",
+  "row_count": 2679,
+  "dated_valid_rows": 114,
+  "verified_common_stocks": 0,
+  "verified_turnover_rows": 0,
+  "live_buy_approved": 0,
+  "date_verified_for_all": false,
+  "turnover_independently_reconciled": false,
+  "errors": [],
+  "market_diagnostics": {
+    "KOSPI": {
+      "raw": 942,
+      "eligible_for_dated_query": 915,
+      "rejected": {
+        "bad_or_duplicate_code": 27
+      }
+    },
+    "KOSDAQ": {
+      "raw": 1823,
+      "eligible_for_dated_query": 1764,
+      "rejected": {
+        "bad_or_duplicate_code": 59
+      }
+    }
+  },
+  "limitations": [
+    "StockListing has no per-security date: its prices are not authoritative",
+    "Only explicitly fetched DataReader rows have dated OHLCV",
+    "Batches are not automatically merged across GitHub runs; no full market dated claim",
+    "Daily-bar adjustment basis and independent exchange reconciliation unverified",
+    "All turnover remains unverified; no sector money flow or BUY approval",
+    "Stock types (common shares/ETF/SPAC) not independently verified"
+  ],
+  "provider_version": "0.9.202",
+  "market_counts": {
+    "KOSPI": 915,
+    "KOSDAQ": 1764
+  },
+  "candidate_session_date_from_anchor": "2026-10-08",
+  "shard_index": 3,
+  "shard_count": 23,
+  "shard_mode": "EXPLICIT",
+  "batch_size": 120,
+  "batch_start": 360,
+  "batch_end_exclusive": 480,
+  "universe_count": 2679,
+  "all_market_dated": false,
+  "persistence": "PER_RUN_ARTIFACT_ONLY_NOT_MERGED",
+  "batch_date": "2026-10-08",
+  "dated_failures": 6,
+  "dated_requested_rows": 120,
+  "listing_close_mismatch_count": 88,
+  "dated_market_counts": {
+    "KOSPI": 114
+  },
+  "dated_file": "market_data_v54_dated.csv"
+}
