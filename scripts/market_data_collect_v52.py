@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v5.4: dated daily bars are the ONLY price authority. Research only.
+"""v5.5: rotating bounded batches of dated daily bars, research only. Research only.
 
 StockListing is used for universe discovery, NEVER as a dated OHLCV feed.
 Writes the legacy undated research CSV, plus explicitly dated verified subset.
@@ -9,6 +9,8 @@ import argparse
 import csv
 import json
 import math
+import os
+import time
 import sys
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -95,24 +97,31 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument('--outdir',default='reports')
     p.add_argument('--date',default='',help='Historical listing dates unsupported; omit')
-    p.add_argument('--sample-size',type=int,default=40,help='Dated queries per market, 1..100')
+    p.add_argument('--sample-size',type=int,default=40,help='Legacy argument (unused in v5.5)')
+    p.add_argument('--batch-size',type=int,default=120,help='Max tickers per run, 1..300')
+    p.add_argument('--shard-index',type=int,default=None,help='0-based batch index; default rotates by GITHUB_RUN_NUMBER')
+    p.add_argument('--delay',type=float,default=0.25,help='Seconds between ticker requests')
+    p.add_argument('--retries',type=int,default=1,help='Retries after initial attempt, 0..2')
     a=p.parse_args()
     out=Path(a.outdir);out.mkdir(parents=True,exist_ok=True)
-    audit={'version':'v5.4','research_only':True,'run_kst':datetime.now(KST).isoformat(),
+    audit={'version':'v5.5','research_only':True,'run_kst':datetime.now(KST).isoformat(),
            'status':'DATA_UNAVAILABLE','row_count':0,'dated_valid_rows':0,
            'verified_common_stocks':0,'verified_turnover_rows':0,'live_buy_approved':0,
            'date_verified_for_all':False,'turnover_independently_reconciled':False,
            'errors':[],'market_diagnostics':{},'limitations':[
                'StockListing has no per-security date: its prices are not authoritative',
                'Only explicitly fetched DataReader rows have dated OHLCV',
+               'Batches are not automatically merged across GitHub runs; no full market dated claim',
                'Daily-bar adjustment basis and independent exchange reconciliation unverified',
                'All turnover remains unverified; no sector money flow or BUY approval',
                'Stock types (common shares/ETF/SPAC) not independently verified']}
     try:
         if a.date:
             raise ValueError('Historical --date unsupported for current StockListing universe')
-        if not 1 <= a.sample_size <= 100:
-            raise ValueError('--sample-size must be 1..100')
+        if not 1 <= a.batch_size <= 300:
+            raise ValueError('--batch-size must be 1..300')
+        if not 0 <= a.retries <= 2 or not 0 <= a.delay <= 5:
+            raise ValueError('invalid --retries or --delay')
         import FinanceDataReader as fdr
         audit['provider_version']=getattr(fdr,'__version__','unknown')
         markets={}
@@ -144,32 +153,64 @@ def main():
             raise ValueError('ANCHOR_DAILY_BARS_EMPTY')
         expected=bars.sort_index().index[-1].date().isoformat()
         audit['candidate_session_date_from_anchor']=expected
-        # Deterministic mixture of listing amount leaders and market-wide coverage.
-        selected=[]
-        for m,rows in markets.items():
-            ordered=sorted(rows,key=lambda r:r['listing_amount'] or 0,reverse=True)
-            top=(a.sample_size+1)//2
-            chosen=ordered[:top]
-            pool=ordered[top:]
-            for i in range(a.sample_size-top):
-                chosen.append(pool[min(len(pool)-1,(i+1)*len(pool)//(a.sample_size-top+1))])
-            selected.extend(chosen)
+        # Stable market-balanced rotation: every shard covers a disjoint segment
+        # of each market, until the universe/listing changes. Never assume
+        # separate GitHub runs persist data automatically.
+        ordered=[]
+        for market in ('KOSPI','KOSDAQ'):
+            ordered.extend(sorted(markets[market],key=lambda r:r['ticker']))
+        total=len(ordered)
+        shard_count=(total+a.batch_size-1)//a.batch_size
+        run_number=os.environ.get('GITHUB_RUN_NUMBER','')
+        if a.shard_index is None:
+            shard=(int(run_number)-1)%shard_count if run_number.isdigit() and int(run_number)>0 else 0
+            shard_mode='GITHUB_RUN_NUMBER_ROTATION' if run_number.isdigit() and int(run_number)>0 else 'LOCAL_DEFAULT_ZERO'
+        else:
+            shard=a.shard_index
+            shard_mode='EXPLICIT'
+        if not 0 <= shard < shard_count:
+            raise ValueError(f'--shard-index must be 0..{shard_count-1}')
+        selected=ordered[shard*a.batch_size:(shard+1)*a.batch_size]
+        audit.update(shard_index=shard,shard_count=shard_count,shard_mode=shard_mode,
+                     batch_size=a.batch_size,batch_start=shard*a.batch_size,
+                     batch_end_exclusive=shard*a.batch_size+len(selected),
+                     universe_count=total,all_market_dated=False,
+                     persistence='PER_RUN_ARTIFACT_ONLY_NOT_MERGED',
+                     batch_date=expected)
         dated, failures=[],[]
-        for r in selected:
-            try:
-                dated.append(dated_bar(fdr,r,start,end,expected))
-            except Exception as exc:
-                failures.append({'ticker':r['ticker'],'market':r['market'],
-                                 'reason':f'{type(exc).__name__}:{str(exc)[:160]}'})
-        save_csv(out/'market_data_v54_dated.csv',DATED_FIELDS,dated)
-        save_csv(out/'market_data_v54_failures.csv',['ticker','market','reason'],failures)
+        def checkpoint():
+            save_csv(out/'market_data_v54_dated.csv',DATED_FIELDS,dated)
+            save_csv(out/'market_data_v54_failures.csv',['ticker','market','reason'],failures)
+            audit['dated_valid_rows']=len(dated)
+            audit['dated_failures']=len(failures)
+            audit['dated_requested_rows']=len(selected)
+            (out/'market_data_v52_audit.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2),encoding='utf-8')
+        checkpoint()
+        for i,r in enumerate(selected,1):
+            error=None
+            for attempt in range(a.retries+1):
+                try:
+                    dated.append(dated_bar(fdr,r,start,end,expected))
+                    error=None
+                    break
+                except Exception as exc:
+                    error=f'{type(exc).__name__}:{str(exc)[:160]}'
+                    if attempt < a.retries:
+                        time.sleep(min(4,1.5*(attempt+1)))
+            if error is not None:
+                failures.append({'ticker':r['ticker'],'market':r['market'],'reason':error})
+            if i%10==0:
+                checkpoint()
+            if i<len(selected) and a.delay:
+                time.sleep(a.delay)
+        checkpoint()
         audit['dated_valid_rows']=len(dated)
         audit['dated_requested_rows']=len(selected)
         audit['dated_failures']=len(failures)
         audit['listing_close_mismatch_count']=sum(not x['listing_daily_close_match'] for x in dated)
         audit['dated_market_counts']=dict(Counter(x['market'] for x in dated))
         audit['dated_file']='market_data_v54_dated.csv'
-        audit['status']='DATED_RESEARCH_SUBSET_NO_BUY' if dated else 'UNDATED_UNIVERSE_DATED_FAILED'
+        audit['status']='DATED_PARTIAL_BATCH_NO_BUY' if dated else 'UNDATED_UNIVERSE_DATED_FAILED'
     except Exception as exc:
         audit['errors'].append(f'{type(exc).__name__}:{str(exc)[:250]}')
         if audit['row_count']:
