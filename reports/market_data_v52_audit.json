@@ -1,0 +1,91 @@
+{
+  "version": "v5.2.2",
+  "status": "FDR_LISTING_SNAPSHOT_UNDATED_RESEARCH_ONLY",
+  "research_only": true,
+  "run_kst": "2026-10-11T14:03:40.331127+09:00",
+  "requested_date": "AUTO",
+  "provider": "FinanceDataReader.StockListing",
+  "row_count": 2568,
+  "verified_common_stocks": 0,
+  "live_buy_approved": 0,
+  "date_verified": false,
+  "turnover_independently_reconciled": false,
+  "market_diagnostics": {
+    "KOSPI": {
+      "raw_rows": 942,
+      "accepted_rows": 890,
+      "rejected": {
+        "bad_or_duplicate_ticker": 27,
+        "invalid_ohlcv_or_amount": 25
+      },
+      "columns": [
+        "Code",
+        "ISU_CD",
+        "Name",
+        "Market",
+        "Dept",
+        "Close",
+        "ChangeCode",
+        "Changes",
+        "ChagesRatio",
+        "Open",
+        "High",
+        "Low",
+        "Volume",
+        "Amount",
+        "Marcap",
+        "Stocks",
+        "MarketId",
+        "lateInfoMsgCd"
+      ]
+    },
+    "KOSDAQ": {
+      "raw_rows": 1823,
+      "accepted_rows": 1678,
+      "rejected": {
+        "bad_or_duplicate_ticker": 59,
+        "invalid_ohlcv_or_amount": 86
+      },
+      "columns": [
+        "Code",
+        "ISU_CD",
+        "Name",
+        "Market",
+        "Dept",
+        "Close",
+        "ChangeCode",
+        "Changes",
+        "ChagesRatio",
+        "Open",
+        "High",
+        "Low",
+        "Volume",
+        "Amount",
+        "Marcap",
+        "Stocks",
+        "MarketId",
+        "lateInfoMsgCd"
+      ]
+    }
+  },
+  "errors": [],
+  "limitations": [
+    "Listing rows have no independently verified per-security trade date",
+    "Amount is provider-reported, not independently reconciled",
+    "Common-stock classification not verified",
+    "No real-time/intraday, institutional flow or sector flow",
+    "No BUY approval; historical --date unsupported"
+  ],
+  "provider_version": "0.9.202",
+  "market_counts": {
+    "KOSPI": 890,
+    "KOSDAQ": 1678
+  },
+  "sample_tickers": [
+    "005930",
+    "000660",
+    "005935",
+    "402340",
+    "009150"
+  ]
+}
