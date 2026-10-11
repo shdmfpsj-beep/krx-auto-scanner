@@ -34,6 +34,7 @@ on:
           - universe_audit_v47
           - universe_restore_v48
           - entry_geometry_v49
+          - entry_selection_v50
           - diagnose_v363
 
   schedule:
@@ -293,6 +294,14 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'entry_geometry_v49'
         run: |
           python scripts/entry_geometry_v49.py \
+            --input reports/candidates.csv \
+            --outdir reports \
+            --top 20
+
+      - name: Analyze C3 v5.0 stock eligibility and entry selection (research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'entry_selection_v50'
+        run: |
+          python scripts/entry_selection_v50.py \
             --input reports/candidates.csv \
             --outdir reports \
             --top 20
