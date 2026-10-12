@@ -58,6 +58,7 @@ on:
           - sector_v77
           - sector_v78
           - sector_v79
+          - sector_v80
           - diagnose_v363
 
   schedule:
@@ -129,13 +130,32 @@ jobs:
 
       - name: Collect and screen
         id: collect
-        if: github.event_name == 'schedule' || inputs.mode == 'full_scan'
+        if: github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80'
         continue-on-error: true
         run: python scripts/run.py
 
       - name: Rank C3 and K100 candidates
-        if: steps.collect.outcome != 'failure' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'rerank_only')
+        if: steps.collect.outcome != 'failure' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'rerank_only' || inputs.mode == 'sector_v80')
         run: python scripts/rank_candidates.py
+
+      - name: Freeze v8.0 prospective C3 and K100 cohorts and evaluate older observations
+        if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v80')) && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/candidates.csv
+          test -s reports/c3_preliminary.csv
+          test -s reports/k100_preliminary.csv
+          python -m pip install finance-datareader
+          python scripts/krx_investment_sector_v80.py \
+            --candidates reports/candidates.csv \
+            --c3 reports/c3_preliminary.csv \
+            --k100 reports/k100_preliminary.csv \
+            --outdir reports \
+            --forward-cache reports/v80_forward_cache \
+            --topn 3 \
+            --max-tickers 40 \
+            --fetch
 
       - name: Run C3 exploratory backtest
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'backtest_c3'
