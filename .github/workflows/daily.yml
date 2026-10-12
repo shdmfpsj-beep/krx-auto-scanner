@@ -47,6 +47,7 @@ on:
           - sector_v66
           - sector_v67
           - sector_v68
+          - sector_v69
           - diagnose_v363
 
   schedule:
@@ -472,6 +473,23 @@ jobs:
           }
           python scripts/krx_investment_sector_v68.py \
             --input reports/v65_sector_stock_map.csv \
+            --outdir reports
+
+      - name: Audit investment-sector history coverage (v6.9 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v69'
+        run: |
+          test -s reports/v68_investment_sector_members.csv || {
+            echo 'Missing v6.8 investment-sector members; run sector_v68 first.'
+            exit 1
+          }
+          test -s reports/market_data_v56_merged.csv || {
+            echo 'Missing merged market snapshot; do not repeat market collection.'
+            exit 1
+          }
+          python scripts/krx_investment_sector_v69.py \
+            --members reports/v68_investment_sector_members.csv \
+            --market reports/market_data_v56_merged.csv \
+            --cache reports/v36_ohlcv_cache \
             --outdir reports
 
       - name: Save reports
