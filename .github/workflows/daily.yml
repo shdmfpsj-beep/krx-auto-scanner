@@ -49,6 +49,7 @@ on:
           - sector_v68
           - sector_v69
           - sector_v70
+          - sector_v71
           - diagnose_v363
 
   schedule:
@@ -519,6 +520,29 @@ jobs:
               --sleep 0.6 \
               --source NAVER
           done
+
+      - name: Analyze cached investment-sector 5d and 20d strength (v7.1 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v71'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v68_investment_sector_members.csv || {
+            echo 'Missing v6.8 investment-sector members; no new data collection.'
+            exit 1
+          }
+          test -s reports/market_data_v56_merged.csv || {
+            echo 'Missing dated market snapshot; no new data collection.'
+            exit 1
+          }
+          test -d reports/v36_ohlcv_cache || {
+            echo 'Missing OHLCV cache; run sector_v70 first.'
+            exit 1
+          }
+          python scripts/krx_investment_sector_v71.py \
+            --members reports/v68_investment_sector_members.csv \
+            --market reports/market_data_v56_merged.csv \
+            --cache reports/v36_ohlcv_cache \
+            --outdir reports
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
