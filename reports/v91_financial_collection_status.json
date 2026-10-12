@@ -1,0 +1,24 @@
+{
+  "version": "9.1",
+  "research_only": true,
+  "strict_pit_approved": false,
+  "source_status": "API_SNAPSHOT_NOT_ARCHIVED_ORIGINAL",
+  "mode": "collect",
+  "target_universe_size": 1,
+  "selected_tickers": [
+    "083450"
+  ],
+  "prior_completed_tickers": 0,
+  "warnings": [
+    "OpenDART API latest historical financial snapshots may include later corrections.",
+    "Provisional data MUST NOT be substituted for config/v90_financial_pit.csv.",
+    "Sector PIT file is not populated by this collector.",
+    "No point-in-time survivorship-free universe or real trading approval."
+  ],
+  "total_provisional_rows": 13,
+  "newly_completed_tickers": 1,
+  "incomplete_tickers": 0,
+  "errors": [],
+  "financial_file": "reports/v91_financial_pit_provisional.csv",
+  "sector_pit_status": "NOT_POPULATED"
+}
