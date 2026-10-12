@@ -1,0 +1,41 @@
+{
+  "version": "7.5",
+  "asof": "2026-10-08",
+  "scope": "30 independent + 124 mapped sector sample, NOT full-market 2568 historical validation",
+  "independent_queue": 30,
+  "independent_validated": 28,
+  "independent_technical_setups": 16,
+  "independent_invalid": 2,
+  "sector_technical_setups": 35,
+  "combined_unique_setups": 51,
+  "provisional_top3": [
+    {
+      "ticker": "278650",
+      "name": "HLB바이오스텝",
+      "class": "INDEPENDENT_30_ONLY",
+      "score": 138.39
+    },
+    {
+      "ticker": "005160",
+      "name": "동국산업",
+      "class": "INDEPENDENT_30_ONLY",
+      "score": 67.006
+    },
+    {
+      "ticker": "036540",
+      "name": "SFA반도체",
+      "class": "SECTOR_SAMPLE_124",
+      "score": 62.874
+    }
+  ],
+  "trade_authorized": false,
+  "status": "HISTORICAL_RESEARCH_ONLY",
+  "limitations": [
+    "Stock-return common score is a provisional comparable ranking, not predictive accuracy",
+    "Only 30 independent names were selected using same-day information; no unbiased 2568-stock historical validation",
+    "Sector mapping unverified and omitted from common technical score",
+    "Historical date, no real-time market or executable prices",
+    "No 1/3/5/10-session forward returns or realistic paper-trading evidence",
+    "Price bands are not exchange tick-rounded"
+  ]
+}
