@@ -40,6 +40,7 @@ on:
           - retry_missing_v58
           - preliminary_v59
           - validate_v60
+          - entry_v61
           - diagnose_v363
 
   schedule:
@@ -376,6 +377,19 @@ jobs:
           python -m pip install finance-datareader pandas
           python scripts/krx_v60_validate.py \
             --input reports/v59_preliminary_watchlist.csv \
+            --outdir reports \
+            --limit 30
+
+      - name: Calculate v6.1 historical entry geometry (research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'entry_v61'
+        run: |
+          test -s reports/v60_history_validation.csv || {
+            echo 'Missing v6.0 history validation report; run validate_v60 first only if genuinely missing.'
+            exit 1
+          }
+          python -m pip install finance-datareader pandas
+          python scripts/krx_v61_entry_geometry.py \
+            --input reports/v60_history_validation.csv \
             --outdir reports \
             --limit 30
 
