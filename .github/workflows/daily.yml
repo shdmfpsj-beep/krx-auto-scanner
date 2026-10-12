@@ -50,6 +50,7 @@ on:
           - sector_v69
           - sector_v70
           - sector_v71
+          - sector_v72
           - diagnose_v363
 
   schedule:
@@ -540,6 +541,22 @@ jobs:
           }
           python scripts/krx_investment_sector_v71.py \
             --members reports/v68_investment_sector_members.csv \
+            --market reports/market_data_v56_merged.csv \
+            --cache reports/v36_ohlcv_cache \
+            --outdir reports
+
+      - name: Evaluate investment-sector entry geometry (v7.2 historical research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v72'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v68_investment_sector_members.csv
+          test -s reports/v71_sector_strength.csv
+          test -s reports/market_data_v56_merged.csv
+          test -d reports/v36_ohlcv_cache
+          python scripts/krx_investment_sector_v72.py \
+            --members reports/v68_investment_sector_members.csv \
+            --sectors reports/v71_sector_strength.csv \
             --market reports/market_data_v56_merged.csv \
             --cache reports/v36_ohlcv_cache \
             --outdir reports
