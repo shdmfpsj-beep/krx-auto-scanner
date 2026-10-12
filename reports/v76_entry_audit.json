@@ -1,0 +1,43 @@
+{
+  "version": "7.6",
+  "asof": "2026-10-08",
+  "scope": "v7.5 preselected 51 historical candidates, not unbiased full-market backtest",
+  "total": 51,
+  "wait_count": 12,
+  "blocked_count": 39,
+  "data_reject_count": 0,
+  "conditional_top3": [
+    {
+      "ticker": "348340",
+      "name": "뉴로메카",
+      "decision": "WAIT"
+    },
+    {
+      "ticker": "093370",
+      "name": "후성",
+      "decision": "WAIT"
+    },
+    {
+      "ticker": "103590",
+      "name": "일진전기",
+      "decision": "WAIT"
+    }
+  ],
+  "gate_parameters": {
+    "max_5d_pct": 25,
+    "max_20d_pct": 70,
+    "max_chase_pct": 0,
+    "max_risk_pct": 12,
+    "min_rr": 1.5
+  },
+  "trade_authorized": false,
+  "filled_paper_trades": 0,
+  "forward_returns_available": false,
+  "limitations": [
+    "Historical-only snapshot; no future bars to confirm entries or returns",
+    "Exchange-specific historical tick sizes, live liquidity, fees and slippage not validated",
+    "Technical target values are model projections, not demonstrated probabilities",
+    "Research WAIT is not BUY; conditional TOP3 may contain fewer than 3 names",
+    "Sample selected using same-day data; no unbiased full-market historical performance claim"
+  ]
+}
