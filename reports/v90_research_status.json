@@ -1,0 +1,63 @@
+{
+  "version": "V9.0_PIT_GATE_RESEARCH_ONLY",
+  "research_only": true,
+  "buy_approval": false,
+  "strict_integrated_status": "BLOCKED_MISSING_POINT_IN_TIME_DATA",
+  "source_files": 258,
+  "valid_bars": 120,
+  "data_quality": {
+    "OK": 120,
+    "HISTORY_LT76": 124,
+    "INVALID_OHLCV": 14
+  },
+  "last_dates": {
+    "2026-02-27": 92,
+    "2026-10-08": 28
+  },
+  "mapping_file_status": "OK",
+  "financial_file_status": "OK",
+  "verified_membership_rows": 0,
+  "verified_filing_rows": 0,
+  "rejected_map_rows": {},
+  "rejected_finance_rows": {},
+  "split_boundary_exploratory": "2025-04-30",
+  "chart_only_signals": 1002,
+  "clean_prebreakout_signals": 733,
+  "distinct_chart_signal_dates": 474,
+  "strict_gate_pass": 0,
+  "strict_failure_reasons": {
+    "MISSING_ASOF_SECTOR": 733,
+    "PRIOR_BREAKOUT_OR_TEST_NOT_CLEAN": 269
+  },
+  "strict_strategy_trades_including_variants": 0,
+  "chart_only_diagnostic_trades_including_variants": 1887,
+  "paired_20d_variants": 744,
+  "paired_skips": {
+    "LIMIT_UNFILLED": 6,
+    "RISK_GATE": 12,
+    "NO_COMPLETE_20_SESSION_FUTURE": 14,
+    "GAP_OR_CHASE": 1
+  },
+  "chart_only_unique_days": 243,
+  "strict_execution_rejections": {
+    "E3_UNEXECUTABLE_WITH_DAILY_BARS": 0
+  },
+  "diagnostic_execution_rejections": {
+    "LIMIT_UNFILLED": 128,
+    "RISK_GATE": 205,
+    "PENDING_FUTURE": 133,
+    "GAP_OR_CHASE": 48
+  },
+  "limitations": [
+    "Chart-only diagnostic explicitly omits fundamentals and sector money flow; it is not the target strategy.",
+    "Available OHLC cache is short or stale for many tickers and not a historical full KRX universe.",
+    "Sector membership must be dated and verified; current 2026 mappings cannot be retroactively applied.",
+    "Financial values must have DART receipt and next-session available_date, no future restatements.",
+    "Close*volume is turnover proxy; not verified exchange traded value.",
+    "One-slot portfolio is modeled separately per entry/exit/horizon, no actual position sync.",
+    "E3 next-close is UNCONDITIONAL, non-executable research proxy; strict PIT trading excludes it until pre-auction quotes are available.",
+    "Daily bars cannot certify same-session path, limit queue or closing-auction fills.",
+    "No verified delisted stocks/price adjustments in source; sensitivity and walk-forward needed.",
+    "Exit target +10% is hypothetical, no guarantee of overhead-resistance clearance."
+  ]
+}
