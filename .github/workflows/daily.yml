@@ -67,6 +67,7 @@ on:
           - entry_tournament_v86
           - preignition_v87
           - preignition_quality_v88
+          - preignition_integrated_v90
           - diagnose_v363
 
   schedule:
@@ -285,6 +286,22 @@ jobs:
           test -d reports/v36_ohlcv_cache
           python -m unittest discover -s scripts -p 'test_preignition_quality_v88.py' -v
           python scripts/krx_preignition_quality_v88.py --report-dir reports --outdir reports
+
+      - name: v9.0 PIT-gated pre-ignition research (manual only; no BUY approval)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'preignition_integrated_v90'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d reports/v36_ohlcv_cache || { echo 'Missing reports/v36_ohlcv_cache'; exit 1; }
+          python -m unittest discover -s scripts -p 'test_preignition_integrated_v90.py' -v
+          python scripts/krx_preignition_integrated_v90.py \
+            --cache-dir reports/v36_ohlcv_cache \
+            --sector-pit config/v90_sector_membership_pit.csv \
+            --financial-pit config/v90_financial_pit.csv \
+            --outdir reports \
+            --score-min 70 \
+            --cost-bps 35
+          echo 'Strict integrated result is BLOCKED until verified dated inputs are supplied.'
 
       - name: Run C3 exploratory backtest
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'backtest_c3'
