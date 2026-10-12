@@ -2,14 +2,17 @@
   "version": "6.5",
   "snapshot_date": "2026-10-08",
   "market_rows": 2568,
-  "status": "SOURCE_UNAVAILABLE_NO_RANKING",
-  "mapping_source": null,
+  "status": "DESCRIPTIVE_COVERAGE_OK",
+  "mapping_source": "KIND_DOWNLOAD_LIVE",
   "limitations": [
     "Current company industry, not historical point-in-time sector",
     "One-session open-to-close breadth is not 5/20-day strength or fund flow",
     "KIND company listing may not cover every security in OHLCV universe"
   ],
-  "error": "TypeError: read_html() got an unexpected keyword argument 'dtype'",
-  "mapped_rows": 0,
-  "unmapped_rows": 2568
+  "mapped_rows": 2475,
+  "unmapped_rows": 93,
+  "coverage_pct": 96.38,
+  "ambiguous_tickers": 0,
+  "sector_count": 155,
+  "cache_written": "reports/kind_sector_master.csv"
 }
