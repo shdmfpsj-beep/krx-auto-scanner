@@ -66,6 +66,7 @@ on:
           - entry_ab_v85
           - entry_tournament_v86
           - preignition_v87
+          - preignition_quality_v88
           - diagnose_v363
 
   schedule:
@@ -273,6 +274,17 @@ jobs:
             --score-min 70 \
             --hold 5 \
             --cost-bps 35
+
+      - name: Research-only v8.8 pre-ignition signal purity and money-flow proxy audit (manual)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'preignition_quality_v88'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v87_preignition_signals.csv || { echo 'Run preignition_v87 first'; exit 1; }
+          test -s reports/v87_entry_trades.csv || { echo 'Run preignition_v87 first'; exit 1; }
+          test -d reports/v36_ohlcv_cache
+          python -m unittest discover -s scripts -p 'test_preignition_quality_v88.py' -v
+          python scripts/krx_preignition_quality_v88.py --report-dir reports --outdir reports
 
       - name: Run C3 exploratory backtest
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'backtest_c3'
