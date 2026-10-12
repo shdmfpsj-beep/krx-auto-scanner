@@ -1,10 +1,10 @@
-name: OpenDART v9.2 fast historical financial collection
+name: OpenDART v9.2.1 resilient financial collection
 
 on:
   workflow_dispatch:
     inputs:
       run_mode:
-        description: 'preview, collect 12, or bulk_collect all remaining (one click)'
+        description: 'bulk_collect = run batches and auto-continue; collect = one batch; preview = plan only'
         required: true
         type: choice
         default: bulk_collect
@@ -13,16 +13,21 @@ on:
           - collect
           - preview
       tickers:
-        description: 'Optional 6-digit stock codes separated by commas/spaces; blank = all cached stocks'
+        description: 'Optional 6-digit codes; blank = entire existing KRX cache'
         required: false
         type: string
         default: ''
-  # Keep the existing incremental weekday run as a fallback (KST 20:45).
+      continuation_count:
+        description: 'Internal automation counter; leave at 0 for manual starts'
+        required: false
+        type: string
+        default: '0'
   schedule:
-    - cron: '45 11 * * 1-5'
+    - cron: '45 11 * * 1-5'  # 20:45 KST (scheduled incremental fallback)
 
 permissions:
   contents: write
+  actions: write  # Required to dispatch another run with GITHUB_TOKEN.
 
 concurrency:
   group: krx-report-main
@@ -31,33 +36,30 @@ concurrency:
 jobs:
   financial_backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 140
+    timeout-minutes: 135
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Offline unit tests (no API key)
+      - name: Verify collector (offline)
         run: python scripts/test_opendart_financial_v91.py
 
-      - name: Check KRX historical price cache
+      - name: Verify price cache
         shell: bash
         run: |
           set -euo pipefail
-          test -d reports/v36_ohlcv_cache || {
-            echo 'Missing reports/v36_ohlcv_cache.'
-            exit 1
-          }
+          test -d reports/v36_ohlcv_cache || { echo 'Missing reports/v36_ohlcv_cache'; exit 1; }
 
-      - name: Preview next collection batch (no API key)
+      - name: Preview next batch (no API key)
         if: github.event_name == 'workflow_dispatch' && inputs.run_mode == 'preview'
         run: |
           python scripts/krx_opendart_financial_v91.py \
             --cache-dir reports/v36_ohlcv_cache --outdir reports \
-            --years 2023 2024 2025 2026 --max-tickers 12 --dry-run
+            --years 2023 2024 2025 2026 --max-tickers 8 --dry-run
 
-      - name: Collect one standard batch (12 tickers)
+      - name: One incremental batch (scheduled or manual collect)
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'collect')
         shell: bash
         env:
@@ -65,18 +67,18 @@ jobs:
           REQUESTED_TICKERS: ${{ github.event.inputs.tickers || '' }}
         run: |
           set -euo pipefail
-          test -n "${OPENDART_API_KEY}" || { echo 'Missing OPENDART_API_KEY secret'; exit 1; }
+          test -n "$OPENDART_API_KEY" || { echo 'Missing OPENDART_API_KEY'; exit 1; }
           extra=()
-          if [[ -n "${REQUESTED_TICKERS}" ]]; then
+          if [[ -n "$REQUESTED_TICKERS" ]]; then
             sanitized="${REQUESTED_TICKERS//,/ }"
-            read -r -a input_codes <<< "${sanitized}"
-            extra=(--tickers "${input_codes[@]}")
+            read -r -a codes <<< "$sanitized"
+            extra=(--tickers "${codes[@]}")
           fi
           python scripts/krx_opendart_financial_v91.py \
             --cache-dir reports/v36_ohlcv_cache --outdir reports \
-            --years 2023 2024 2025 2026 --max-tickers 12 "${extra[@]}"
+            --years 2023 2024 2025 2026 --max-tickers 8 "${extra[@]}"
 
-      - name: Bulk collect all remaining tickers with checkpoints
+      - name: Bulk collect in short resumable chunks
         if: github.event_name == 'workflow_dispatch' && inputs.run_mode == 'bulk_collect'
         shell: bash
         env:
@@ -84,80 +86,104 @@ jobs:
           REQUESTED_TICKERS: ${{ github.event.inputs.tickers || '' }}
         run: |
           set -euo pipefail
-          test -n "${OPENDART_API_KEY}" || { echo 'Missing OPENDART_API_KEY secret'; exit 1; }
+          test -n "$OPENDART_API_KEY" || { echo 'Missing OPENDART_API_KEY'; exit 1; }
           extra=()
-          if [[ -n "${REQUESTED_TICKERS}" ]]; then
+          if [[ -n "$REQUESTED_TICKERS" ]]; then
             sanitized="${REQUESTED_TICKERS//,/ }"
-            read -r -a input_codes <<< "${sanitized}"
-            extra=(--tickers "${input_codes[@]}")
+            read -r -a codes <<< "$sanitized"
+            extra=(--tickers "${codes[@]}")
           fi
 
-          # Up to 14 batches x 25 tickers; stop after 110 min, before job timeout.
-          deadline=$(( $(date +%s) + 6600 ))
-          reason='batch_cap'
-          batches=0
-          for i in $(seq 1 14); do
-            if (( $(date +%s) >= deadline )); then
-              reason='time_budget'; break
-            fi
-            batches="$i"
-            echo "===== OpenDART batch ${i}: up to 25 previously uncollected tickers ====="
-            # The collector persists progress after EACH ticker.  If interrupted,
-            # all earlier finished tickers remain safe and are committed below.
-            if ! timeout --signal=TERM --kill-after=10s 1500s \
-              python scripts/krx_opendart_financial_v91.py \
-                --cache-dir reports/v36_ohlcv_cache --outdir reports \
-                --years 2023 2024 2025 2026 --max-tickers 25 "${extra[@]}"; then
-              reason='batch_timeout_or_error'; break
-            fi
-
-            read -r remaining added errors selected < <(python - <<'PY'
+          completed_count() {
+            python - <<'PY'
           import json
           from pathlib import Path
-          status = json.loads(Path('reports/v91_financial_collection_status.json').read_text())
-          print(status.get('incomplete_tickers', -1), status.get('newly_completed_tickers', -1),
-                len(status.get('errors', [])), len(status.get('selected_tickers', [])))
+          path=Path('reports/v91_financial_collection_state.json')
+          data=json.loads(path.read_text()) if path.exists() else {}
+          print(len(set(data.get('completed_tickers',[]))))
+          PY
+          }
+          before="$(completed_count)"
+          prev="$before"
+          deadline=$(( $(date +%s) + 6300 ))  # 105 minutes, leaves room for commit/artifact/dispatch.
+          reason='batch_cap'
+          batches=0
+
+          # Smaller batches: previous 25-stock/25-minute child hit timeout after 15 stocks.
+          for i in $(seq 1 18); do
+            if (( $(date +%s) >= deadline )); then reason='time_budget'; break; fi
+            batches="$i"
+            echo "===== Batch $i: up to 8 new stocks; completed before batch=$prev ====="
+            rc=0
+            timeout --signal=TERM --kill-after=10s 1020s \
+              python scripts/krx_opendart_financial_v91.py \
+                --cache-dir reports/v36_ohlcv_cache --outdir reports \
+                --years 2023 2024 2025 2026 --max-tickers 8 "${extra[@]}" || rc=$?
+            now="$(completed_count)"
+            advanced=$(( now - prev ))
+            echo "Batch exit=$rc, newly completed=$advanced, total completed=$now"
+            prev="$now"
+            # If child timed out after saving several stocks, safely move to next chunk.
+            if (( rc != 0 )); then
+              if (( (rc == 124 || rc == 137) && advanced > 0 )); then
+                echo 'Child reached time limit but saved progress; resuming with next chunk.'
+                if (( $(date +%s) >= deadline )); then reason='time_budget'; break; fi
+                sleep 5
+                continue
+              fi
+              reason='child_error_or_no_progress'
+              break
+            fi
+            read -r remaining selected errors < <(python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('reports/v91_financial_collection_status.json')
+          s=json.loads(p.read_text()) if p.exists() else {}
+          print(s.get('incomplete_tickers',-1),len(s.get('selected_tickers',[])),len(s.get('errors',[])))
           PY
             )
-            echo "Remaining=${remaining}; new=${added}; errors=${errors}; selected=${selected}"
-            if (( remaining == 0 )); then reason='complete'; break; fi
+            echo "Remaining=$remaining, selected=$selected, request errors=$errors"
             if (( errors > 0 )); then reason='api_or_request_errors'; break; fi
-            if (( added == 0 || selected == 0 )); then reason='no_progress'; break; fi
-            sleep 2
+            if (( remaining == 0 )); then reason='complete'; break; fi
+            if (( selected == 0 || advanced <= 0 )); then reason='no_progress'; break; fi
+            if (( $(date +%s) >= deadline )); then reason='time_budget'; break; fi
+            sleep 5
           done
 
-          REASON="${reason}" BATCHES="${batches}" python - <<'PY'
-          import json, os
+          REASON="$reason" BATCHES="$batches" START_COUNT="$before" python - <<'PY'
+          import csv,json,os
           from pathlib import Path
-          status_path=Path('reports/v91_financial_collection_status.json')
-          state_path=Path('reports/v91_financial_collection_state.json')
-          status=json.loads(status_path.read_text()) if status_path.exists() else {}
-          state=json.loads(state_path.read_text()) if state_path.exists() else {}
-          total=int(status.get('target_universe_size', 0))
-          completed=len(state.get('completed_tickers', []))
-          remaining=max(0, total-completed)
+          s=Path('reports/v91_financial_collection_status.json')
+          p=Path('reports/v91_financial_collection_state.json')
+          f=Path('reports/v91_financial_pit_provisional.csv')
+          status=json.loads(s.read_text()) if s.exists() else {}
+          state=json.loads(p.read_text()) if p.exists() else {}
+          total=int(status.get('target_universe_size',0))
+          completed=len(set(state.get('completed_tickers',[])))
+          count=sum(1 for _ in csv.DictReader(f.open(encoding='utf-8-sig',newline=''))) if f.exists() else 0
+          # A requested explicit ticker subset is not an all-universe completion check.
+          requested=os.environ.get('REQUESTED_TICKERS','').strip()
           summary={
-              'version':'9.2-bulk-wrapper',
-              'mode':'bulk_collect',
-              'reason':os.environ['REASON'],
-              'batches_attempted':int(os.environ['BATCHES']),
-              'target_universe_size':total,
-              'completed_tickers':completed,
-              'remaining_tickers':remaining,
-              'total_provisional_rows':status.get('total_provisional_rows', 0),
-              'strict_pit_approved':False,
-              'notes':'API values are provisional; original filings and sector PIT not yet verified.'
+            'version':'9.2.1-resumable-bulk','mode':'bulk_collect',
+            'reason':os.environ['REASON'],'batches_attempted':int(os.environ['BATCHES']),
+            'target_universe_size':total,'completed_tickers':completed,
+            'remaining_tickers':max(0,total-completed) if not requested else None,
+            'newly_completed_this_run':completed-int(os.environ['START_COUNT']),
+            'total_provisional_rows':count,'strict_pit_approved':False,
+            'is_subset_run':bool(requested),
+            'notes':'API figures are unverified snapshots, never approved for point-in-time backtesting or trading.'
           }
           Path('reports/v92_bulk_collection_summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
           print(json.dumps(summary,ensure_ascii=False))
-          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
-              f.write('## OpenDART v9.2 bulk collection\n')
-              f.write(f"- Progress: **{completed} / {total}** stocks (remaining **{remaining}**)\n")
-              f.write(f"- Stop reason: **{summary['reason']}**\n")
-              f.write('- Figures are **provisional**, not approved for trading or point-in-time backtesting.\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as stream:
+            stream.write('## OpenDART v9.2.1 collection\n')
+            stream.write(f"- Completed: **{completed}/{total}**; new in this run: **{summary['newly_completed_this_run']}**\n")
+            stream.write(f"- Provisional financial rows: **{count}**\n")
+            stream.write(f"- Stop reason: **{summary['reason']}**\n")
+            stream.write('- **Not point-in-time verified. Do not feed the strict v9.0 backtest.**\n')
           PY
 
-      - name: Commit resumable research collection (never any secret)
+      - name: Commit resumable collection (no API secret)
         if: success()
         shell: bash
         run: |
@@ -172,23 +198,18 @@ jobs:
             reports/v92_bulk_collection_summary.json; do
             if [[ -f "$f" ]]; then git add "$f"; fi
           done
-          if git diff --cached --quiet; then
-            echo 'No new financial data to save.'
-            exit 0
-          fi
-          git commit -m 'Update OpenDART v9.2 resumable financial research data'
+          if git diff --cached --quiet; then echo 'No new financial data.'; exit 0; fi
+          git commit -m 'Update OpenDART v9.2.1 resumable research data'
           for attempt in 1 2 3 4 5; do
             git fetch origin main
-            if git rebase origin/main && git push origin HEAD:main; then
-              exit 0
-            fi
+            if git rebase origin/main && git push origin HEAD:main; then exit 0; fi
             git rebase --abort || true
-            sleep $((attempt * 3))
+            sleep $(( attempt * 3 ))
           done
-          echo 'Unable to push research data after retries; artifact retained'
+          echo 'Commit failed; report artifact is still available.'
           exit 1
 
-      - name: Upload OpenDART collection report
+      - name: Upload OpenDART report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -200,3 +221,44 @@ jobs:
             reports/v91_financial_collection_audit.csv
             reports/v91_financial_pit_provisional.csv
             reports/v92_bulk_collection_summary.json
+
+      - name: Automatically start next batch window (max 5 continuations)
+        if: success() && github.event_name == 'workflow_dispatch' && inputs.run_mode == 'bulk_collect'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          REQUESTED_TICKERS: ${{ github.event.inputs.tickers || '' }}
+          CONTINUATION_COUNT: ${{ github.event.inputs.continuation_count || '0' }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$REQUESTED_TICKERS" ]]; then
+            echo 'Selected-ticker run: auto-continuation intentionally disabled.'
+            exit 0
+          fi
+          [[ "$CONTINUATION_COUNT" =~ ^[0-9]+$ ]] || { echo 'Invalid continuation counter'; exit 1; }
+          read -r remaining new reason < <(python - <<'PY'
+          import json
+          from pathlib import Path
+          s=json.loads(Path('reports/v92_bulk_collection_summary.json').read_text())
+          print(s.get('remaining_tickers',0),s.get('newly_completed_this_run',0),s.get('reason','unknown'))
+          PY
+          )
+          if (( remaining == 0 )); then echo 'Finished the universe.'; exit 0; fi
+          if (( new <= 0 )); then echo 'No progress; do not auto-retry.'; exit 0; fi
+          if [[ "$reason" == 'api_or_request_errors' || "$reason" == 'child_error_or_no_progress' || "$reason" == 'no_progress' ]]; then
+            echo "Stopped for inspection after $reason; no blind retry."
+            exit 0
+          fi
+          if (( CONTINUATION_COUNT >= 5 )); then
+            echo 'Automatic continuation safety cap (5) reached; resume manually or rely on weekday schedule.'
+            exit 0
+          fi
+          next=$(( CONTINUATION_COUNT + 1 ))
+          echo "Dispatching continuation $next; remaining=$remaining, newly completed=$new"
+          if gh workflow run opendart_v91.yml --ref main \
+            -f run_mode=bulk_collect -f continuation_count="$next"; then
+            echo 'Next run requested; GitHub may queue it until this job exits.'
+          else
+            echo '::warning::Automatic dispatch unavailable. Run bulk_collect manually; progress is saved.'
+          fi
