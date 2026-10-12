@@ -43,6 +43,7 @@ on:
           - entry_v61
           - sector_v63
           - sector_v64
+          - sector_v65
           - diagnose_v363
 
   schedule:
@@ -416,6 +417,18 @@ jobs:
           }
           python -m pip install pandas requests beautifulsoup4
           python scripts/krx_sector_stage_v64.py \
+            --input reports/market_data_v56_merged.csv \
+            --outdir reports
+
+      - name: Audit KIND sector mapping (v6.5 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v65'
+        run: |
+          test -s reports/market_data_v56_merged.csv || {
+            echo 'Missing merged OHLCV snapshot; no repeated collection.'
+            exit 1
+          }
+          python -m pip install pandas requests lxml openpyxl
+          python scripts/krx_sector_stage_v65.py \
             --input reports/market_data_v56_merged.csv \
             --outdir reports
 
