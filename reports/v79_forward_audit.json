@@ -1,0 +1,91 @@
+{
+  "version": "7.9",
+  "source": "same v7.6 historical WAIT cohort; NOT new market selections",
+  "run_kst": "2026-10-12T17:20:25+09:00",
+  "requested_end": "2026-10-12",
+  "provider": "FINANCEDATAREADER_AUTO_BACKEND_UNVERIFIED",
+  "provider_request_hint": "NAVER",
+  "signals": 3,
+  "paper_fills": 3,
+  "paper_exits": 2,
+  "pending_forward_outcomes": 3,
+  "quarantined": 0,
+  "fetch_attempted": true,
+  "fetch_log": [
+    {
+      "ticker": "348340",
+      "status": "REFRESH_OK",
+      "new_bars": 0,
+      "revised_days": 1,
+      "major_revision_days": 0,
+      "max_revision_pct": 0.15873,
+      "missing_existing_days": 0,
+      "revision_dates": "2026-10-12",
+      "missing_dates": ""
+    },
+    {
+      "ticker": "093370",
+      "status": "REFRESH_OK",
+      "new_bars": 0,
+      "revised_days": 1,
+      "major_revision_days": 0,
+      "max_revision_pct": 0.0,
+      "missing_existing_days": 0,
+      "revision_dates": "2026-10-12",
+      "missing_dates": ""
+    },
+    {
+      "ticker": "103590",
+      "status": "REFRESH_OK",
+      "new_bars": 0,
+      "revised_days": 1,
+      "major_revision_days": 0,
+      "max_revision_pct": 0.271003,
+      "missing_existing_days": 0,
+      "revision_dates": "2026-10-12",
+      "missing_dates": ""
+    }
+  ],
+  "revision_rows": 3,
+  "revised_days": 3,
+  "major_revision_days": 0,
+  "price_basis": [
+    {
+      "ticker": "348340",
+      "name": "뉴로메카",
+      "asof": "2026-10-08",
+      "reference_close": 21300.0,
+      "historical_close": 21300.0,
+      "status": "MATCH"
+    },
+    {
+      "ticker": "093370",
+      "name": "후성",
+      "asof": "2026-10-08",
+      "reference_close": 15030.0,
+      "historical_close": 15030.0,
+      "status": "MATCH"
+    },
+    {
+      "ticker": "103590",
+      "name": "일진전기",
+      "asof": "2026-10-08",
+      "reference_close": 82000.0,
+      "historical_close": 82000.0,
+      "status": "MATCH"
+    }
+  ],
+  "fee_bps": 15.0,
+  "slippage_bps": 10.0,
+  "max_entry_sessions": 3,
+  "real_trading_authorized": false,
+  "status": "RESEARCH_ONLY_NEVER_TRADE",
+  "limitations": [
+    "Same historical cohort; not unbiased full-market predictive evaluation",
+    "OHLCV cannot establish within-bar touch order; conservative same-session stop model retained",
+    "Unverified exchange ticks, latency, liquidity, queue priority, taxation and broker fills",
+    "Every observed OHLCV revision is audited; >0.5% OHLC changes are quarantined",
+    "Failed, empty, partial or invalid fresh fetches quarantine results rather than present stale cache as fresh",
+    "Incomplete future sessions are PENDING; not zero-return or fabricated results"
+  ]
+}
