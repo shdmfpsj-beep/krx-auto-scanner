@@ -1,29 +1,29 @@
-name: OpenDART v9.1 historical financial collection
+name: OpenDART v9.2 fast historical financial collection
 
 on:
   workflow_dispatch:
     inputs:
       run_mode:
-        description: 'Preview requires no key; Collect requires OPENDART_API_KEY secret'
+        description: 'preview, collect 12, or bulk_collect all remaining (one click)'
         required: true
         type: choice
-        default: preview
+        default: bulk_collect
         options:
-          - preview
+          - bulk_collect
           - collect
+          - preview
       tickers:
-        description: 'Optional comma/space separated 6-digit ticker codes; leave blank for cached universe'
+        description: 'Optional 6-digit stock codes separated by commas/spaces; blank = all cached stocks'
         required: false
         type: string
         default: ''
-  # Weekdays 20:45 Asia/Seoul (UTC cron; subject to GitHub scheduling delays)
+  # Keep the existing incremental weekday run as a fallback (KST 20:45).
   schedule:
     - cron: '45 11 * * 1-5'
 
 permissions:
   contents: write
 
-# Coordinate report commits with the existing KRX daily workflow.
 concurrency:
   group: krx-report-main
   cancel-in-progress: false
@@ -31,7 +31,7 @@ concurrency:
 jobs:
   financial_backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 80
+    timeout-minutes: 140
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,10 +42,11 @@ jobs:
         run: python scripts/test_opendart_financial_v91.py
 
       - name: Check KRX historical price cache
+        shell: bash
         run: |
           set -euo pipefail
           test -d reports/v36_ohlcv_cache || {
-            echo 'Missing reports/v36_ohlcv_cache: no fake sector or financial results generated.'
+            echo 'Missing reports/v36_ohlcv_cache.'
             exit 1
           }
 
@@ -53,22 +54,18 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.run_mode == 'preview'
         run: |
           python scripts/krx_opendart_financial_v91.py \
-            --cache-dir reports/v36_ohlcv_cache \
-            --outdir reports --years 2023 2024 2025 2026 \
-            --max-tickers 12 --dry-run
+            --cache-dir reports/v36_ohlcv_cache --outdir reports \
+            --years 2023 2024 2025 2026 --max-tickers 12 --dry-run
 
-      - name: Collect OpenDART originals (research only, provisional figures)
+      - name: Collect one standard batch (12 tickers)
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'collect')
+        shell: bash
         env:
           OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
           REQUESTED_TICKERS: ${{ github.event.inputs.tickers || '' }}
-        shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${OPENDART_API_KEY}" ]]; then
-            echo 'OPENDART_API_KEY GitHub Secret is not configured.'
-            exit 1
-          fi
+          test -n "${OPENDART_API_KEY}" || { echo 'Missing OPENDART_API_KEY secret'; exit 1; }
           extra=()
           if [[ -n "${REQUESTED_TICKERS}" ]]; then
             sanitized="${REQUESTED_TICKERS//,/ }"
@@ -76,9 +73,89 @@ jobs:
             extra=(--tickers "${input_codes[@]}")
           fi
           python scripts/krx_opendart_financial_v91.py \
-            --cache-dir reports/v36_ohlcv_cache \
-            --outdir reports --years 2023 2024 2025 2026 \
-            --max-tickers 12 "${extra[@]}"
+            --cache-dir reports/v36_ohlcv_cache --outdir reports \
+            --years 2023 2024 2025 2026 --max-tickers 12 "${extra[@]}"
+
+      - name: Bulk collect all remaining tickers with checkpoints
+        if: github.event_name == 'workflow_dispatch' && inputs.run_mode == 'bulk_collect'
+        shell: bash
+        env:
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+          REQUESTED_TICKERS: ${{ github.event.inputs.tickers || '' }}
+        run: |
+          set -euo pipefail
+          test -n "${OPENDART_API_KEY}" || { echo 'Missing OPENDART_API_KEY secret'; exit 1; }
+          extra=()
+          if [[ -n "${REQUESTED_TICKERS}" ]]; then
+            sanitized="${REQUESTED_TICKERS//,/ }"
+            read -r -a input_codes <<< "${sanitized}"
+            extra=(--tickers "${input_codes[@]}")
+          fi
+
+          # Up to 14 batches x 25 tickers; stop after 110 min, before job timeout.
+          deadline=$(( $(date +%s) + 6600 ))
+          reason='batch_cap'
+          batches=0
+          for i in $(seq 1 14); do
+            if (( $(date +%s) >= deadline )); then
+              reason='time_budget'; break
+            fi
+            batches="$i"
+            echo "===== OpenDART batch ${i}: up to 25 previously uncollected tickers ====="
+            # The collector persists progress after EACH ticker.  If interrupted,
+            # all earlier finished tickers remain safe and are committed below.
+            if ! timeout --signal=TERM --kill-after=10s 1500s \
+              python scripts/krx_opendart_financial_v91.py \
+                --cache-dir reports/v36_ohlcv_cache --outdir reports \
+                --years 2023 2024 2025 2026 --max-tickers 25 "${extra[@]}"; then
+              reason='batch_timeout_or_error'; break
+            fi
+
+            read -r remaining added errors selected < <(python - <<'PY'
+          import json
+          from pathlib import Path
+          status = json.loads(Path('reports/v91_financial_collection_status.json').read_text())
+          print(status.get('incomplete_tickers', -1), status.get('newly_completed_tickers', -1),
+                len(status.get('errors', [])), len(status.get('selected_tickers', [])))
+          PY
+            )
+            echo "Remaining=${remaining}; new=${added}; errors=${errors}; selected=${selected}"
+            if (( remaining == 0 )); then reason='complete'; break; fi
+            if (( errors > 0 )); then reason='api_or_request_errors'; break; fi
+            if (( added == 0 || selected == 0 )); then reason='no_progress'; break; fi
+            sleep 2
+          done
+
+          REASON="${reason}" BATCHES="${batches}" python - <<'PY'
+          import json, os
+          from pathlib import Path
+          status_path=Path('reports/v91_financial_collection_status.json')
+          state_path=Path('reports/v91_financial_collection_state.json')
+          status=json.loads(status_path.read_text()) if status_path.exists() else {}
+          state=json.loads(state_path.read_text()) if state_path.exists() else {}
+          total=int(status.get('target_universe_size', 0))
+          completed=len(state.get('completed_tickers', []))
+          remaining=max(0, total-completed)
+          summary={
+              'version':'9.2-bulk-wrapper',
+              'mode':'bulk_collect',
+              'reason':os.environ['REASON'],
+              'batches_attempted':int(os.environ['BATCHES']),
+              'target_universe_size':total,
+              'completed_tickers':completed,
+              'remaining_tickers':remaining,
+              'total_provisional_rows':status.get('total_provisional_rows', 0),
+              'strict_pit_approved':False,
+              'notes':'API values are provisional; original filings and sector PIT not yet verified.'
+          }
+          Path('reports/v92_bulk_collection_summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps(summary,ensure_ascii=False))
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+              f.write('## OpenDART v9.2 bulk collection\n')
+              f.write(f"- Progress: **{completed} / {total}** stocks (remaining **{remaining}**)\n")
+              f.write(f"- Stop reason: **{summary['reason']}**\n")
+              f.write('- Figures are **provisional**, not approved for trading or point-in-time backtesting.\n')
+          PY
 
       - name: Commit resumable research collection (never any secret)
         if: success()
@@ -87,15 +164,19 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add reports/v91_financial_collection_status.json
-          for f in reports/v91_financial_pit_provisional.csv reports/v91_financial_collection_audit.csv reports/v91_financial_collection_state.json; do
+          for f in \
+            reports/v91_financial_collection_status.json \
+            reports/v91_financial_pit_provisional.csv \
+            reports/v91_financial_collection_audit.csv \
+            reports/v91_financial_collection_state.json \
+            reports/v92_bulk_collection_summary.json; do
             if [[ -f "$f" ]]; then git add "$f"; fi
           done
           if git diff --cached --quiet; then
             echo 'No new financial data to save.'
             exit 0
           fi
-          git commit -m 'Update OpenDART v9.1 provisional financial research data'
+          git commit -m 'Update OpenDART v9.2 resumable financial research data'
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             if git rebase origin/main && git push origin HEAD:main; then
@@ -104,17 +185,18 @@ jobs:
             git rebase --abort || true
             sleep $((attempt * 3))
           done
-          echo 'Unable to push research report after retries'
+          echo 'Unable to push research data after retries; artifact retained'
           exit 1
 
-      - name: Upload data collection report
+      - name: Upload OpenDART collection report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: opendart-v91-report
+          name: opendart-v92-report
           if-no-files-found: warn
           path: |
             reports/v91_financial_collection_status.json
             reports/v91_financial_collection_state.json
             reports/v91_financial_collection_audit.csv
             reports/v91_financial_pit_provisional.csv
+            reports/v92_bulk_collection_summary.json
