@@ -1,0 +1,35 @@
+{
+  "version": "7.7",
+  "source": "v7.6 historical WAIT queue",
+  "signals": 3,
+  "paper_fills": 3,
+  "paper_exits": 2,
+  "no_forward_data": 0,
+  "forward_horizons_evaluated": 9,
+  "fetch_attempted": true,
+  "fetch_log": [
+    {
+      "ticker": "348340",
+      "fetch": "SUCCESS"
+    },
+    {
+      "ticker": "093370",
+      "fetch": "SUCCESS"
+    },
+    {
+      "ticker": "103590",
+      "fetch": "SUCCESS"
+    }
+  ],
+  "fee_bps": 15.0,
+  "slippage_bps": 10.0,
+  "max_entry_sessions": 3,
+  "real_trading_authorized": false,
+  "limitations": [
+    "OHLCV bars do not reveal intraday execution sequence; same-day stop conservatively prioritized",
+    "No liquidity, spread, queue priority, taxes or exchange-specific tick rounding verified",
+    "Historical signal cohort selected with hindsight; not a walk-forward unbiased performance estimate",
+    "Insufficient future bars are PENDING, never assigned invented returns",
+    "Entry/exit fill and fees/slippage are modeled assumptions, not actual fills"
+  ]
+}
