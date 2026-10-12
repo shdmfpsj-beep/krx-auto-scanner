@@ -1,0 +1,23 @@
+{
+  "status": "RESEARCH_COLLECTION_ONLY",
+  "asof": "2026-10-08",
+  "total_tickers": 124,
+  "batch_size": 20,
+  "batch_index": 4,
+  "total_batches": 7,
+  "attempted": 20,
+  "valid_collected": 20,
+  "cache_reused": 0,
+  "failed": 0,
+  "source": "NAVER",
+  "window_start": "2026-07-05",
+  "window_end_exclusive": "2026-10-09",
+  "report_csv": "reports/v70_history_batch_04.csv",
+  "limitations": [
+    "No unverified prices saved to cache",
+    "No trade signals",
+    "Historical as-of 2026-10-08 snapshot; not current market",
+    "Snapshot-to-history close comparison <=3% does not prove same adjustment basis",
+    "Batch CSV is per-run; commit reports/cache for persistence"
+  ]
+}
