@@ -1,0 +1,14 @@
+{
+  "version": "6.1",
+  "asof": "2026-10-08",
+  "input_validated_rows": 30,
+  "scope": "ONLY_PREVIOUSLY_VALIDATED_TOP_30_NOT_FULL_MARKET",
+  "historical_conditional_only": true,
+  "not_current_trade_levels": true,
+  "failures": [],
+  "plans_by_strategy": {
+    "C3": 1,
+    "K100_NEW_TOP3": 0
+  },
+  "next_required": "expand historical coverage to full universe and time-split backtest before claiming daily market TOP3 precision"
+}
