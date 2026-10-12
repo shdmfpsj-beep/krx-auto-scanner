@@ -57,6 +57,7 @@ on:
           - sector_v76
           - sector_v77
           - sector_v78
+          - sector_v79
           - diagnose_v363
 
   schedule:
@@ -664,6 +665,26 @@ jobs:
             --outdir reports \
             --fetch \
             --source NAVER \
+            --max-entry-sessions 3 \
+            --fee-bps 15 \
+            --slip-bps 10
+
+      - name: Audit v7.9 forward revisions and freshness (research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v79'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v76_paper_trade_queue.csv
+          test -s reports/v76_conditional_research_top3.csv
+          test -d reports/v36_ohlcv_cache
+          python -m pip install finance-datareader
+          python scripts/krx_investment_sector_v79.py \
+            --queue reports/v76_paper_trade_queue.csv \
+            --anchor reports/v76_conditional_research_top3.csv \
+            --cache reports/v36_ohlcv_cache \
+            --forward-cache reports/v77_forward_cache \
+            --outdir reports \
+            --fetch \
             --max-entry-sessions 3 \
             --fee-bps 15 \
             --slip-bps 10
