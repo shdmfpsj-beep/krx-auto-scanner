@@ -51,6 +51,7 @@ on:
           - sector_v70
           - sector_v71
           - sector_v72
+          - sector_v73
           - diagnose_v363
 
   schedule:
@@ -559,6 +560,18 @@ jobs:
             --sectors reports/v71_sector_strength.csv \
             --market reports/market_data_v56_merged.csv \
             --cache reports/v36_ohlcv_cache \
+            --outdir reports
+
+      - name: Compare independent full-market observations with sector entry candidates (v7.3 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v73'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/market_data_v56_merged.csv
+          test -s reports/v72_historical_watchlist.csv
+          test -s reports/v71_sector_strength.csv
+          python scripts/krx_investment_sector_v73.py \
+            --reports reports \
             --outdir reports
 
       - name: Save reports
