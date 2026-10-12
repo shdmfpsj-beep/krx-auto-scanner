@@ -41,6 +41,7 @@ on:
           - preliminary_v59
           - validate_v60
           - entry_v61
+          - sector_v63
           - diagnose_v363
 
   schedule:
@@ -392,6 +393,18 @@ jobs:
             --input reports/v60_history_validation.csv \
             --outdir reports \
             --limit 30
+
+      - name: Audit KRX sector mapping and one-session breadth (v6.3 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v63'
+        run: |
+          test -s reports/market_data_v56_merged.csv || {
+            echo 'Missing merged OHLCV snapshot; do not rerun historical collection automatically.'
+            exit 1
+          }
+          python -m pip install finance-datareader pandas
+          python scripts/krx_sector_stage_v63.py \
+            --input reports/market_data_v56_merged.csv \
+            --outdir reports
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
