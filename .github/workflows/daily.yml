@@ -52,6 +52,7 @@ on:
           - sector_v71
           - sector_v72
           - sector_v73
+          - sector_v74
           - diagnose_v363
 
   schedule:
@@ -573,6 +574,22 @@ jobs:
           python scripts/krx_investment_sector_v73.py \
             --reports reports \
             --outdir reports
+
+      - name: Validate bounded independent histories (v7.4 historical research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v74'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v73_independent_research_queue.csv
+          test -s reports/market_data_v56_merged.csv
+          python -m pip install finance-datareader
+          python scripts/krx_investment_sector_v74.py \
+            --queue reports/v73_independent_research_queue.csv \
+            --market reports/market_data_v56_merged.csv \
+            --cache reports/v36_ohlcv_cache \
+            --outdir reports \
+            --limit 30 \
+            --sleep 0.5
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
