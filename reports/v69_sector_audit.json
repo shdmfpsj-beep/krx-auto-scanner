@@ -1,0 +1,17 @@
+{
+  "status": "RESEARCH_NOT_TRADE_READY",
+  "asof": "2026-10-08",
+  "sector_count": 11,
+  "member_tickers": 124,
+  "valid_history_tickers": 0,
+  "descriptive_sectors": 0,
+  "cache_directory": "reports/v36_ohlcv_cache",
+  "rules": [
+    "Only as-of-matched daily histories",
+    "21 sessions minimum",
+    "Close snapshot reconciliation <=3%",
+    "At least 5 stocks and 70% coverage per sector",
+    "Unverified theme membership",
+    "No benchmark relative strength, verified flows, catalysts or BUY signals"
+  ]
+}
