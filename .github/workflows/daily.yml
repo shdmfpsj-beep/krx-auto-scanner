@@ -45,6 +45,7 @@ on:
           - sector_v64
           - sector_v65
           - sector_v66
+          - sector_v67
           - diagnose_v363
 
   schedule:
@@ -449,6 +450,17 @@ jobs:
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
         run: python scripts/diagnose_ohlcv_v363.py
+
+      - name: Audit investment-sector seed mapping (v6.7 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v67'
+        run: |
+          test -s reports/v65_sector_stock_map.csv || {
+            echo 'Missing v6.5 mapped market snapshot; no repeated data collection.'
+            exit 1
+          }
+          python scripts/krx_investment_sector_v67.py \
+            --input reports/v65_sector_stock_map.csv \
+            --outdir reports
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
