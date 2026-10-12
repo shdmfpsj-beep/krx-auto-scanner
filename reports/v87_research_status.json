@@ -1,0 +1,38 @@
+{
+  "version": "V8.7_PREIGNITION_RESEARCH_NOT_LIVE",
+  "cache_files": 258,
+  "bar_verification": {
+    "OK": 120,
+    "HISTORY_LT76": 124,
+    "INVALID_OHLCV": 14
+  },
+  "coverage_end_dates": {
+    "2026-02-27": 92,
+    "2026-10-08": 28
+  },
+  "asof_date_selected_most_recent_history": "2026-10-08",
+  "history_count_at_selected_date": 28,
+  "asof_candidates": 0,
+  "total_historical_signals": 1002,
+  "all_execution_mode_closed_trades": 2335,
+  "time_split_boundary": "2025-04-30",
+  "hold_sessions": 5,
+  "cost_bps": 35.0,
+  "score_min": 70,
+  "modes": [
+    "E1_LIMIT_2D",
+    "E2_NEXT_OPEN",
+    "E3_NEXT_CLOSE_AUCTION_PROXY"
+  ],
+  "BUY_APPROVED": false,
+  "limitations": [
+    "Historical ticker cache is preselected and may have severe survivorship and winner-selection bias.",
+    "Different end dates: shortlist constrained to modal history end date, not current real-time prices.",
+    "Daily OHLC proxy cannot prove intraday execution, closing auction fill, order priority, VWAP, or opening-range triggers.",
+    "No corporate actions and tick rounding validation; no exchange price-limit queue or suspended-stock modeling.",
+    "2R target is hypothetical, not observed overhead resistance; same-bar stop is conservatively first.",
+    "No historical sector membership, earnings/revisions, reliable institutional flows, or benchmark RS.",
+    "Overlapping strategy samples and 70/30 time split do not prove independent walk-forward performance.",
+    "Selection thresholds are initial hypotheses not proven optimal; no production BUY authorization."
+  ]
+}
