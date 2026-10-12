@@ -54,6 +54,7 @@ on:
           - sector_v73
           - sector_v74
           - sector_v75
+          - sector_v76
           - diagnose_v363
 
   schedule:
@@ -608,6 +609,19 @@ jobs:
             --sector-watch reports/v72_historical_watchlist.csv \
             --market reports/market_data_v56_merged.csv \
             --cache reports/v36_ohlcv_cache \
+            --outdir reports
+
+      - name: Gate v7.6 historical entry eligibility and paper queue (research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v76'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v75_common_technical_watchlist.csv || {
+            echo 'Missing v7.5 watchlist; run sector_v75 first only if needed.'
+            exit 1
+          }
+          python scripts/krx_investment_sector_v76.py \
+            --input reports/v75_common_technical_watchlist.csv \
             --outdir reports
 
       - name: Save reports
