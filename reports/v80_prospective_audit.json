@@ -1,0 +1,145 @@
+{
+  "version": "8.0",
+  "run_kst": "2026-10-12T18:16:54+09:00",
+  "research_only": true,
+  "purpose": "prospective frozen as-of daily TOP3 watchlists, not historical reconstruction or trading authorization",
+  "source_pool": "upstream prefiltered candidate shortlist; NOT exhaustive verified whole KRX",
+  "snapshot": {
+    "snapshot_status": "FROZEN_RESEARCH_ONLY",
+    "new_cohorts": 6,
+    "unchanged_cohorts": 0,
+    "conflicting_cohorts": 0,
+    "asof": "2026-10-12",
+    "candidate_count": 88,
+    "candidate_date_counts": {
+      "2026-10-12": 88
+    },
+    "c3_status": "READY_C3",
+    "k100_status": "READY_K100",
+    "conflicts": [],
+    "watchlist_C3": [
+      "002960",
+      "192400",
+      "002840"
+    ],
+    "watchlist_K100": [
+      "002840",
+      "002960",
+      "192400"
+    ]
+  },
+  "cumulative_cohorts": 6,
+  "evaluations_completed": 0,
+  "pending_or_quarantined": 24,
+  "fetch_requested": true,
+  "fetch_log": [],
+  "scorecard": [
+    {
+      "account": "C3",
+      "horizon": 1,
+      "observed_rows": 0,
+      "unique_cohort_dates": 0,
+      "mean_gross_pct": "",
+      "median_gross_pct": "",
+      "positive_row_pct": "",
+      "date_balanced_mean_pct": "",
+      "positive_date_pct": "",
+      "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
+    },
+    {
+      "account": "C3",
+      "horizon": 3,
+      "observed_rows": 0,
+      "unique_cohort_dates": 0,
+      "mean_gross_pct": "",
+      "median_gross_pct": "",
+      "positive_row_pct": "",
+      "date_balanced_mean_pct": "",
+      "positive_date_pct": "",
+      "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
+    },
+    {
+      "account": "C3",
+      "horizon": 5,
+      "observed_rows": 0,
+      "unique_cohort_dates": 0,
+      "mean_gross_pct": "",
+      "median_gross_pct": "",
+      "positive_row_pct": "",
+      "date_balanced_mean_pct": "",
+      "positive_date_pct": "",
+      "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
+    },
+    {
+      "account": "C3",
+      "horizon": 10,
+      "observed_rows": 0,
+      "unique_cohort_dates": 0,
+      "mean_gross_pct": "",
+      "median_gross_pct": "",
+      "positive_row_pct": "",
+      "date_balanced_mean_pct": "",
+      "positive_date_pct": "",
+      "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
+    },
+    {
+      "account": "K100",
+      "horizon": 1,
+      "observed_rows": 0,
+      "unique_cohort_dates": 0,
+      "mean_gross_pct": "",
+      "median_gross_pct": "",
+      "positive_row_pct": "",
+      "date_balanced_mean_pct": "",
+      "positive_date_pct": "",
+      "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
+    },
+    {
+      "account": "K100",
+      "horizon": 3,
+      "observed_rows": 0,
+      "unique_cohort_dates": 0,
+      "mean_gross_pct": "",
+      "median_gross_pct": "",
+      "positive_row_pct": "",
+      "date_balanced_mean_pct": "",
+      "positive_date_pct": "",
+      "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
+    },
+    {
+      "account": "K100",
+      "horizon": 5,
+      "observed_rows": 0,
+      "unique_cohort_dates": 0,
+      "mean_gross_pct": "",
+      "median_gross_pct": "",
+      "positive_row_pct": "",
+      "date_balanced_mean_pct": "",
+      "positive_date_pct": "",
+      "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
+    },
+    {
+      "account": "K100",
+      "horizon": 10,
+      "observed_rows": 0,
+      "unique_cohort_dates": 0,
+      "mean_gross_pct": "",
+      "median_gross_pct": "",
+      "positive_row_pct": "",
+      "date_balanced_mean_pct": "",
+      "positive_date_pct": "",
+      "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
+    }
+  ],
+  "gross_only_no_fills_costs_or_targets": true,
+  "caveats": [
+    "Date-freshness required; old snapshots are never backfilled as prospective signals",
+    "TOP3 inputs are scanner pre-filtered, may include UNKNOWN instrument or unverified liquidity",
+    "Signal-date closing values and source adjustments are not independently exchange-verified",
+    "Close-to-close gross outcomes do not establish ability to execute entry orders or win rates",
+    "Point-in-time universe and survivorship issues are not resolved",
+    "FDR chooses its own backend; source and quote finality not verified",
+    "Changing ranker rules in the future will create mixed-method cohorts; do not pool without stratification",
+    "TOP3 same-day picks overlap; date-balanced results still do not imply independent samples"
+  ]
+}
