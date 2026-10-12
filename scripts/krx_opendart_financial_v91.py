@@ -30,6 +30,36 @@ SCHEMA = ['ticker','corp_code','filing_date','available_date','report_year','rep
 AUDIT_COLS = ['ticker','year','report_code','filing_date','receipt_no','status','details']
 REPORT_CODES = {'분기보고서': '11013', '반기보고서': '11012', '사업보고서': '11011'}
 
+# These are *only* public, non-sensitive status descriptions. Never print API URLs or the key.
+SAFE_DART_STATUS = {
+    '010': '미등록 인증키: OpenDART 인증키를 다시 확인하세요.',
+    '011': '사용 불가 인증키: 승인/활성화 상태를 확인하세요.',
+    '012': '접근 불가 IP: OpenDART 사용 환경/IP 제한을 확인하세요.',
+    '013': '조회 자료 없음',
+    '014': '자료 파일 없음',
+    '020': '요청 제한 초과: 나중에 재실행하세요.',
+    '021': '조회 기업 수 제한 초과',
+    '100': 'API 입력값 오류',
+    '101': '접근 권한 오류',
+    '800': 'OpenDART 점검 중: 이후 재실행하세요.',
+    '900': 'OpenDART 서버 오류',
+    '901': '인증키 만료: OpenDART 계정 상태를 확인하세요.',
+}
+
+
+def safe_dart_status(raw):
+    """Extract only a 3-digit DART status from non-ZIP API error bodies."""
+    try:
+        root=ET.fromstring(raw)
+        status=(root.findtext('.//status') or '').strip()
+    except (ET.ParseError, TypeError):
+        try:
+            status=str(json.loads(raw).get('status','')).strip()
+        except (json.JSONDecodeError, UnicodeDecodeError, AttributeError, TypeError):
+            status=''
+    return status if re.fullmatch(r'\d{3}', status) else None
+
+
 
 def atomic_csv(path, rows, fields):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -84,7 +114,9 @@ def get_json(key, name, params, fetch=None):
     status=str(res.get('status',''))
     if status not in ('000','013'):
         # Never put the URL, which contains the secret key, into logs/errors.
-        raise RuntimeError(f'OpenDART {name} returned status={status} (message suppressed)')
+        safe=status if re.fullmatch(r'\d{3}',status) else 'UNKNOWN'
+        description=SAFE_DART_STATUS.get(safe,'API 오류')
+        raise RuntimeError(f'OpenDART {name}: status={safe} ({description})')
     return res
 
 
@@ -95,7 +127,10 @@ def get_corp_codes(key, fetch=None):
         with urllib.request.urlopen(req,timeout=60) as res:data=res.read()
     else:data=fetch('corpCode.xml',{'crtfc_key':key})
     if not zipfile.is_zipfile(io.BytesIO(data)):
-        raise RuntimeError('corpCode.xml did not return a ZIP. Check API key, availability, or quota.')
+        status=safe_dart_status(data[:16384])
+        if status:
+            raise RuntimeError(f'corpCode.xml: status={status} ({SAFE_DART_STATUS.get(status,"API 오류")})')
+        raise RuntimeError('corpCode.xml: ZIP이 아닌 응답입니다. OpenDART 인증 및 서비스 상태를 확인하세요.')
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         xml_file=next((s for s in z.namelist() if s.lower().endswith('.xml')),None)
         if not xml_file:raise RuntimeError('Missing CORPCODE.xml inside ZIP')
@@ -228,7 +263,9 @@ def collect(args, getj=get_json, getcodes=get_corp_codes, fetch=None):
         atomic_json(out/'v91_financial_collection_status.json',base)
         return base
     key=os.environ.get('OPENDART_API_KEY','').strip()
-    if not key or len(key)!=40:raise RuntimeError('Missing/invalid OPENDART_API_KEY secret (expected 40 characters)')
+    if len(key)!=40:
+        raise RuntimeError(f'OPENDART_API_KEY 형식 오류: 40자가 필요하지만 {len(key)}자입니다. '
+                           '인증키 문자열만 복사하고 따옴표·설명문·공백은 제외하세요.')
     corp_map=getcodes(key,fetch=fetch)
     index={(x.get('ticker'),x.get('receipt_no'),x.get('fs_div')):x for x in existing}
     hard_errors=[]
@@ -275,9 +312,13 @@ def collect(args, getj=get_json, getcodes=get_corp_codes, fetch=None):
                     else:
                         audit.append({**info,'status':'NO_VERIFIABLE_ACCOUNTS','details':'CFS/OFS missing or mismatched; no invented values'})
             except (RuntimeError,urllib.error.URLError,TimeoutError,ValueError) as e:
-                # Never log arbitrary exception strings: remote URL can contain API key.
-                audit.append({'ticker':ticker,'year':year,'status':'REQUEST_FAILED','details':type(e).__name__})
-                hard_errors.append({'ticker':ticker,'year':year,'error_type':type(e).__name__})
+                # Explicit allowlist only: never leak URLs, secrets or API response bodies.
+                message=str(e) if isinstance(e,RuntimeError) else ''
+                if not message.startswith(('OpenDART ', 'corpCode.xml:', 'OPENDART_API_KEY 형식 오류:')):
+                    message=type(e).__name__
+                audit.append({'ticker':ticker,'year':year,'status':'REQUEST_FAILED','details':message})
+                hard_errors.append({'ticker':ticker,'year':year,'error_type':type(e).__name__,'safe_detail':message})
+                print(f'Financial API request failed: ticker={ticker}, year={year}, reason={message}',file=sys.stderr)
                 failed=True;break
         if not failed:
             completed.add(ticker)
@@ -311,8 +352,19 @@ def main():
     try:
         status=collect(a)
     except Exception as e:
-        # No accidental secret leakage via HTTP URL errors.
-        print('Collection failed. Reason:',type(e).__name__,file=sys.stderr)
+        # Never print str(HTTPError/URLError): their URL may contain the secret.
+        if isinstance(e, RuntimeError):
+            msg=str(e)
+            if msg.startswith(('OPENDART_API_KEY 형식 오류:', 'corpCode.xml:', 'OpenDART ')):
+                print('Collection failed:',msg,file=sys.stderr)
+            else:
+                print('Collection failed: RuntimeError (세부 원인 별도 확인 필요)',file=sys.stderr)
+        elif isinstance(e, urllib.error.HTTPError):
+            print('Collection failed: OpenDART HTTP 상태',e.code,'(주소와 키는 숨김)',file=sys.stderr)
+        elif isinstance(e, (urllib.error.URLError,TimeoutError)):
+            print('Collection failed: OpenDART 네트워크 연결/시간 초과 (키 숨김)',file=sys.stderr)
+        else:
+            print('Collection failed:',type(e).__name__,'(키 숨김)',file=sys.stderr)
         sys.exit(1)
     print(json.dumps(status,ensure_ascii=False))
 
