@@ -42,6 +42,7 @@ on:
           - validate_v60
           - entry_v61
           - sector_v63
+          - sector_v64
           - diagnose_v363
 
   schedule:
@@ -403,6 +404,18 @@ jobs:
           }
           python -m pip install finance-datareader pandas
           python scripts/krx_sector_stage_v63.py \
+            --input reports/market_data_v56_merged.csv \
+            --outdir reports
+
+      - name: Audit Naver sector mapping (v6.4 research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v64'
+        run: |
+          test -s reports/market_data_v56_merged.csv || {
+            echo 'Missing merged OHLCV snapshot; no repeated collection.'
+            exit 1
+          }
+          python -m pip install pandas requests beautifulsoup4
+          python scripts/krx_sector_stage_v64.py \
             --input reports/market_data_v56_merged.csv \
             --outdir reports
 
