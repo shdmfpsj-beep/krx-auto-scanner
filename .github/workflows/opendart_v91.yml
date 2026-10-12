@@ -1,0 +1,120 @@
+name: OpenDART v9.1 historical financial collection
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_mode:
+        description: 'Preview requires no key; Collect requires OPENDART_API_KEY secret'
+        required: true
+        type: choice
+        default: preview
+        options:
+          - preview
+          - collect
+      tickers:
+        description: 'Optional comma/space separated 6-digit ticker codes; leave blank for cached universe'
+        required: false
+        type: string
+        default: ''
+  # Weekdays 20:45 Asia/Seoul (UTC cron; subject to GitHub scheduling delays)
+  schedule:
+    - cron: '45 11 * * 1-5'
+
+permissions:
+  contents: write
+
+# Coordinate report commits with the existing KRX daily workflow.
+concurrency:
+  group: krx-report-main
+  cancel-in-progress: false
+
+jobs:
+  financial_backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Offline unit tests (no API key)
+        run: python scripts/test_opendart_financial_v91.py
+
+      - name: Check KRX historical price cache
+        run: |
+          set -euo pipefail
+          test -d reports/v36_ohlcv_cache || {
+            echo 'Missing reports/v36_ohlcv_cache: no fake sector or financial results generated.'
+            exit 1
+          }
+
+      - name: Preview next collection batch (no API key)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_mode == 'preview'
+        run: |
+          python scripts/krx_opendart_financial_v91.py \
+            --cache-dir reports/v36_ohlcv_cache \
+            --outdir reports --years 2023 2024 2025 2026 \
+            --max-tickers 12 --dry-run
+
+      - name: Collect OpenDART originals (research only, provisional figures)
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'collect')
+        env:
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+          REQUESTED_TICKERS: ${{ github.event.inputs.tickers || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${OPENDART_API_KEY}" ]]; then
+            echo 'OPENDART_API_KEY GitHub Secret is not configured.'
+            exit 1
+          fi
+          extra=()
+          if [[ -n "${REQUESTED_TICKERS}" ]]; then
+            sanitized="${REQUESTED_TICKERS//,/ }"
+            read -r -a input_codes <<< "${sanitized}"
+            extra=(--tickers "${input_codes[@]}")
+          fi
+          python scripts/krx_opendart_financial_v91.py \
+            --cache-dir reports/v36_ohlcv_cache \
+            --outdir reports --years 2023 2024 2025 2026 \
+            --max-tickers 12 "${extra[@]}"
+
+      - name: Commit resumable research collection (never any secret)
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add reports/v91_financial_collection_status.json
+          for f in reports/v91_financial_pit_provisional.csv reports/v91_financial_collection_audit.csv reports/v91_financial_collection_state.json; do
+            if [[ -f "$f" ]]; then git add "$f"; fi
+          done
+          if git diff --cached --quiet; then
+            echo 'No new financial data to save.'
+            exit 0
+          fi
+          git commit -m 'Update OpenDART v9.1 provisional financial research data'
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if git rebase origin/main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort || true
+            sleep $((attempt * 3))
+          done
+          echo 'Unable to push research report after retries'
+          exit 1
+
+      - name: Upload data collection report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendart-v91-report
+          if-no-files-found: warn
+          path: |
+            reports/v91_financial_collection_status.json
+            reports/v91_financial_collection_state.json
+            reports/v91_financial_collection_audit.csv
+            reports/v91_financial_pit_provisional.csv
