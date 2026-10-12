@@ -1,0 +1,25 @@
+{
+  "version": "V8.8_PREIGNITION_CAUSAL_QUALITY_AUDIT_NOT_LIVE",
+  "signals_input": 1002,
+  "signals_audited": 1002,
+  "trades_input": 2335,
+  "trades_matched": 2335,
+  "purity_classes": {
+    "CLEAN_PREBREAKOUT": 733,
+    "PRIOR_BREACH": 251,
+    "SIGNAL_DAY_PROBE": 18
+  },
+  "time_split_boundary": "2025-04-30",
+  "historical_winner_selection_possible": true,
+  "BUY_APPROVED": false,
+  "method": "As-of last-4-bar resistance-breach classification plus 20d turnover direction and CMF. No past rows edited.",
+  "caveats": [
+    "Purity excludes prior breaches but does not claim a predictive filter; recent breach may be valid retest.",
+    "CMF and up/down turnover are unverified proxies, not broker order-flow or institutional net purchases.",
+    "Same stock and signal date are repeated across three modes and are NOT independent observations.",
+    "No historical sector RS, catalysts, revised fundamentals, or intraday quote data.",
+    "Reports are selected-ticker research and not point-in-time broad-market results.",
+    "Next-close entry proxy cannot validate actual closing auction execution; final closing price is not knowable pre-order.",
+    "Results are in-sample diagnostics; do not choose a winner from this test alone."
+  ]
+}
