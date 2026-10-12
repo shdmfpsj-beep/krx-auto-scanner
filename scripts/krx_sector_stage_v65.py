@@ -26,7 +26,7 @@ def parse_listing_bytes(data):
     if data[:2] == b'PK':
         df = pd.read_excel(io.BytesIO(data), dtype=str)
     else:
-        tables = pd.read_html(io.BytesIO(data), dtype=str)
+        tables = pd.read_html(io.BytesIO(data), converters={"종목코드": str})
         matches = [t for t in tables if {'종목코드', '업종'}.issubset(t.columns)]
         if not matches:
             raise ValueError('KIND download does not contain 종목코드 and 업종')
