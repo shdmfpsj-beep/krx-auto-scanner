@@ -39,6 +39,7 @@ on:
           - market_data_v52
           - retry_missing_v58
           - preliminary_v59
+          - validate_v60
           - diagnose_v363
 
   schedule:
@@ -367,6 +368,16 @@ jobs:
           test -s reports/market_data_v56_merge_audit.json
           test -s reports/market_data_v56_merged.csv
           python scripts/krx_v59_preliminary.py --outdir reports
+
+      - name: Validate v6.0 C3 and K100 candidate histories (research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'validate_v60'
+        run: |
+          test -s reports/v59_preliminary_watchlist.csv
+          python -m pip install finance-datareader pandas
+          python scripts/krx_v60_validate.py \
+            --input reports/v59_preliminary_watchlist.csv \
+            --outdir reports \
+            --limit 30
 
       - name: Diagnose C3 v3.6.3 OHLCV failures
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'diagnose_v363'
