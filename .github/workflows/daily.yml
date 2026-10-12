@@ -56,6 +56,7 @@ on:
           - sector_v75
           - sector_v76
           - sector_v77
+          - sector_v78
           - diagnose_v363
 
   schedule:
@@ -637,6 +638,27 @@ jobs:
           python -m pip install finance-datareader
           python scripts/krx_investment_sector_v77.py \
             --queue reports/v76_paper_trade_queue.csv \
+            --cache reports/v36_ohlcv_cache \
+            --forward-cache reports/v77_forward_cache \
+            --outdir reports \
+            --fetch \
+            --source NAVER \
+            --max-entry-sessions 3 \
+            --fee-bps 15 \
+            --slip-bps 10
+
+      - name: Incrementally refresh v7.8 paper forward returns and price integrity (research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v78'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v76_paper_trade_queue.csv
+          test -s reports/v76_conditional_research_top3.csv
+          test -d reports/v36_ohlcv_cache
+          python -m pip install finance-datareader
+          python scripts/krx_investment_sector_v78.py \
+            --queue reports/v76_paper_trade_queue.csv \
+            --anchor reports/v76_conditional_research_top3.csv \
             --cache reports/v36_ohlcv_cache \
             --forward-cache reports/v77_forward_cache \
             --outdir reports \
