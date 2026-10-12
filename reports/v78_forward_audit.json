@@ -1,0 +1,68 @@
+{
+  "version": "7.8",
+  "source": "same v7.6 historical WAIT cohort; NOT new market selections",
+  "signals": 3,
+  "paper_fills": 3,
+  "paper_exits": 2,
+  "pending_forward_outcomes": 3,
+  "quarantined": 0,
+  "fetch_attempted": true,
+  "fetch_log": [
+    {
+      "ticker": "348340",
+      "status": "REFRESH_OK",
+      "new_bars": 0,
+      "changed_days": 0
+    },
+    {
+      "ticker": "093370",
+      "status": "REFRESH_OK",
+      "new_bars": 0,
+      "changed_days": 0
+    },
+    {
+      "ticker": "103590",
+      "status": "REFRESH_OK",
+      "new_bars": 0,
+      "changed_days": 0
+    }
+  ],
+  "price_basis": [
+    {
+      "ticker": "348340",
+      "name": "뉴로메카",
+      "asof": "2026-10-08",
+      "reference_close": 21300.0,
+      "historical_close": 21300.0,
+      "status": "MATCH"
+    },
+    {
+      "ticker": "093370",
+      "name": "후성",
+      "asof": "2026-10-08",
+      "reference_close": 15030.0,
+      "historical_close": 15030.0,
+      "status": "MATCH"
+    },
+    {
+      "ticker": "103590",
+      "name": "일진전기",
+      "asof": "2026-10-08",
+      "reference_close": 82000.0,
+      "historical_close": 82000.0,
+      "status": "MATCH"
+    }
+  ],
+  "fee_bps": 15.0,
+  "slippage_bps": 10.0,
+  "max_entry_sessions": 3,
+  "real_trading_authorized": false,
+  "status": "RESEARCH_ONLY_NEVER_TRADE",
+  "limitations": [
+    "Same historical cohort; not unbiased full-market predictive evaluation",
+    "OHLCV cannot establish within-bar touch order; conservative same-session stop model retained",
+    "Unverified exchange ticks, latency, liquidity, queue priority, taxation and broker fills",
+    "Provider bar revisions greater than 0.5% are quarantined rather than silently accepted",
+    "Incomplete future sessions are PENDING; not zero-return or fabricated results"
+  ]
+}
