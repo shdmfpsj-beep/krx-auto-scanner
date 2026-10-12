@@ -1,0 +1,24 @@
+{
+  "version": "7.3",
+  "asof": "2026-10-08",
+  "market_rows": 2568,
+  "valid_daily_rows": 2568,
+  "sector_entry_candidates": 35,
+  "independent_daily_only_rows": 2533,
+  "independent_queue_rows": 30,
+  "provisional_sector_top3_rows": 3,
+  "true_full_market_top3_authorized": false,
+  "trade_authorized": false,
+  "status": "RESEARCH_ONLY_INDEPENDENT_HISTORY_MISSING",
+  "limitations": [
+    "One-session independent scan cannot establish 5/20d trend or valid entry geometry",
+    "v7.2 historical sector membership not externally verified",
+    "No next-day fill simulation or performance attribution",
+    "No verified instrument classification, real turnover, index-relative strength, or live quotes"
+  ],
+  "outputs": [
+    "v73_full_market_observations.csv",
+    "v73_independent_research_queue.csv",
+    "v73_provisional_sector_top3.csv"
+  ]
+}
