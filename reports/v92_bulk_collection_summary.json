@@ -1,12 +1,14 @@
 {
-  "version": "9.2-bulk-wrapper",
+  "version": "9.2.1-resumable-bulk",
   "mode": "bulk_collect",
-  "reason": "batch_timeout_or_error",
-  "batches_attempted": 1,
+  "reason": "batch_cap",
+  "batches_attempted": 18,
   "target_universe_size": 258,
-  "completed_tickers": 28,
-  "remaining_tickers": 230,
-  "total_provisional_rows": 157,
+  "completed_tickers": 172,
+  "remaining_tickers": 86,
+  "newly_completed_this_run": 144,
+  "total_provisional_rows": 1671,
   "strict_pit_approved": false,
-  "notes": "API values are provisional; original filings and sector PIT not yet verified."
+  "is_subset_run": false,
+  "notes": "API figures are unverified snapshots, never approved for point-in-time backtesting or trading."
 }
