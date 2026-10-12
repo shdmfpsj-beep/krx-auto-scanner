@@ -53,6 +53,7 @@ on:
           - sector_v72
           - sector_v73
           - sector_v74
+          - sector_v75
           - diagnose_v363
 
   schedule:
@@ -590,6 +591,24 @@ jobs:
             --outdir reports \
             --limit 30 \
             --sleep 0.5
+
+      - name: Compare independent and sector entry candidates (v7.5 historical research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v75'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v73_independent_research_queue.csv
+          test -s reports/v74_independent_history_validation.csv
+          test -s reports/v72_historical_watchlist.csv
+          test -s reports/market_data_v56_merged.csv
+          test -d reports/v36_ohlcv_cache
+          python scripts/krx_investment_sector_v75.py \
+            --queue reports/v73_independent_research_queue.csv \
+            --validation reports/v74_independent_history_validation.csv \
+            --sector-watch reports/v72_historical_watchlist.csv \
+            --market reports/market_data_v56_merged.csv \
+            --cache reports/v36_ohlcv_cache \
+            --outdir reports
 
       - name: Save reports
         if: steps.collect.outcome != 'failure'
