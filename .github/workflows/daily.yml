@@ -62,6 +62,10 @@ on:
           - sector_v81
           - sector_v82
           - sector_v83
+          - sector_v84
+          - entry_ab_v85
+          - entry_tournament_v86
+          - preignition_v87
           - diagnose_v363
 
   schedule:
@@ -133,12 +137,12 @@ jobs:
 
       - name: Collect and screen
         id: collect
-        if: github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83'
+        if: github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84'
         continue-on-error: true
         run: python scripts/run.py
 
       - name: Rank C3 and K100 candidates
-        if: steps.collect.outcome != 'failure' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'rerank_only' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83')
+        if: steps.collect.outcome != 'failure' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'rerank_only' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
         run: python scripts/rank_candidates.py
 
       - name: Freeze v8.0 prospective C3 and K100 cohorts and evaluate older observations
@@ -200,7 +204,7 @@ jobs:
             --fetch
 
       - name: Freeze v8.3 separate C3 and K100 Tactical TOP3 and review 4 K100 Core holdings
-        if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v83')) && steps.collect.outcome == 'success'
+        if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84'))) && steps.collect.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -220,6 +224,55 @@ jobs:
             --topn 3 \
             --max-tickers 40 \
             --fetch
+
+      - name: Audit v8.4 frozen close-price consistency (non-destructive)
+        if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'sector_v84')) && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/krx_price_integrity_v84.py --outdir reports --max-price-drift-pct 0.5
+
+      - name: Research-only v8.5 A/B entry geometry backtest (manual)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'entry_ab_v85'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d reports/v36_ohlcv_cache
+          python -m unittest discover -s scripts -p 'test_entry_ab_v85.py' -v
+          python scripts/krx_entry_ab_v85.py --cache-dir reports/v36_ohlcv_cache --outdir reports --entry-window 2 --hold 5 --rr 2 --cost-bps 35
+
+      - name: Research-only v8.6 setup x entry-mode tournament (manual)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'entry_tournament_v86'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d reports/v36_ohlcv_cache || {
+            echo 'Missing reports/v36_ohlcv_cache; first restore the historic research cache.'
+            exit 1
+          }
+          python -m unittest discover -s scripts -p 'test_entry_tournament_v86.py' -v
+          python scripts/krx_entry_tournament_v86.py \
+            --cache-dir reports/v36_ohlcv_cache \
+            --outdir reports \
+            --hold 5 \
+            --cost-bps 35
+
+      - name: Research-only v8.7 pre-ignition E1/E2/E3 (manual)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'preignition_v87'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d reports/v36_ohlcv_cache || {
+            echo 'Missing historical research bars at reports/v36_ohlcv_cache'
+            exit 1
+          }
+          python -m unittest discover -s scripts -p 'test_preignition_v87.py' -v
+          python scripts/krx_preignition_v87.py \
+            --cache-dir reports/v36_ohlcv_cache \
+            --outdir reports \
+            --score-min 70 \
+            --hold 5 \
+            --cost-bps 35
 
       - name: Run C3 exploratory backtest
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'backtest_c3'
