@@ -5,7 +5,7 @@ Strict PIT remains false. This is research-only; no orders, score, or auto strat
 Requires original v9.1/v9.3/v9.4/v9.4.1 modules installed alongside this file.
 """
 from __future__ import annotations
-import argparse, collections, csv, hashlib, json, os, re, time, urllib.error, zipfile
+import argparse, collections, csv, hashlib, json, os, re, time, urllib.error, urllib.request, urllib.parse, zipfile
 from datetime import date, timedelta
 from pathlib import Path
 from bs4 import BeautifulSoup
@@ -27,6 +27,24 @@ CANONICAL_XBRL={
   'OFS':{'income':{'{XBRL}IS_S1':'{XBRL}IS_S1','{XBRL}IS_S':'{XBRL}IS_S1'},
          'balance':{'{XBRL}BS_S':'{XBRL}BS_S1'}},
 }
+
+def bounded_dart_list(key, query, *, socket_timeout=12, retries=2):
+    """Small, bounded HTTPS requests. Do not log URLs (which contain the API key).
+
+    The caller checks DART status codes. Timeouts remain retryable instead of
+    being interpreted as no disclosure / a successful query.
+    """
+    url=v91.ROOT+'list.json?'+urllib.parse.urlencode({'crtfc_key':key, **query})
+    request=urllib.request.Request(url, headers={'User-Agent':'KRX-PIT-research/9.4.2.1'})
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(request,timeout=socket_timeout) as response:
+                body=response.read(5_000_000)
+            return json.loads(body)
+        except (urllib.error.URLError, TimeoutError):
+            if attempt+1>=retries:raise
+            time.sleep(0.75)
+
 
 def classify_event(name):
     s=old.textnorm(name)
@@ -194,7 +212,7 @@ def events(args,fin,cands,cal,client=None):
         for page in range(1,args.max_pages+1):
             q['page_no']=str(page)
             try:
-                reply=client(corp_code,dict(q)) if client is not None else v91.get_json(key,'list.json',q)
+                reply=client(corp_code,dict(q)) if client is not None else bounded_dart_list(key,q)
                 pages+=1;code=str(reply.get('status',''))
                 if code=='013':
                     if total is not None and page<=total:
@@ -263,7 +281,7 @@ def main(argv=None):
     cal=xcals.get_calendar('XKRX')
     receipt_candidates=old.recent_candidates(candidates,fin,args.ticker or None,
                                              limit=max(2000,len(candidates)))
-    result={'version':'9.4.2-receipt-fix','mode':args.mode,
+    result={'version':'9.4.2.1-bounded-network','mode':args.mode,
         'raw_chart_candidates':len(candidates),'asof_receipt_candidates':len(receipt_candidates),
         'strict_pit_approved':False,'stock_order_approved':False,
         'note':'Source amount comparison by historical receipt only, not complete PIT. Company forecasts are not analyst consensus.'}
