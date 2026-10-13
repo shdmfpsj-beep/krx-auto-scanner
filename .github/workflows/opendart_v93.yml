@@ -1,0 +1,140 @@
+name: OpenDART v9.3 PIT audit and financial recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'audit_only: safe no API; repair_missing: try 20 missing; archive_sample: original documents sample'
+        required: true
+        default: audit_only
+        type: choice
+        options:
+          - audit_only
+          - repair_missing
+          - archive_sample
+      ticker:
+        description: 'Optional 6-digit ticker for original archive sample, e.g. 083450'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: krx-report-main
+  cancel-in-progress: false
+
+jobs:
+  pit_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 135
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'requirements-v93.txt'
+
+      - name: Install XKRX calendar dependency
+        run: python -m pip install -r requirements-v93.txt
+
+      - name: Test PIT guards and turnaround processing (offline)
+        run: python scripts/test_opendart_pit_audit_v93.py
+
+      - name: Verify previously collected v9.2 files exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v91_financial_pit_provisional.csv
+          test -s reports/v91_financial_collection_audit.csv
+          test -s reports/v91_financial_collection_state.json
+
+      - name: Audit legacy rows and correct calendar date (safe / no API)
+        if: inputs.mode == 'audit_only'
+        run: python scripts/krx_opendart_pit_audit_v93.py --mode audit --outdir reports
+
+      - name: Recover missing/turnaround rows (research only)
+        if: inputs.mode == 'repair_missing'
+        env:
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENDART_API_KEY" || { echo 'Missing OpenDART secret'; exit 1; }
+          python scripts/krx_opendart_pit_audit_v93.py --mode repair_missing --max-tickers 20 --outdir reports
+
+      - name: Fetch limited original disclosure archives for manual number reconciliation
+        if: inputs.mode == 'archive_sample'
+        env:
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+          PICKED_TICKER: ${{ inputs.ticker }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$OPENDART_API_KEY" || { echo 'Missing OpenDART secret'; exit 1; }
+          extra=()
+          if [[ -n "$PICKED_TICKER" ]]; then
+            [[ "$PICKED_TICKER" =~ ^[0-9]{6}$ ]] || { echo 'Ticker must be 6 digits'; exit 1; }
+            extra=(--ticker "$PICKED_TICKER")
+          fi
+          python scripts/krx_opendart_pit_audit_v93.py --mode archive_sample --max-documents 2 --outdir reports "${extra[@]}"
+
+      - name: Publish accuracy report on run summary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,os
+          s=json.load(open('reports/v93_pit_quality_summary.json'))
+          lines=['## v9.3 - PIT accuracy audit (PROVISIONAL)',
+            f"- Original rows: **{s['original_provisional_rows']}** / funded companies: **{s['original_funded_tickers']}**",
+            f"- Missing from original: **{s['zero_original_rows_tickers']}** companies",
+            f"- Calendar-adjusted availability dates: **{s['calendar_changed_rows']}** rows",
+            f"- Extra recovered provisional rows: **{s['recovered_rows']}**",
+            '- **strict_pit_approved = false**. Original numbers NOT automatically verified.',
+            '- Historical sector membership NOT populated. No backtest/live-trading gate changed.']
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:f.write('\n'.join(lines)+'\n')
+          print('\n'.join(lines))
+          PY
+
+      - name: Commit ONLY derived provisional research data (no secrets, no original archives)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for f in \
+            reports/v93_pit_quality_summary.json \
+            reports/v93_missing_ticker_diagnosis.csv \
+            reports/v93_financial_calendar_adjusted_provisional.csv \
+            reports/v93_financial_recovered_provisional.csv \
+            reports/v93_repair_attempt_state.json \
+            reports/v93_original_archive_manifest.json; do
+            if [[ -f "$f" ]]; then git add "$f"; fi
+          done
+          if git diff --cached --quiet; then echo 'No changes'; exit 0; fi
+          git commit -m 'OpenDART v9.3: provisional PIT audit and repairs'
+          for n in 1 2 3; do
+            git fetch origin main
+            if git rebase origin/main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort || true
+            sleep $((n*3))
+          done
+          echo 'Push failed; artifact remains available.'
+          exit 1
+
+      - name: Upload v9.3 research report and sampled archives
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendart-v93-report
+          if-no-files-found: warn
+          path: |
+            reports/v93_pit_quality_summary.json
+            reports/v93_missing_ticker_diagnosis.csv
+            reports/v93_financial_calendar_adjusted_provisional.csv
+            reports/v93_financial_recovered_provisional.csv
+            reports/v93_repair_attempt_state.json
+            reports/v93_original_archive_manifest.json
+            reports/v93_original_archives/*.zip
