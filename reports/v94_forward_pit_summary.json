@@ -1,6 +1,6 @@
 {
   "version": "9.4-original-numeric-and-forward-expectation",
-  "mode": "plan",
+  "mode": "verify",
   "strict_pit_approved": false,
   "candidate_source_available": true,
   "candidate_count": 1002,
@@ -12,12 +12,15 @@
     "Disclosure report title is NOT evidence of contract amount, earnings revision or profit growth.",
     "Only research universe; never use as live order signal or verified backtest gate."
   ],
-  "selected_receipts": [
-    "20251114002947",
-    "20240814000335",
-    "20241114000293",
-    "20231113000212",
-    "20251114002816",
-    "20230811001440"
-  ]
+  "verification": {
+    "documents_attempted_this_run": 6,
+    "documents_attempted_total": 6,
+    "documents_four_fields_exact_total": 1,
+    "field_status_counts": {
+      "UNVERIFIED_MISSING_OR_MULTIPLE_XBRL_INCOME": 16,
+      "UNVERIFIED_MISSING_OR_MULTIPLE_XBRL_BALANCE": 4,
+      "EXACT_MATCH": 4
+    },
+    "selection_basis": "candidate_priority"
+  }
 }
