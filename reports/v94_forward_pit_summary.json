@@ -1,6 +1,6 @@
 {
   "version": "9.4-original-numeric-and-forward-expectation",
-  "mode": "verify",
+  "mode": "events",
   "strict_pit_approved": false,
   "candidate_source_available": true,
   "candidate_count": 1002,
@@ -12,15 +12,16 @@
     "Disclosure report title is NOT evidence of contract amount, earnings revision or profit growth.",
     "Only research universe; never use as live order signal or verified backtest gate."
   ],
-  "verification": {
-    "documents_attempted_this_run": 6,
-    "documents_attempted_total": 6,
-    "documents_four_fields_exact_total": 1,
-    "field_status_counts": {
-      "UNVERIFIED_MISSING_OR_MULTIPLE_XBRL_INCOME": 16,
-      "UNVERIFIED_MISSING_OR_MULTIPLE_XBRL_BALANCE": 4,
-      "EXACT_MATCH": 4
+  "events": {
+    "companies_checked": 4,
+    "listed_events": 6,
+    "api_pages": 4,
+    "event_types": {
+      "CAPEX": 1,
+      "EARNINGS_PREVIEW": 4,
+      "FORECAST_DISCLOSURE": 1
     },
-    "selection_basis": "candidate_priority"
+    "warnings": [],
+    "title_only": true
   }
 }
