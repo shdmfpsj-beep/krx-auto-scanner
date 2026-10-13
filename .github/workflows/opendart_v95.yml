@@ -1,0 +1,106 @@
+name: OpenDART v9.5 forward expectation revision audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: krx-report-main
+  cancel-in-progress: false
+
+jobs:
+  compare_company_guidance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout historical research files
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-v94.txt
+      - name: Install calendar dependency
+        run: python -m pip install -r requirements-v94.txt
+      - name: Test future-data and mismatched-period guards
+        run: python scripts/test_krx_forward_expectations_v95.py
+      - name: Check research inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s config/v94_signal_candidates_reference.csv
+          test -s config/v95_verified_forecasts.csv
+          if [[ ! -s reports/v941_forward_event_leads.csv ]]; then
+            echo 'NOTE: v9.4.1 event report absent; using v9.4 title-only fallback if present'
+          fi
+      - name: Compute date-consistent company guidance comparisons
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/krx_forward_expectations_v95.py \
+            --candidate-file config/v94_signal_candidates_reference.csv \
+            --event-file reports/v941_forward_event_leads.csv \
+            --fallback-event-file reports/v94_forward_event_leads.csv \
+            --amount-file reports/v941_event_numeric_candidates.csv \
+            --forecasts-file config/v95_verified_forecasts.csv \
+            --outdir reports
+      - name: Display conservative research summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path('reports/v95_research_summary.json')
+          lines=['## v9.5 Company Guidance Revision Audit',
+                 '**NO BUY SIGNAL / strict_pit_approved=false**',
+                 'Company disclosed forecasts do not equal analyst consensus revisions.']
+          if p.exists():
+              obj=json.loads(p.read_text(encoding='utf-8'))
+              for k in ['candidate_signals','events_with_usable_asof','fresh_nonamend_events',
+                        'verified_forecast_rows_asserted','company_guidance_revision_pairs_provisional',
+                        'raw_numeric_candidates_needing_review']:
+                  lines.append('- '+k+': '+str(obj[k]))
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+              f.write('\n'.join(lines)+'\n')
+          print('\n'.join(lines))
+          PY
+      - name: Commit v9.5 derived research only
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            reports/v95_candidate_expectation_audit.csv \
+            reports/v95_guidance_revisions_provisional.csv \
+            reports/v95_event_quality_audit.csv \
+            reports/v95_unverified_amount_queue.csv \
+            reports/v95_forecast_rejections.csv \
+            reports/v95_research_summary.json
+          if git diff --cached --quiet; then echo 'No changes'; exit 0; fi
+          git commit -m 'v9.5: audit as-of company guidance revisions without trading'
+          for i in 1 2 3; do
+            git fetch origin main
+            if git rebase origin/main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort || true
+            sleep $((4*i))
+          done
+          echo 'Push failed; artifact is still available'; exit 1
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendart-v95-report
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            reports/v95_candidate_expectation_audit.csv
+            reports/v95_guidance_revisions_provisional.csv
+            reports/v95_event_quality_audit.csv
+            reports/v95_unverified_amount_queue.csv
+            reports/v95_forecast_rejections.csv
+            reports/v95_research_summary.json
