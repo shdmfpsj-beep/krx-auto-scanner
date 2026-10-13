@@ -1,0 +1,62 @@
+name: HMA60 v1.1 first-pullback research
+
+on:
+  workflow_dispatch:
+    inputs:
+      fetch_user_examples:
+        description: 'Collect separate extended histories for four user-nominated 2026 charts (research only)'
+        required: true
+        default: 'yes'
+        type: choice
+        options:
+          - 'yes'
+          - 'no'
+
+permissions:
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test HMA maths, anti-lookahead and conservative exits
+        run: python -m unittest discover -s scripts -p 'test_hma60_first_pullback_v11.py' -v
+      - name: Require original v10 engine and historical cached prices
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s scripts/bottom_upturn_v10.py
+          test -d reports/v36_ohlcv_cache
+          test "$(find reports/v36_ohlcv_cache -maxdepth 1 -name '*.csv' | wc -l)" -gt 0
+      - name: Evaluate HMA60 and rerun same-source v10 baseline
+        run: |
+          python scripts/hma60_first_pullback_v11.py \
+            --input reports/v36_ohlcv_cache \
+            --output reports/hma_v11 \
+            --baseline --max-hold 60 --cost-bps 35
+      - name: Fetch extended history for four illustrative cases (separate cohort only)
+        if: ${{ inputs.fetch_user_examples == 'yes' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check yfinance pandas
+          python scripts/fetch_hma60_examples_v11.py --outdir reports/hma_v11/examples
+      - name: Verify auditable reports
+        run: |
+          test -s reports/hma_v11/v11_audit.json
+          test -s reports/hma_v11/v11_comparison_2023_2025.csv
+          test -s reports/hma_v11/v11_user_four_coverage.csv
+          cat reports/hma_v11/v11_comparison_2023_2025.csv
+      - name: Upload research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hma-v11-report
+          path: reports/hma_v11/
+          if-no-files-found: warn
+          retention-days: 21
