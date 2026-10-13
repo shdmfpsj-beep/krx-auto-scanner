@@ -1,0 +1,148 @@
+name: OpenDART v9.4 original audit and future growth leads
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'plan = no API, verify = original numeric audit, events = dated catalyst titles'
+        type: choice
+        required: true
+        default: plan
+        options:
+          - plan
+          - verify
+          - events
+      ticker:
+        description: 'Optional six-digit ticker (blank = independent research candidates)'
+        type: string
+        required: false
+        default: ''
+      asof:
+        description: 'Optional YYYY-MM-DD as-of date for a specific ticker in events mode'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: krx-report-main
+  cancel-in-progress: false
+
+jobs:
+  original_and_expectations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'requirements-v94.txt'
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-v94.txt
+
+      - name: Test original parsing and as-of guards (offline)
+        run: python scripts/test_krx_forward_pit_v94.py
+
+      - name: Verify input data preserved from v9.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v93_financial_calendar_adjusted_provisional.csv
+          test -s config/v94_signal_candidates_reference.csv
+          test -s scripts/krx_opendart_financial_v91.py
+          test -s scripts/krx_opendart_pit_audit_v93.py
+
+      - name: Execute requested v9.4 research mode
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          TICKER: ${{ inputs.ticker }}
+          ASOF: ${{ inputs.asof }}
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+        run: |
+          set -euo pipefail
+          extra=()
+          if [[ -n "$TICKER" ]]; then
+            [[ "$TICKER" =~ ^[0-9]{6}$ ]] || { echo 'Ticker requires six digits'; exit 1; }
+            extra+=(--ticker "$TICKER")
+          fi
+          if [[ -n "$ASOF" ]]; then extra+=(--asof "$ASOF"); fi
+          python scripts/krx_forward_pit_v94.py \
+            --mode "$MODE" \
+            --financial reports/v93_financial_calendar_adjusted_provisional.csv \
+            --candidate-file config/v94_signal_candidates_reference.csv \
+            --max-documents 6 \
+            --max-companies 4 \
+            --lookback-days 180 \
+            --max-pages 5 \
+            --outdir reports "${extra[@]}"
+
+      - name: Publish caution and results
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os,json,pathlib
+          lines=['## v9.4 — original document audit / future disclosure leads',
+                 '**RESEARCH ONLY; strict_pit_approved=false; NOT a trading signal.**']
+          p=pathlib.Path('reports/v94_forward_pit_summary.json')
+          if p.exists():
+              j=json.loads(p.read_text(encoding='utf-8'))
+              lines.append(f"Mode: **{j['mode']}**; financial rows: **{j['financial_rows']}**; charts: **{j['candidate_count']}**")
+              for name in ('verification','events'):
+                  if name in j:lines.append(f'{name}: `{json.dumps(j[name],ensure_ascii=False)}`')
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:f.write('\n\n'.join(lines)+'\n')
+          print('\n'.join(lines))
+          PY
+
+      - name: Commit only small v9.4 derived research outputs
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for file in \
+            reports/v94_candidate_financial_priority.csv \
+            reports/v94_forward_pit_summary.json \
+            reports/v94_original_numeric_reconciliation.csv \
+            reports/v94_archive_attempts.json \
+            reports/v94_forward_event_leads.csv \
+            reports/v94_event_attempts.json; do
+            if [[ -f "$file" ]]; then git add "$file"; fi
+          done
+          if git diff --cached --quiet; then echo 'No updates to commit'; exit 0; fi
+          git commit -m 'v9.4: provisional original numeric audit and dated disclosure leads'
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if git rebase origin/main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort || true
+            sleep $((attempt*4))
+          done
+          echo 'Unable to push (artifact remains available)'
+          exit 1
+
+      - name: Upload v9.4 report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendart-v94-report
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            reports/v94_candidate_financial_priority.csv
+            reports/v94_forward_pit_summary.json
+            reports/v94_original_numeric_reconciliation.csv
+            reports/v94_archive_attempts.json
+            reports/v94_forward_event_leads.csv
+            reports/v94_event_attempts.json
