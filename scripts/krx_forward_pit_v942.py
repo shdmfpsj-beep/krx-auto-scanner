@@ -126,7 +126,14 @@ def verify(args,fin,cands,cal):
     saved=old.read_csv(out/'v942_original_numeric_reconciliation.csv')
     state=read_json(out/'v942_original_attempts.json',{'attempts':[]})
     attempts=state['attempts'];counts={x['receipt_no']:int(x.get('attempt_count',0)) for x in attempts}
-    raw_source=old.choose_archives(fin,cands,args.ticker,100000)
+    # The configured v94_signal_candidates_reference.csv is a CHART-SIGNAL file.
+    # It has no receipt_no. Resolve the most recent as-of-eligible financial
+    # disclosure first; otherwise legacy choose_archives raises KeyError.
+    # Always recompute the receipt from the as-of financial dataset, even if
+    # a candidate row happens to contain an untrusted receipt_no field.
+    receipt_candidates=old.recent_candidates(cands,fin,args.ticker or None,
+                                              limit=max(2000,len(cands)))
+    raw_source=old.choose_archives(fin,receipt_candidates,args.ticker,100000)
     source=list({r['receipt_no']:r for r in raw_source}.values())
     # Use only strict all-four evidence, NOT the old 'COMPARED' state marker.
     queue=[r for r in source if not prev.receipt_verified(old_records,r['receipt_no']) and
@@ -170,6 +177,8 @@ def events(args,fin,cands,cal,client=None):
     attempts=state['attempts']
     counts={(a['ticker'],a['signal_date']):int(a.get('attempt_count',0)) for a in attempts}
     done|={(a['ticker'],a['signal_date']) for a in attempts if a['status']=='SUCCESS'}
+    # Event-title searches can include chart signals even without financial receipts.
+    # Unlike original-number verification they do not require receipt_no.
     queue=[p for p in prev.relevant_company_queue(fin,cands,args.ticker,args.asof) if (p[0],p[2]) not in done and
            counts.get((p[0],p[2]),0)<args.max_retries]
     chosen=queue[:args.max_companies]
@@ -252,7 +261,11 @@ def main(argv=None):
     fin=old.read_csv(Path(args.financial)); candidates=old.read_csv(Path(args.candidate_file))
     if not fin or not candidates:raise SystemExit('Historical input data missing; research run refused')
     cal=xcals.get_calendar('XKRX')
-    result={'version':'9.4.2','mode':args.mode,'strict_pit_approved':False,'stock_order_approved':False,
+    receipt_candidates=old.recent_candidates(candidates,fin,args.ticker or None,
+                                             limit=max(2000,len(candidates)))
+    result={'version':'9.4.2-receipt-fix','mode':args.mode,
+        'raw_chart_candidates':len(candidates),'asof_receipt_candidates':len(receipt_candidates),
+        'strict_pit_approved':False,'stock_order_approved':False,
         'note':'Source amount comparison by historical receipt only, not complete PIT. Company forecasts are not analyst consensus.'}
     if args.mode in ('full','verify'):result['verify']=verify(args,fin,candidates,cal)
     if args.mode in ('full','events'):result['events']=events(args,fin,candidates,cal)
