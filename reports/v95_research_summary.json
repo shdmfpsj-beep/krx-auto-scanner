@@ -1,0 +1,25 @@
+{
+  "version": "v9.5-company-guidance-revision-audit",
+  "strict_pit_approved": false,
+  "backtest_ready": false,
+  "live_trading_enabled": false,
+  "analyst_consensus_available": false,
+  "sector_pit_available": false,
+  "candidate_signals": 1002,
+  "event_rows_input": 6,
+  "events_with_usable_asof": 6,
+  "fresh_nonamend_events": 0,
+  "verified_forecast_rows_asserted": 0,
+  "rejected_forecast_rows": 0,
+  "company_guidance_revision_pairs_provisional": 0,
+  "upward_revision_pairs_provisional": 0,
+  "raw_numeric_candidates_needing_review": 0,
+  "coverage_warning": "The pre-selected 258-stock OHLC research cache is NOT all of historical KRX",
+  "critical_limitations": [
+    "Company guidance is not analyst-consensus change; evidence file requires source verification",
+    "Forecast ledger is empty unless original numbers, period, vintage and scope are verified",
+    "Current historical universe and PIT sector membership incomplete",
+    "Same-day filings are conservatively usable next KRX session, intraday timestamps unknown",
+    "No backtest or BUY decision authorized by these files"
+  ]
+}
