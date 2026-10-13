@@ -35,6 +35,31 @@ class TestV942(unittest.TestCase):
     @classmethod
     def setUpClass(cls):cls.cal=xcals.get_calendar('XKRX')
 
+    def test_bounded_dart_request_never_logs_key(self):
+        from unittest.mock import patch
+        import urllib.error
+        import io
+        seen=[]
+        def timeout_open(req,timeout=None):
+            seen.append(timeout)
+            raise urllib.error.URLError('simulated_network_issue')
+        with patch.object(x.urllib.request,'urlopen',side_effect=timeout_open), patch.object(x.time,'sleep'):
+            with self.assertRaises(urllib.error.URLError):
+                x.bounded_dart_list('f'*40,{'corp_code':'00000001','bgn_de':'20260101'},socket_timeout=5,retries=2)
+        self.assertEqual(seen,[5,5])
+
+    def test_bounded_dart_json_success(self):
+        from unittest.mock import patch
+        import io
+        class Response:
+            def __enter__(self):return self
+            def __exit__(self,*args):return False
+            def read(self,n):return b'{"status":"000","total_page":1,"list":[]}'
+        with patch.object(x.urllib.request,'urlopen',return_value=Response()) as mock_urlopen:
+            result=x.bounded_dart_list('f'*40,{'corp_code':'00000001'},socket_timeout=3,retries=1)
+        self.assertEqual(result['status'],'000')
+        self.assertEqual(mock_urlopen.call_args.kwargs['timeout'],3)
+
     def test_exact_class_CFS(self):
         fields,status,diag=x.original_numeric(fixture_xml(), 'CFS','11013')
         self.assertEqual(status,'PARSED')
