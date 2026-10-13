@@ -1,0 +1,89 @@
+name: Global-to-Korea v9.7 sector lead-lag research
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Fetch public Yahoo ETF history then study, or study cached ETF data'
+        required: true
+        type: choice
+        default: fetch_and_study
+        options:
+          - fetch_and_study
+          - study_cached_only
+      cutoff:
+        description: 'Korea decision time used in the retrospective study'
+        required: true
+        type: choice
+        default: '08:35'
+        options:
+          - '08:35'
+          - '15:00'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: global-v97-research
+  cancel-in-progress: false
+
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: Asia/Seoul
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run no-lookahead regression tests
+        run: python scripts/test_krx_global_leadership_v97.py
+      - name: Ensure existing historical KRX research source exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/v90_pit_candidate_audit.csv || { echo 'Missing reports/v90_pit_candidate_audit.csv'; exit 1; }
+          test -d reports/v36_ohlcv_cache || { echo 'Missing reports/v36_ohlcv_cache'; exit 1; }
+          test -s config/v97_sector_links_pit.csv || { echo 'Missing mapping template'; exit 1; }
+      - name: Install optional Yahoo Finance reader
+        if: ${{ inputs.mode == 'fetch_and_study' }}
+        run: python -m pip install 'yfinance>=0.2.60,<1'
+      - name: Fetch and evaluate global sector lead-lag research
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          CUTOFF_KST: ${{ inputs.cutoff }}
+        run: |
+          set -euo pipefail
+          provider=none
+          if [[ "$MODE" == "fetch_and_study" ]]; then provider=yahoo; fi
+          python scripts/krx_global_leadership_v97.py \
+            --signals reports/v90_pit_candidate_audit.csv \
+            --krx-cache reports/v36_ohlcv_cache \
+            --global-cache reports/v97_global_history \
+            --mapping config/v97_sector_links_pit.csv \
+            --outdir reports/v97 \
+            --provider "$provider" \
+            --cutoff "$CUTOFF_KST" \
+            --start 2022-01-01 \
+            --end "$(TZ=Asia/Seoul date +%F)" \
+            --round-trip-cost-pct 0.35
+      - name: Print research status
+        if: always()
+        shell: bash
+        run: |
+          if [[ -s reports/v97/v97_global_research_status.json ]]; then
+            cat reports/v97/v97_global_research_status.json
+          else
+            echo 'Research status not created; inspect preceding error.'
+          fi
+      - name: Upload research report (never auto-trade or commit ETF prices)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: global-v97-report
+          path: reports/v97/
+          if-no-files-found: warn
+          retention-days: 7
