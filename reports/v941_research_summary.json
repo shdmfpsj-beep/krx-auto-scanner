@@ -1,0 +1,25 @@
+{
+  "version": "9.4.1-conservative-evidence",
+  "mode": "quantify",
+  "strict_pit_approved": false,
+  "provisional_only": true,
+  "historical_universe_complete": false,
+  "financial_rows": 2584,
+  "candidates": 1002,
+  "candidate_receipts": 364,
+  "known_limitations": [
+    "No historical analyst consensus dataset",
+    "Current API may include restatement",
+    "PIT sector membership not verified",
+    "Raw document numbers do not prove future earnings revisions"
+  ],
+  "quantify": {
+    "documents_queried": 6,
+    "candidate_amount_cells": 0,
+    "verified_future_profit_revisions": 0,
+    "outcomes": {
+      "NO_UNIQUE_AMOUNT": 6
+    },
+    "warning": "Even a detected amount is raw unverified, not a future profit revision"
+  }
+}

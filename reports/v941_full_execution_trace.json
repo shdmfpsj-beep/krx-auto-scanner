@@ -1,0 +1,189 @@
+{
+  "runs": [
+    {
+      "version": "9.4.1-conservative-evidence",
+      "mode": "plan",
+      "strict_pit_approved": false,
+      "provisional_only": true,
+      "historical_universe_complete": false,
+      "financial_rows": 2584,
+      "candidates": 1002,
+      "candidate_receipts": 364,
+      "known_limitations": [
+        "No historical analyst consensus dataset",
+        "Current API may include restatement",
+        "PIT sector membership not verified",
+        "Raw document numbers do not prove future earnings revisions"
+      ],
+      "preview": {
+        "legacy_event_leads_reclassified": 6,
+        "total_distinct_leads_after_merge": 6,
+        "types": {
+          "CAPEX": 1,
+          "FORECAST_DISCLOSURE": 3,
+          "OTHER_FAIR_DISCLOSURE": 1,
+          "EARNINGS_ACTUAL": 1
+        },
+        "eligible_candidates": 364,
+        "max_companies_per_run": 12
+      }
+    },
+    {
+      "version": "9.4.1-conservative-evidence",
+      "mode": "verify",
+      "strict_pit_approved": false,
+      "provisional_only": true,
+      "historical_universe_complete": false,
+      "financial_rows": 2584,
+      "candidates": 1002,
+      "candidate_receipts": 364,
+      "known_limitations": [
+        "No historical analyst consensus dataset",
+        "Current API may include restatement",
+        "PIT sector membership not verified",
+        "Raw document numbers do not prove future earnings revisions"
+      ],
+      "verify": {
+        "attempted_this_run": 6,
+        "new_verified_all_four": 0,
+        "remaining_untried_or_retryable": 357,
+        "prior_v94_compared_zero_field_not_trusted": true,
+        "statuses": {
+          "UNVERIFIED_RETRYABLE": 6
+        }
+      }
+    },
+    {
+      "version": "9.4.1-conservative-evidence",
+      "mode": "events",
+      "strict_pit_approved": false,
+      "provisional_only": true,
+      "historical_universe_complete": false,
+      "financial_rows": 2584,
+      "candidates": 1002,
+      "candidate_receipts": 364,
+      "known_limitations": [
+        "No historical analyst consensus dataset",
+        "Current API may include restatement",
+        "PIT sector membership not verified",
+        "Raw document numbers do not prove future earnings revisions"
+      ],
+      "events": {
+        "companies_this_run": 12,
+        "total_distinct_ticker_signal_queries_done": 12,
+        "remaining_eligible_queries": 74,
+        "all_stored_events": 27,
+        "title_event_types": {
+          "EARNINGS_ACTUAL": 20,
+          "CAPEX": 2,
+          "FORECAST_DISCLOSURE": 3,
+          "OTHER_FAIR_DISCLOSURE": 1,
+          "SUPPLY_CONTRACT": 1
+        },
+        "fresh_new_title_events": 0,
+        "api_pages": 12,
+        "warnings": []
+      }
+    },
+    {
+      "version": "9.4.1-conservative-evidence",
+      "mode": "events",
+      "strict_pit_approved": false,
+      "provisional_only": true,
+      "historical_universe_complete": false,
+      "financial_rows": 2584,
+      "candidates": 1002,
+      "candidate_receipts": 364,
+      "known_limitations": [
+        "No historical analyst consensus dataset",
+        "Current API may include restatement",
+        "PIT sector membership not verified",
+        "Raw document numbers do not prove future earnings revisions"
+      ],
+      "events": {
+        "companies_this_run": 12,
+        "total_distinct_ticker_signal_queries_done": 23,
+        "remaining_eligible_queries": 62,
+        "all_stored_events": 50,
+        "title_event_types": {
+          "EARNINGS_ACTUAL": 33,
+          "CAPEX": 5,
+          "OTHER_FAIR_DISCLOSURE": 4,
+          "SUPPLY_CONTRACT": 5,
+          "FORECAST_DISCLOSURE": 3
+        },
+        "fresh_new_title_events": 3,
+        "api_pages": 16,
+        "warnings": [
+          {
+            "ticker": "006800",
+            "status": "INCOMPLETE_PAGINATION"
+          }
+        ]
+      }
+    },
+    {
+      "version": "9.4.1-conservative-evidence",
+      "mode": "events",
+      "strict_pit_approved": false,
+      "provisional_only": true,
+      "historical_universe_complete": false,
+      "financial_rows": 2584,
+      "candidates": 1002,
+      "candidate_receipts": 364,
+      "known_limitations": [
+        "No historical analyst consensus dataset",
+        "Current API may include restatement",
+        "PIT sector membership not verified",
+        "Raw document numbers do not prove future earnings revisions"
+      ],
+      "events": {
+        "companies_this_run": 12,
+        "total_distinct_ticker_signal_queries_done": 34,
+        "remaining_eligible_queries": 51,
+        "all_stored_events": 60,
+        "title_event_types": {
+          "EARNINGS_ACTUAL": 38,
+          "CAPEX": 5,
+          "OTHER_FAIR_DISCLOSURE": 4,
+          "SUPPLY_CONTRACT": 10,
+          "FORECAST_DISCLOSURE": 3
+        },
+        "fresh_new_title_events": 4,
+        "api_pages": 16,
+        "warnings": [
+          {
+            "ticker": "006800",
+            "status": "INCOMPLETE_PAGINATION"
+          }
+        ]
+      }
+    },
+    {
+      "version": "9.4.1-conservative-evidence",
+      "mode": "quantify",
+      "strict_pit_approved": false,
+      "provisional_only": true,
+      "historical_universe_complete": false,
+      "financial_rows": 2584,
+      "candidates": 1002,
+      "candidate_receipts": 364,
+      "known_limitations": [
+        "No historical analyst consensus dataset",
+        "Current API may include restatement",
+        "PIT sector membership not verified",
+        "Raw document numbers do not prove future earnings revisions"
+      ],
+      "quantify": {
+        "documents_queried": 6,
+        "candidate_amount_cells": 0,
+        "verified_future_profit_revisions": 0,
+        "outcomes": {
+          "NO_UNIQUE_AMOUNT": 6
+        },
+        "warning": "Even a detected amount is raw unverified, not a future profit revision"
+      }
+    }
+  ],
+  "strict_pit_approved": false
+}
