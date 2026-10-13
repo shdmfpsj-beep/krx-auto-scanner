@@ -1,0 +1,176 @@
+name: OpenDART v9.4.2 original verification and event recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'full = reverify originals + scan unqueried companies + safe event reclassification'
+        type: choice
+        required: true
+        default: full
+        options:
+          - full
+          - audit
+          - verify
+          - events
+      ticker:
+        description: 'Optional 6 digit stock ticker; blank = original research universe'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: krx-report-main
+  cancel-in-progress: false
+
+jobs:
+  financial_pit_event_recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout research repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-v94.txt
+
+      - name: Install existing project dependencies
+        run: python -m pip install -r requirements-v94.txt
+
+      - name: Run v9.4.2 offline safeguards
+        run: python scripts/test_krx_forward_pit_v942.py
+
+      - name: Check inherited files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in \
+            scripts/krx_forward_pit_v94.py \
+            scripts/krx_forward_pit_v941.py \
+            scripts/krx_opendart_financial_v91.py \
+            scripts/krx_opendart_pit_audit_v93.py \
+            reports/v93_financial_calendar_adjusted_provisional.csv \
+            config/v94_signal_candidates_reference.csv; do
+            test -s "$f" || { echo "Required file missing: $f"; exit 1; }
+          done
+
+      - name: Reconcile originals and recover event queries
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          TICKER: ${{ inputs.ticker }}
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+        run: |
+          set -euo pipefail
+          opt=()
+          if [[ -n "$TICKER" ]]; then
+            [[ "$TICKER" =~ ^[0-9]{6}$ ]] || { echo 'Ticker must have six digits'; exit 1; }
+            opt+=(--ticker "$TICKER")
+          fi
+          mkdir -p reports
+          run_one() {
+            local action="$1"
+            python scripts/krx_forward_pit_v942.py \
+              --mode "$action" \
+              --financial reports/v93_financial_calendar_adjusted_provisional.csv \
+              --candidate-file config/v94_signal_candidates_reference.csv \
+              --max-documents 6 \
+              --max-companies 18 \
+              --max-pages 10 \
+              --lookback-days 180 \
+              --max-retries 2 \
+              --delay-seconds 0.5 \
+              --outdir reports "${opt[@]}"
+            python - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('reports/v942_research_summary.json')
+          with pathlib.Path('reports/v942_run_trace.jsonl').open('a',encoding='utf-8') as f:
+              f.write(json.dumps(json.loads(p.read_text(encoding='utf-8')),ensure_ascii=False)+'\n')
+          PY
+          }
+          : > reports/v942_run_trace.jsonl
+          case "$MODE" in
+            full)
+              run_one verify
+              run_one events
+              run_one events
+              run_one events
+              run_one audit
+              ;;
+            audit|verify|events) run_one "$MODE" ;;
+            *) echo 'Invalid run mode'; exit 2 ;;
+          esac
+          python - <<'PY'
+          import json,pathlib
+          entries=[json.loads(x) for x in pathlib.Path('reports/v942_run_trace.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+          pathlib.Path('reports/v942_full_trace.json').write_text(json.dumps({'steps':entries,'strict_pit_approved':False},ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+
+      - name: Print audit summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path('reports/v942_full_trace.json')
+          lines=['## v9.4.2 audit — research only', '**strict_pit_approved=false**','No orders or verified strategy edge.']
+          if p.exists():
+              for step in json.loads(p.read_text(encoding='utf-8')).get('steps',[]):
+                  lines.append('- '+step.get('mode','?')+': '+json.dumps({k:v for k,v in step.items() if k in ('verify','events','audit')},ensure_ascii=False))
+          if os.environ.get('GITHUB_STEP_SUMMARY'):
+              with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:f.write('\n'.join(lines)+'\n')
+          print('\n'.join(lines))
+          PY
+
+      - name: Commit only v9.4.2 research outputs
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for f in \
+            reports/v942_original_numeric_reconciliation.csv \
+            reports/v942_original_attempts.json \
+            reports/v942_original_parser_diagnostics.json \
+            reports/v942_forward_event_leads.csv \
+            reports/v942_event_collection_state.json \
+            reports/v942_research_summary.json \
+            reports/v942_full_trace.json; do
+            if [[ -f "$f" ]]; then git add "$f"; fi
+          done
+          if git diff --cached --quiet; then echo 'Nothing to commit'; exit 0; fi
+          git commit -m 'v9.4.2: strict statement-class parsing and safer event taxonomy'
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if git rebase origin/main && git push origin HEAD:main; then exit 0; fi
+            git rebase --abort || true
+            sleep $((4*attempt))
+          done
+          echo 'Commit push failed; preserved current artifact' >&2
+          exit 1
+
+      - name: Upload v9.4.2 research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendart-v942-report
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            reports/v942_original_numeric_reconciliation.csv
+            reports/v942_original_attempts.json
+            reports/v942_original_parser_diagnostics.json
+            reports/v942_forward_event_leads.csv
+            reports/v942_event_collection_state.json
+            reports/v942_research_summary.json
+            reports/v942_full_trace.json
