@@ -145,5 +145,56 @@ class TestV942(unittest.TestCase):
             self.assertEqual(second['canceled_or_terminated'],1)
             self.assertEqual(second['numeric_growth_signals_approved'],0)
 
+    def test_raw_chart_signals_without_receipt_number_do_not_crash(self):
+        # Reproduces the exact production schema that caused KeyError: receipt_no.
+        with tempfile.TemporaryDirectory() as tmp:
+            fin=[dict(ticker='083450',receipt_no=RECEIPT,available_date='2025-11-17',
+                      filing_date='2025-11-14',fs_div='CFS',report_code='11013',
+                      revenue_amount_krw='100',op_profit_amount_krw='20',
+                      liabilities_amount_krw='300',equity_amount_krw='600')]
+            cand=[dict(ticker='083450',signal_date='2025-11-21',signal_score='80',
+                       selection_status='MISSING_ASOF_SECTOR')]
+            args=SimpleNamespace(outdir=tmp,ticker='',max_retries=2,max_documents=1,
+                                 archive_bundle='',delay_seconds=0)
+            # No network: an exact original is supplied by an archive fixture.
+            from unittest.mock import patch
+            with patch.object(x.old,'get_archive',return_value=archive(fixture_xml())), \
+                 patch.dict('os.environ',{'OPENDART_API_KEY':'a'*40}):
+                result=x.verify(args,fin,cand,self.cal)
+            self.assertEqual(result['attempted'],1)
+            self.assertEqual(result['verified_four_this_run'],1)
+
+    def test_future_financial_receipt_is_never_picked_for_signal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fin=[dict(ticker='083450',receipt_no=RECEIPT,
+                      available_date='2025-11-17',filing_date='2025-11-14',
+                      fs_div='CFS',report_code='11013')]
+            cand=[dict(ticker='083450',signal_date='2025-11-10',signal_score='80',
+                       selection_status='MISSING_ASOF_SECTOR',receipt_no=RECEIPT)]
+            args=SimpleNamespace(outdir=tmp,ticker='',max_retries=2,max_documents=1,
+                                 archive_bundle='',delay_seconds=0)
+            result=x.verify(args,fin,cand,self.cal)
+            self.assertEqual(result['attempted'],0)
+            self.assertEqual(result['verified_four_this_run'],0)
+
+    def test_event_query_works_with_raw_chart_candidate_schema(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fin=[dict(ticker='083450',corp_code='00012345',receipt_no=RECEIPT,
+                      available_date='2025-11-17',filing_date='2025-11-14',
+                      fs_div='CFS',report_code='11013')]
+            cand=[dict(ticker='083450',signal_date='2025-11-21',signal_score='80',
+                       selection_status='MISSING_ASOF_SECTOR')]
+            args=SimpleNamespace(outdir=tmp,ticker='',asof='',max_retries=2,
+                max_companies=1,max_pages=1,lookback_days=180,delay_seconds=0)
+            calls=[]
+            def stub(cc,params):
+                calls.append((cc,params['page_no']))
+                return {'status':'013'}
+            result=x.events(args,fin,cand,self.cal,client=stub)
+            self.assertEqual(result['queried'],1)
+            self.assertEqual(result['successful_queries'],1)
+            self.assertEqual(calls,[('00012345','1')])
+
+
 
 if __name__=='__main__':unittest.main(verbosity=2)
