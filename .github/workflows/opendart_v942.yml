@@ -1,26 +1,28 @@
-name: OpenDART v9.4.2 original verification and event recovery
+name: OpenDART v9.4.2 bounded recovery (25-minute batches)
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'full = reverify originals + scan unqueried companies + safe event reclassification'
+        description: 'full = original validation + small independent event requests'
         type: choice
         required: true
         default: full
-        options:
-          - full
-          - audit
-          - verify
-          - events
+        options: [full, audit, verify, events]
       ticker:
-        description: 'Optional 6 digit stock ticker; blank = original research universe'
+        description: 'Optional 6-digit ticker (blank = original research universe)'
         required: false
         type: string
         default: ''
+      continuation:
+        description: 'Automatic continuation counter; leave at 0 for a manual start'
+        required: false
+        type: string
+        default: '0'
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: krx-report-main
@@ -29,7 +31,7 @@ concurrency:
 jobs:
   financial_pit_event_recovery:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 35
     steps:
       - name: Checkout research repository
         uses: actions/checkout@v4
@@ -60,10 +62,10 @@ jobs:
             scripts/krx_opendart_pit_audit_v93.py \
             reports/v93_financial_calendar_adjusted_provisional.csv \
             config/v94_signal_candidates_reference.csv; do
-            test -s "$f" || { echo "Required file missing: $f"; exit 1; }
+              test -s "$f" || { echo "Required file missing: $f"; exit 1; }
           done
 
-      - name: Reconcile originals and recover event queries
+      - name: Bounded originals and event queries (save after each company)
         shell: bash
         env:
           MODE: ${{ inputs.mode }}
@@ -71,48 +73,93 @@ jobs:
           OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
         run: |
           set -euo pipefail
+          mkdir -p reports
+          : > reports/v942_run_trace.jsonl
           opt=()
           if [[ -n "$TICKER" ]]; then
-            [[ "$TICKER" =~ ^[0-9]{6}$ ]] || { echo 'Ticker must have six digits'; exit 1; }
+            [[ "$TICKER" =~ ^[0-9]{6}$ ]] || { echo 'Ticker must be 6 digits'; exit 1; }
             opt+=(--ticker "$TICKER")
           fi
-          mkdir -p reports
+          if [[ "$MODE" != 'full' && "$MODE" != 'events' && "$MODE" != 'verify' && "$MODE" != 'audit' ]]; then
+            echo 'Invalid run mode'; exit 2
+          fi
+          # Total soft budget 25 min; job-level hard limit is 35 min.
+          deadline=$((SECONDS + 1500))
+          stop_reason=''
           run_one() {
-            local action="$1"
-            python scripts/krx_forward_pit_v942.py \
+            local action="$1" max_seconds="$2"
+            echo "Research action: $action (maximum ${max_seconds}s for this small batch)"
+            set +e
+            timeout --signal=TERM --kill-after=10s "${max_seconds}s" \
+              python -u scripts/krx_forward_pit_v942.py \
               --mode "$action" \
               --financial reports/v93_financial_calendar_adjusted_provisional.csv \
               --candidate-file config/v94_signal_candidates_reference.csv \
-              --max-documents 6 \
-              --max-companies 18 \
+              --max-documents 1 \
+              --max-companies 1 \
               --max-pages 10 \
               --lookback-days 180 \
               --max-retries 2 \
-              --delay-seconds 0.5 \
+              --delay-seconds 0.2 \
               --outdir reports "${opt[@]}"
+            local rc=$?
+            set -e
+            if (( rc != 0 )); then
+              stop_reason="${action}_exit_${rc}"
+              echo "::warning::Research batch stopped (exit=$rc); previous successfully written batches are kept."
+              return 1
+            fi
             python - <<'PY'
           import json,pathlib
           p=pathlib.Path('reports/v942_research_summary.json')
           with pathlib.Path('reports/v942_run_trace.jsonl').open('a',encoding='utf-8') as f:
               f.write(json.dumps(json.loads(p.read_text(encoding='utf-8')),ensure_ascii=False)+'\n')
           PY
+            return 0
           }
-          : > reports/v942_run_trace.jsonl
-          case "$MODE" in
-            full)
-              run_one verify
-              run_one events
-              run_one events
-              run_one events
-              run_one audit
-              ;;
-            audit|verify|events) run_one "$MODE" ;;
-            *) echo 'Invalid run mode'; exit 2 ;;
-          esac
+
+          if [[ "$MODE" == 'full' || "$MODE" == 'verify' ]]; then
+            run_one verify 330 || true
+          fi
+          if [[ -z "$stop_reason" && ( "$MODE" == 'full' || "$MODE" == 'events' ) ]]; then
+            # Each process persists its own successful query. No giant 54-company step.
+            for ((i=1; i<=6; i++)); do
+              if (( SECONDS >= deadline )); then stop_reason='soft_time_budget'; break; fi
+              run_one events 260 || break
+              # Stop once the backlog is depleted, rather than calling DART again.
+              remaining=$(python - <<'PY'
+          import json
+          s=json.load(open('reports/v942_research_summary.json',encoding='utf-8'))
+          e=s.get('events',{})
+          print(e.get('pending_queries_after_this_batch',0))
+          PY
+          )
+              echo "Queries remaining in current queue: $remaining"
+              if [[ "$remaining" == '0' ]]; then break; fi
+            done
+          fi
+          if [[ -z "$stop_reason" && "$MODE" == 'audit' ]]; then
+            run_one audit 120 || true
+          fi
+          # Run audit even after a request failure, preserving the previous files.
+          if [[ "$MODE" != 'audit' ]]; then
+            run_one audit 120 || true
+          fi
+          export STOP_REASON="$stop_reason"
           python - <<'PY'
-          import json,pathlib
-          entries=[json.loads(x) for x in pathlib.Path('reports/v942_run_trace.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
-          pathlib.Path('reports/v942_full_trace.json').write_text(json.dumps({'steps':entries,'strict_pit_approved':False},ensure_ascii=False,indent=2),encoding='utf-8')
+          import json,os,pathlib
+          root=pathlib.Path('reports')
+          entries=[json.loads(x) for x in (root/'v942_run_trace.jsonl').read_text(encoding='utf-8').splitlines() if x.strip()]
+          events=[x['events'] for x in entries if isinstance(x.get('events'),dict)]
+          pending=events[-1].get('pending_queries_after_this_batch') if events else None
+          warnings=[w for e in events for w in e.get('warnings',[])]
+          info={'version':'9.4.2.1-bounded','steps':entries,'stop_reason':os.environ.get('STOP_REASON',''),
+                'events_batches_completed':len(events),'pending_event_queries':pending,
+                'event_request_warnings':warnings,'strict_pit_approved':False}
+          (root/'v942_full_trace.json').write_text(json.dumps(info,ensure_ascii=False,indent=2),encoding='utf-8')
+          (root/'v942_batch_control.json').write_text(json.dumps({k:info[k] for k in
+            ('version','stop_reason','events_batches_completed','pending_event_queries','event_request_warnings','strict_pit_approved')},ensure_ascii=False,indent=2),encoding='utf-8')
+          print('Batch outcome:',json.dumps(info,ensure_ascii=False)[:4500])
           PY
 
       - name: Print audit summary
@@ -121,17 +168,16 @@ jobs:
         run: |
           python - <<'PY'
           import json,os,pathlib
-          p=pathlib.Path('reports/v942_full_trace.json')
-          lines=['## v9.4.2 audit — research only', '**strict_pit_approved=false**','No orders or verified strategy edge.']
-          if p.exists():
-              for step in json.loads(p.read_text(encoding='utf-8')).get('steps',[]):
-                  lines.append('- '+step.get('mode','?')+': '+json.dumps({k:v for k,v in step.items() if k in ('verify','events','audit')},ensure_ascii=False))
+          p=pathlib.Path('reports/v942_batch_control.json')
+          data=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {'stop_reason':'NO_BATCH_CONTROL'}
+          lines=['## v9.4.2 bounded research audit', '**strict_pit_approved=false**','No orders and no demonstrated edge.']
+          lines.append('Batch control: '+json.dumps(data,ensure_ascii=False))
           if os.environ.get('GITHUB_STEP_SUMMARY'):
-              with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:f.write('\n'.join(lines)+'\n')
+            with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:f.write('\n'.join(lines)+'\n')
           print('\n'.join(lines))
           PY
 
-      - name: Commit only v9.4.2 research outputs
+      - name: Commit valid research progress (never any secret)
         if: success()
         shell: bash
         run: |
@@ -145,21 +191,55 @@ jobs:
             reports/v942_forward_event_leads.csv \
             reports/v942_event_collection_state.json \
             reports/v942_research_summary.json \
-            reports/v942_full_trace.json; do
-            if [[ -f "$f" ]]; then git add "$f"; fi
+            reports/v942_full_trace.json \
+            reports/v942_batch_control.json; do
+              [[ ! -f "$f" ]] || git add "$f"
           done
-          if git diff --cached --quiet; then echo 'Nothing to commit'; exit 0; fi
-          git commit -m 'v9.4.2: strict statement-class parsing and safer event taxonomy'
+          if git diff --cached --quiet; then echo 'No new progress to commit'; exit 0; fi
+          git commit -m 'v9.4.2: checkpoint bounded original and event research'
           for attempt in 1 2 3; do
             git fetch origin main
             if git rebase origin/main && git push origin HEAD:main; then exit 0; fi
             git rebase --abort || true
-            sleep $((4*attempt))
+            sleep $((4 * attempt))
           done
-          echo 'Commit push failed; preserved current artifact' >&2
+          echo 'Could not commit: download artifact instead' >&2
           exit 1
 
-      - name: Upload v9.4.2 research report
+      - name: Automatically start the next bounded batch when appropriate
+        if: ${{ success() && (inputs.mode == 'full' || inputs.mode == 'events') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONTINUATION: ${{ inputs.continuation }}
+          MODE: ${{ inputs.mode }}
+          TICKER: ${{ inputs.ticker }}
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,urllib.request,urllib.error
+          p=pathlib.Path('reports/v942_batch_control.json')
+          if not p.exists():raise SystemExit('No batch control; no continuation')
+          state=json.loads(p.read_text(encoding='utf-8'))
+          try: count=int(os.environ.get('CONTINUATION') or '0')
+          except ValueError:raise SystemExit('Invalid continuation number')
+          pending=state.get('pending_event_queries')
+          if count<0 or count>=10 or not isinstance(pending,int) or pending<=0 or state.get('stop_reason') or state.get('event_request_warnings'):
+            print('No automatic continuation needed (or warnings must be reviewed).')
+            raise SystemExit(0)
+          payload={'ref':'main','inputs':{'mode':os.environ['MODE'],
+                   'ticker':os.environ.get('TICKER',''),'continuation':str(count+1)}}
+          url=f'https://api.github.com/repos/{os.environ["GITHUB_REPOSITORY"]}/actions/workflows/opendart_v942.yml/dispatches'
+          req=urllib.request.Request(url,data=json.dumps(payload).encode(),method='POST',headers={
+                'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',
+                'User-Agent':'KRX-Research-Workflow'})
+          try:
+            with urllib.request.urlopen(req,timeout=20) as r:print('Next bounded batch requested:',r.status,'continuation',count+1)
+          except (urllib.error.URLError,TimeoutError) as e:
+            print('::warning::Automatic continuation request not confirmed; rerun manually if needed:',type(e).__name__)
+          PY
+
+      - name: Upload v9.4.2 bounded research report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -174,3 +254,4 @@ jobs:
             reports/v942_event_collection_state.json
             reports/v942_research_summary.json
             reports/v942_full_trace.json
+            reports/v942_batch_control.json
