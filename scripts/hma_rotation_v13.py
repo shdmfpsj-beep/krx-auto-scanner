@@ -119,7 +119,7 @@ def fetch_etfs(args):
     if ok:break
    except Exception as ex:reason='EXCEPTION_'+type(ex).__name__
    if at<args.retries:time.sleep(at)
-  if reason=='OK':write(p/'prices'/ticker+'.csv',bars,['Date','Open','High','Low','Close','Volume'])
+  if reason=='OK':write(p/'prices'/f'{ticker}.csv',bars,['Date','Open','High','Low','Close','Volume'])
   statuses.append({'ticker':ticker,'status':reason,'bars':len(bars),
                    'first_date':bars[0]['Date'] if bars else '',
                    'last_date':bars[-1]['Date'] if bars else ''})
