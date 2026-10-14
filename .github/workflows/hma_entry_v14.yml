@@ -1,4 +1,4 @@
-name: HMA v1.4 Daily Rolling Sector and Entry Tournament
+name: HMA v1.4 Daily Sector and Entry (config self-repair)
 
 'on':
   workflow_dispatch:
@@ -35,6 +35,55 @@ jobs:
           python-version: '3.11'
       - name: Test four technical entry hypotheses
         run: python -m unittest discover -s scripts -p 'test_hma_entry_tournament_v14.py' -v
+      - name: Restore and verify 254-stock and 14-sector lists
+        run: |
+          python - <<'PY'
+          import csv, shutil
+          from pathlib import Path
+          KOSPI = "000080,000100,000270,000430,000500,000660,000850,001130,001440,001460,001740,002700,003030,003080,003160,003530,003570,003580,003670,003830,004100,004270,004360,004450,004540,004870,005380,005850,005930,006040,006110,006220,006260,006340,006360,006400,006800,006980,007810,008260,009070,009540,010120,010130,010140,010690,011170,011210,011230,011780,012030,012330,012450,014680,014830,015360,015860,016090,016360,016450,017900,017960,019170,026890,028670,030210,034020,035420,035720,036460,042660,042700,047810,051600,051630,052690,058860,062040,064350,066970,068270,071970,077970,082740,085310,086280,093370,094280,100840,102460,103140,103590,105560,105630,105840,114090,123700,130660,163560,181710,204320,207940,267260,272210,281820,298040,326030,329180,344820,353200,373220,450080,454910,457190"
+          KOSDAQ = "000250,001000,005160,005290,009300,012340,015750,016920,017510,018620,025900,025980,027830,028300,032820,033100,033310,033500,033790,036540,036620,036830,036930,039030,039200,039440,042000,042370,043650,043710,043910,046210,048770,052220,053030,053350,056080,058470,058610,063080,064760,064850,065770,067080,067570,074600,078600,079370,081150,081580,083450,083500,083650,084370,086520,086980,087010,089030,089230,089850,090360,090710,095340,095610,096870,099220,101360,104480,108490,115160,115500,117730,121600,124560,126640,127120,128540,131370,131970,136480,137400,138360,141080,147830,149980,160190,166090,168360,170920,171120,187870,192410,196170,215200,220100,222420,222800,232140,237690,240600,240810,247540,262260,265520,270660,270870,277810,278280,278650,279600,282720,288980,298380,309960,310200,310210,314130,319400,319660,323350,331520,344860,348030,348210,348340,348370,354320,355690,357780,365340,372170,382840,383930,388720,389500,403870,415380,419050,453860,466100"
+          SECTORS = "SEMICON,091160,KODEX 반도체,069500,domestic sector ETF proxy\nAUTO,091180,KODEX 자동차,069500,domestic sector ETF proxy\nBANK,091170,KODEX 은행,069500,domestic sector ETF proxy\nSECURITIES,102970,KODEX 증권,069500,domestic sector ETF proxy\nHEALTH,266420,KODEX 헬스케어,069500,domestic sector ETF proxy\nINSURANCE,140700,KODEX 보험,069500,domestic sector ETF proxy\nCONSTRUCTION,117700,KODEX 건설,069500,domestic sector ETF proxy\nIT,266370,KODEX IT,069500,domestic sector ETF proxy\nCONTENT,266360,KODEX K-콘텐츠,069500,domestic sector ETF proxy\nENERGY_CHEM,117460,KODEX 에너지화학,069500,domestic sector ETF proxy\nSTEEL,117680,KODEX 철강,069500,domestic sector ETF proxy\nRENEWABLE,385510,KODEX 신재생에너지액티브,069500,active ETF: holdings may change\nSHIP,445150,KODEX 친환경조선해운액티브,069500,active ETF: holdings may change\nROBOT,445290,KODEX 로봇액티브,069500,active ETF: holdings may change"
+          conf = Path('config')
+          conf.mkdir(parents=True, exist_ok=True)
+          stock = conf / 'v13_research_universe_2026_snapshot.csv'
+          sector = conf / 'v13_sector_etfs.csv'
+
+          def read(path):
+              try:
+                  with path.open(encoding='utf-8-sig', newline='') as f:
+                      return list(csv.DictReader(f))
+              except (OSError, UnicodeError, csv.Error):
+                  return []
+
+          expected = {t: m for m, group in [('KOSPI',KOSPI),('KOSDAQ',KOSDAQ)] for t in group.split(',')}
+          current = read(stock)
+          recognized = {r.get('ticker','').zfill(6):r.get('market','') for r in current}
+          if recognized != expected:
+              with stock.open('w', encoding='utf-8-sig', newline='') as f:
+                  w=csv.writer(f)
+                  w.writerow(['ticker','name','market','snapshot_date','sector'])
+                  w.writerows((ticker,'',market,'2026-10-08','') for ticker,market in sorted(expected.items()))
+              print('RESTORED stock universe:',len(expected), 'because uploaded CSV was incomplete or malformed')
+          else:
+              print('VALIDATED existing stock universe:',len(expected))
+          current_sectors=read(sector)
+          acceptable=(len(current_sectors)==14 and len({r.get('sector_id') for r in current_sectors})==14 and len({r.get('etf_ticker') for r in current_sectors})==14)
+          if not acceptable:
+              with sector.open('w', encoding='utf-8-sig', newline='') as f:
+                  f.write('sector_id,etf_ticker,etf_name,market_benchmark,notes\n')
+                  f.write(SECTORS.replace('\\n','\n')+'\n')
+              print('RESTORED sector ETFs: 14')
+          else:
+              print('VALIDATED existing sector ETFs: 14')
+          fixed_stocks=read(stock)
+          fixed_sectors=read(sector)
+          assert len(fixed_stocks)==254 and len(fixed_sectors)==14, (len(fixed_stocks),len(fixed_sectors))
+          dest=Path('work/v14/inputs')
+          dest.mkdir(parents=True,exist_ok=True)
+          shutil.copy2(stock,dest/stock.name)
+          shutil.copy2(sector,dest/sector.name)
+          print('MANIFEST_INPUT_READY:',len(fixed_stocks),'stocks +',len(fixed_sectors),'sector ETFs')
+          PY
       - name: Prepare stock cohort (2026 snapshot; NOT historical complete KRX)
         run: |
           python scripts/hma_rotation_v13.py prepare \
@@ -108,6 +157,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v14-manifest
+          path: work/v14
       - run: python -m pip install --disable-pip-version-check pandas 'yfinance>=0.2.40'
       - name: Download sector ETF and benchmark histories
         env:
@@ -116,7 +169,7 @@ jobs:
           set -euo pipefail
           END=$(python -c 'from datetime import date,timedelta;import os;print((date.fromisoformat(os.environ["ASOF"])+timedelta(days=1)).isoformat())')
           python scripts/hma_rotation_v13.py fetch-etfs \
-            --sectors config/v13_sector_etfs.csv --outdir work/etf \
+            --sectors work/v14/inputs/v13_sector_etfs.csv --outdir work/etf \
             --start 2022-08-01 --end-exclusive "$END" --retries 2 --pause 0.7
       - uses: actions/upload-artifact@v4
         if: always()
@@ -168,7 +221,7 @@ jobs:
             --manifest work/v14/manifest.csv \
             --prices work/stocks/prices \
             --etf-prices work/etf/prices \
-            --sectors config/v13_sector_etfs.csv \
+            --sectors work/v14/inputs/v13_sector_etfs.csv \
             --membership config/v13_membership_pit.csv \
             --asof "$ASOF" --max-hold 60 --cost-bps 35 \
             --outdir reports/hma_v14
