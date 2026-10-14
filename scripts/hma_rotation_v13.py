@@ -40,7 +40,13 @@ def symbol_map(mapping):
  return out
 
 def prepare(args):
+ # v1.4 fixed historical research cohort: reject missing, header-only and partial uploads.
  m=symbol_map(args.universe)
+ if len(m)<200:
+  raise SystemExit(
+   f'UNIVERSE_CSV_INVALID: {args.universe}: only {len(m)} valid KOSPI/KOSDAQ tickers; '
+   'expected approximately 254. Restore config/v13_research_universe_2026_snapshot.csv '
+   'from the verified repair package before downloading prices.')
  # This is a 2026-10-08 research cohort (not a historical KRX universe).
  selected=sorted(m)
  manifest=[{'ticker':t,'name':m[t].get('name',''),'market':m[t]['market'],
@@ -107,7 +113,15 @@ def fetch(args):
 
 def fetch_etfs(args):
  import yfinance as yf
- conf=rows_csv(args.sectors);p=Path(args.outdir);(p/'prices').mkdir(parents=True,exist_ok=True)
+ conf=rows_csv(args.sectors)
+ sector_ids={r.get('sector_id','').strip() for r in conf if r.get('sector_id','').strip()}
+ etfs={r.get('etf_ticker','').strip() for r in conf if r.get('etf_ticker','').strip().isdigit()}
+ if len(sector_ids)<10 or len(etfs)<10:
+  raise SystemExit(
+   f'SECTOR_CSV_INVALID: {args.sectors}: {len(sector_ids)} sectors, {len(etfs)} ETFs; '
+   'expected 14. Restore config/v13_sector_etfs.csv '
+   'from the verified repair package before downloading ETFs.')
+ p=Path(args.outdir);(p/'prices').mkdir(parents=True,exist_ok=True)
  tickers=sorted(set([r['etf_ticker'] for r in conf])|set(BENCH))
  statuses=[]
  for ticker in tickers:
