@@ -1,5 +1,5 @@
 # FULL COPY: add this complete file to .github/workflows/sector_evidence_v18_backfill.yml
-# Collector 18.0.3: public RSS snapshots, no news API credentials, fast missing-KRX diagnostics.
+# Collector 18.0.4: exclude named cash, isolate sector failures, reuse verified market artifacts, parse explicit RSS offsets.
 # Dedicated BACKFILL: mode is fixed; source, configuration, and tests are embedded.
 # Output: sector-evidence-v18-backfill-report; Secret values are never printed.
 # Reuse the existing OpenDART v9.4.2 OPENDART_API_KEY; DART_API_KEY is a fallback.
@@ -25,6 +25,12 @@ run-name: BACKFILL sector evidence · ${{ github.run_number }}
         required: false
         type: string
         default: ''
+
+      reuse_previous_market:
+        description: '권장: 같은 기준일·주가 시작일의 이전 아티팩트에서 해시 검증된 원시 가격·수급·ETF 응답 재사용'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -57,7 +63,7 @@ jobs:
           V18_FILE_0_EOF
           cat > config/sector_evidence_v18.json <<'V18_FILE_1_EOF'
           {
-            "version": "18.0.3",
+            "version": "18.0.4",
             "markets": ["KOSPI", "KOSDAQ"],
             "investors": ["외국인", "기관합계", "개인"],
             "benchmark": "069500",
@@ -130,7 +136,7 @@ jobs:
           
           import pandas as pd
           
-          VERSION = "18.0.3"
+          VERSION = "18.0.4"
           KST = ZoneInfo("Asia/Seoul")
           PRICE_FIELDS = ["Date", "Open", "High", "Low", "Close", "Volume", "TurnoverKRW"]
           REPORT_NAME = "hma-v14-rolling-entry-report"
@@ -140,12 +146,12 @@ jobs:
           FLOW_FIELDS = ["date", "market", "ticker", "name", "investor", "buy_krw", "sell_krw",
                          "net_buy_krw", "unit", "source", "collected_at", "availability_assumption"]
           HOLD_FIELDS = ["sector_id", "etf", "snapshot_date", "ticker", "weight_pct", "name",
-                         "collected_at", "source", "point_in_time_status"]
+                         "collected_at", "source", "point_in_time_status", "collected_at_basis"]
           NEWS_FIELDS = ["sector_id", "query", "title", "url", "naver_url", "publisher_host",
                          "published_at", "timestamp_basis", "collected_at", "historical_coverage"]
           RSS_FIELDS = ["title", "url", "publisher_host", "published_at", "timestamp_basis",
                         "collected_at", "source_feed_ids", "historical_coverage",
-                        "first_publish_verified", "historical_feature_use_allowed"]
+                        "first_publish_verified", "historical_feature_use_allowed", "source_pubdate"]
           RSS_SECTOR_FIELDS = ["sector_id", "matched_terms", "tag_basis", *RSS_FIELDS]
           DART_FIELDS = ["ticker", "source_stock_code", "ticker_mapping_status", "corp_code", "corp_name",
                          "report_name", "receipt_no", "receipt_date", "url", "published_precision", "collected_at", "source"]
@@ -213,7 +219,10 @@ jobs:
                   raise EvidenceError("RSS_INVALID_TITLE_OR_LINK")
               raw_date = (item.findtext("pubDate") or "").strip()
               try:
-                  dt = parsedate_to_datetime(raw_date)
+                  # MK reports an explicit +09:00 offset. email.utils expects +0900;
+                  # removing this colon preserves the supplied instant and invents no zone.
+                  normalized_date = re.sub(r"([+-][0-9]{2}):([0-9]{2})$", r"\1\2", raw_date)
+                  dt = parsedate_to_datetime(normalized_date)
                   if dt.tzinfo is None:
                       raise ValueError
                   dt = dt.astimezone(KST)
@@ -224,6 +233,7 @@ jobs:
                   raise EvidenceError("RSS_INVALID_PUBLICATION_TIME") from None
               return {"title": title, "url": url, "publisher_host": parsed.hostname,
                       "published_at": dt.isoformat(), "timestamp_basis": "RSS_reported_pubDate_not_first_publish_verified",
+                      "source_pubdate": raw_date,
                       "collected_at": collected_at, "source_feed_ids": "",
                       "historical_coverage": "CURRENT_FEED_SNAPSHOT_NOT_HISTORICAL_ARCHIVE",
                       "first_publish_verified": False, "historical_feature_use_allowed": False}
@@ -750,6 +760,145 @@ jobs:
               return rows
           
           
+          def normalized_holdings(frame, sector, snapshot, collected, collected_at_basis="RESPONSE_OBSERVED"):
+              """Cash is identified by its provider name, before stock weight validation.
+          
+              010010 is a cash identifier in these responses, but a six-character code
+              alone never proves an instrument is cash. Keep excluded rows in diagnostics
+              and preserve the complete provider frame separately.
+              """
+              if "비중" not in frame.columns:
+                  raise EvidenceError("ETF_HOLDING_WEIGHT_COLUMN_CHANGED")
+              name_column = "구성종목명" if "구성종목명" in frame.columns else "종목명"
+              if name_column not in frame.columns:
+                  raise EvidenceError("ETF_HOLDING_NAME_COLUMN_CHANGED")
+              cash_names = {"원화현금", "외화현금", "현금", "원화예금", "외화예금", "CASH", "CASH(KRW)"}
+              normalized, excluded = [], []
+              for idx, row in frame.iterrows():
+                  name = str(row[name_column]).strip()
+                  issue = {"sector_id": sector["id"], "etf": sector["etf"],
+                           "snapshot_date": snapshot.isoformat(), "source_code": str(idx),
+                           "name": name, "source_weight_pct": str(row["비중"]), "reason": ""}
+                  if re.sub(r"\s+", "", name).upper() in cash_names:
+                      issue["reason"] = "PROVIDER_NAMED_CASH_EXCLUDED_FROM_STOCK_FEATURES"
+                      excluded.append(issue)
+                      continue
+                  try:
+                      ticker = ticker_code(idx)
+                  except EvidenceError:
+                      issue["reason"] = "NON_STOCK_IDENTIFIER_PRESERVED_IN_RAW_ONLY"
+                      excluded.append(issue)
+                      continue
+                  weight = numeric(row["비중"])
+                  if weight < 0 or weight > 100:
+                      raise EvidenceError("INVALID_HOLDING_WEIGHT")
+                  normalized.append({"sector_id": sector["id"], "etf": sector["etf"],
+                                     "snapshot_date": snapshot.isoformat(), "ticker": ticker,
+                                     "weight_pct": weight, "name": name, "collected_at": collected,
+                                     "collected_at_basis": collected_at_basis,
+                                     "source": "KRX_ETF_PDF_dated_request",
+                                     "point_in_time_status": "PROVIDER_DATED_NOT_INDEPENDENT_VINTAGE_VERIFIED"})
+              if not normalized:
+                  raise EvidenceError("NO_STOCK_HOLDINGS_IN_ETF_RESPONSE")
+              return normalized, excluded
+          
+          
+          def validate_market_cache(root, config, requested_asof, price_start):
+              """Only reuse compatible, checksummed raw market data for the same window."""
+              root = Path(root)
+              status = json.loads((root / "diagnostics/collection_status.json").read_text(encoding="utf-8-sig"))
+              old = json.loads((root / "runtime_source/config/sector_evidence_v18.json").read_text(encoding="utf-8-sig"))
+              candidate = completed_candidate(requested_asof)
+              start = date.fromisoformat(price_start) if price_start else candidate - timedelta(days=420)
+              if (not str(status.get("version", "")).startswith("18.0.")
+                      or status.get("mode") != "backfill"
+                      or status.get("asof") != candidate.isoformat()
+                      or status.get("price_start") != start.isoformat()
+                      or any(old.get(k) != config.get(k) for k in ("markets", "investors", "benchmark"))
+                      or any(status.get("datasets", {}).get(k, {}).get("status") != "OK" for k in ("prices", "flows"))):
+                  raise EvidenceError("PREVIOUS_MARKET_CACHE_WINDOW_OR_SCHEMA_MISMATCH")
+              manifest = read_csv(root / "checksums.csv")
+              verified = set()
+              for item in manifest:
+                  name = PurePosixPath(item["path"])
+                  if name.is_absolute() or ".." in name.parts or "\\" in str(name) or ":" in str(name):
+                      raise EvidenceError("PREVIOUS_MARKET_CACHE_UNSAFE_PATH")
+                  if str(name) in verified:
+                      raise EvidenceError("PREVIOUS_MARKET_CACHE_DUPLICATE_CHECKSUM")
+                  path = root.joinpath(*name.parts)
+                  if (not path.is_file() or path.stat().st_size != int(item["bytes"])
+                          or digest(path) != item["sha256"]):
+                      raise EvidenceError("PREVIOUS_MARKET_CACHE_CHECKSUM_MISMATCH")
+                  verified.add(str(name))
+              required = {"diagnostics/collection_status.json", "runtime_source/config/sector_evidence_v18.json",
+                          "market/sessions.csv", "market/etf_prices/" + config["benchmark"] + ".csv"}
+              if not required.issubset(verified):
+                  raise EvidenceError("PREVIOUS_MARKET_CACHE_REQUIRED_FILES_UNVERIFIED")
+              return status, verified
+          
+          
+          def restore_previous_market(collector, args):
+              repo = args.repo
+              if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
+                  raise EvidenceError("INVALID_GITHUB_REPOSITORY")
+              # The named endpoint avoids scanning unrelated historical workflow artifacts.
+              endpoint = f"repos/{repo}/actions/artifacts?name=sector-evidence-v18-backfill-report&per_page=30"
+              artifacts = gh_json(endpoint).get("artifacts", [])
+              artifacts = [a for a in artifacts if a.get("name") == "sector-evidence-v18-backfill-report"
+                           and not a.get("expired", True)
+                           and str(a.get("workflow_run", {}).get("id", "")) != os.environ.get("GITHUB_RUN_ID", "")]
+              attempts = []
+              stage = collector.out / "_previous_market_download"
+              try:
+                  for artifact in sorted(artifacts, key=lambda a: a["id"], reverse=True)[:3]:
+                      shutil.rmtree(stage, ignore_errors=True)
+                      stage.mkdir(parents=True)
+                      archive = stage / "source.zip"
+                      try:
+                          if int(artifact.get("size_in_bytes", 0)) > 500_000_000:
+                              raise EvidenceError("PREVIOUS_MARKET_CACHE_ARCHIVE_TOO_LARGE")
+                          with archive.open("wb") as f:
+                              result = subprocess.run(["gh", "api", f"repos/{repo}/actions/artifacts/{int(artifact['id'])}/zip"],
+                                                      stdout=f, stderr=subprocess.PIPE, timeout=300)
+                          if result.returncode:
+                              raise EvidenceError("PREVIOUS_MARKET_CACHE_DOWNLOAD_FAILED")
+                          unpacked = stage / "unpacked"
+                          safe_extract(archive, unpacked)
+                          prior, verified = validate_market_cache(unpacked, collector.config, args.asof, args.price_start)
+                          copied = 0
+                          prefixes = ("market/daily_prices/", "market/daily_flows/", "market/etf_prices/", "market/raw_holdings/")
+                          for name in sorted(verified):
+                              if name == "market/sessions.csv" or name.startswith(prefixes):
+                                  source = unpacked / name
+                                  target = collector.out / name
+                                  if target.exists():
+                                      raise EvidenceError("PREVIOUS_MARKET_CACHE_DESTINATION_NOT_CLEAN")
+                                  target.parent.mkdir(parents=True, exist_ok=True)
+                                  shutil.copyfile(source, target)
+                                  copied += 1
+                          metadata = {"artifact_id": artifact["id"], "source_run_id": artifact.get("workflow_run", {}).get("id"),
+                                      "archive_sha256": digest(archive), "source_version": prior["version"],
+                                      "source_collected_at": prior["collected_at"], "verified_files": len(verified),
+                                      "source_completed_at": prior.get("completed_at", ""),
+                                      "copied_raw_market_files": copied, "asof": prior["asof"],
+                                      "price_start": prior["price_start"], "attempts": attempts,
+                                      "rule": "RAW_ONLY_RENORMALIZED_NO_FEATURES_OR_TRADES_REUSED"}
+                          json_write(collector.out / "diagnostics/previous_market_cache.json", metadata)
+                          collector.status["previous_market_cache"] = metadata
+                          collector.mark("previous_market_cache", "RESTORED", copied_raw_market_files=copied,
+                                         source_run_id=metadata["source_run_id"])
+                          return metadata
+                      except (EvidenceError, KeyError, TypeError, ValueError, OSError, zipfile.BadZipFile) as e:
+                          code = str(e) if isinstance(e, EvidenceError) else "PREVIOUS_MARKET_CACHE_INVALID_OR_UNAVAILABLE"
+                          attempts.append({"artifact_id": artifact["id"], "error_code": code})
+                  json_write(collector.out / "diagnostics/previous_market_cache.json", {"status": "NOT_RESTORED", "attempts": attempts})
+                  collector.mark("previous_market_cache", "NOT_RESTORED", attempts=attempts,
+                                 next_action="Collect fresh market data; no incomplete cache is trusted.")
+                  return None
+              finally:
+                  shutil.rmtree(stage, ignore_errors=True)
+          
+          
           class Collector:
               def __init__(self, out, config):
                   self.out, self.config = Path(out), config
@@ -764,10 +913,31 @@ jobs:
               def save(self):
                   json_write(self.out / "diagnostics/collection_status.json", self.status)
           
-              def log_request(self, dataset, d, scope, state, rows=0):
+              def log_request(self, dataset, d, scope, state, rows=0, origin="LIVE_KRX"):
                   self.status["requests"].append({"dataset": dataset, "date": str(d), "scope": scope,
-                                                 "status": state, "rows": rows, "collected_at": stamp()})
+                                                 "status": state, "rows": rows, "collected_at": stamp(), "origin": origin})
                   self.save()
+          
+              def cached(self, relative):
+                  path = self.out / relative
+                  return path if self.status.get("previous_market_cache") and path.is_file() else None
+          
+              def cached_prices(self, relative, dated=None):
+                  path = self.cached(relative)
+                  if not path:
+                      return None
+                  rows = read_csv(path)
+                  if not rows or any(not set(PRICE_FIELDS).issubset(r) for r in rows):
+                      raise EvidenceError("CACHED_PRICE_SCHEMA_INVALID")
+                  if dated:
+                      if (len(rows) < 100 or any(r["Date"] != dated.isoformat() for r in rows)
+                              or len({ticker_code(r["ticker"]) for r in rows}) != len(rows)):
+                          raise EvidenceError("CACHED_DATED_PRICE_SCHEMA_INVALID")
+                  else:
+                      _, issues = price_quality(rows)
+                      if issues:
+                          raise EvidenceError("CACHED_ETF_PRICE_QUALITY_INVALID")
+                  return rows
           
               def market(self, args):
                   krx = Krx(self.config)
@@ -775,9 +945,11 @@ jobs:
                   start = date.fromisoformat(args.price_start) if args.price_start else candidate - timedelta(days=420)
                   if start > month_shift(candidate, -2) - timedelta(days=180):
                       raise EvidenceError("INSUFFICIENT_PRICE_WARMUP_USE_AT_LEAST_180_CALENDAR_DAYS_BEFORE_WINDOW")
-                  benchmark = krx.call("get_etf_ohlcv_by_date", start.strftime("%Y%m%d"),
-                                       candidate.strftime("%Y%m%d"), self.config["benchmark"])
-                  bench_rows = krx_prices(benchmark)
+                  bench_rows = self.cached_prices("market/etf_prices/" + self.config["benchmark"] + ".csv")
+                  if bench_rows is None:
+                      benchmark = krx.call("get_etf_ohlcv_by_date", start.strftime("%Y%m%d"),
+                                           candidate.strftime("%Y%m%d"), self.config["benchmark"])
+                      bench_rows = krx_prices(benchmark)
                   bench_bars, issues = price_quality(bench_rows)
                   if issues:
                       raise EvidenceError("BENCHMARK_PRICE_QUALITY_FAILED")
@@ -809,13 +981,16 @@ jobs:
                           if failures >= limit:
                               break
                           try:
-                              frame = preflight[m] if d == effective else krx.call("get_market_ohlcv", d.strftime("%Y%m%d"), market=m)
-                              rows = krx_prices(frame, d)
+                              rows = self.cached_prices(f"market/daily_prices/{m}/{d.isoformat()}.csv", d)
+                              origin = "CHECKSUM_VERIFIED_PREVIOUS_ARTIFACT" if rows is not None else "LIVE_KRX"
+                              if rows is None:
+                                  frame = preflight[m] if d == effective else krx.call("get_market_ohlcv", d.strftime("%Y%m%d"), market=m)
+                                  rows = krx_prices(frame, d)
                               if len(rows) < 100:
                                   raise EvidenceError("MARKET_PRICE_COVERAGE_UNEXPECTEDLY_SMALL")
                               csv_write(self.out / f"market/daily_prices/{m}/{d.isoformat()}.csv", rows, ["ticker", *PRICE_FIELDS])
                               total += len(rows)
-                              self.log_request("prices", d, m, "OK", len(rows))
+                              self.log_request("prices", d, m, "OK", len(rows), origin)
                               failures = 0
                           except EvidenceError as e:
                               failures += 1
@@ -835,13 +1010,27 @@ jobs:
                               if failures >= limit:
                                   break
                               try:
-                                  frame = krx.call("get_market_net_purchases_of_equities", d.strftime("%Y%m%d"),
-                                                   d.strftime("%Y%m%d"), m, investor)
-                                  rows = krx_flows(frame, d, m, investor, stamp())
                                   inv = {"외국인": "foreign", "기관합계": "institution", "개인": "individual"}[investor]
+                                  cached = self.cached(f"market/daily_flows/{m}/{d.isoformat()}_{inv}.csv")
+                                  origin = "CHECKSUM_VERIFIED_PREVIOUS_ARTIFACT" if cached else "LIVE_KRX"
+                                  if cached:
+                                      rows = read_csv(cached)
+                                      if (not rows or any(not set(FLOW_FIELDS).issubset(r)
+                                              or r["date"] != d.isoformat() or r["market"] != m
+                                              or r["investor"] != investor or r["unit"] != "KRW" for r in rows)
+                                              or len({ticker_code(r["ticker"]) for r in rows}) != len(rows)):
+                                          raise EvidenceError("CACHED_FLOW_SCHEMA_INVALID")
+                                      for r in rows:
+                                          buy, sell, net = (numeric(r[k]) for k in ("buy_krw", "sell_krw", "net_buy_krw"))
+                                          if min(buy, sell) < 0 or abs(buy - sell - net) > .5:
+                                              raise EvidenceError("KRX_NET_BUY_IDENTITY_FAILED")
+                                  else:
+                                      frame = krx.call("get_market_net_purchases_of_equities", d.strftime("%Y%m%d"),
+                                                       d.strftime("%Y%m%d"), m, investor)
+                                      rows = krx_flows(frame, d, m, investor, stamp())
                                   csv_write(self.out / f"market/daily_flows/{m}/{d.isoformat()}_{inv}.csv", rows, FLOW_FIELDS)
                                   flow_rows += len(rows)
-                                  self.log_request("flows", d, m + "/" + inv, "OK", len(rows))
+                                  self.log_request("flows", d, m + "/" + inv, "OK", len(rows), origin)
                                   failures = 0
                               except EvidenceError as e:
                                   failures += 1
@@ -858,61 +1047,65 @@ jobs:
                   self.etfs_and_holdings(krx, sessions, flow_start, start, effective)
           
               def etfs_and_holdings(self, krx, sessions, mapping_start, start, effective):
-                  hold_rows, expected_holdings, good_holdings, etf_good = [], 0, 0, 0
-                  failures = 0
+                  hold_rows, excluded_rows, good_holdings, etf_good = [], [], 0, 0
                   snapshots = weekly_snapshots(sessions, mapping_start)
                   for s in self.config["sectors"]:
-                      if failures >= int(self.config["circuit_breaker_failures"]):
-                          break
+                      # A bad security or snapshot must not suppress subsequent sectors.
+                      # Provider call failures are bounded separately within each ETF.
+                      provider_failures = 0
                       try:
-                          frame = krx.call("get_etf_ohlcv_by_date", start.strftime("%Y%m%d"), effective.strftime("%Y%m%d"), s["etf"])
-                          rows = krx_prices(frame)
+                          rows = self.cached_prices(f"market/etf_prices/{s['etf']}.csv")
+                          origin = "CHECKSUM_VERIFIED_PREVIOUS_ARTIFACT" if rows is not None else "LIVE_KRX"
+                          if rows is None:
+                              frame = krx.call("get_etf_ohlcv_by_date", start.strftime("%Y%m%d"), effective.strftime("%Y%m%d"), s["etf"])
+                              rows = krx_prices(frame)
+                          _, issues = price_quality(rows)
+                          if issues:
+                              raise EvidenceError("ETF_PRICE_QUALITY_FAILED")
                           csv_write(self.out / f"market/etf_prices/{s['etf']}.csv", rows, PRICE_FIELDS)
                           etf_good += 1
-                          failures = 0
-                          self.log_request("etf_prices", effective, s["id"], "OK", len(rows))
+                          self.log_request("etf_prices", effective, s["id"], "OK", len(rows), origin)
                       except EvidenceError as e:
-                          failures += 1
                           self.log_request("etf_prices", effective, s["id"], e.args[0])
-                          continue
                       for d in snapshots:
-                          expected_holdings += 1
-                          if failures >= int(self.config["circuit_breaker_failures"]):
-                              break
+                          if provider_failures >= int(self.config["circuit_breaker_failures"]):
+                              self.log_request("holdings", d, s["id"], "SKIPPED_THIS_ETF_AFTER_PROVIDER_FAILURES")
+                              continue
                           try:
-                              frame = krx.call("get_etf_portfolio_deposit_file", s["etf"], d.strftime("%Y%m%d"))
                               rawpath = self.out / f"market/raw_holdings/{s['etf']}/{d.isoformat()}.csv"
-                              rawpath.parent.mkdir(parents=True, exist_ok=True)
-                              frame.to_csv(rawpath, encoding="utf-8-sig", index=True)
-                              if "비중" not in frame.columns:
-                                  raise EvidenceError("ETF_HOLDING_WEIGHT_COLUMN_CHANGED")
-                              timestamp = stamp()
-                              normalized = []
-                              for idx, r in frame.iterrows():
-                                  if not re.fullmatch(r"[0-9]{6}", str(idx)):
-                                      continue  # cash and derivatives remain in the raw response only.
-                                  weight = numeric(r["비중"])
-                                  if weight < 0 or weight > 100:
-                                      raise EvidenceError("INVALID_HOLDING_WEIGHT")
-                                  normalized.append({"sector_id": s["id"], "etf": s["etf"], "snapshot_date": d.isoformat(),
-                                                     "ticker": str(idx), "weight_pct": weight, "name": str(r.get("종목명", "")),
-                                                     "collected_at": timestamp, "source": "KRX_ETF_PDF_dated_request",
-                                                     "point_in_time_status": "PROVIDER_DATED_NOT_INDEPENDENT_VINTAGE_VERIFIED"})
-                              if not normalized:
-                                  raise EvidenceError("NO_STOCK_HOLDINGS_IN_ETF_RESPONSE")
+                              cached = self.cached(str(rawpath.relative_to(self.out)))
+                              origin = "CHECKSUM_VERIFIED_PREVIOUS_ARTIFACT" if cached else "LIVE_KRX"
+                              if cached:
+                                  frame = pd.read_csv(cached, index_col=0, dtype=str, keep_default_na=False)
+                              else:
+                                  frame = krx.call("get_etf_portfolio_deposit_file", s["etf"], d.strftime("%Y%m%d"))
+                                  rawpath.parent.mkdir(parents=True, exist_ok=True)
+                                  frame.to_csv(rawpath, encoding="utf-8-sig", index=True)
+                              if cached:
+                                  completed = self.status.get("previous_market_cache", {}).get("source_completed_at")
+                                  collected = completed or stamp()
+                                  basis = "SOURCE_RUN_COMPLETION_UPPER_BOUND_NOT_EXACT_RECEIPT_TIME" if completed else "REPROCESSING_TIME_SOURCE_RECEIPT_TIME_UNKNOWN"
+                              else:
+                                  collected, basis = stamp(), "RESPONSE_OBSERVED"
+                              normalized, excluded = normalized_holdings(frame, s, d, collected, basis)
                               hold_rows.extend(normalized)
+                              excluded_rows.extend(excluded)
                               good_holdings += 1
-                              failures = 0
-                              self.log_request("holdings", d, s["id"], "OK", len(normalized))
+                              provider_failures = 0
+                              self.log_request("holdings", d, s["id"], "OK", len(normalized), origin)
                           except EvidenceError as e:
-                              failures += 1
+                              if str(e) == "KRX_CALL_FAILED_OR_EMPTY":
+                                  provider_failures += 1
                               self.log_request("holdings", d, s["id"], e.args[0])
                   csv_write(self.out / "market/sector_membership_dated.csv", hold_rows, HOLD_FIELDS)
+                  csv_write(self.out / "diagnostics/holdings_excluded_nonstock.csv", excluded_rows,
+                            ["sector_id", "etf", "snapshot_date", "source_code", "name", "source_weight_pct", "reason"])
                   self.mark("etf_prices", "OK" if etf_good == len(self.config["sectors"]) else "DATA_PENDING",
                             successful_series=etf_good, requested_series=len(self.config["sectors"]))
                   expected = len(self.config["sectors"]) * len(snapshots)
                   self.mark("holdings", "OK" if good_holdings == expected else "DATA_PENDING",
                             successful_snapshots=good_holdings, expected_snapshots=expected,
+                            excluded_nonstock_rows=len(excluded_rows),
                             point_in_time="PROVIDER_DATED_ONLY", scope="ETF_constituents_proxy_not_all_industry_members")
           
               def news(self, window, asof):
@@ -979,6 +1172,11 @@ jobs:
                           payload = rss_payload(feed["url"])
                           collected_at = stamp()
                           items = rss_items(payload)
+                          if not re.fullmatch(r"[A-Za-z0-9_]+", feed["id"]):
+                              raise EvidenceError("RSS_INVALID_FEED_ID")
+                          raw_path = self.out / "catalysts/raw_rss" / (feed["id"] + ".xml")
+                          raw_path.parent.mkdir(parents=True, exist_ok=True)
+                          raw_path.write_bytes(payload)
                           diagnostic.update(sha256=hashlib.sha256(payload).hexdigest(), bytes=len(payload),
                                             collected_at=collected_at, returned_items=len(items))
                           errors = Counter()
@@ -993,7 +1191,7 @@ jobs:
                               except EvidenceError as e:
                                   diagnostic["rejected_items"] += 1
                                   errors[str(e)] += 1
-                          diagnostic.update(status="SNAPSHOT_RECEIVED" if items else "EMPTY_FEED",
+                          diagnostic.update(status="SNAPSHOT_RECEIVED" if diagnostic["accepted_items"] else "ALL_ITEMS_REJECTED" if items else "EMPTY_FEED",
                                             rejected_reasons=dict(errors))
                       except Exception as e:
                           diagnostic["error_code"] = (str(e) if isinstance(e, EvidenceError)
@@ -1373,6 +1571,8 @@ jobs:
                   "- `diagnostics/dart_diagnostics.json`: DART의 HTTP 상태·API 코드·시장별 진행·거절 행의 원인. 키·응답 원문·요청 URL은 기록하지 않습니다.",
                   "- `diagnostics/dart_unmapped.csv`: 공시는 보존했지만 주식 종목코드가 없거나 형식이 맞지 않아 종목별 분석에 연결하지 않은 자료.",
                   "- `diagnostics/dart_rejected_rows.csv`: 접수번호·법인번호·날짜 등 필수 정보 검증에서 제외한 행의 원인과 허용된 공개 식별자.",
+                            "- `diagnostics/holdings_excluded_nonstock.csv`: ETF의 원화현금 등 주식 지표에서 제외한 구성 행. 원래 비중과 원시 응답은 보존합니다.",
+                            "- `diagnostics/previous_market_cache.json`: 같은 기준일·시작일·시장·투자자 설정과 파일 해시를 확인해 재사용한 이전 원시 자료의 출처.",
                   "- `diagnostics/v14_recent_two_months_replication.csv`: 같은 v14 실행의 가격으로 익절·손절 결과 재현 여부.",
                   "- `baseline/source_meta.json`: 원본 Actions 실행 번호·아티팩트 번호·해시.",
                   "- `research/sector_evidence_latest.csv`: 섹터 ETF 상대강도·구성종목 실제 수급·상승 종목 비율.",
@@ -1380,6 +1580,7 @@ jobs:
                   "- `catalysts/news_coverage.json`: 뉴스 수집 경로·피드별 성공 여부와 과거 자료의 누락 한계.",
                   "- `catalysts/rss_snapshot.csv`: 실행 시점의 공개 RSS 제목·링크·발행 시각. 과거 검증용 자료와 분리합니다.",
                   "- `catalysts/rss_sector_observations.csv`: 제목 키워드로 연결한 탐색용 섹터 관찰. 실제 수급·강한 섹터 판정을 대신하지 않습니다.", "",
+                            "RSS의 source_pubdate와 catalysts/raw_rss에는 제공사가 보낸 발행 시각과 원시 피드를 남깁니다. +09:00을 +0900으로 읽는 것은 같은 명시적 시간대의 형식 정리이며, 시간대가 없는 날짜에 한국시간을 임의로 붙이지 않습니다.",
                   "## 해석 범위", "",
                   "가격과 수급은 원 단위입니다. 거래대금은 KRX 제공값이며 종가×거래량으로 대체하지 않았습니다. 누락 수급은 0이 아닙니다.",
                   "섹터 수급은 해당 ETF의 주식 구성종목을 합한 대용 자료이며 산업 전체의 순유입 또는 ETF 자금 유입이 아닙니다. 중복 소속 종목이 있으므로 섹터 합계를 시장 전체 합계로 더할 수 없습니다.",
@@ -1445,6 +1646,7 @@ jobs:
               parser.add_argument("--v14-run-id", default="")
               parser.add_argument("--asof", default="")
               parser.add_argument("--price-start", default="")
+              parser.add_argument("--reuse-previous-market", choices=("true", "false"), default="false")
               parser.add_argument("--config", default="config/sector_evidence_v18.json")
               parser.add_argument("--outdir", default="reports/sector_evidence_v18")
               args = parser.parse_args()
@@ -1459,6 +1661,8 @@ jobs:
                   if replay:
                       c.mark("v14_replication", replay.pop("status"), **replay)
               if args.mode == "backfill":
+                  if args.reuse_previous_market == "true":
+                      stage(c, "previous_market_cache", lambda: restore_previous_market(c, args))
                   stage(c, "krx_preflight_or_collection", lambda: c.market(args))
                   # Independent public metadata collection continues even when one primary source is blocked.
                   def catalyst_dates():
@@ -2020,6 +2224,114 @@ jobs:
                       self.assertFalse(v.finalize(c, "backfill"))
                       self.assertEqual(c.status["overall_status"], "DATA_PENDING")
           
+              def test_holdings_excludes_named_cash_before_negative_weight_validation(self):
+                  frame = pd.DataFrame({"구성종목명": ["삼성전자", "원화현금"],
+                                        "비중": [99.5, -1.01]}, index=["005930", "010010"])
+                  kept, excluded = v.normalized_holdings(frame, CONFIG["sectors"][0], date(2026, 10, 12), "fixture")
+                  self.assertEqual([r["ticker"] for r in kept], ["005930"])
+                  self.assertEqual(kept[0]["name"], "삼성전자")
+                  self.assertEqual(excluded[0]["source_weight_pct"], "-1.01")
+                  self.assertEqual(frame.loc["010010", "비중"], -1.01)
+          
+              def test_holdings_never_classifies_cash_from_code_alone_or_repairs_stock_weight(self):
+                  frame = pd.DataFrame({"구성종목명": ["주식 fixture", "원화현금"],
+                                        "비중": [50, 0.2]}, index=["010010", "999999"])
+                  kept, excluded = v.normalized_holdings(frame, CONFIG["sectors"][0], date(2026, 10, 12), "fixture")
+                  self.assertEqual(kept[0]["ticker"], "010010")
+                  self.assertEqual(excluded[0]["source_code"], "999999")
+                  frame.loc["010010", "비중"] = -0.1
+                  with self.assertRaisesRegex(v.EvidenceError, "INVALID_HOLDING_WEIGHT"):
+                      v.normalized_holdings(frame, CONFIG["sectors"][0], date(2026, 10, 12), "fixture")
+          
+              def test_holdings_keeps_alphanumeric_stock_and_supports_provider_name_column(self):
+                  frame = pd.DataFrame({"구성종목명": ["fixture"], "비중": [10]}, index=["0013V0"])
+                  kept, _ = v.normalized_holdings(frame, CONFIG["sectors"][0], date(2026, 10, 12), "fixture")
+                  self.assertEqual(kept[0]["ticker"], "0013V0")
+                  self.assertEqual(kept[0]["name"], "fixture")
+          
+              def test_bad_holding_snapshots_do_not_stop_later_sectors_or_their_prices(self):
+                  sectors = CONFIG["sectors"][:2]
+                  dates = [date(2026, 9, 7) + timedelta(days=7*i) for i in range(4)]
+                  prices = pd.DataFrame({"시가": [100], "고가": [110], "저가": [98],
+                                         "종가": [105], "거래량": [1000]}, index=pd.to_datetime(["2026-09-28"]))
+                  bad = pd.DataFrame({"구성종목명": ["fixture"], "비중": [-1]}, index=["005930"])
+                  good = pd.DataFrame({"구성종목명": ["fixture", "원화현금"], "비중": [99, -0.2]}, index=["005930", "010010"])
+                  class FakeKrx:
+                      def call(self, name, *args):
+                          if name == "get_etf_ohlcv_by_date":
+                              return prices
+                          return bad if args[0] == sectors[0]["etf"] else good
+                  with tempfile.TemporaryDirectory() as t:
+                      c = v.Collector(t, {**CONFIG, "sectors": sectors})
+                      c.etfs_and_holdings(FakeKrx(), dates, dates[0], dates[0], dates[-1])
+                      self.assertEqual(c.status["datasets"]["etf_prices"]["successful_series"], 2)
+                      self.assertEqual(c.status["datasets"]["holdings"]["successful_snapshots"], 4)
+                      requests = [r for r in c.status["requests"] if r["dataset"] == "holdings"]
+                      self.assertEqual(len(requests), 8)
+                      self.assertTrue(all(r["status"] == "OK" for r in requests if r["scope"] == sectors[1]["id"]))
+          
+              def test_provider_breaker_is_scoped_to_one_etf_and_reports_every_skip(self):
+                  sectors = CONFIG["sectors"][:2]
+                  dates = [date(2026, 9, 7) + timedelta(days=7*i) for i in range(4)]
+                  prices = pd.DataFrame({"시가": [100], "고가": [110], "저가": [98],
+                                         "종가": [105], "거래량": [1000]}, index=pd.to_datetime(["2026-09-28"]))
+                  good = pd.DataFrame({"구성종목명": ["fixture"], "비중": [99]}, index=["005930"])
+                  class FakeKrx:
+                      def call(self, name, *args):
+                          if name == "get_etf_ohlcv_by_date":
+                              return prices
+                          if args[0] == sectors[0]["etf"]:
+                              raise v.EvidenceError("KRX_CALL_FAILED_OR_EMPTY")
+                          return good
+                  with tempfile.TemporaryDirectory() as t:
+                      c = v.Collector(t, {**CONFIG, "sectors": sectors})
+                      c.etfs_and_holdings(FakeKrx(), dates, dates[0], dates[0], dates[-1])
+                      requests = [r for r in c.status["requests"] if r["dataset"] == "holdings"]
+                      self.assertEqual(len(requests), 8)
+                      self.assertEqual(requests[3]["status"], "SKIPPED_THIS_ETF_AFTER_PROVIDER_FAILURES")
+                      self.assertEqual(c.status["datasets"]["holdings"]["successful_snapshots"], 4)
+          
+              def test_rss_explicit_colon_offset_preserves_instant_and_original_string(self):
+                  times = ("Thu, 15 Oct 2026 14:44:25 +09:00", "Thu, 15 Oct 2026 14:44:25 +0900")
+                  items = v.rss_items(rss_fixture([("수주", "https://publisher.example/a", t) for t in times]))
+                  rows = [v.rss_article(i, "2026-10-15T06:00:00+00:00") for i in items]
+                  self.assertEqual(rows[0]["published_at"], rows[1]["published_at"])
+                  self.assertEqual(rows[0]["source_pubdate"], times[0])
+                  self.assertFalse(rows[0]["historical_feature_use_allowed"])
+          
+              def test_all_rejected_feed_is_not_counted_as_successful_and_raw_is_saved(self):
+                  payload = rss_fixture([("수주", "https://publisher.example/a", "")])
+                  config = {**CONFIG, "rss_feeds": CONFIG["rss_feeds"][:1]}
+                  with tempfile.TemporaryDirectory() as t, patch.object(v, "rss_payload", return_value=payload), patch.object(v.time, "sleep"):
+                      c = v.Collector(t, config)
+                      c.news(date(2026, 8, 14), date(2026, 10, 14))
+                      coverage = json.loads((Path(t) / "catalysts/news_coverage.json").read_text())
+                      self.assertEqual(coverage["feeds_successful"], 0)
+                      self.assertEqual(coverage["feeds"][0]["status"], "ALL_ITEMS_REJECTED")
+                      self.assertEqual((Path(t) / "catalysts/raw_rss/HK_FINANCE.xml").read_bytes(), payload)
+          
+              def test_market_cache_rejects_changed_date_config_and_tampered_bytes(self):
+                  with tempfile.TemporaryDirectory() as t:
+                      root = Path(t)
+                      v.json_write(root / "diagnostics/collection_status.json", {
+                          "version": "18.0.3", "mode": "backfill", "asof": "2026-10-14", "price_start": "2025-08-20",
+                          "datasets": {"prices": {"status": "OK"}, "flows": {"status": "OK"}}})
+                      v.json_write(root / "runtime_source/config/sector_evidence_v18.json", CONFIG)
+                      v.csv_write(root / "market/sessions.csv", [{"date": "2026-10-14"}], ["date"])
+                      v.csv_write(root / "market/etf_prices/069500.csv", [], v.PRICE_FIELDS)
+                      paths = sorted(p for p in root.rglob("*") if p.is_file())
+                      v.csv_write(root / "checksums.csv", [{"path": p.relative_to(root).as_posix(), "bytes": p.stat().st_size,
+                                                          "sha256": v.digest(p)} for p in paths], ["path", "bytes", "sha256"])
+                      _, verified = v.validate_market_cache(root, CONFIG, "2026-10-14", "")
+                      self.assertEqual(len(verified), 4)
+                      with self.assertRaisesRegex(v.EvidenceError, "WINDOW_OR_SCHEMA_MISMATCH"):
+                          v.validate_market_cache(root, CONFIG, "2026-10-13", "")
+                      with self.assertRaisesRegex(v.EvidenceError, "WINDOW_OR_SCHEMA_MISMATCH"):
+                          v.validate_market_cache(root, {**CONFIG, "investors": ["외국인"]}, "2026-10-14", "")
+                      (root / "market/sessions.csv").write_text("tampered")
+                      with self.assertRaisesRegex(v.EvidenceError, "CHECKSUM_MISMATCH"):
+                          v.validate_market_cache(root, CONFIG, "2026-10-14", "")
+          
               def test_baseline_full_cli_with_fake_github_artifacts(self):
                   with tempfile.TemporaryDirectory() as t:
                       root = Path(t)
@@ -2125,6 +2437,7 @@ jobs:
           ASOF: ${{ inputs.asof }}
           V14_RUN_ID: ${{ inputs.v14_run_id }}
           PRICE_START: ${{ inputs.price_start }}
+          REUSE_PREVIOUS_MARKET: ${{ inputs.reuse_previous_market }}
           KRX_ID: ${{ secrets.KRX_ID }}
           KRX_PW: ${{ secrets.KRX_PW }}
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.DART_API_KEY }}
@@ -2162,6 +2475,7 @@ jobs:
           python scripts/collect_sector_evidence_v18.py \
             --mode backfill --repo "$GITHUB_REPOSITORY" \
             --v14-run-id "$V14_RUN_ID" --asof "$ASOF" --price-start "$PRICE_START" \
+            --reuse-previous-market "$REUSE_PREVIOUS_MARKET" \
             --config config/sector_evidence_v18.json \
             --outdir reports/sector_evidence_v18
       - name: Preserve complete raw evidence and diagnostics even on failure
