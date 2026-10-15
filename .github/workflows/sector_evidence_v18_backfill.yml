@@ -1,4 +1,5 @@
 # FULL COPY: add this complete file to .github/workflows/sector_evidence_v18_backfill.yml
+# Collector 18.0.1: DART HTTP/API diagnostics and whitespace trimming.
 # Dedicated BACKFILL: mode is fixed; source, configuration, and tests are embedded.
 # Output: sector-evidence-v18-backfill-report; Secret values are never printed.
 # Reuse the existing OpenDART v9.4.2 OPENDART_API_KEY; DART_API_KEY is a fallback.
@@ -56,7 +57,7 @@ jobs:
           V18_FILE_0_EOF
           cat > config/sector_evidence_v18.json <<'V18_FILE_1_EOF'
           {
-            "version": "18.0.0",
+            "version": "18.0.1",
             "markets": ["KOSPI", "KOSDAQ"],
             "investors": ["외국인", "기관합계", "개인"],
             "benchmark": "069500",
@@ -115,12 +116,13 @@ jobs:
           from email.utils import parsedate_to_datetime
           from pathlib import Path, PurePosixPath
           from urllib.parse import urlencode, urlparse
+          from urllib.error import HTTPError, URLError
           from urllib.request import Request, urlopen
           from zoneinfo import ZoneInfo
           
           import pandas as pd
           
-          VERSION = "18.0.0"
+          VERSION = "18.0.1"
           KST = ZoneInfo("Asia/Seoul")
           PRICE_FIELDS = ["Date", "Open", "High", "Low", "Close", "Volume", "TurnoverKRW"]
           REPORT_NAME = "hma-v14-rolling-entry-report"
@@ -135,6 +137,16 @@ jobs:
                          "published_at", "timestamp_basis", "collected_at", "historical_coverage"]
           DART_FIELDS = ["ticker", "corp_code", "corp_name", "report_name", "receipt_no", "receipt_date",
                          "url", "published_precision", "collected_at", "source"]
+          DART_STATUS_REASONS = {
+              "000": "SUCCESS", "010": "UNREGISTERED_KEY", "011": "DISABLED_KEY",
+              "012": "IP_NOT_ALLOWED", "013": "NO_DATA", "014": "FILE_NOT_FOUND",
+              "020": "REQUEST_LIMIT_EXCEEDED", "021": "COMPANY_LIMIT_EXCEEDED",
+              "100": "INVALID_FIELD", "101": "INVALID_ACCESS", "800": "SERVICE_MAINTENANCE",
+              "900": "UNDEFINED_API_ERROR", "901": "EXPIRED_PERSONAL_INFORMATION_RETENTION",
+          }
+          DART_REQUEST_FIELDS = ["market", "page", "window_start", "asof", "attempts", "http_status",
+                                 "api_status", "api_reason", "result", "error_code", "returned_rows",
+                                 "accepted_rows", "rejected_rows", "collected_at"]
           
           
           class EvidenceError(Exception):
@@ -484,21 +496,38 @@ jobs:
               return result
           
           
-          def http_json(url, headers=None, retries=2):
+          def http_json(url, headers=None, retries=2, diagnostics=None):
+              # Only status codes and fixed error labels may escape this function. Exception
+              # text, request URLs, headers and response bodies can contain credentials.
+              diagnostics = diagnostics if diagnostics is not None else {}
               for attempt in range(retries + 1):
+                  diagnostics.update(attempts=attempt + 1, http_status="", error_code="")
                   try:
                       req = Request(url, headers={"User-Agent": "sector-evidence-v18", **(headers or {})})
                       with urlopen(req, timeout=40) as r:
+                          diagnostics["http_status"] = int(r.getcode())
                           payload = r.read(20_000_001)
                       if len(payload) > 20_000_000:
                           raise EvidenceError("HTTP_RESPONSE_SIZE_LIMIT")
                       return json.loads(payload)
-                  except EvidenceError:
+                  except EvidenceError as e:
+                      diagnostics["error_code"] = str(e)
                       raise
+                  except HTTPError as e:
+                      code = int(e.code)
+                      diagnostics.update(http_status=code, error_code=f"HTTP_{code}")
+                      if code != 429 and code < 500:
+                          raise EvidenceError(diagnostics["error_code"]) from None
+                  except (json.JSONDecodeError, UnicodeDecodeError):
+                      diagnostics["error_code"] = "HTTP_RESPONSE_NOT_JSON"
+                      raise EvidenceError(diagnostics["error_code"]) from None
+                  except (TimeoutError, URLError) as e:
+                      diagnostics["error_code"] = "HTTP_TIMEOUT" if isinstance(e, TimeoutError) or isinstance(getattr(e, "reason", None), TimeoutError) else "HTTP_NETWORK_FAILED"
                   except Exception:
-                      if attempt == retries:
-                          raise EvidenceError("HTTP_REQUEST_FAILED") from None
-                      time.sleep(1 + attempt)
+                      diagnostics["error_code"] = "HTTP_REQUEST_FAILED"
+                  if attempt == retries:
+                      raise EvidenceError(diagnostics["error_code"]) from None
+                  time.sleep(1 + attempt)
           
           
           class Krx:
@@ -779,44 +808,128 @@ jobs:
                             note="Naver search is capped at start=1000 and has no historical date-range parameter. Counts are observations, not complete historical mentions.")
           
               def dart(self, window, asof):
-                  key = os.environ.get("DART_API_KEY")
-                  if not key:
-                      self.mark("dart", "MISSING_KEY", exact_publication_time="UNAVAILABLE")
-                      csv_write(self.out / "catalysts/disclosures.csv", [], DART_FIELDS)
-                      return
+                  raw_key = os.environ.get("DART_API_KEY", "")
+                  key = raw_key.strip()
                   rows = {}
+                  diagnostic_path = "diagnostics/dart_diagnostics.json"
+                  diagnostics = {"version": VERSION, "key_present": bool(key), "key_length": len(key),
+                                 "key_whitespace_removed": key != raw_key,
+                                 "window_start": window.isoformat(), "asof": asof.isoformat(),
+                                 "successful_api_response_received": False, "requests": [],
+                                 "markets": {market: {"status": "NOT_STARTED"} for market in ("Y", "K")}}
+          
+                  def persist():
+                      diagnostics.update(rows=len(rows), completed_at=stamp())
+                      json_write(self.out / diagnostic_path, diagnostics)
+                      csv_write(self.out / "diagnostics/dart_requests.csv", diagnostics["requests"], DART_REQUEST_FIELDS)
+                      csv_write(self.out / "catalysts/disclosures.csv", rows.values(), DART_FIELDS)
+          
+                  persist()
+                  if not key:
+                      self.mark("dart", "MISSING_KEY", error_code="MISSING_DART_API_KEY", diagnostics_file=diagnostic_path,
+                                exact_publication_time="UNAVAILABLE")
+                      return
                   complete = True
+                  global_failure = False
                   for market in ("Y", "K"):
-                      try:
-                          page, pages = 1, 1
-                          while page <= pages:
+                      if global_failure:
+                          diagnostics["markets"][market] = {"status": "SKIPPED_AFTER_GLOBAL_FAILURE"}
+                          continue
+                      market_state = {"status": "COLLECTING", "pages_completed": 0, "rejected_rows": 0}
+                      diagnostics["markets"][market] = market_state
+                      page, pages = 1, 1
+                      market_complete = True
+                      while page <= pages:
+                          request = {"market": market, "page": page, "window_start": window.isoformat(),
+                                     "asof": asof.isoformat(), "attempts": 0, "http_status": "", "api_status": "",
+                                     "api_reason": "", "result": "DATA_PENDING", "error_code": "",
+                                     "returned_rows": 0, "accepted_rows": 0, "rejected_rows": 0, "collected_at": stamp()}
+                          stop_market = False
+                          try:
                               if page > 500:
                                   raise EvidenceError("DART_PAGINATION_LIMIT")
                               time.sleep(float(self.config["request_pause_seconds"]))
                               params = {"crtfc_key": key, "bgn_de": window.strftime("%Y%m%d"), "end_de": asof.strftime("%Y%m%d"),
                                         "corp_cls": market, "last_reprt_at": "N", "page_count": 100,
                                         "page_no": page, "sort": "date", "sort_mth": "asc"}
-                              payload = http_json("https://opendart.fss.or.kr/api/list.json?" + urlencode(params))
-                              if payload.get("status") == "013":
-                                  break
-                              if payload.get("status") != "000":
-                                  raise EvidenceError("DART_RESPONSE_STATUS_NOT_SUCCESS")
-                              pages = int(payload["total_page"])
-                              for r in payload.get("list", []):
-                                  receipt = r["rcept_no"]
-                                  receipt_date = datetime.strptime(r["rcept_dt"], "%Y%m%d").date()
-                                  if not window <= receipt_date <= asof or not re.fullmatch(r"[0-9]{14}", receipt):
-                                      raise EvidenceError("DART_INVALID_RECEIPT")
-                                  rows[receipt] = {"ticker": ticker_code(r["stock_code"]), "corp_code": r["corp_code"],
-                                                   "corp_name": r["corp_name"], "report_name": r["report_nm"],
-                                                   "receipt_no": receipt, "receipt_date": receipt_date.isoformat(),
-                                                   "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=" + receipt,
-                                                   "published_precision": "DAY_ONLY_no_intraday_time", "collected_at": stamp(), "source": "OPENDART_list"}
-                              page += 1
-                      except Exception:
-                          complete = False
-                  csv_write(self.out / "catalysts/disclosures.csv", rows.values(), DART_FIELDS)
+                              payload = http_json("https://opendart.fss.or.kr/api/list.json?" + urlencode(params),
+                                                  retries=int(self.config["request_retries"]), diagnostics=request)
+                              if not isinstance(payload, dict) or not isinstance(payload.get("status"), str) or not re.fullmatch(r"[0-9]{3}", payload["status"]):
+                                  raise EvidenceError("DART_RESPONSE_SCHEMA_ERROR")
+                              api_status = request["api_status"] = payload["status"]
+                              request["api_reason"] = DART_STATUS_REASONS.get(api_status, "UNKNOWN_API_STATUS")
+                              if api_status not in ("000", "013"):
+                                  global_failure = api_status in ("010", "011", "012", "020", "800", "901")
+                                  raise EvidenceError(f"DART_API_{api_status}_{request['api_reason']}")
+                              diagnostics["successful_api_response_received"] = True
+                              if api_status == "013":
+                                  if page != 1:
+                                      raise EvidenceError("DART_INCOMPLETE_PAGINATION")
+                                  request["result"] = "NO_DATA"
+                                  stop_market = True
+                              else:
+                                  try:
+                                      returned_pages = int(payload["total_page"])
+                                      items = payload["list"]
+                                      if returned_pages < page or not isinstance(items, list):
+                                          raise ValueError
+                                      if "page_no" in payload and int(payload["page_no"]) != page:
+                                          raise ValueError
+                                  except (KeyError, TypeError, ValueError):
+                                      raise EvidenceError("DART_RESPONSE_SCHEMA_ERROR") from None
+                                  if page > 1 and returned_pages != pages:
+                                      raise EvidenceError("DART_PAGINATION_CHANGED")
+                                  pages = returned_pages
+                                  if not items:
+                                      raise EvidenceError("DART_EMPTY_SUCCESS_PAGE")
+                                  request["returned_rows"] = len(items)
+                                  row_errors = Counter()
+                                  for r in items:
+                                      try:
+                                          receipt = r["rcept_no"]
+                                          receipt_date = datetime.strptime(r["rcept_dt"], "%Y%m%d").date()
+                                          if not window <= receipt_date <= asof or not isinstance(receipt, str) or not re.fullmatch(r"[0-9]{14}", receipt):
+                                              raise EvidenceError("DART_INVALID_RECEIPT")
+                                          rows[receipt] = {"ticker": ticker_code(r["stock_code"]), "corp_code": r["corp_code"],
+                                                           "corp_name": r["corp_name"], "report_name": r["report_nm"],
+                                                           "receipt_no": receipt, "receipt_date": receipt_date.isoformat(),
+                                                           "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=" + receipt,
+                                                           "published_precision": "DAY_ONLY_no_intraday_time", "collected_at": stamp(), "source": "OPENDART_list"}
+                                          request["accepted_rows"] += 1
+                                      except (KeyError, TypeError, ValueError, EvidenceError) as e:
+                                          code = str(e) if isinstance(e, EvidenceError) else "DART_ROW_SCHEMA_ERROR"
+                                          row_errors[code] += 1
+                                  request["rejected_rows"] = sum(row_errors.values())
+                                  request["row_error_counts"] = dict(row_errors)
+                                  if row_errors:
+                                      market_complete = complete = False
+                                      request["error_code"] = "DART_INVALID_ROWS"
+                                  else:
+                                      request["result"] = "OK"
+                              market_state["pages_completed"] += 1
+                              market_state["rejected_rows"] += request["rejected_rows"]
+                          except Exception as e:
+                              request["error_code"] = str(e) if isinstance(e, EvidenceError) and re.fullmatch(r"[A-Z0-9_]+", str(e)) else "UNEXPECTED_DART_FAILURE"
+                              global_failure = global_failure or request["http_status"] in (401, 403)
+                              market_complete = complete = False
+                              stop_market = True
+                          diagnostics["requests"].append(request)
+                          persist()
+                          if request["error_code"] or page == 1:
+                              print("DART_DIAGNOSTIC=" + json.dumps({k: request[k] for k in DART_REQUEST_FIELDS}, ensure_ascii=False), flush=True)
+                          if stop_market:
+                              break
+                          page += 1
+                      market_state["status"] = "COMPLETE" if market_complete else "DATA_PENDING"
+                      persist()
+                  persist()
+                  failed = [r for r in diagnostics["requests"] if r["error_code"]]
+                  last = failed[-1] if failed else {}
                   self.mark("dart", "DATE_ONLY_COMPLETE" if complete else "DATA_PENDING", rows=len(rows),
+                            rejected_rows=sum(r["rejected_rows"] for r in diagnostics["requests"]),
+                            diagnostics_file=diagnostic_path, error_code=last.get("error_code", ""),
+                            http_status=last.get("http_status", ""), api_status=last.get("api_status", ""),
+                            successful_api_response_received=diagnostics["successful_api_response_received"],
                             exact_publication_time="UNAVAILABLE", amendments="original_and_amended_reports_retained",
                             intraday_use="same_date_disclosures_are_ineligible_without_exact_timestamp")
           
@@ -879,9 +992,11 @@ jobs:
                         ["ticker", "date", "investor"])
               counts = {"tickers": len(price_map), "quality_issue_rows": len(quality),
                         "duplicate_price_rows": len(duplicates), "flow_conflicts": len(flow_conflicts),
-                        "usable_for_features": len(series), "price_rows": len(universe)}
+                        "usable_for_features": len(series), "price_rows": len(universe), "flow_rows": len(flow_map)}
               json_write(out / "diagnostics/market_coverage.json", counts)
-              collector.mark("normalization", "OK" if not duplicates and not flow_conflicts else "DATA_PENDING", **counts)
+              normalization_ok = bool(series and flow_map) and not duplicates and not flow_conflicts
+              error_code = "NO_USABLE_MARKET_PRICES_OR_FLOWS" if not series or not flow_map else "CONFLICTING_MARKET_ROWS" if not normalization_ok else ""
+              collector.mark("normalization", "OK" if normalization_ok else "DATA_PENDING", error_code=error_code, **counts)
               crosscheck = []
               for p in sorted((out / "baseline/prices").glob("*.csv")):
                   fresh = price_map.get(p.stem, {})
@@ -1014,16 +1129,17 @@ jobs:
                                        "full_backtest_ready": False, "orders_enabled": False,
                                        "production_strategy_changed": False})
               collector.save()
-              rows = [f"| {name} | {v['status']} |" for name, v in data.items()]
+              rows = [f"| {name} | {v['status']} | {v.get('error_code', '')} |" for name, v in data.items()]
               notes = [
                   "# v18 자료 수집 결과", "", f"상태: **{state}**", "",
                   "이 파일은 원본 회수·자료 수집·검증 단계입니다. 자동 주문이나 실전 매수 기준 변경은 없습니다.", "",
                   f"수집 완료 시각(UTC): {collector.status['completed_at']}",
                   f"KRX 유효 기준일: {collector.status.get('asof', '확장 자료 미수집')}",
                   f"v14 원본 기준일: {collector.status.get('v14_source_asof', '원본 미확인')}", "",
-                  "| 자료 | 상태 |", "|---|---|", *rows, "",
+                  "| 자료 | 상태 | 원인 코드 |", "|---|---|---|", *rows, "",
                   "## 먼저 볼 파일", "",
                   "- `diagnostics/collection_status.json`: 성공·누락·API 장애 및 요청별 건수.",
+                  "- `diagnostics/dart_diagnostics.json`: DART의 HTTP 상태·API 코드·시장별 진행·거절 행의 원인. 키·응답 원문·요청 URL은 기록하지 않습니다.",
                   "- `diagnostics/v14_recent_two_months_replication.csv`: 같은 v14 실행의 가격으로 익절·손절 결과 재현 여부.",
                   "- `baseline/source_meta.json`: 원본 Actions 실행 번호·아티팩트 번호·해시.",
                   "- `research/sector_evidence_latest.csv`: 섹터 ETF 상대강도·구성종목 실제 수급·상승 종목 비율.",
@@ -1127,6 +1243,8 @@ jobs:
           import zipfile
           from datetime import date, datetime, timedelta
           from pathlib import Path
+          from urllib.error import HTTPError, URLError
+          from urllib.parse import parse_qs, urlparse
           from unittest.mock import patch
           
           import pandas as pd
@@ -1144,6 +1262,23 @@ jobs:
           
           def bar(d="2026-10-01", o=100, h=105, l=98, c=102, vol=10):
               return {"date": d, "open": o, "high": h, "low": l, "close": c, "volume": vol, "row_status": "OK"}
+          
+          
+          class HttpResponseFixture:
+              def __init__(self, payload, status=200):
+                  self.payload, self.status = payload, status
+          
+              def __enter__(self):
+                  return self
+          
+              def __exit__(self, *args):
+                  return False
+          
+              def getcode(self):
+                  return self.status
+          
+              def read(self, limit):
+                  return self.payload[:limit]
           
           
           class EvidenceTests(unittest.TestCase):
@@ -1273,6 +1408,45 @@ jobs:
                       self.assertNotIn("DO_NOT_EMIT", text)
                       self.assertIn("UNEXPECTED_STAGE_FAILURE", text)
           
+              def test_http_403_exposes_code_without_url_key_or_response_message(self):
+                  secret = "DO_NOT_EMIT_FIXTURE_KEY"
+                  url = "https://api.invalid/?crtfc_key=" + secret
+                  error = HTTPError(url, 403, secret, {}, None)
+                  diagnostics = {}
+                  with patch.object(v, "urlopen", side_effect=error) as request:
+                      with self.assertRaisesRegex(v.EvidenceError, "^HTTP_403$") as caught:
+                          v.http_json(url, diagnostics=diagnostics)
+                  self.assertEqual(request.call_count, 1)
+                  self.assertEqual(diagnostics["http_status"], 403)
+                  self.assertNotIn(secret, json.dumps(diagnostics) + str(caught.exception))
+                  self.assertNotIn("api.invalid", json.dumps(diagnostics))
+          
+              def test_http_html_response_is_not_treated_as_json_or_retried(self):
+                  diagnostics = {}
+                  with patch.object(v, "urlopen", return_value=HttpResponseFixture(b"<html>DO_NOT_EMIT</html>")) as request:
+                      with self.assertRaisesRegex(v.EvidenceError, "HTTP_RESPONSE_NOT_JSON"):
+                          v.http_json("https://api.invalid/", diagnostics=diagnostics)
+                  self.assertEqual(request.call_count, 1)
+                  self.assertEqual(diagnostics["http_status"], 200)
+                  self.assertNotIn("DO_NOT_EMIT", json.dumps(diagnostics))
+          
+              def test_http_server_retry_can_recover_and_clears_old_failure(self):
+                  error = HTTPError("https://api.invalid/?crtfc_key=DO_NOT_EMIT", 503, "DO_NOT_EMIT", {}, None)
+                  diagnostics = {}
+                  with patch.object(v, "urlopen", side_effect=[error, HttpResponseFixture(b'{"status":"013"}')]), patch.object(v.time, "sleep"):
+                      result = v.http_json("https://api.invalid/", diagnostics=diagnostics)
+                  self.assertEqual(result["status"], "013")
+                  self.assertEqual(diagnostics, {"attempts": 2, "http_status": 200, "error_code": ""})
+          
+              def test_http_timeout_is_bounded_and_sanitized(self):
+                  diagnostics = {}
+                  with patch.object(v, "urlopen", side_effect=URLError(TimeoutError("DO_NOT_EMIT"))) as request, patch.object(v.time, "sleep"):
+                      with self.assertRaisesRegex(v.EvidenceError, "^HTTP_TIMEOUT$"):
+                          v.http_json("https://api.invalid/", diagnostics=diagnostics)
+                  self.assertEqual(request.call_count, 3)
+                  self.assertEqual(diagnostics["attempts"], 3)
+                  self.assertNotIn("DO_NOT_EMIT", json.dumps(diagnostics))
+          
               def test_missing_optional_keys_are_not_zero_catalysts(self):
                   with tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {}, clear=True):
                       c = v.Collector(t, CONFIG)
@@ -1304,6 +1478,72 @@ jobs:
                       self.assertEqual(len(rows), 2)
                       self.assertEqual(rows[0]["published_precision"], "DAY_ONLY_no_intraday_time")
                       self.assertNotIn("published_at", rows[0])
+          
+              def test_dart_trims_key_and_distinguishes_no_data_from_failure(self):
+                  secret = "x" * 40
+                  with tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {"DART_API_KEY": " \n" + secret + "\t"}), patch.object(v, "http_json", return_value={"status": "013"}) as request, patch.object(v.time, "sleep"), patch("sys.stdout", new_callable=io.StringIO) as output:
+                      c = v.Collector(t, CONFIG)
+                      c.dart(date(2026, 8, 14), date(2026, 10, 14))
+                      for call in request.call_args_list:
+                          params = parse_qs(urlparse(call.args[0]).query)
+                          self.assertEqual(params["crtfc_key"], [secret])
+                      diag = json.loads((Path(t) / "diagnostics/dart_diagnostics.json").read_text())
+                      self.assertTrue(diag["key_whitespace_removed"])
+                      self.assertEqual(diag["key_length"], 40)
+                      self.assertTrue(diag["successful_api_response_received"])
+                      self.assertEqual(c.status["datasets"]["dart"]["status"], "DATE_ONLY_COMPLETE")
+                      self.assertTrue(all(r["result"] == "NO_DATA" for r in diag["requests"]))
+                      self.assertNotIn(secret, json.dumps(diag) + json.dumps(c.status) + output.getvalue())
+          
+              def test_dart_api_failure_records_specific_reason_without_reflected_secret(self):
+                  for status in ("010", "011", "012", "020", "800", "901"):
+                      with self.subTest(status=status), tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {"DART_API_KEY": "DO_NOT_EMIT_FIXTURE_KEY"}), patch.object(v, "http_json", return_value={"status": status, "message": "DO_NOT_EMIT_FIXTURE_KEY"}) as request, patch.object(v.time, "sleep"), patch("sys.stdout", new_callable=io.StringIO) as output:
+                          c = v.Collector(t, CONFIG)
+                          c.dart(date(2026, 8, 14), date(2026, 10, 14))
+                          diag = json.loads((Path(t) / "diagnostics/dart_diagnostics.json").read_text())
+                          self.assertEqual(request.call_count, 1)
+                          self.assertEqual(diag["markets"]["K"]["status"], "SKIPPED_AFTER_GLOBAL_FAILURE")
+                          self.assertFalse(diag["successful_api_response_received"])
+                          self.assertEqual(c.status["datasets"]["dart"]["api_status"], status)
+                          self.assertEqual(c.status["datasets"]["dart"]["error_code"], f"DART_API_{status}_{v.DART_STATUS_REASONS[status]}")
+                          self.assertNotIn("DO_NOT_EMIT", json.dumps(diag) + json.dumps(c.status) + output.getvalue())
+          
+              def test_dart_invalid_status_or_schema_does_not_print_payload(self):
+                  for payload in (["DO_NOT_EMIT"], {"status": "DO_NOT_EMIT"}, {"status": "000", "total_page": "bad", "list": []}):
+                      with self.subTest(payload=payload), tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {"DART_API_KEY": "fixture"}), patch.object(v, "http_json", return_value=payload), patch.object(v.time, "sleep"), patch("sys.stdout", new_callable=io.StringIO) as output:
+                          c = v.Collector(t, CONFIG)
+                          c.dart(date(2026, 8, 14), date(2026, 10, 14))
+                          diag = json.loads((Path(t) / "diagnostics/dart_diagnostics.json").read_text())
+                          self.assertEqual(c.status["datasets"]["dart"]["error_code"], "DART_RESPONSE_SCHEMA_ERROR")
+                          self.assertNotIn("DO_NOT_EMIT", json.dumps(diag) + output.getvalue())
+          
+              def test_dart_bad_row_does_not_discard_later_valid_rows_or_claim_complete(self):
+                  row = {"rcept_no": "20261013000001", "rcept_dt": "20261013", "stock_code": "005930", "corp_code": "00126380", "corp_name": "삼성전자", "report_nm": "공급계약"}
+                  payload = {"status": "000", "total_page": 1, "list": [row, {**row, "rcept_no": "20261013000002", "stock_code": ""}, {**row, "rcept_no": "20261013000003"}]}
+                  with tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {"DART_API_KEY": "fixture"}), patch.object(v, "http_json", side_effect=[payload, {"status": "013"}]), patch.object(v.time, "sleep"), patch("sys.stdout", new_callable=io.StringIO):
+                      c = v.Collector(t, CONFIG)
+                      c.dart(date(2026, 8, 14), date(2026, 10, 14))
+                      self.assertEqual(len(v.read_csv(Path(t) / "catalysts/disclosures.csv")), 2)
+                      self.assertEqual(c.status["datasets"]["dart"]["status"], "DATA_PENDING")
+                      diag = json.loads((Path(t) / "diagnostics/dart_diagnostics.json").read_text())
+                      self.assertEqual(diag["requests"][0]["row_error_counts"], {"INVALID_TICKER_CODE": 1})
+          
+              def test_dart_missing_later_page_is_incomplete_and_preserves_first_page(self):
+                  row = {"rcept_no": "20261013000001", "rcept_dt": "20261013", "stock_code": "005930", "corp_code": "00126380", "corp_name": "삼성전자", "report_nm": "공급계약"}
+                  responses = [{"status": "000", "total_page": 2, "list": [row]}, {"status": "013"}, {"status": "013"}]
+                  with tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {"DART_API_KEY": "fixture"}), patch.object(v, "http_json", side_effect=responses), patch.object(v.time, "sleep"), patch("sys.stdout", new_callable=io.StringIO):
+                      c = v.Collector(t, CONFIG)
+                      c.dart(date(2026, 8, 14), date(2026, 10, 14))
+                      self.assertEqual(len(v.read_csv(Path(t) / "catalysts/disclosures.csv")), 1)
+                      self.assertEqual(c.status["datasets"]["dart"]["error_code"], "DART_INCOMPLETE_PAGINATION")
+          
+              def test_empty_market_normalization_cannot_be_ok(self):
+                  with tempfile.TemporaryDirectory() as t, patch("sys.stdout", new_callable=io.StringIO):
+                      c = v.Collector(t, CONFIG)
+                      v.assemble_market(c)
+                      self.assertEqual(c.status["datasets"]["normalization"]["status"], "DATA_PENDING")
+                      self.assertEqual(c.status["datasets"]["normalization"]["error_code"], "NO_USABLE_MARKET_PRICES_OR_FLOWS")
+                      self.assertEqual(c.status["datasets"]["normalization"]["flow_rows"], 0)
           
               def test_sector_features_missing_money_and_same_day_disclosure_gates(self):
                   config = {**CONFIG, "sectors": CONFIG["sectors"][:1]}
@@ -1398,6 +1638,23 @@ jobs:
                       self.assertFalse(result["orders_enabled"])
                       self.assertEqual(v.read_csv(target / "diagnostics/v14_replication.csv")[0]["replication"], "MATCH")
                       self.assertTrue((target / "checksums.csv").exists())
+                      # The same recovered baseline must remain available after a blocked
+                      # backfill; missing credentials must not trigger external API calls.
+                      for name in ("KRX_ID", "KRX_PW", "DART_API_KEY", "OPENDART_API_KEY", "NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"):
+                          env.pop(name, None)
+                      backfill_target = root / "backfill_output"
+                      blocked = subprocess.run([sys.executable, str(ROOT / "scripts/collect_sector_evidence_v18.py"),
+                                                "--mode", "backfill", "--repo", "fixture/repo", "--v14-run-id", "100",
+                                                "--asof", "2000-01-03", "--config", str(ROOT / "config/sector_evidence_v18.json"),
+                                                "--outdir", str(backfill_target)], env=env, capture_output=True, text=True)
+                      self.assertEqual(blocked.returncode, 2, blocked.stdout + blocked.stderr)
+                      result = json.loads((backfill_target / "diagnostics/collection_status.json").read_text())
+                      self.assertEqual(result["datasets"]["v14_replication"]["status"], "VERIFIED")
+                      self.assertEqual(result["datasets"]["krx_preflight_or_collection"]["error_code"], "MISSING_KRX_ID_OR_KRX_PW")
+                      self.assertEqual(result["datasets"]["normalization"]["status"], "DATA_PENDING")
+                      self.assertFalse(result["orders_enabled"])
+                      self.assertTrue((backfill_target / "diagnostics/dart_diagnostics.json").exists())
+                      self.assertTrue((backfill_target / "README_RESULT_KO.md").exists())
                       self.assertEqual((target / "baseline/prices/005930.csv").read_text(), price)
           
           
@@ -1431,10 +1688,12 @@ jobs:
           from pathlib import Path
           configured = {
               'KRX_LOGIN': bool(os.environ.get('KRX_ID') and os.environ.get('KRX_PW')),
-              'DART': bool(os.environ.get('DART_API_KEY')),
+              'DART': bool(os.environ.get('DART_API_KEY', '').strip()),
               'NAVER_NEWS': bool(os.environ.get('NAVER_CLIENT_ID') and os.environ.get('NAVER_CLIENT_SECRET')),
           }
+          version = json.loads(Path('config/sector_evidence_v18.json').read_text(encoding='utf-8'))['version']
           status = {
+              'collector_version': version,
               'mode': 'backfill',
               'started_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
               'requested_asof': os.environ.get('ASOF') or 'AUTO',
@@ -1446,6 +1705,7 @@ jobs:
           dest = Path('reports/sector_evidence_v18/diagnostics/backfill_start.json')
           dest.parent.mkdir(parents=True, exist_ok=True)
           dest.write_text(json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
+          print('COLLECTOR_VERSION=' + version, flush=True)
           print('COLLECTION_MODE=backfill', flush=True)
           print('SECRET_PRESENCE=' + json.dumps(configured), flush=True)
           PY_BACKFILL_START
