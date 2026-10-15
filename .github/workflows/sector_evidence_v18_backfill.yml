@@ -1,6 +1,7 @@
 # FULL COPY: add this complete file to .github/workflows/sector_evidence_v18_backfill.yml
 # Dedicated BACKFILL: mode is fixed; source, configuration, and tests are embedded.
 # Output: sector-evidence-v18-backfill-report; Secret values are never printed.
+# Reuse the existing OpenDART v9.4.2 OPENDART_API_KEY; DART_API_KEY is a fallback.
 # Read-only evidence collection. No cron, repository write, strategy edit, or order.
 name: Sector Evidence v18 BACKFILL (수급·뉴스 수집)
 run-name: BACKFILL sector evidence · ${{ github.run_number }}
@@ -1419,7 +1420,7 @@ jobs:
           PRICE_START: ${{ inputs.price_start }}
           KRX_ID: ${{ secrets.KRX_ID }}
           KRX_PW: ${{ secrets.KRX_PW }}
-          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.DART_API_KEY }}
           NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
           NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
         run: |
