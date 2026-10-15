@@ -1907,4 +1907,268 @@ jobs:
                       self.assertEqual(stored[0]["ticker"], "0013V0")
                       self.assertEqual(stored[0]["ticker_mapping_status"], "MAPPED")
                       self.assertEqual(c.status["datasets"]["dart"]["status"], "DATE_ONLY_COMPLETE")
-                      self.assertTrue(c.status["datasets"]["dart"]["ticker_mapping_comp
+                      self.assertTrue(c.status["datasets"]["dart"]["ticker_mapping_complete"])
+          
+              def test_dart_missing_or_bad_stock_code_preserves_corporate_receipt_without_guessing_ticker(self):
+                  row = {"rcept_no": "20261013000001", "rcept_dt": "20261013", "stock_code": "005930", "corp_code": "00126380", "corp_name": "삼성전자", "report_nm": "공급계약"}
+                  rows = [row, {**row, "rcept_no": "20261013000002", "stock_code": ""}, {**row, "rcept_no": "20261013000003", "stock_code": None}, {**row, "rcept_no": "20261013000004", "stock_code": "BAD-CODE"}]
+                  with tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {"DART_API_KEY": "x" * 40}), patch.object(v, "http_json", side_effect=[{"status": "000", "total_page": 1, "list": rows}, {"status": "013"}]), patch.object(v.time, "sleep"), patch("sys.stdout", new_callable=io.StringIO):
+                      c = v.Collector(t, CONFIG)
+                      c.dart(date(2026, 8, 14), date(2026, 10, 14))
+                      stored = v.read_csv(Path(t) / "catalysts/disclosures.csv")
+                      self.assertEqual(len(stored), 4)
+                      self.assertTrue(all(not r["ticker"] for r in stored[1:]))
+                      self.assertEqual(len(v.read_csv(Path(t) / "diagnostics/dart_unmapped.csv")), 3)
+                      self.assertEqual(v.read_csv(Path(t) / "diagnostics/dart_rejected_rows.csv"), [])
+                      data = c.status["datasets"]["dart"]
+                      self.assertEqual(data["status"], "DATE_ONLY_COMPLETE_WITH_UNMAPPED")
+                      self.assertTrue(data["api_pagination_complete"])
+                      self.assertFalse(data["ticker_mapping_complete"])
+                      self.assertEqual(data["unmapped_rows"], 3)
+                      self.assertEqual(data["rejected_rows"], 0)
+          
+              def test_dart_invalid_corporate_id_is_rejected_and_diagnosed(self):
+                  row = {"rcept_no": "20261013000001", "rcept_dt": "20261013", "stock_code": "005930", "corp_code": "BAD_CORP", "corp_name": "삼성전자", "report_nm": "공급계약"}
+                  with tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {"DART_API_KEY": "x" * 40}), patch.object(v, "http_json", side_effect=[{"status": "000", "total_page": 1, "list": [row]}, {"status": "013"}]), patch.object(v.time, "sleep"), patch("sys.stdout", new_callable=io.StringIO):
+                      c = v.Collector(t, CONFIG)
+                      c.dart(date(2026, 8, 14), date(2026, 10, 14))
+                      self.assertEqual(c.status["datasets"]["dart"]["status"], "DATA_PENDING")
+                      rejected = v.read_csv(Path(t) / "diagnostics/dart_rejected_rows.csv")
+                      self.assertEqual(rejected[0]["error_code"], "DART_INVALID_CORP_CODE")
+                      self.assertEqual(rejected[0]["corp_code"], "")
+          
+              def test_dart_reflected_secret_in_stock_code_and_public_text_is_redacted(self):
+                  secret = "x" * 40
+                  row = {"rcept_no": "20261013000001", "rcept_dt": "20261013", "stock_code": secret, "corp_code": "00126380", "corp_name": "prefix " + secret, "report_nm": secret + " suffix"}
+                  with tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {"DART_API_KEY": secret}), patch.object(v, "http_json", side_effect=[{"status": "000", "total_page": 1, "list": [row]}, {"status": "013"}]), patch.object(v.time, "sleep"), patch("sys.stdout", new_callable=io.StringIO) as output:
+                      c = v.Collector(t, CONFIG)
+                      c.dart(date(2026, 8, 14), date(2026, 10, 14))
+                      for p in Path(t).rglob("*"):
+                          if p.is_file():
+                              self.assertNotIn(secret, p.read_text(encoding="utf-8-sig"))
+                      self.assertNotIn(secret, output.getvalue())
+          
+              def test_dart_missing_later_page_is_incomplete_and_preserves_first_page(self):
+                  row = {"rcept_no": "20261013000001", "rcept_dt": "20261013", "stock_code": "005930", "corp_code": "00126380", "corp_name": "삼성전자", "report_nm": "공급계약"}
+                  responses = [{"status": "000", "total_page": 2, "list": [row]}, {"status": "013"}, {"status": "013"}]
+                  with tempfile.TemporaryDirectory() as t, patch.dict(os.environ, {"DART_API_KEY": "fixture"}), patch.object(v, "http_json", side_effect=responses), patch.object(v.time, "sleep"), patch("sys.stdout", new_callable=io.StringIO):
+                      c = v.Collector(t, CONFIG)
+                      c.dart(date(2026, 8, 14), date(2026, 10, 14))
+                      self.assertEqual(len(v.read_csv(Path(t) / "catalysts/disclosures.csv")), 1)
+                      self.assertEqual(c.status["datasets"]["dart"]["error_code"], "DART_INCOMPLETE_PAGINATION")
+          
+              def test_empty_market_normalization_cannot_be_ok(self):
+                  with tempfile.TemporaryDirectory() as t, patch("sys.stdout", new_callable=io.StringIO):
+                      c = v.Collector(t, CONFIG)
+                      v.assemble_market(c)
+                      self.assertEqual(c.status["datasets"]["normalization"]["status"], "DATA_PENDING")
+                      self.assertEqual(c.status["datasets"]["normalization"]["error_code"], "NO_USABLE_MARKET_PRICES_OR_FLOWS")
+                      self.assertEqual(c.status["datasets"]["normalization"]["flow_rows"], 0)
+          
+              def test_sector_features_missing_money_and_same_day_disclosure_gates(self):
+                  config = {**CONFIG, "sectors": CONFIG["sectors"][:1]}
+                  with tempfile.TemporaryDirectory() as t:
+                      c = v.Collector(t, config)
+                      sessions = [d.date().isoformat() for d in pd.bdate_range("2026-09-01", periods=25)]
+                      last, prior = sessions[-1], sessions[-2]
+                      c.status.update({"asof": last, "analysis_window_start": sessions[0]})
+                      c.status["datasets"].update({"news": {"status": "MISSING_KEYS"}, "dart": {"status": "DATE_ONLY_COMPLETE"}})
+                      v.csv_write(Path(t) / "market/sessions.csv", ({"date": d} for d in sessions), ["date"])
+                      codes = [f"{i:06d}" for i in range(1, 7)]
+                      holdings = [{"sector_id": "SEMICON", "snapshot_date": prior, "ticker": tk} for tk in codes]
+                      v.csv_write(Path(t) / "market/sector_membership_dated.csv", holdings, v.HOLD_FIELDS)
+                      for tk in ("069500", "091160"):
+                          price_rows = [{"Date": d, "Open": 100 + i, "High": 102 + i, "Low": 99 + i,
+                                         "Close": 101 + i, "Volume": 1000, "TurnoverKRW": 100000}
+                                        for i, d in enumerate(sessions)]
+                          v.csv_write(Path(t) / f"market/etf_prices/{tk}.csv", price_rows, v.PRICE_FIELDS)
+                      v.csv_write(Path(t) / "catalysts/disclosures.csv", [{"ticker": codes[0], "receipt_date": last},
+                                                                                  {"ticker": codes[0], "receipt_date": prior}], v.DART_FIELDS)
+                      price_map = {tk: {d: {"TurnoverKRW": 100000} for d in sessions} for tk in codes}
+                      series = {tk: {d: bar(d, o=100 + i, h=103 + i, l=99 + i, c=101 + i) for i, d in enumerate(sessions)} for tk in codes}
+                      flow = {(tk, d, inv): 100 for tk in codes for d in sessions for inv in CONFIG["investors"]}
+                      flow.pop((codes[0], sessions[-4], "외국인"))
+                      v.build_features(c, price_map, series, flow)
+                      row = v.read_csv(Path(t) / "research/sector_evidence_latest.csv")[0]
+                      self.assertEqual(row["foreign_net_buy_20d_krw"], "")
+                      self.assertEqual(row["foreign_20d_coverage"], "0.8333")
+                      self.assertEqual(float(row["institution_net_buy_20d_krw"]), 12000)
+                      self.assertEqual(row["observed_disclosures_prior_5d"], "1")
+                      self.assertEqual(row["observed_news_mentions_5d"], "")
+                      self.assertEqual(row["full_sector_score"], "")
+                      c.status["datasets"]["news"] = {"status": "RSS_SNAPSHOT_ONLY"}
+                      v.csv_write(Path(t) / "catalysts/rss_snapshot.csv", [{"title": "반도체 수주", "published_at": prior}], v.RSS_FIELDS)
+                      v.build_features(c, price_map, series, flow)
+                      row = v.read_csv(Path(t) / "research/sector_evidence_latest.csv")[0]
+                      self.assertEqual(row["news_status"], "RSS_SNAPSHOT_ONLY")
+                      self.assertEqual(row["observed_news_mentions_5d"], "")
+                      self.assertEqual(row["full_sector_score"], "")
+                      self.assertEqual(row["price_flow_proxy_ready"], "False")
+                      c.status["datasets"]["dart"] = {"status": "DATE_ONLY_COMPLETE_WITH_UNMAPPED", "unmapped_rows": 3}
+                      v.build_features(c, price_map, series, flow)
+                      row = v.read_csv(Path(t) / "research/sector_evidence_latest.csv")[0]
+                      self.assertEqual(row["observed_disclosures_prior_5d"], "1")
+                      self.assertEqual(row["dart_unmapped_rows"], "3")
+                      self.assertEqual(row["dart_ticker_mapping_complete"], "False")
+                      self.assertEqual(row["full_sector_score"], "")
+          
+              def test_finalization_cannot_pass_without_features(self):
+                  with tempfile.TemporaryDirectory() as t:
+                      c = v.Collector(t, CONFIG)
+                      c.status["datasets"] = {k: {"status": "OK"} for k in ("prices", "flows", "etf_prices", "holdings", "normalization")}
+                      c.status["datasets"]["v14_replication"] = {"status": "VERIFIED"}
+                      self.assertFalse(v.finalize(c, "backfill"))
+                      self.assertEqual(c.status["overall_status"], "DATA_PENDING")
+          
+              def test_baseline_full_cli_with_fake_github_artifacts(self):
+                  with tempfile.TemporaryDirectory() as t:
+                      root = Path(t)
+                      blobs = root / "blobs"
+                      blobs.mkdir()
+                      price = "Date,Open,High,Low,Close,Volume\n2026-10-01,100,112,98,105,1000\n"
+                      trades = []
+                      bars = [bar(h=112, c=105, vol=1000)]
+                      for mode in v.VARIANTS:
+                          result = v.legacy_exit(bars, 0, 100, 95, mode)
+                          trades.append({"ticker": "005930", "model": "HMA60_PULLBACK", "variant": mode,
+                                         "signal_date": "2026-09-30", "entry_date": "2026-10-01", "entry_price": 100,
+                                         "stop": 95, "status": result["status"], "exit_date": result.get("exit_date", ""),
+                                         "exit_reason": result.get("exit_reason", ""), "days_held": result.get("days_held", ""),
+                                         "net_return_pct": result.get("net_return_pct", "")})
+                      buff = io.StringIO()
+                      writer = csv.DictWriter(buff, fieldnames=list(trades[0]))
+                      writer.writeheader()
+                      writer.writerows(trades)
+                      artifacts = []
+                      for i, name in enumerate(v.REQUIRED_ARTIFACTS, start=1):
+                          artifacts.append(artifact(name, 100, i))
+                          with zipfile.ZipFile(blobs / f"{i}.zip", "w") as z:
+                              if name == v.REPORT_NAME:
+                                  z.writestr("reports/hma_v14/v14_audit.json", json.dumps({"asof": "2026-10-01", "hold_days": 60, "cost_bps": 35}))
+                                  z.writestr("reports/hma_v14/v14_trades.csv", buff.getvalue())
+                                  z.writestr("reports/hma_v14/v14_entries.csv", "ticker\n005930\n")
+                                  z.writestr("reports/hma_v14/v14_daily_rolling_sectors.csv", "date\n2026-10-01\n")
+                              elif name == "v14-manifest":
+                                  z.writestr("manifest.csv", "ticker\n005930\n")
+                              elif name == "v14-sector-prices":
+                                  z.writestr("prices/069500.csv", price)
+                              elif name == "v14-stock-shard-0":
+                                  z.writestr("prices/005930.csv", price)
+                              else:
+                                  z.writestr("fetch_status.csv", "ticker,status\n")
+                      (root / "artifacts.json").write_text(json.dumps({"artifacts": artifacts}))
+                      fake = root / "gh"
+                      fake.write_text("#!/usr/bin/env python3\nimport sys,os,pathlib\nr=pathlib.Path(os.environ['FAKE_GH_ROOT'])\ne=sys.argv[2]\nif e.endswith('/zip'):\n i=e.split('/')[-2];sys.stdout.buffer.write((r/'blobs'/f'{i}.zip').read_bytes())\nelse:sys.stdout.write((r/'artifacts.json').read_text())\n")
+                      fake.chmod(0o755)
+                      env = {**os.environ, "PATH": str(root) + os.pathsep + os.environ.get("PATH", ""), "FAKE_GH_ROOT": str(root)}
+                      env.pop("GITHUB_STEP_SUMMARY", None)
+                      offline_config = root / "offline_config.json"
+                      offline_config.write_text(json.dumps({**CONFIG, "rss_feeds": []}), encoding="utf-8")
+                      target = root / "output"
+                      run = subprocess.run([sys.executable, str(ROOT / "scripts/collect_sector_evidence_v18.py"),
+                                            "--mode", "baseline_only", "--repo", "fixture/repo", "--v14-run-id", "100",
+                                            "--config", str(offline_config), "--outdir", str(target)], env=env, capture_output=True, text=True)
+                      self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+                      result = json.loads((target / "diagnostics/collection_status.json").read_text())
+                      self.assertEqual(result["overall_status"], "BASELINE_VERIFIED")
+                      self.assertFalse(result["orders_enabled"])
+                      self.assertEqual(v.read_csv(target / "diagnostics/v14_replication.csv")[0]["replication"], "MATCH")
+                      self.assertTrue((target / "checksums.csv").exists())
+                      # The same recovered baseline must remain available after a blocked
+                      # backfill; missing credentials must not trigger external API calls.
+                      for name in ("KRX_ID", "KRX_PW", "DART_API_KEY", "OPENDART_API_KEY", "NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"):
+                          env.pop(name, None)
+                      backfill_target = root / "backfill_output"
+                      blocked = subprocess.run([sys.executable, str(ROOT / "scripts/collect_sector_evidence_v18.py"),
+                                                "--mode", "backfill", "--repo", "fixture/repo", "--v14-run-id", "100",
+                                                "--asof", "2000-01-03", "--config", str(offline_config),
+                                                "--outdir", str(backfill_target)], env=env, capture_output=True, text=True)
+                      self.assertEqual(blocked.returncode, 2, blocked.stdout + blocked.stderr)
+                      result = json.loads((backfill_target / "diagnostics/collection_status.json").read_text())
+                      self.assertEqual(result["datasets"]["v14_replication"]["status"], "VERIFIED")
+                      self.assertEqual(result["datasets"]["krx_preflight_or_collection"]["error_code"], "MISSING_KRX_ID_OR_KRX_PW")
+                      self.assertEqual(result["datasets"]["normalization"]["status"], "DATA_PENDING")
+                      self.assertFalse(result["orders_enabled"])
+                      self.assertTrue((backfill_target / "diagnostics/dart_diagnostics.json").exists())
+                      self.assertTrue((backfill_target / "README_RESULT_KO.md").exists())
+                      self.assertEqual((target / "baseline/prices/005930.csv").read_text(), price)
+          
+          
+          if __name__ == "__main__":
+              unittest.main()
+          V18_FILE_3_EOF
+          cp -R scripts config requirements-v18.txt reports/sector_evidence_v18/runtime_source/
+      - name: Install pinned offline-test dependencies
+        run: python -m pip install --disable-pip-version-check 'pandas==2.2.3' 'numpy==2.2.6'
+      - name: Test provenance, dates, real flows and original exit behavior (offline fixtures)
+        run: python -m unittest discover -s scripts -p 'test_sector_evidence_v18.py' -v
+      - name: Check required KRX secrets before starting backfill
+        shell: bash
+        env:
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
+        run: |
+          python - <<'PY_KRX_CHECK'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from collect_sector_evidence_v18 import credential_precheck
+          config = json.loads(Path('config/sector_evidence_v18.json').read_text(encoding='utf-8'))
+          raise SystemExit(0 if credential_precheck(config, 'reports/sector_evidence_v18') else 2)
+          PY_KRX_CHECK
+      - name: Install KRX collector dependencies for backfill
+        run: python -m pip install --disable-pip-version-check -r requirements-v18.txt
+      - name: Recover v14, collect KRX evidence and public RSS snapshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASOF: ${{ inputs.asof }}
+          V14_RUN_ID: ${{ inputs.v14_run_id }}
+          PRICE_START: ${{ inputs.price_start }}
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          set -euo pipefail
+          python - <<'PY_BACKFILL_START'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          configured = {
+              'KRX_LOGIN': bool(os.environ.get('KRX_ID') and os.environ.get('KRX_PW')),
+              'DART': bool(os.environ.get('DART_API_KEY', '').strip()),
+          }
+          version = json.loads(Path('config/sector_evidence_v18.json').read_text(encoding='utf-8'))['version']
+          status = {
+              'collector_version': version,
+              'mode': 'backfill',
+              'news_provider': 'publisher_rss',
+              'news_api_keys_required': False,
+              'started_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+              'requested_asof': os.environ.get('ASOF') or 'AUTO',
+              'v14_run_id': os.environ.get('V14_RUN_ID'),
+              'secrets_configured': configured,
+              'authentication_success_verified': False,
+              'note': 'Secret presence only; values are never written. Provider login is checked by collection.',
+          }
+          dest = Path('reports/sector_evidence_v18/diagnostics/backfill_start.json')
+          dest.parent.mkdir(parents=True, exist_ok=True)
+          dest.write_text(json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
+          print('COLLECTOR_VERSION=' + version, flush=True)
+          print('COLLECTION_MODE=backfill', flush=True)
+          print('NEWS_PROVIDER=publisher_rss; API_KEYS_REQUIRED=False', flush=True)
+          print('SECRET_PRESENCE=' + json.dumps(configured), flush=True)
+          PY_BACKFILL_START
+          python scripts/collect_sector_evidence_v18.py \
+            --mode backfill --repo "$GITHUB_REPOSITORY" \
+            --v14-run-id "$V14_RUN_ID" --asof "$ASOF" --price-start "$PRICE_START" \
+            --config config/sector_evidence_v18.json \
+            --outdir reports/sector_evidence_v18
+      - name: Preserve complete raw evidence and diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sector-evidence-v18-backfill-report
+          path: reports/sector_evidence_v18/
+          retention-days: 90
+          if-no-files-found: warn
