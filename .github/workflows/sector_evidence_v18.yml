@@ -836,13 +836,19 @@ jobs:
                               timestamp = stamp()
                               normalized = []
                               for idx, r in frame.iterrows():
+                                  # KRX PDF may assign a six-digit pseudo-ticker
+                                  # (010010) to KRW cash, including negative cash
+                                  # balances. Retain it in raw CSV, not equity weights.
+                                  holding_name = str(r.get("구성종목명", r.get("종목명", ""))).strip()
+                                  if holding_name in ("원화현금", "KRW CASH", "KRW Cash"):
+                                      continue
                                   if not re.fullmatch(r"[0-9]{6}", str(idx)):
-                                      continue  # cash and derivatives remain in the raw response only.
+                                      continue  # Other non-equity identifiers remain in raw response.
                                   weight = numeric(r["비중"])
                                   if weight < 0 or weight > 100:
                                       raise EvidenceError("INVALID_HOLDING_WEIGHT")
                                   normalized.append({"sector_id": s["id"], "etf": s["etf"], "snapshot_date": d.isoformat(),
-                                                     "ticker": str(idx), "weight_pct": weight, "name": str(r.get("종목명", "")),
+                                                     "ticker": str(idx), "weight_pct": weight, "name": holding_name,
                                                      "collected_at": timestamp, "source": "KRX_ETF_PDF_dated_request",
                                                      "point_in_time_status": "PROVIDER_DATED_NOT_INDEPENDENT_VINTAGE_VERIFIED"})
                               if not normalized:
