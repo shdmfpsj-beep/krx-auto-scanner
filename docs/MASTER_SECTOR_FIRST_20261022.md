@@ -27,6 +27,9 @@ No new paid server, Kiwoom token requirement or trading order API in the baselin
 - Backtests, ATR refinements, statistical studies and new indicators are supporting tasks, never replace the top-down sector-first deliverable.
 - Free data source outages: record failure, publish CASH and diagnostics rather than recycle yesterday's TOP3 as if fresh.
 
+## What the free v18 pipeline actually implements now
+The daily *provisional research* TOP3 has been changed to a flow-first relative priority: constituent 5-day foreign+institution net buying 40%, as-of constituent reported turnover 30%, constituent advancing breadth 20%, and 5-day relative strength 10%. This research priority index is NOT the final 100-point sector score above, cannot establish turnover acceleration by itself, and does not include independently verified positive catalysts or forward earnings. The data covers dated ETF constituent proxies, not all stocks in the economic sector. Unknown constituent turnover or coverage blocks the provisional rank. The separate news/OpenDART index lists source links but never upgrades headlines to positive catalysts without validating substance. Every unverified trade gate remains CASH.
+
 ## Implementation priority
 P0. Validate and complete today's free sector evidence (membership + turnover + breadth + verified net flow + fresh catalysts).
 P1. Join sector TOP3 to constituents and financial candidates; enforce ordinary stock / non-biotech filters.
