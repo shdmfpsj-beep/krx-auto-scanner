@@ -1,7 +1,8 @@
-import sys,unittest
+import sys,unittest,io,json,urllib.error
+from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).parent))
-from kiwoom_daily_readonly import normalize,check_ok
+from kiwoom_daily_readonly import normalize,check_ok,diagnostic_codes,post
 
 class KiwoomReadOnlyTests(unittest.TestCase):
     def test_daily_normalization(self):
@@ -22,6 +23,28 @@ class KiwoomReadOnlyTests(unittest.TestCase):
     def test_business_error_rejected(self):
         with self.assertRaises(ValueError):
             check_ok({"return_code":-1,"return_msg":"sensitive error"})
+    def test_safe_embedded_error_code(self):
+        code,embedded=diagnostic_codes({"return_code":3,
+            "return_msg":"[8002: key invalid] SECRET_VALUE"})
+        self.assertEqual((code,embedded),("3","8002"))
+
+    def test_http_400_never_prints_error_body(self):
+        response=json.dumps({"return_code":3,
+            "return_msg":"[8002: Invalid Key] DONT_LOG_THIS_SECRET"}).encode()
+        error=urllib.error.HTTPError("https://api.kiwoom.com/oauth2/token",
+            400,"Bad Request",{},io.BytesIO(response))
+        with patch("kiwoom_daily_readonly.urllib.request.urlopen",side_effect=error):
+            with self.assertRaises(RuntimeError) as caught:
+                post("/oauth2/token",{"Content-Type":"application/json"},
+                     {"grant_type":"client_credentials","appkey":"PRIVATE_APP_KEY",
+                      "secretkey":"PRIVATE_APP_SECRET"})
+        msg=str(caught.exception)
+        self.assertIn("http_status=400",msg)
+        self.assertIn("embedded_code=8002",msg)
+        self.assertNotIn("DONT_LOG_THIS_SECRET",msg)
+        self.assertNotIn("PRIVATE_APP_KEY",msg)
+        self.assertNotIn("PRIVATE_APP_SECRET",msg)
+
     def test_no_missing_list_silently_accepted(self):
         with self.assertRaises(ValueError):normalize({"return_code":0},"005930")
 
