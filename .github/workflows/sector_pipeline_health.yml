@@ -1,0 +1,76 @@
+name: KRX sector pipeline daily health audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 20:40 KST weekdays, after 16:45 KRX and 18:25 sector runs.
+    - cron: '40 11 * * 1-5'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check today scan and sector evidence results
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p audit
+          python - <<'PY'
+          import json, os, subprocess
+          from datetime import datetime, timezone, timedelta
+          from pathlib import Path
+          repo=os.environ["GH_REPO"]
+          today=datetime.now(timezone(timedelta(hours=9))).date().isoformat()
+          workflows={
+              "krx_recovery_scan.yml":"krx_recovery",
+              "sector_evidence_v18_daily.yml":"sector_dispatch",
+              "sector_evidence_v18.yml":"sector_collection",
+          }
+          report={"date_kst":today,"checks":{},"pipeline_ready":False,
+                  "note":"Workflow success does not certify sector flow quality, evidence coverage, or trade approval."}
+          for wf,label in workflows.items():
+              p=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/workflows/{wf}/runs",
+                 "-f","per_page=20"],capture_output=True,text=True)
+              # gh api -f defaults to POST; use -X GET explicitly below if needed.
+              if p.returncode:
+                  p=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/workflows/{wf}/runs",
+                    "-f","per_page=20"],capture_output=True,text=True)
+              if p.returncode:
+                  report["checks"][label]={"status":"API_ERROR","message":p.stderr[:300]}
+                  continue
+              try: runs=json.loads(p.stdout)["workflow_runs"]
+              except (ValueError,KeyError):
+                  report["checks"][label]={"status":"PARSE_ERROR"}
+                  continue
+              current=[r for r in runs if r.get("created_at","")[:10]==today]
+              if not current:
+                  report["checks"][label]={"status":"NOT_RUN_TODAY"}
+                  continue
+              run=current[0]
+              report["checks"][label]={"status":run["status"],"conclusion":run.get("conclusion"),
+                "run_id":run["id"],"url":run.get("html_url")}
+          report["pipeline_ready"]=all(
+              report["checks"].get(k,{}).get("conclusion")=="success"
+              for k in workflows.values())
+          Path("audit/sector_pipeline_health.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          if not report["pipeline_ready"]:
+              print("::warning::Pipeline not fully successful; sector report must show incomplete evidence.")
+          PY
+
+      - name: Upload pipeline health evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sector-pipeline-health
+          path: audit/sector_pipeline_health.json
+          if-no-files-found: warn
+          retention-days: 30
