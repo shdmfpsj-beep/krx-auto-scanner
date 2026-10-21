@@ -49,6 +49,47 @@ class BridgeTests(unittest.TestCase):
         _,same=build(status,[],"2026-10-20")
         self.assertTrue(same["evidence_scan_dates_aligned"])
 
+    def test_sector_rank_prioritizes_real_flow_and_turnover_over_rs(self):
+        status={"asof":"2026-10-22","datasets":{k:{"status":"OK"} for k in REQUIRED}}
+        specs=[
+            ("A",12,75,100,100,10_000_000_000),  # strongest RS, weakest money
+            ("B",4,65,900,900,90_000_000_000),   # stronger money and turnover
+            ("C",3,60,800,800,80_000_000_000),
+        ]
+        rows=[]
+        for sid,rs,breadth,foreign,inst,turnover in specs:
+            rows.append(dict(date="2026-10-22",sector_id=sid,sector_name=sid,
+                price_flow_proxy_ready="true",live_selection_authorized="false",
+                stock_members="15",rs_5d_pp=str(rs),
+                breadth_up_5d_pct=str(breadth),
+                foreign_net_buy_5d_krw=str(foreign),
+                institution_net_buy_5d_krw=str(inst),
+                member_turnover_krw=str(turnover),
+                breadth_coverage="1",turnover_coverage="1",
+                foreign_5d_coverage="1",institution_5d_coverage="1"))
+        result,summary=build(status,rows,"2026-10-22")
+        self.assertEqual(summary["research_top3_sector_ids"][0],"B")
+        self.assertEqual(result[0]["sector_id"],"B")
+        self.assertGreater(result[0]["research_priority_index"],
+                           result[-1]["research_priority_index"])
+        self.assertEqual(summary["decision"],"CASH")
+        self.assertFalse(summary["research_sector_priority_is_final_score"])
+        self.assertTrue(all(r["trade_approval"]=="NO" and r["final_sector_score"]==""
+                            for r in result))
+
+    def test_missing_member_turnover_never_fakes_flow_first_sector(self):
+        status={"asof":"2026-10-22","datasets":{k:{"status":"OK"} for k in REQUIRED}}
+        row=dict(date="2026-10-22",sector_id="A",sector_name="A",
+             price_flow_proxy_ready="true",live_selection_authorized="false",
+             stock_members="10",rs_5d_pp="4",breadth_up_5d_pct="70",
+             foreign_net_buy_5d_krw="1000",institution_net_buy_5d_krw="1000",
+             breadth_coverage="1",turnover_coverage="1",
+             foreign_5d_coverage="1",institution_5d_coverage="1")
+        results,summary=build(status,[row],"2026-10-22")
+        self.assertEqual(summary["research_top3_sector_ids"],[])
+        self.assertEqual(results[0]["research_eligible"],"NO")
+        self.assertIn("TURNOVER_OR_MEMBERS_UNVERIFIED",results[0]["warnings"])
+
     def test_balanced_and_unique_watchlist(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/"market/sector_membership_dated.csv"
