@@ -64,6 +64,39 @@ def build(status,rows,scan_date):
         "final_sector_top3_verified":False,"trade_approvals":0,
         "decision":"CASH","note":"ETF-member flow proxy is not verified whole-sector capital inflow; catalyst PIT and earnings not scored."}
 
+def stock_watchlist(root,sector_ids,asof,limit=20):
+    """ETF membership watchlist only; not a fundamentals or entry ranking."""
+    path=root/"market/sector_membership_dated.csv"
+    if not path.is_file() or not asof or not sector_ids:
+        return [],"MEMBERSHIP_OR_SECTORS_UNAVAILABLE"
+    with path.open(encoding="utf-8-sig",newline="") as f:
+        rows=list(csv.DictReader(f))
+    selected=[]
+    for sector in sector_ids:
+        dated=[r for r in rows if r.get("sector_id")==sector and
+               r.get("snapshot_date","")<=asof]
+        if not dated: continue
+        latest=max(r["snapshot_date"] for r in dated)
+        for r in dated:
+            if r["snapshot_date"]!=latest: continue
+            ticker=r.get("ticker","")
+            weight=number(r,"weight_pct")
+            if not (len(ticker)==6 and ticker.isdigit() and weight is not None and 0<=weight<=100):
+                continue
+            selected.append({"sector_id":sector,"ticker":ticker,
+                             "name":r.get("name",""),"weight_pct":weight,
+                             "snapshot_date":latest,"asof":asof,
+                             "point_in_time_status":r.get("point_in_time_status",""),
+                             "fundamentals_verified":"NO","chart_entry_verified":"NO",
+                             "trade_approval":"NO"})
+    # Keep one row per ticker; prefer largest index exposure, then sector rank.
+    rank={v:i for i,v in enumerate(sector_ids)}
+    selected.sort(key=lambda r:(rank[r["sector_id"]],-r["weight_pct"],r["ticker"]))
+    unique={}
+    for row in selected:
+        unique.setdefault(row["ticker"],row)
+    return list(unique.values())[:limit],("ETF_MEMBERSHIP_RESEARCH_ONLY" if unique else "NO_DATED_MEMBERSHIP")
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--evidence",required=True)
@@ -85,6 +118,15 @@ def main():
         summary["decision"]="CASH"
         summary["reason"]="Historical baseline-only artifact lacks current sector feature rows"
     out=Path(a.out);out.mkdir(parents=True,exist_ok=True)
+    watch,watch_status=stock_watchlist(root,summary["research_top3_sector_ids"],
+                                       summary["asof"],20)
+    summary["watchlist_count"]=len(watch)
+    summary["watchlist_status"]=watch_status
+    summary["stock_top5_verified"]=False
+    with (out/"sector_stock_watchlist.csv").open("w",encoding="utf-8-sig",newline="") as f:
+        stock_fields=["sector_id","ticker","name","weight_pct","snapshot_date","asof",
+                      "point_in_time_status","fundamentals_verified","chart_entry_verified","trade_approval"]
+        w=csv.DictWriter(f,fieldnames=stock_fields);w.writeheader();w.writerows(watch)
     fields=["sector_id","sector_name","asof","rs_5d_pp","breadth_up_5d_pct",
             "foreign_net_buy_5d_krw","institution_net_buy_5d_krw",
             "research_eligible","warnings","final_sector_score","trade_approval"]
