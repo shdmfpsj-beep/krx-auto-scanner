@@ -558,11 +558,20 @@ jobs:
               codes = {}
               names = {}
               invalid_universe_codes = 0
+              invalid_shapes = set()
               for ticker in tickers:
                   try:
                       code = ticker_code(ticker)
                   except EvidenceError:
                       invalid_universe_codes += 1
+                      raw = str(ticker).strip()
+                      length = str(len(raw)) if len(raw) <= 40 else "GT40"
+                      shape = ("DIGITS" if raw.isascii() and raw.isdigit() else
+                               "ALNUM" if raw.isascii() and raw.isalnum() else "MIXED")
+                      pattern = "".join("D" if c.isascii() and c.isdigit() else
+                                        "L" if c.isascii() and c.isalpha() else "X"
+                                        for c in raw[:16])
+                      invalid_shapes.add("LEN" + length + "_" + shape + "_" + pattern)
                       continue
                   codes[code] = code
                   name = str(krx.stock.get_market_ticker_name(code)).strip()
@@ -571,7 +580,8 @@ jobs:
               # Reject incomplete universes rather than silently treating
               # unsupported codes as absent from the market.
               if invalid_universe_codes:
-                  raise EvidenceError("UNSUPPORTED_UNIVERSE_TICKER_FORMAT_COUNT_" + str(min(invalid_universe_codes, 9999)))
+                  raise EvidenceError("UNSUPPORTED_UNIVERSE_TICKER_FORMAT_COUNT_" + str(min(invalid_universe_codes, 9999)) +
+                                      "_SHAPE_" + "_".join(sorted(invalid_shapes)[:3]))
               if not codes:
                   raise EvidenceError("TICKER_UNIVERSE_EMPTY")
               resolved = []
