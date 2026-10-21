@@ -57,7 +57,18 @@ jobs:
           PY
       - name: Produce research-only sector ranking
         run: |
-          python scripts/sector_evidence_bridge.py --evidence inputs/evidence --scan-status inputs/scan/reports/status.json --out output
+          python - <<'PY'
+          import subprocess,sys
+          from pathlib import Path
+          root=Path("inputs/evidence")
+          matches=list(root.rglob("diagnostics/collection_status.json"))
+          scan=list(Path("inputs/scan").rglob("status.json"))
+          if len(matches)!=1 or len(scan)!=1:
+              raise SystemExit(f"AMBIGUOUS_OR_MISSING_INPUT evidence={len(matches)} scan={len(scan)}")
+          subprocess.run([sys.executable,"scripts/sector_evidence_bridge.py",
+                          "--evidence",str(matches[0].parent.parent),
+                          "--scan-status",str(scan[0]),"--out","output"],check=True)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
