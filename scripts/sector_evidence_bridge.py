@@ -337,7 +337,7 @@ def stock_market_metrics(root,watch,asof):
     if not watch or not asof:
         return []
     tickers={r["ticker"] for r in watch}
-    start=(date.fromisoformat(asof)-timedelta(days=110)).isoformat()
+    start=(date.fromisoformat(asof)-timedelta(days=260)).isoformat()
     bars=defaultdict(dict)
     prices=root/"market/daily_prices"
     for market in ("KOSPI","KOSDAQ"):
@@ -733,6 +733,19 @@ def main():
     summary["research_top5_tickers"]=[r["ticker"] for r in research[:5]]
     summary["research_top5_not_trade_approved"]=True
     summary["extension_warning_count"]=sum(bool(r["extension_warning"]) for r in enriched)
+    # Diagnostic funnel: explain why a stock has no staged price plan.
+    from collections import Counter
+    summary["entry_plan_status_counts"]=dict(sorted(Counter(
+        r.get("plan_status","UNKNOWN") for r in enriched).items()))
+    summary["entry_plan_setup_counts"]=dict(sorted(Counter(
+        r.get("plan_setup","") for r in enriched
+        if r.get("plan_status")=="STRUCTURE_CANDIDATE_REQUIRES_VALIDATION").items()))
+    summary["entry_plan_candidate_count"]=sum(
+        r.get("plan_status")=="STRUCTURE_CANDIDATE_REQUIRES_VALIDATION"
+        for r in enriched)
+    summary["entry_plan_candidate_tickers"]=[
+        r.get("ticker") for r in research
+        if r.get("plan_status")=="STRUCTURE_CANDIDATE_REQUIRES_VALIDATION"][:5]
     summary["entry_setup_verified_count"]=0
     summary["structure_stop_verified_count"]=0
     summary["pivot_review_candidate_count"]=sum(
