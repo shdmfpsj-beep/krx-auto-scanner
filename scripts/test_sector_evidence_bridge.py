@@ -4,9 +4,16 @@ import tempfile
 import unittest
 from pathlib import Path
 import csv
-from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics, historical_pattern_review, build, REQUIRED
+from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics, historical_pattern_review, historical_pullback_quality_review, build, REQUIRED
 
 class BridgeTests(unittest.TestCase):
+    def test_pullback_quality_requires_complete_forward_window(self):
+        bars=[(str(i),(100+i,100000,99+i,100.5+i)) for i in range(70)]
+        result=historical_pullback_quality_review(bars)
+        self.assertEqual(set(result),{"FIRST_TOUCH","REPEATED_TOUCH"})
+        self.assertEqual(sum(v["count"] for v in result.values()),0)
+        self.assertTrue(all(v["mean_mae_5d_pct"]=="" for v in result.values()))
+
     def test_prior_verified_evidence_is_research_only(self):
         status={"asof":"2026-10-20","datasets":{k:{"status":"OK"} for k in REQUIRED}}
         _,summary=build(status,[],"2026-10-21")
