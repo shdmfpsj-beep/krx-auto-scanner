@@ -9,6 +9,7 @@ on:
       - 'scripts/preignition_monthly_validation.py'
       - 'scripts/preignition_five_day_audit.py'
       - 'scripts/ten_day_holdout_research.py'
+      - 'scripts/five_day_setup_comparison.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
@@ -34,6 +35,7 @@ jobs:
             /scripts/preignition_monthly_validation.py
             /scripts/preignition_five_day_audit.py
             /scripts/ten_day_holdout_research.py
+            /scripts/five_day_setup_comparison.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify research bridge guardrails
@@ -55,6 +57,14 @@ jobs:
           assert audit(case([99]*5,[105]*5))=="NEITHER_WITHIN_5D"
           assert audit(case([99],[105]))=="INCOMPLETE_FORWARD_BARS"
           assert summarize([case([99]*5,[105]*5)])["trade_approval"]=="NO"
+          from five_day_setup_comparison import inspect,pivot_stop
+          bars=[{"date":str(i),"open":100,"high":101,"low":99,"close":100,"volume":1000}
+                for i in range(80)]
+          assert pivot_stop(bars,70) is None
+          assert inspect(bars,70) is None
+          bars[70]["close"]=103
+          bars[70]["high"]=104
+          assert inspect(bars,70)["status"]=="NO_STRUCTURAL_STOP"
           from ten_day_holdout_research import eligible,summarize as summarize_ten
           test_rows=[dict(window=str(w),ticker="000001",return_10d_pct=str(ret),
                           top10=str(hit),ma20_up="1",above_ma60="0",above_ma20="1",
