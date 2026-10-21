@@ -309,12 +309,17 @@ def plan_research_entry(series, asof):
     candidates=[]
     rejected=[]
     for setup,level,priority in setups:
+        # Only completed pivots from the most recent 20 sessions whose
+        # support has survived every subsequent closing price are eligible.
+        # Prefer the highest (closest) *validated* support, not an arbitrary
+        # tighter percentage stop. Never use an unfinished pivot at i-1/i.
         stops=[(j,low) for j,low in pivot_lows
-               if j<i and low<min(level,first)]
+               if i-20<=j<=i-3 and low<min(level,first)
+               and all(closes[k]>=low for k in range(j+1,i+1))]
         if not stops:
-            rejected.append(("NO_COMPLETED_STOP_PIVOT",setup,level,None,None,None))
+            rejected.append(("NO_RECENT_HELD_PIVOT",setup,level,None,None,None))
             continue
-        _,stop=max(stops,key=lambda x:x[0])
+        _,stop=max(stops,key=lambda x:(x[1],x[0]))
         risk=100*(first-stop)/first
         if not 2<=risk<=12 or level<=stop or level>first:
             reason=("STOP_TOO_CLOSE" if risk<2 else
