@@ -25,6 +25,8 @@ on:
       - 'scripts/test_batch_staged_entry_comparison.py'
       - 'scripts/staged_entry_comparison.py'
       - 'scripts/test_staged_entry_comparison.py'
+      - 'scripts/staged_robustness.py'
+      - 'scripts/test_staged_robustness.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
@@ -66,6 +68,8 @@ jobs:
             /scripts/test_batch_staged_entry_comparison.py
             /scripts/staged_entry_comparison.py
             /scripts/test_staged_entry_comparison.py
+            /scripts/staged_robustness.py
+            /scripts/test_staged_robustness.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify research bridge guardrails
@@ -78,6 +82,7 @@ jobs:
           python scripts/test_staged_entry_research.py
           python scripts/test_batch_staged_entry_comparison.py
           python scripts/test_staged_entry_comparison.py
+          python scripts/test_staged_robustness.py
           python - <<'PY'
           import sys
           sys.path.insert(0,"scripts")
@@ -231,6 +236,9 @@ jobs:
                           "--evidence",str(matches[0].parent.parent),
                           "--watchlist",str(watch),"--asof",asof,"--out","output"],check=True)
           PY
+      - name: Evaluate paired-entry robustness by month and second fill
+        run: |
+          python scripts/staged_robustness.py --paired output/staged_entry_paired.csv --out output/staged_robustness.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
