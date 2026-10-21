@@ -109,10 +109,6 @@ jobs:
                           "--evidence",str(matches[0].parent.parent),
                           "--scan-status",str(scan[0]),"--out","output"],check=True)
           PY
-      - name: Publish simple sector TOP3 to stock TOP5 mobile report
-        if: always()
-        run: python scripts/sector_first_daily.py --input output --out output
-
       - name: Render mobile report (CASH on missing or stale evidence)
         if: always()
         run: python scripts/sector_first_daily.py --input output --out output
