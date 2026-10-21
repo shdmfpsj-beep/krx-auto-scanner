@@ -267,7 +267,8 @@ def plan_research_entry(series, asof):
            "plan_first_entry":"","plan_second_entry":"","plan_stop_reference":"",
            "plan_first_weight_pct":60,"plan_second_weight_pct":40,
            "plan_risk_pct":"","plan_resistance":"","plan_reward_risk":"",
-           "plan_trade_approval":"NO"}
+           "plan_trade_approval":"NO","plan_rejection_reason":"",
+           "plan_setup_observed_count":0}
     if len(series)<60 or not asof or series[-1][0]!=asof or any(
             v[2] is None or v[3] is None for _,v in series):
         return {**blank,"plan_status":"INSUFFICIENT_ASOF_OHLC"}
@@ -303,31 +304,52 @@ def plan_research_entry(series, asof):
             and .98*ma20<=lows[i]<=1.02*ma20):
         setups.append(("RISING_SMA20_PULLBACK",ma20,1))
     if not setups:
-        return {**blank,"plan_status":"WAIT_FOR_RECLAIM_OR_PULLBACK"}
+        return {**blank,"plan_status":"WAIT_FOR_RECLAIM_OR_PULLBACK",
+                "plan_rejection_reason":"NO_TRIGGER_ON_ASOF"}
     candidates=[]
+    rejected=[]
     for setup,level,priority in setups:
         stops=[(j,low) for j,low in pivot_lows
                if j<i and low<min(level,first)]
         if not stops:
+            rejected.append(("NO_COMPLETED_STOP_PIVOT",setup,level,None,None,None))
             continue
         _,stop=max(stops,key=lambda x:x[0])
         risk=100*(first-stop)/first
         if not 2<=risk<=12 or level<=stop or level>first:
+            reason=("STOP_TOO_CLOSE" if risk<2 else
+                    "STOP_TOO_FAR" if risk>12 else "INVALID_SUPPORT_LEVEL")
+            rejected.append((reason,setup,level,stop,risk,None))
             continue
         # Known prior resistance is only a research reference.
         resistance=max(highs[max(0,i-60):i])
         rr=(resistance-first)/(first-stop)
         if rr<1.5:
+            rejected.append(("INSUFFICIENT_RR",setup,level,stop,risk,rr))
             continue
         candidates.append((rr,priority,setup,level,stop,risk,resistance))
     if not candidates:
-        return {**blank,"plan_status":"SETUP_FOUND_BUT_RISK_OR_RR_REJECTED"}
+        # Keep the observed research reference even when a gate rejects it.
+        # No rejected plan is a live order or validated entry.
+        if rejected:
+            reason,setup,level,stop,risk,rr=rejected[0]
+            return {**blank,"plan_status":"SETUP_FOUND_BUT_RISK_OR_RR_REJECTED",
+                    "plan_setup":setup,"plan_first_entry":first,
+                    "plan_second_entry":round(level,2),
+                    "plan_stop_reference":stop if stop is not None else "",
+                    "plan_risk_pct":round(risk,3) if risk is not None else "",
+                    "plan_reward_risk":round(rr,3) if rr is not None else "",
+                    "plan_rejection_reason":reason,
+                    "plan_setup_observed_count":len(setups)}
+        return {**blank,"plan_status":"SETUP_FOUND_BUT_RISK_OR_RR_REJECTED",
+                "plan_setup_observed_count":len(setups)}
     rr,_,setup,level,stop,risk,resistance=max(candidates)
     return {**blank,"plan_status":"STRUCTURE_CANDIDATE_REQUIRES_VALIDATION",
             "plan_setup":setup,"plan_first_entry":first,
             "plan_second_entry":round(level,2),
             "plan_stop_reference":stop,"plan_risk_pct":round(risk,3),
-            "plan_resistance":resistance,"plan_reward_risk":round(rr,3)}
+            "plan_resistance":resistance,"plan_reward_risk":round(rr,3),
+            "plan_setup_observed_count":len(setups)}
 
 
 def stock_market_metrics(root,watch,asof):
@@ -740,6 +762,9 @@ def main():
     summary["entry_plan_setup_counts"]=dict(sorted(Counter(
         r.get("plan_setup","") for r in enriched
         if r.get("plan_status")=="STRUCTURE_CANDIDATE_REQUIRES_VALIDATION").items()))
+    summary["entry_plan_rejection_counts"]=dict(sorted(Counter(
+        r.get("plan_rejection_reason") for r in enriched
+        if r.get("plan_rejection_reason")).items()))
     summary["entry_plan_candidate_count"]=sum(
         r.get("plan_status")=="STRUCTURE_CANDIDATE_REQUIRES_VALIDATION"
         for r in enriched)
@@ -838,7 +863,8 @@ def main():
                                      "plan_stop_reference","plan_first_weight_pct",
                                      "plan_second_weight_pct","plan_risk_pct",
                                      "plan_resistance","plan_reward_risk",
-                                     "plan_trade_approval",
+                                     "plan_trade_approval","plan_rejection_reason",
+                                     "plan_setup_observed_count",
                                      "historical_pattern_trade_verified",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
