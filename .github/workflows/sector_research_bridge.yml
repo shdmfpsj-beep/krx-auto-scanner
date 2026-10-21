@@ -8,6 +8,7 @@ on:
       - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/preignition_monthly_validation.py'
       - 'scripts/preignition_five_day_audit.py'
+      - 'scripts/ten_day_holdout_research.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
@@ -53,6 +54,18 @@ jobs:
           assert audit(case([99]*5,[105]*5))=="NEITHER_WITHIN_5D"
           assert audit(case([99],[105]))=="INCOMPLETE_FORWARD_BARS"
           assert summarize([case([99]*5,[105]*5)])["trade_approval"]=="NO"
+          from ten_day_holdout_research import eligible,summarize as summarize_ten
+          test_rows=[dict(window=str(w),ticker="000001",return_10d_pct=str(ret),
+                          top10=str(hit),ma20_up="1",above_ma60="0",above_ma20="1",
+                          prior5_pct="0",volume5_20=str(vol))
+                     for w,ret,hit,vol in [(1,10,True,1.5),(1,-5,False,.8),
+                                           (13,-3,False,1.5),(13,2,False,.7)]]
+          assert eligible(test_rows[0]) and not eligible(test_rows[1])
+          audited=summarize_ten(test_rows)
+          assert [(x["scope"],x["rule"],x["n"]) for x in audited]==[
+              ("TRAIN","ALL",2),("TRAIN","MA20_UP_VOLUME_1_2_TO_3",1),
+              ("HOLDOUT","ALL",2),("HOLDOUT","MA20_UP_VOLUME_1_2_TO_3",1)]
+          assert all(x["trade_approval"]=="NO" for x in audited)
           from preignition_monthly_validation import compute
           rows=[dict(month=m,top=t,ma20_up="1",above_ma60="1",
                      above_ma20="1",near_high="0",pre5="-2",vol_ratio="0.9")
