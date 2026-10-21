@@ -183,6 +183,20 @@ def stock_market_metrics(root,watch,asof):
             extension.append("FIVE_DAY_RALLY_GE_10PCT")
         if distance is not None and distance>=15:
             extension.append("DISTANCE_ABOVE_SMA20_GE_15PCT")
+        # Closing-price pivots are preliminary structure observations only.
+        # Require at least 30 daily observations and an as-of latest bar.
+        pivot_lows=[]
+        if len(series)>=30 and series[-1][0]==asof:
+            closes=[v[0] for _,v in series]
+            for i in range(2,len(closes)-2):
+                if (closes[i]<min(closes[i-2:i]) and
+                    closes[i]<=min(closes[i+1:i+3])):
+                    pivot_lows.append((series[i][0],closes[i]))
+        supports=[p for p in pivot_lows if last is not None and p[1]<last]
+        support_date,support_price=supports[-1] if supports else ("",None)
+        risk_pct=100*(last-support_price)/last if last and support_price else None
+        # No stop price is authorized: intraday lows, retests and invalidation
+        # of the setup are not validated by this close-only pivot.
         result=dict(row)
         result.update({"close":last if last is not None else "",
                        "return_5d_pct":round(change,3) if change is not None else "",
@@ -196,6 +210,10 @@ def stock_market_metrics(root,watch,asof):
                        "extension_warning":";".join(extension),
                        "entry_setup_verified":"NO",
                        "structure_stop_verified":"NO",
+                       "preliminary_pivot_low_date":support_date,
+                       "preliminary_pivot_close":support_price if support_price is not None else "",
+                       "preliminary_pivot_distance_pct":round(risk_pct,2) if risk_pct is not None else "",
+                       "pivot_is_stop_price":"NO",
                        "data_warnings":";".join(reasons),
                        "trade_approval":"NO"})
         results.append(result)
@@ -291,6 +309,8 @@ def main():
     research_fields=metrics_fields+["distance_sma20_pct","recent_close_high_20d",
                                      "extension_warning","entry_setup_verified",
                                      "structure_stop_verified","entry_review_status",
+                                     "preliminary_pivot_low_date","preliminary_pivot_close",
+                                     "preliminary_pivot_distance_pct","pivot_is_stop_price",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
     with (out/"sector_stock_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
