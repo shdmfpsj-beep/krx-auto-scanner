@@ -53,8 +53,11 @@ class SectorFirstTests(unittest.TestCase):
         sectors[1]["sector_name"]="바이오"
         stocks[0]["name"]="제약 성장주"
         o=build(s,sectors,stocks,D)
-        self.assertEqual(o["sector_top3"],[])
-        self.assertEqual(o["stock_research_top5"],[])
+        self.assertEqual(len(o["sector_top3"]),2)
+        self.assertEqual({r["sector_id"] for r in o["sector_top3"]},{"SEMIS","SHIP"})
+        self.assertNotIn("000001",[r["ticker"] for r in o["stock_research_top5"]])
+        self.assertNotIn("000002",[r["ticker"] for r in o["stock_research_top5"]])
+        self.assertIn("LESS_THAN_3_PROVISIONAL_SECTORS",o["blockers"])
     def test_unverified_or_invalid_ohlcv_levels_are_blank(self):
         r=dict(plan_status="STRUCTURE_CANDIDATE_REQUIRES_VALIDATION",
                plan_first_entry="100",plan_second_entry="102",
