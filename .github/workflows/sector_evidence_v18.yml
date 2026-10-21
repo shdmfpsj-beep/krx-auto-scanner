@@ -557,12 +557,21 @@ jobs:
               tickers = krx.call_ticker_list(day.strftime("%Y%m%d"), market)
               codes = {}
               names = {}
+              invalid_universe_codes = 0
               for ticker in tickers:
-                  code = ticker_code(ticker)
+                  try:
+                      code = ticker_code(ticker)
+                  except EvidenceError:
+                      invalid_universe_codes += 1
+                      continue
                   codes[code] = code
                   name = str(krx.stock.get_market_ticker_name(code)).strip()
                   if name:
                       names.setdefault(name, set()).add(code)
+              # Reject incomplete universes rather than silently treating
+              # unsupported codes as absent from the market.
+              if invalid_universe_codes:
+                  raise EvidenceError("UNSUPPORTED_UNIVERSE_TICKER_FORMAT_COUNT_" + str(min(invalid_universe_codes, 9999)))
               if not codes:
                   raise EvidenceError("TICKER_UNIVERSE_EMPTY")
               resolved = []
