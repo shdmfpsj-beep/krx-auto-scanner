@@ -134,8 +134,13 @@ def stock_market_metrics(root,watch,asof):
                     if t in tickers:
                         close=number(r,"Close")
                         turnover=number(r,"TurnoverKRW")
+                        low=number(r,"Low")
+                        high=number(r,"High")
+                        valid_ohlc=(low is not None and high is not None and
+                                    0<low<=close<=high)
                         if close is not None and close>0 and turnover is not None and turnover>=0:
-                            bars[t][r["Date"]]=(close,turnover)
+                            bars[t][r["Date"]]=(close,turnover,low if valid_ohlc else None,
+                                                 high if valid_ohlc else None)
     flows=defaultdict(lambda:defaultdict(float))
     flow_days=set()
     for market in ("KOSPI","KOSDAQ"):
@@ -183,6 +188,21 @@ def stock_market_metrics(root,watch,asof):
             extension.append("FIVE_DAY_RALLY_GE_10PCT")
         if distance is not None and distance>=15:
             extension.append("DISTANCE_ABOVE_SMA20_GE_15PCT")
+        # Daily OHLC lows permit a second independent observation of support.
+        # Missing high/low must not be backfilled with closing prices.
+        # Intraday lows alone still do not establish a validated stop.
+        low_series=sorted((d,v[2]) for d,v in bars[t].items()
+                          if len(v)>2 and v[2] is not None)
+        low_pivots=[]
+        if len(low_series)>=30 and low_series[-1][0]==asof:
+            for i in range(2,len(low_series)-2):
+                v=low_series[i][1]
+                if v<min(x[1] for x in low_series[i-2:i]) and v<=min(
+                        x[1] for x in low_series[i+1:i+3]):
+                    low_pivots.append((low_series[i][0],v))
+        valid_low_pivots=[p for p in low_pivots if last and p[1]<last]
+        low_pivot_date,low_pivot_price=(valid_low_pivots[-1]
+                                       if valid_low_pivots else ("",None))
         # Closing-price pivots are preliminary structure observations only.
         # Require at least 30 daily observations and an as-of latest bar.
         pivot_lows=[]
@@ -225,6 +245,10 @@ def stock_market_metrics(root,watch,asof):
                        "preliminary_pivot_distance_pct":round(risk_pct,2) if risk_pct is not None else "",
                        "pivot_is_stop_price":"NO",
                        "pivot_review_status":pivot_review,
+                       "preliminary_ohlc_pivot_low_date":low_pivot_date,
+                       "preliminary_ohlc_pivot_low":low_pivot_price if low_pivot_price is not None else "",
+                       "ohlc_low_history_complete":"YES" if len(low_series)>=30 and low_series[-1][0]==asof else "NO",
+                       "ohlc_pivot_is_stop_price":"NO",
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
                        "trade_approval":"NO"})
@@ -322,12 +346,18 @@ def main():
         r.get("pivot_review_status")=="PIVOT_REQUIRES_LOW_AND_RETEST_VALIDATION"
         for r in enriched)
     summary["entry_risk_reward_verified_count"]=0
+    summary["ohlc_history_complete_count"]=sum(
+        r.get("ohlc_low_history_complete")=="YES" for r in enriched)
+    summary["ohlc_pivot_observed_count"]=sum(
+        r.get("preliminary_ohlc_pivot_low")!="" for r in enriched)
     research_fields=metrics_fields+["distance_sma20_pct","recent_close_high_20d",
                                      "extension_warning","entry_setup_verified",
                                      "structure_stop_verified","entry_review_status",
                                      "preliminary_pivot_low_date","preliminary_pivot_close",
                                      "preliminary_pivot_distance_pct","pivot_is_stop_price",
                                      "pivot_review_status","entry_risk_reward_verified",
+                                     "preliminary_ohlc_pivot_low_date","preliminary_ohlc_pivot_low",
+                                     "ohlc_low_history_complete","ohlc_pivot_is_stop_price",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
     with (out/"sector_stock_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
