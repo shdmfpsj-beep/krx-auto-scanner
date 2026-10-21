@@ -89,13 +89,29 @@ def stock_watchlist(root,sector_ids,asof,limit=20):
                              "point_in_time_status":r.get("point_in_time_status",""),
                              "fundamentals_verified":"NO","chart_entry_verified":"NO",
                              "trade_approval":"NO"})
-    # Keep one row per ticker; prefer largest index exposure, then sector rank.
-    rank={v:i for i,v in enumerate(sector_ids)}
-    selected.sort(key=lambda r:(rank[r["sector_id"]],-r["weight_pct"],r["ticker"]))
-    unique={}
-    for row in selected:
-        unique.setdefault(row["ticker"],row)
-    return list(unique.values())[:limit],("ETF_MEMBERSHIP_RESEARCH_ONLY" if unique else "NO_DATED_MEMBERSHIP")
+    # Fair round-robin by sector; exposure is an ordering proxy, NOT alpha.
+    # Deduplicate across ETFs, and redistribute unused slots if a sector
+    # has fewer eligible members. Never fabricate an empty sector's picks.
+    pools={}
+    for sector in sector_ids:
+        pool=[r for r in selected if r["sector_id"]==sector]
+        pools[sector]=sorted(pool,key=lambda r:(-r["weight_pct"],r["ticker"]))
+    chosen=[]
+    seen=set()
+    while len(chosen)<limit:
+        progressed=False
+        for sector in sector_ids:
+            pool=pools[sector]
+            while pool and pool[0]["ticker"] in seen:
+                pool.pop(0)
+            if pool and len(chosen)<limit:
+                row=pool.pop(0)
+                chosen.append(row)
+                seen.add(row["ticker"])
+                progressed=True
+        if not progressed:
+            break
+    return chosen,("ETF_MEMBERSHIP_BALANCED_RESEARCH_ONLY" if chosen else "NO_DATED_MEMBERSHIP")
 
 def main():
     p=argparse.ArgumentParser()
