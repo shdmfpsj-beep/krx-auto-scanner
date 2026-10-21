@@ -11,6 +11,8 @@ on:
       - 'scripts/ten_day_holdout_research.py'
       - 'scripts/five_day_setup_comparison.py'
       - 'scripts/batch_five_day_setup_audit.py'
+      - 'scripts/kiwoom_daily_readonly.py'
+      - 'scripts/test_kiwoom_daily_readonly.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
@@ -38,11 +40,14 @@ jobs:
             /scripts/ten_day_holdout_research.py
             /scripts/five_day_setup_comparison.py
             /scripts/batch_five_day_setup_audit.py
+            /scripts/kiwoom_daily_readonly.py
+            /scripts/test_kiwoom_daily_readonly.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify research bridge guardrails
         run: |
           python scripts/test_sector_evidence_bridge.py
+          python scripts/test_kiwoom_daily_readonly.py
           python - <<'PY'
           import sys
           sys.path.insert(0,"scripts")
