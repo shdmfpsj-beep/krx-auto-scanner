@@ -36,8 +36,12 @@ def build(status,rows,scan_date):
         breadth=number(r,"breadth_up_5d_pct")
         flow=number(r,"foreign_net_buy_5d_krw")
         inst=number(r,"institution_net_buy_5d_krw")
+        member_turnover=number(r,"member_turnover_krw")
+        member_count=number(r,"stock_members")
         if any(v is None for v in (rs,breadth,flow,inst)):
             reasons.append("RESEARCH_METRIC_MISSING")
+        if member_turnover is None or member_turnover<=0 or member_count is None or member_count<3:
+            reasons.append("TURNOVER_OR_MEMBERS_UNVERIFIED")
         coverage_keys=("breadth_coverage","turnover_coverage",
                        "foreign_5d_coverage","institution_5d_coverage")
         coverages=[number(r,k) for k in coverage_keys]
@@ -55,11 +59,37 @@ def build(status,rows,scan_date):
                        "breadth_up_5d_pct":"" if breadth is None else breadth,
                        "foreign_net_buy_5d_krw":"" if flow is None else flow,
                        "institution_net_buy_5d_krw":"" if inst is None else inst,
+                       "member_turnover_krw":"" if member_turnover is None else member_turnover,
+                       "stock_members":"" if member_count is None else member_count,
+                       "research_net_flow_5d_krw":"" if flow is None or inst is None else flow+inst,
+                       "research_priority_index":"",
                        "research_eligible":"YES" if not reasons else "NO",
                        "warnings":";".join(reasons),
                        "final_sector_score":"","trade_approval":"NO"})
     eligible=[r for r in result if r["research_eligible"]=="YES"]
-    eligible.sort(key=lambda r:(-(r["rs_5d_pp"]),-(r["breadth_up_5d_pct"]),r["sector_id"]))
+    # Relative only: rank confirmed ETF constituent data by the user's main
+    # interest (money and turnover), then breadth and sector outperformance.
+    # 40% investor net buy proxy, 30% member turnover, 20% advancing breadth,
+    # 10% RS. This is NOT a verified final 100-point sector score.
+    metrics=(("research_net_flow_5d_krw",0.40),
+             ("member_turnover_krw",0.30),
+             ("breadth_up_5d_pct",0.20),
+             ("rs_5d_pp",0.10))
+    n=len(eligible)
+    if n:
+        rank_maps={}
+        for key,_ in metrics:
+            rank_maps[key]={r["sector_id"]:i for i,r in enumerate(
+                sorted(eligible,key=lambda x:(-x[key],x["sector_id"])))}
+        for row in eligible:
+            if n==1:
+                row["research_priority_index"]=100.0
+            else:
+                loss=sum(weight*rank_maps[key][row["sector_id"]]/(n-1)
+                         for key,weight in metrics)
+                row["research_priority_index"]=round(100*(1-loss),2)
+    eligible.sort(key=lambda r:(-r["research_priority_index"],
+               -r["research_net_flow_5d_krw"],-r["member_turnover_krw"],r["sector_id"]))
     return eligible+[r for r in result if r["research_eligible"]!="YES"],{
         "asof":asof,"scan_date":scan_date,"core_data_verified":valid,
         "evidence_scan_dates_aligned":bool(asof and asof==scan_date),
@@ -67,6 +97,8 @@ def build(status,rows,scan_date):
         "data_date_gate":"PRIOR_VERIFIED_RESEARCH_ONLY" if scan_lagged else
                          ("ALIGNED" if valid else "INVALID"),
         "research_eligible_sectors":len(eligible),
+        "research_sector_priority_formula":"RELATIVE_PROXY_INDEX_40_FLOW_30_TURNOVER_20_BREADTH_10_RS",
+        "research_sector_priority_is_final_score":False,
         "research_top3_sector_ids":[r["sector_id"] for r in eligible[:3]],
         "research_top3_not_trade_approved":True,
         "final_sector_top3_verified":False,"trade_approvals":0,
@@ -880,7 +912,9 @@ def main():
         w.writeheader();w.writerows(research)
     fields=["sector_id","sector_name","asof","rs_5d_pp","breadth_up_5d_pct",
             "foreign_net_buy_5d_krw","institution_net_buy_5d_krw",
-            "research_eligible","warnings","final_sector_score","trade_approval"]
+            "research_net_flow_5d_krw","member_turnover_krw","stock_members",
+            "research_priority_index","research_eligible","warnings",
+            "final_sector_score","trade_approval"]
     with (out/"sector_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
         w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(ranked)
     (out/"sector_bridge_status.json").write_text(json.dumps(summary,ensure_ascii=False,indent=2))
