@@ -1,0 +1,52 @@
+name: C3 K100 free global industry morning discovery
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Mon-Fri 08:05 KST = Sunday-Thursday 23:05 UTC
+    - cron: '5 23 * * 0-4'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: global-sector-morning-discovery
+  cancel-in-progress: false
+
+jobs:
+  global-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout only free global discovery code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/global_sector_news.py
+            /scripts/test_global_sector_news.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check timestamp, origin and no-trade safety
+        run: |
+          python -m py_compile scripts/global_sector_news.py scripts/test_global_sector_news.py
+          python -m unittest discover -s scripts -p 'test_global_sector_news.py' -v
+
+      - name: Discover global news before Korean market opens
+        run: python scripts/global_sector_news.py --out output
+
+      - name: Save world news evidence for 08:35 preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: global-sector-morning
+          path: |
+            output/global_sector_articles.csv
+            output/global_sector_news_status.json
+          if-no-files-found: warn
+          retention-days: 7
