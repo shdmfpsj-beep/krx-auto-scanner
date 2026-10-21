@@ -85,6 +85,8 @@ def build(summary, sector_rows, stock_rows, today):
         sectors.append(dict(rank=len(sectors)+1,sector_id=str(ident),
              name=safe_markdown(r.get("sector_name") or ident),
              rs_5d_pp=rs,breadth_up_5d_pct=breadth,
+             member_turnover_krw=numeric(r.get("member_turnover_krw")),
+             research_priority_index=numeric(r.get("research_priority_index")),
              foreign_net_5d_krw=foreign,institution_net_5d_krw=institution,
              flow_proxy_5d_krw=(foreign+institution if foreign is not None and institution is not None else None),
              catalyst="NOT_VERIFIED",fundamentals="NOT_VERIFIED",
@@ -135,21 +137,27 @@ def build(summary, sector_rows, stock_rows, today):
         "Fresh positive news/disclosures with source links and event dates",
         "Stock earnings/growth verification and valid daily structural entry levels"])
 
+def hundred_million(value):
+    return str(round(value/100000000,1)) if value is not None else "미확인"
+
 def render(report):
     lines=["# C3 · K100 오늘의 주도 섹터 / 종목","",
            "**신규매수: CASH** (최종 종목 점수·호재·실행 타점 미검증)","",
            f"섹터 데이터 기준일: {show(report['asof'])} / 보고일: {report['report_date']}",
            f"섹터 상태: {report['status']}","",
            "## ① 주도 섹터 TOP3 (검증된 순위가 아닌 잠정 연구 후보)","",
-           "| 순위 | 섹터 | 5일 상대강도 | 상승 확산 | 외국인+기관 순매수* | 호재 |",
-           "|---|---|---:|---:|---:|---|"]
+           "| 순위 | 섹터 | 구성종목 거래대금(억)* | 5일 순매수(억)* | 상승 확산(%) | 연구 순위지수† |",
+           "|---|---|---:|---:|---:|---:|"]
     for r in report["sector_top3"]:
-        lines.append(f"| {r['rank']} | {r['name']} | {show(r['rs_5d_pp'])} | "
-                     f"{show(r['breadth_up_5d_pct'])} | {show(r['flow_proxy_5d_krw'])} | 미검증 |")
+        lines.append(f"| {r['rank']} | {r['name']} | {hundred_million(r['member_turnover_krw'])} | "
+                     f"{hundred_million(r['flow_proxy_5d_krw'])} | {show(r['breadth_up_5d_pct'])} | "
+                     f"{show(r['research_priority_index'])} |")
     if not report["sector_top3"]:
         lines.append("| — | 오늘 확정할 섹터 없음 | — | — | — | — |")
-    lines += ["","*외국인+기관 순매수는 v18 구성 종목 근거의 연구용 대리값이며,"
-              " 전체 섹터의 검증된 자금 유입으로 표시하지 않습니다.","",
+    lines += ["","*거래대금은 v18 ETF 구성종목 합계, 순매수는 해당 구성종목 5일 합계 대리값입니다."
+              " 전체 산업 섹터의 검증된 자금 유입이나 거래대금 증가율을 의미하지 않습니다.",
+              "†연구 순위지수는 40% 순매수·30% 거래대금·20% 상승 확산·10% 상대강도 기반의"
+              " 동기간 상대순위입니다. 호재와 실적은 미검증이므로 최종 섹터 점수가 아닙니다.","",
               "## ② 해당 섹터 내부 종목 TOP5 (매수 승인 아님)","",
               "| 종목 | 섹터 | 상대 연구지수† | 1차 참고 | 2차 참고 | 일봉손절 참고 |",
               "|---|---|---:|---:|---:|---:|"]
