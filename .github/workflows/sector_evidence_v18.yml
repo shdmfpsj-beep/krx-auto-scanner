@@ -554,6 +554,22 @@ jobs:
                   # Missing provider turnover stays blank. Close*volume is NOT actual trading value.
                   row["TurnoverKRW"] = numeric(r["거래대금"]) if "거래대금" in frame.columns else ""
                   if dated:
+                      # Prefer a verified explicit code column when the provider indexes by name.
+                      # Never infer a ticker from a company name or silently drop unmatched rows.
+                      code_columns = ("종목코드", "단축코드", "ticker", "Ticker", "Code")
+                      present = [key for key in code_columns if key in frame.columns]
+                      if present:
+                          candidates = []
+                          for key in present:
+                              try:
+                                  candidates.append(ticker_code(r[key]))
+                              except EvidenceError:
+                                  raise EvidenceError("INVALID_EXPLICIT_TICKER_COLUMN") from None
+                          if len(set(candidates)) != 1:
+                              raise EvidenceError("CONFLICTING_EXPLICIT_TICKER_COLUMNS")
+                          row["ticker"] = candidates[0]
+                          result.append(row)
+                          continue
                       try:
                           row["ticker"] = ticker_code(idx)
                       except EvidenceError as exc:
@@ -571,8 +587,17 @@ jobs:
                           length = str(len(raw)) if len(raw) <= 40 else "GT40"
                           index_names = getattr(frame.index, "names", None)
                           named = "NAMED" if index_names and any(x is not None for x in index_names) else "UNNAMED"
+                          # Include only schema labels and safe character-class metadata.
+                          # No raw ticker, stock name, endpoint, or credentials are emitted.
+                          index_label = str(frame.index.name or "")
+                          label_class = ("CODE" if index_label in ("종목코드", "단축코드", "ticker", "Ticker", "Code") else
+                                         "NAME" if index_label in ("종목명", "회사명", "Name") else "OTHER")
+                          column_class = ("CODECOL" if any(k in frame.columns for k in code_columns) else "NOCODECOL")
+                          char_class = ("HANGUL" if any("\\uac00" <= c <= "\\ud7a3" for c in raw) else
+                                        "LATIN" if any(c.isascii() and c.isalpha() for c in raw) else "OTHER")
                           raise EvidenceError("INVALID_TICKER_INDEX_" + kind + "_" + shape +
-                                              "_LEN" + length + "_" + named) from None
+                                              "_LEN" + length + "_" + named + "_" +
+                                              label_class + "_" + column_class + "_" + char_class) from None
                   result.append(row)
               return result
           
