@@ -1,4 +1,4 @@
-import json, os, time, traceback
+import csv, json, os, time, traceback
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -215,6 +215,7 @@ def main():
         raise RuntimeError('Unable to retrieve KOSPI/KOSDAQ universe')
 
     valid_rows = []
+    candidate_daily_bars = []
     latest_dates = Counter()
 
     for code in codes:
@@ -263,6 +264,15 @@ def main():
                     data_source=source
                 )
                 valid_rows.append(rec)
+                # Reuse completed OHLCV already downloaded during full scan.
+                # This avoids a second round of API requests for stop research.
+                for bar_date, bar in df.tail(120).iterrows():
+                    candidate_daily_bars.append({
+                        'ticker': code, 'date': pd.Timestamp(bar_date).date().isoformat(),
+                        'open': float(bar['시가']), 'high': float(bar['고가']),
+                        'low': float(bar['저가']), 'close': float(bar['종가']),
+                        'volume': float(bar['거래량']), 'data_source': source,
+                    })
 
         except Exception as e:
             status['failed'] += 1
@@ -327,8 +337,22 @@ def main():
             index=False,
             encoding='utf-8-sig'
         )
+        allowed_codes = {rec['ticker'] for rec in rows}
+        with (OUT / 'candidate_daily_history_v52.csv').open(
+            'w', encoding='utf-8-sig', newline=''
+        ) as history_output:
+            history_writer = csv.DictWriter(history_output, fieldnames=(
+                'ticker', 'date', 'open', 'high', 'low', 'close',
+                'volume', 'data_source'
+            ))
+            history_writer.writeheader()
+            history_writer.writerows(
+                bar for bar in candidate_daily_bars
+                if bar['ticker'] in allowed_codes
+            )
     else:
         (OUT / 'candidates.csv').unlink(missing_ok=True)
+        (OUT / 'candidate_daily_history_v52.csv').unlink(missing_ok=True)
 
     save_status()
     print(json.dumps(status, ensure_ascii=False))
