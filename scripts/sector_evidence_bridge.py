@@ -214,6 +214,36 @@ def stock_market_metrics(root,watch,asof):
                 low_pivot_review=("CLOSE_BROKE_PIVOT_LOW" if
                                   post_pivot_min_close<low_pivot_price else
                                   "PIVOT_HELD_ON_SUBSEQUENT_CLOSES")
+        # Candidate breakout/retest sequence using only as-of OHLC data.
+        # Breakout: close > highest high of preceding 20 sessions.
+        # Retest: subsequent day's low touches +/-2% of breakout level
+        # and close finishes at or above that level. Observation only.
+        breakout_date=""
+        breakout_level=""
+        retest_date=""
+        retest_low=""
+        breakout_review="NO_OBSERVED_20D_BREAKOUT"
+        if len(series)>=30 and series[-1][0]==asof and all(
+                v[2] is not None and v[3] is not None for _,v in series):
+            candidates=[]
+            for i in range(20,len(series)-1):
+                prior_high=max(v[3] for _,v in series[i-20:i])
+                if series[i][1][0]>prior_high:
+                    candidates.append((i,prior_high))
+            if candidates:
+                i,level=candidates[-1]
+                breakout_date=series[i][0]
+                breakout_level=level
+                breakout_review="BREAKOUT_NO_RETEST_OBSERVED"
+                for d,v in series[i+1:]:
+                    if .98*level<=v[2]<=1.02*level and v[0]>=level:
+                        retest_date=d
+                        retest_low=v[2]
+                        breakout_review="RETEST_CLOSE_HOLD_OBSERVED"
+                        break
+                if not retest_date and any(v[0]<level for _,v in series[i+1:]):
+                    breakout_review="BREAKOUT_LEVEL_LOST_ON_CLOSE"
+        # This pattern is not yet a verified executable entry setup.
         # Closing-price pivots are preliminary structure observations only.
         # Require at least 30 daily observations and an as-of latest bar.
         pivot_lows=[]
@@ -265,6 +295,11 @@ def stock_market_metrics(root,watch,asof):
                        "ohlc_pivot_review_status":low_pivot_review,
                        "post_pivot_min_close":post_pivot_min_close,
                        "breakout_retest_verified":"NO",
+                       "breakout_20d_date":breakout_date,
+                       "breakout_20d_level":breakout_level,
+                       "retest_observed_date":retest_date,
+                       "retest_observed_low":retest_low,
+                       "breakout_retest_review_status":breakout_review,
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
                        "trade_approval":"NO"})
@@ -370,6 +405,9 @@ def main():
         r.get("ohlc_pivot_review_status")=="PIVOT_HELD_ON_SUBSEQUENT_CLOSES"
         for r in enriched)
     summary["breakout_retest_verified_count"]=0
+    summary["retest_close_hold_observed_count"]=sum(
+        r.get("breakout_retest_review_status")=="RETEST_CLOSE_HOLD_OBSERVED"
+        for r in enriched)
     research_fields=metrics_fields+["distance_sma20_pct","recent_close_high_20d",
                                      "extension_warning","entry_setup_verified",
                                      "structure_stop_verified","entry_review_status",
@@ -381,6 +419,9 @@ def main():
                                      "ohlc_valid_bar_count","daily_close_bar_count",
                                      "ohlc_pivot_review_status","post_pivot_min_close",
                                      "breakout_retest_verified",
+                                     "breakout_20d_date","breakout_20d_level",
+                                     "retest_observed_date","retest_observed_low",
+                                     "breakout_retest_review_status",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
     with (out/"sector_stock_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
