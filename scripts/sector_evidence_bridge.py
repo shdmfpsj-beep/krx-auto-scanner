@@ -120,7 +120,7 @@ def stock_market_metrics(root,watch,asof):
     if not watch or not asof:
         return []
     tickers={r["ticker"] for r in watch}
-    start=(date.fromisoformat(asof)-timedelta(days=50)).isoformat()
+    start=(date.fromisoformat(asof)-timedelta(days=110)).isoformat()
     bars=defaultdict(dict)
     prices=root/"market/daily_prices"
     for market in ("KOSPI","KOSDAQ"):
@@ -248,6 +248,8 @@ def stock_market_metrics(root,watch,asof):
                        "preliminary_ohlc_pivot_low_date":low_pivot_date,
                        "preliminary_ohlc_pivot_low":low_pivot_price if low_pivot_price is not None else "",
                        "ohlc_low_history_complete":"YES" if len(low_series)>=30 and low_series[-1][0]==asof else "NO",
+                       "ohlc_valid_bar_count":len(low_series),
+                       "daily_close_bar_count":len(series),
                        "ohlc_pivot_is_stop_price":"NO",
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
@@ -358,6 +360,7 @@ def main():
                                      "pivot_review_status","entry_risk_reward_verified",
                                      "preliminary_ohlc_pivot_low_date","preliminary_ohlc_pivot_low",
                                      "ohlc_low_history_complete","ohlc_pivot_is_stop_price",
+                                     "ohlc_valid_bar_count","daily_close_bar_count",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
     with (out/"sector_stock_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
