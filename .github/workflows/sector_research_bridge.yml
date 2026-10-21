@@ -52,6 +52,20 @@ jobs:
                 z=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/artifacts/{match['id']}/zip"],
                                  capture_output=True,check=True)
                 with zipfile.ZipFile(io.BytesIO(z.stdout)) as archive:
+                  names=archive.namelist()
+                  if wf=="sector_evidence_v18.yml":
+                    # Baseline-only runs can succeed but have no current
+                    # sector features. Prefer the latest complete backfill.
+                    features=[n for n in names if n.endswith("research/sector_evidence_latest.csv")]
+                    statuses=[n for n in names if n.endswith("diagnostics/collection_status.json")]
+                    if len(features)!=1 or len(statuses)!=1:
+                      print(f"SKIP_NON_BACKFILL run_id={run['id']}")
+                      continue
+                    state=json.loads(archive.read(statuses[0]))
+                    needed=("prices","flows","etf_prices","holdings","normalization")
+                    if any(state.get("datasets",{}).get(k,{}).get("status")!="OK" for k in needed):
+                      print(f"SKIP_INCOMPLETE_CORE run_id={run['id']}")
+                      continue
                   for entry in archive.infolist():
                     target=Path(dest,entry.filename)
                     if target.resolve()!=Path(dest).resolve() and Path(dest).resolve() not in target.resolve().parents:
