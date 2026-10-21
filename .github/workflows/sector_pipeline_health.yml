@@ -39,10 +39,6 @@ jobs:
           for wf,label in workflows.items():
               p=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/workflows/{wf}/runs",
                  "-f","per_page=20"],capture_output=True,text=True)
-              # gh api -f defaults to POST; use -X GET explicitly below if needed.
-              if p.returncode:
-                  p=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/workflows/{wf}/runs",
-                    "-f","per_page=20"],capture_output=True,text=True)
               if p.returncode:
                   report["checks"][label]={"status":"API_ERROR","message":p.stderr[:300]}
                   continue
@@ -114,6 +110,7 @@ jobs:
           report["sector_required_datasets_ok"]=dataset_ok
           report["pipeline_ready"]=bool(report.get("workflow_execution_ready")) and report["sector_evidence_verified"]
           report["sector_trade_ready"]=False
+          report["decision_gate"]="CASH" if not report["pipeline_ready"] else "RESEARCH_ONLY_PENDING_STOCK_VALIDATION"
           health.write_text(json.dumps(report,ensure_ascii=False,indent=2))
           print(json.dumps(result,ensure_ascii=False,indent=2))
           PY
