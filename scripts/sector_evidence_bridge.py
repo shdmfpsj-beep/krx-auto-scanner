@@ -34,6 +34,15 @@ def build(status,rows,scan_date):
         inst=number(r,"institution_net_buy_5d_krw")
         if any(v is None for v in (rs,breadth,flow,inst)):
             reasons.append("RESEARCH_METRIC_MISSING")
+        coverage_keys=("breadth_coverage","turnover_coverage",
+                       "foreign_5d_coverage","institution_5d_coverage")
+        coverages=[number(r,k) for k in coverage_keys]
+        if any(v is None for v in coverages):
+            reasons.append("COVERAGE_UNVERIFIED")
+        elif any(v < 0.8 for v in coverages):
+            reasons.append("LOW_METRIC_COVERAGE")
+        if flow is not None and inst is not None and flow + inst <= 0:
+            reasons.append("NO_POSITIVE_NET_FLOW_PROXY")
         # No 100-point sector score: catalyst PIT and fundamentals not verified.
         result.append({"sector_id":r.get("sector_id",""),
                        "sector_name":r.get("sector_name",""),
@@ -50,6 +59,8 @@ def build(status,rows,scan_date):
     return eligible+[r for r in result if r["research_eligible"]!="YES"],{
         "asof":asof,"scan_date":scan_date,"core_data_verified":valid,
         "research_eligible_sectors":len(eligible),
+        "research_top3_sector_ids":[r["sector_id"] for r in eligible[:3]],
+        "research_top3_not_trade_approved":True,
         "final_sector_top3_verified":False,"trade_approvals":0,
         "decision":"CASH","note":"ETF-member flow proxy is not verified whole-sector capital inflow; catalyst PIT and earnings not scored."}
 
