@@ -58,6 +58,44 @@ class FreeStructuralTests(unittest.TestCase):
         result=structural_row(row,rows,d,ranking(),ranking())
         self.assertIn('SPECIAL_INSTRUMENT_EXCLUDED',result['blocking_reasons'])
         self.assertEqual(result['structure_status'],'WAIT_DATA_OR_STRUCTURE')
+    def test_geometry_pass_requires_real_two_to_one_rr(self):
+        rows=history()
+        # Earlier resistance remains visible at signal date; no future candles.
+        rows[-45]={**rows[-45],'high':'250'}
+        d=date.fromisoformat(rows[-1]['date'])
+        result=structural_row(candidate(rows),rows,d,ranking(),ranking())
+        self.assertEqual(result['structure_status'],'RESEARCH_GEOMETRY_PASS')
+        self.assertGreaterEqual(float(result['rr_to_prior_resistance']),2)
+        self.assertEqual(result['trade_approval'],'NO')
+
+    def test_low_rr_must_not_enter_top5(self):
+        rows=history();d=date.fromisoformat(rows[-1]['date'])
+        s=dict(market_data_date=str(d),coverage_ratio=.99,scan_complete=True,
+               data_date_verified=True)
+        plans,report=build(s,[candidate(rows)],rows,[ranking()],[ranking()],d)
+        self.assertNotEqual(plans[0]['structure_status'],'RESEARCH_GEOMETRY_PASS')
+        self.assertEqual(report['c3_research_top5'],[])
+        self.assertEqual(report['k100_research_top5'],[])
+        self.assertEqual(report['decision'],'CASH')
+
+    def test_stale_snapshot_prevents_top5_even_for_good_geometry(self):
+        rows=history()
+        rows[-45]={**rows[-45],'high':'250'}
+        d=date.fromisoformat(rows[-1]['date'])
+        s=dict(market_data_date=str(d),coverage_ratio=.99,scan_complete=True,
+               data_date_verified=True)
+        plans,report=build(s,[candidate(rows)],rows,[ranking()],[ranking()],d+timedelta(days=8))
+        self.assertEqual(plans[0]['structure_status'],'RESEARCH_GEOMETRY_PASS')
+        self.assertEqual(report['c3_research_top5'],[])
+        self.assertEqual(report['decision'],'CASH')
+
+    def test_history_candidate_source_mismatch_blocks_stop(self):
+        rows=history();d=date.fromisoformat(rows[-1]['date'])
+        bad={**candidate(rows),'data_source':'FinanceDataReader'}
+        r=structural_row(bad,rows,d,ranking(),ranking())
+        self.assertIn('CANDIDATE_HISTORY_SOURCE_MISMATCH',r['blocking_reasons'])
+        self.assertEqual(r['structural_stop_reference'],'')
+
     def test_missing_history_no_fabricated_stop(self):
         rows=history();d=date.fromisoformat(rows[-1]['date'])
         result=structural_row(candidate(rows),[],d,ranking(),ranking())
