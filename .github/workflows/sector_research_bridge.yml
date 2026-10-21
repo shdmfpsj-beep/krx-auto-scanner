@@ -268,6 +268,24 @@ jobs:
                           "--evidence",str(matches[0].parent.parent),
                           "--watchlist",str(watch),"--asof",asof,"--out","output"],check=True)
           PY
+      - name: Verify structural research outputs and research-only status
+        run: |
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          p=Path("output/structural_support_summary.json")
+          q=Path("output/structural_support_comparison.csv")
+          if not p.exists() or not q.exists():
+              raise SystemExit("MISSING_STRUCTURAL_RESEARCH_OUTPUT")
+          summary=json.loads(p.read_text(encoding="utf-8"))
+          if summary.get("trade_approval")!="NO":
+              raise SystemExit("UNSAFE_TRADE_APPROVAL")
+          with q.open(encoding="utf-8-sig",newline="") as f:
+              rows=list(csv.DictReader(f))
+          print("STRUCTURAL_OUTPUT_VERIFIED="+json.dumps({
+              "rows":len(rows),"methods":summary.get("methods"),
+              "trade_approval":summary.get("trade_approval")}))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
