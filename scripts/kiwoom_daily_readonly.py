@@ -26,6 +26,21 @@ def diagnostic_codes(payload):
     embedded=match.group(1) if match else "unknown"
     return code,embedded
 
+def diagnostic_body_shape(raw):
+    """Report response format and only whitelisted field names, never values."""
+    if not raw:
+        return "EMPTY","none"
+    try:
+        payload=json.loads(raw)
+    except (ValueError,UnicodeDecodeError):
+        return ("HTML" if raw.lstrip().startswith(b"<") else "NON_JSON"),"none"
+    if not isinstance(payload,dict):
+        return "JSON_NON_OBJECT","none"
+    known=("return_code","returnCode","error_code","errorCode","code",
+           "error","return_msg","message","detail","error_description")
+    visible=",".join(k for k in known if k in payload) or "none"
+    return "JSON_OBJECT",visible
+
 def post(path,headers,body):
     req=urllib.request.Request(HOST+path,data=json.dumps(body).encode(),
         headers=headers,method="POST")
@@ -34,17 +49,20 @@ def post(path,headers,body):
             payload=json.loads(response.read().decode())
             return payload,dict(response.headers.items())
     except urllib.error.HTTPError as exc:
-        # HTTP 400 may contain an API-specific return code.
-        # Log numeric codes only. Raw messages or payloads might contain secrets.
+        # Only stable numeric error codes and whitelisted field names are logged.
+        # Never log response body, headers, token or request credentials.
+        raw=exc.read(8192)
+        shape,fields=diagnostic_body_shape(raw)
         try:
-            payload=json.loads(exc.read(8192).decode("utf-8"))
+            payload=json.loads(raw)
         except (ValueError,UnicodeDecodeError):
             payload={}
         code,embedded=diagnostic_codes(payload)
         stage="AUTH_TOKEN" if path=="/oauth2/token" else "DAILY_CHART"
         raise RuntimeError(
             f"KIWOOM_HTTP_REJECTED stage={stage} http_status={exc.code} "
-            f"return_code={code} embedded_code={embedded}"
+            f"return_code={code} embedded_code={embedded} "
+            f"body_kind={shape} known_fields={fields}"
         ) from None
 
 def check_ok(payload):
