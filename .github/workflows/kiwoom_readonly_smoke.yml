@@ -27,11 +27,15 @@ jobs:
         with:
           sparse-checkout: |
             scripts/kiwoom_daily_readonly.py
+            scripts/test_kiwoom_daily_readonly.py
           sparse-checkout-cone-mode: false
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Verify Kiwoom adapter and safe HTTP error diagnostics (offline)
+        run: python scripts/test_kiwoom_daily_readonly.py
 
       - name: Validate parameters and presence of credential pair
         shell: bash
