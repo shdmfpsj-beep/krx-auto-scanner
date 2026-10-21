@@ -22,7 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Sparse checkout avoids legacy malformed/overlong paths elsewhere in the repository.
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/kiwoom_daily_readonly.py
+          sparse-checkout-cone-mode: false
 
       - uses: actions/setup-python@v5
         with:
