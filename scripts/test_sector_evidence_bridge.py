@@ -4,9 +4,23 @@ import tempfile
 import unittest
 from pathlib import Path
 import csv
-from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics, historical_pattern_review
+from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics, historical_pattern_review, build, REQUIRED
 
 class BridgeTests(unittest.TestCase):
+    def test_prior_verified_evidence_is_research_only(self):
+        status={"asof":"2026-10-20","datasets":{k:{"status":"OK"} for k in REQUIRED}}
+        _,summary=build(status,[],"2026-10-21")
+        self.assertTrue(summary["core_data_verified"])
+        self.assertFalse(summary["evidence_scan_dates_aligned"])
+        self.assertTrue(summary["research_uses_prior_evidence_snapshot"])
+        self.assertEqual(summary["data_date_gate"],"PRIOR_VERIFIED_RESEARCH_ONLY")
+        self.assertEqual(summary["decision"],"CASH")
+        self.assertEqual(summary["trade_approvals"],0)
+        _,future=build(status,[],"2026-10-19")
+        self.assertFalse(future["core_data_verified"])
+        _,same=build(status,[],"2026-10-20")
+        self.assertTrue(same["evidence_scan_dates_aligned"])
+
     def test_balanced_and_unique_watchlist(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/"market/sector_membership_dated.csv"
