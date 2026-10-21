@@ -1,0 +1,71 @@
+name: KRX recovery scan (safe sparse checkout)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '45 7 * * 1-5'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: krx-recovery-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - name: Checkout only known valid scanner paths
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/run.py
+            /scripts/rank_candidates.py
+            /requirements.txt
+            /reports/candidates.csv
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect fresh KRX OHLCV
+        run: python scripts/run.py
+
+      - name: Verify scan date and coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('reports/status.json')
+          if not p.exists():
+              raise SystemExit('MISSING_STATUS')
+          s=json.loads(p.read_text(encoding='utf-8'))
+          print(json.dumps({k:s.get(k) for k in ('run_kst','market_data_date','universe','valid_ohlcv','coverage_ratio','scan_complete','data_date_verified')},ensure_ascii=False))
+          if not s.get('scan_complete') or not s.get('data_date_verified'):
+              raise SystemExit('SCAN_INCOMPLETE_OR_DATE_UNVERIFIED')
+          PY
+
+      - name: Rank technical candidates (research only)
+        run: python scripts/rank_candidates.py
+
+      - name: Publish scan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: krx-recovery-scan
+          path: |
+            reports/status.json
+            reports/candidates.csv
+            reports/c3_preliminary.csv
+            reports/k100_preliminary.csv
+            reports/ranking_status.json
+          if-no-files-found: warn
+          retention-days: 14
