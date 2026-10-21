@@ -1,6 +1,12 @@
 name: Sector evidence research bridge
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/sector_evidence_bridge.py'
+      - 'scripts/test_sector_evidence_bridge.py'
+      - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
     - cron: '5 13 * * 1-5'
