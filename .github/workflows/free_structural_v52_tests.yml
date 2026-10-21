@@ -1,0 +1,38 @@
+name: Free C3 K100 structural v52 offline tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/free_structural_v52.py'
+      - 'scripts/test_free_structural_v52.py'
+      - '.github/workflows/free_structural_v52_tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test-structure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout only required test files
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/test_free_structural_v52.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Compile v52 Python modules
+        run: python -m py_compile scripts/free_structural_v52.py scripts/test_free_structural_v52.py
+
+      - name: Validate daily structural stops, no-future-bars and CASH gate
+        run: python -m unittest discover -s scripts -p 'test_free_structural_v52.py' -v
