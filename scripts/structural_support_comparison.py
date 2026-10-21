@@ -21,12 +21,13 @@ def levels(bars,i,stop,entry):
         low=float(bars[j]["low"])
         if low<min(float(bars[k]["low"]) for k in (j-2,j-1)) and low<=min(
                 float(bars[k]["low"]) for k in (j+1,j+2)):
-            if stop<low<entry:
+            if stop<low<entry and all(float(bars[k]["close"])>=low for k in range(j+1,i+1)):
                 out["PIVOT_RETEST"]=low
                 break
     # Previously broken 20-session high, established before signal session.
     old_high=max(float(b["high"]) for b in bars[i-20:i])
-    if stop<old_high<entry and float(bars[i]["close"])>old_high:
+    if (stop<old_high<entry and float(bars[i-1]["close"])<=old_high
+            and float(bars[i]["close"])>old_high):
         out["BREAKOUT_RETEST"]=old_high
     # 20-session average through signal close, not a future moving average.
     ma20=statistics.mean(float(b["close"]) for b in bars[i-19:i+1])
