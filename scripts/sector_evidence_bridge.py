@@ -188,6 +188,40 @@ def stock_market_metrics(root,watch,asof):
         results.append(result)
     return results
 
+def rank_stock_research(rows):
+    """Transparent relative ranking; never a 100-point trade score."""
+    eligible=[r for r in rows if r.get("price_flow_ready")=="YES"]
+    # Each component is independently ranked. A rank is not a probability.
+    def order(key,reverse=True):
+        return {r["ticker"]:i for i,r in enumerate(sorted(
+            eligible,key=lambda x:((number(x,key) if number(x,key) is not None else -1e30)
+                                    *(1 if reverse else -1),x["ticker"]),reverse=True))}
+    ret=order("return_5d_pct")
+    turnover=order("avg_turnover_5d_krw")
+    flow=sorted(eligible,key=lambda r:(
+        -(number(r,"foreign_net_5d_krw") or 0)-(number(r,"institution_net_5d_krw") or 0),
+        r["ticker"]))
+    flow_rank={r["ticker"]:i for i,r in enumerate(flow)}
+    trend=sorted(eligible,key=lambda r:(
+        -(number(r,"close") or 0)/(number(r,"sma20") or float("inf")),r["ticker"]))
+    trend_rank={r["ticker"]:i for i,r in enumerate(trend)}
+    result=[]
+    for r in eligible:
+        t=r["ticker"]
+        # Relative percentile rank: price trend 35%, net flows 35%,
+        # five-session return 20%, turnover 10%.
+        n=max(len(eligible)-1,1)
+        proxy=100*(1-(.35*trend_rank[t]+.35*flow_rank[t]+
+                      .20*ret[t]+.10*turnover[t])/n)
+        result.append({**r,"research_proxy_index":round(proxy,2),
+                       "research_rank":"","rank_basis":"RELATIVE_PRICE_FLOW_ONLY",
+                       "final_stock_score":"","entry_price":"","stop_price":"",
+                       "trade_approval":"NO"})
+    result.sort(key=lambda r:(-r["research_proxy_index"],r["ticker"]))
+    for i,r in enumerate(result,1):
+        r["research_rank"]=i
+    return result
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--evidence",required=True)
@@ -228,6 +262,15 @@ def main():
     with (out/"sector_stock_market_metrics.csv").open("w",encoding="utf-8-sig",newline="") as f:
         w=csv.DictWriter(f,fieldnames=metrics_fields,extrasaction="ignore")
         w.writeheader();w.writerows(enriched)
+    research=rank_stock_research(enriched)
+    summary["research_ranked_stocks"]=len(research)
+    summary["research_top5_tickers"]=[r["ticker"] for r in research[:5]]
+    summary["research_top5_not_trade_approved"]=True
+    research_fields=metrics_fields+["research_proxy_index","research_rank","rank_basis",
+                                     "final_stock_score","entry_price","stop_price"]
+    with (out/"sector_stock_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
+        w=csv.DictWriter(f,fieldnames=research_fields,extrasaction="ignore")
+        w.writeheader();w.writerows(research)
     fields=["sector_id","sector_name","asof","rs_5d_pp","breadth_up_5d_pct",
             "foreign_net_buy_5d_krw","institution_net_buy_5d_krw",
             "research_eligible","warnings","final_sector_score","trade_approval"]
