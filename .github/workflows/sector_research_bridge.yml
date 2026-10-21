@@ -57,6 +57,7 @@ jobs:
                     if target.resolve()!=Path(dest).resolve() and Path(dest).resolve() not in target.resolve().parents:
                       raise SystemExit("UNSAFE_ARTIFACT_PATH")
                   archive.extractall(dest)
+                print(f"SELECTED_ARTIFACT workflow={wf} run_id={run['id']} created_at={run.get('created_at')} artifact_id={match['id']}")
                 found=True
                 break
               if not found: raise SystemExit(f"ARTIFACT_UNAVAILABLE:{name}")
