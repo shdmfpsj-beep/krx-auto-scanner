@@ -254,6 +254,67 @@ def historical_pullback_quality_review(series, horizon=5):
         for label,values in observations.items()}
 
 
+
+def plan_research_entry(series, asof):
+    """Structure-first candidate prices, not broker orders or buy approval.
+
+    1st tranche: as-of close reclaim of a completed 5-bar swing high.
+    2nd tranche: planned retest near that breakout level, only if it holds.
+    Stop reference: most recent *completed* 5-bar low pivot below close.
+    Reject distant/too-close stops and unattractive next resistance.
+    """
+    blank={"plan_status":"NO_VALID_STRUCTURE","plan_setup":"RECLAIM_COMPLETED_SWING_HIGH",
+           "plan_first_entry":"","plan_second_entry":"","plan_stop_reference":"",
+           "plan_first_weight_pct":60,"plan_second_weight_pct":40,
+           "plan_risk_pct":"","plan_resistance":"","plan_reward_risk":"",
+           "plan_trade_approval":"NO"}
+    if len(series)<35 or not asof or series[-1][0]!=asof or any(
+            v[2] is None or v[3] is None for _,v in series):
+        return {**blank,"plan_status":"INSUFFICIENT_ASOF_OHLC"}
+    closes=[v[0] for _,v in series]
+    lows=[v[2] for _,v in series]
+    highs=[v[3] for _,v in series]
+    i=len(series)-1
+    pivot_highs=[(j,highs[j]) for j in range(2,i-2)
+                 if highs[j]>max(highs[j-2:j]) and
+                    highs[j]>=max(highs[j+1:j+3])]
+    pivot_lows=[(j,lows[j]) for j in range(2,i-2)
+                if lows[j]<min(lows[j-2:j]) and
+                   lows[j]<=min(lows[j+1:j+3])]
+    if not pivot_highs or not pivot_lows:
+        return blank
+    # A completed swing high must have been below the previous close;
+    # today must close back above it. The breakout is observed, not predicted.
+    eligible=[(j,level) for j,level in pivot_highs
+              if j>=i-25 and closes[i-1]<=level<closes[i]]
+    if not eligible:
+        return {**blank,"plan_status":"WAIT_FOR_RECLAIM"}
+    j,level=max(eligible,key=lambda x:x[0])
+    stops=[(k,low) for k,low in pivot_lows if k< i and low<level]
+    if not stops:
+        return {**blank,"plan_status":"NO_COMPLETED_STOP_PIVOT"}
+    k,stop=max(stops,key=lambda x:x[0])
+    first=closes[i]
+    risk=100*(first-stop)/first
+    if risk<2 or risk>12:
+        return {**blank,"plan_status":"RISK_DISTANCE_OUT_OF_RANGE",
+                "plan_first_entry":first,"plan_stop_reference":stop,
+                "plan_risk_pct":round(risk,3)}
+    # Resistance must be a known prior historical high, not future bars.
+    resistance=max(highs[max(0,i-60):i])
+    reward_risk=(resistance-first)/(first-stop)
+    if reward_risk<1.5:
+        return {**blank,"plan_status":"INSUFFICIENT_KNOWN_RESISTANCE_RR",
+                "plan_first_entry":first,"plan_stop_reference":stop,
+                "plan_resistance":resistance,
+                "plan_reward_risk":round(reward_risk,3)}
+    second=level
+    return {**blank,"plan_status":"STRUCTURE_CANDIDATE_REQUIRES_VALIDATION",
+            "plan_first_entry":first,"plan_second_entry":second,
+            "plan_stop_reference":stop,"plan_risk_pct":round(risk,3),
+            "plan_resistance":resistance,"plan_reward_risk":round(reward_risk,3)}
+
+
 def stock_market_metrics(root,watch,asof):
     """As-of daily bars and five-session investor flows, research only."""
     from collections import defaultdict
@@ -456,6 +517,7 @@ def stock_market_metrics(root,watch,asof):
                 else:
                     pullback_close_recovery="SIGNAL_ON_ASOF_NO_FOLLOWUP"
         pullback_quality_history=historical_pullback_quality_review(series)
+        entry_plan=plan_research_entry(series,asof)
         pattern_history=historical_pattern_review(series)
         # No pattern is an executable entry without independent validation.
         # Closing-price pivots are preliminary structure observations only.
@@ -563,6 +625,7 @@ def stock_market_metrics(root,watch,asof):
                        "pullback_quality_repeated_mean_mae_5d_pct":pullback_quality_history["REPEATED_TOUCH"]["mean_mae_5d_pct"],
                        "pullback_quality_repeated_mean_mfe_5d_pct":pullback_quality_history["REPEATED_TOUCH"]["mean_mfe_5d_pct"],
                        "pullback_quality_repeated_aligned_count":pullback_quality_history["REPEATED_TOUCH"]["aligned_count"],
+                       **entry_plan,
                        "historical_pattern_trade_verified":"NO",
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
@@ -742,6 +805,12 @@ def main():
                                      "pullback_quality_repeated_mean_mae_5d_pct",
                                      "pullback_quality_repeated_mean_mfe_5d_pct",
                                      "pullback_quality_repeated_aligned_count",
+                                     "plan_status","plan_setup",
+                                     "plan_first_entry","plan_second_entry",
+                                     "plan_stop_reference","plan_first_weight_pct",
+                                     "plan_second_weight_pct","plan_risk_pct",
+                                     "plan_resistance","plan_reward_risk",
+                                     "plan_trade_approval",
                                      "historical_pattern_trade_verified",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
