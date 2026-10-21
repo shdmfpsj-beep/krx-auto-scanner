@@ -35,7 +35,7 @@ class BridgeTests(unittest.TestCase):
         bars=[]
         for i in range(35):
             close=100+i
-            bars.append((f"2026-09-{i+1:02d}",(close,100000,close-1,close+1)))
+            bars.append((f"2026-09-{i+1:02d}",(close,100000,close-1,close+0.5)))
         result=historical_pattern_review(bars)
         self.assertEqual(set(result),{"BREAKOUT_20D","RISING_SMA20_PULLBACK",
                                       "RECLAIM_10D_HIGH"})
