@@ -66,6 +66,53 @@ jobs:
               print("::warning::Pipeline not fully successful; sector report must show incomplete evidence.")
           PY
 
+      - name: Validate actual sector evidence payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,subprocess,zipfile
+          from datetime import datetime,timezone,timedelta
+          from pathlib import Path
+          health=Path("audit/sector_pipeline_health.json")
+          report=json.loads(health.read_text())
+          sector=report["checks"].get("sector_collection",{})
+          result={"status":"NOT_VERIFIED","reason":"No successful sector collection run today","asof":None}
+          if sector.get("conclusion")=="success" and sector.get("run_id"):
+              run_id=str(sector["run_id"])
+              p=subprocess.run(["gh","api","-X","GET",
+                f"repos/{os.environ['GH_REPO']}/actions/runs/{run_id}/artifacts"],
+                capture_output=True,text=True)
+              if p.returncode==0:
+                  artifacts=json.loads(p.stdout).get("artifacts",[])
+                  target=next((a for a in artifacts if a["name"]=="sector-evidence-v18-report" and not a.get("expired")),None)
+                  if target:
+                      z=Path("audit/evidence.zip")
+                      with z.open("wb") as f:
+                          d=subprocess.run(["gh","api","-H","Accept: application/vnd.github+json",
+                            f"repos/{os.environ['GH_REPO']}/actions/artifacts/{target['id']}/zip"],stdout=f,stderr=subprocess.PIPE)
+                      if d.returncode==0:
+                          try:
+                              with zipfile.ZipFile(z) as archive:
+                                  names=[n for n in archive.namelist() if n.endswith("diagnostics/collection_status.json")]
+                                  if names:
+                                      status=json.loads(archive.read(names[0]))
+                                      asof=status.get("asof")
+                                      datasets=status.get("datasets",{})
+                                      result={"status":status.get("overall_status","UNKNOWN"),"asof":asof,
+                                        "datasets":{k:v.get("status") for k,v in datasets.items()},
+                                        "orders_enabled":status.get("orders_enabled",False)}
+                                      today=datetime.now(timezone(timedelta(hours=9))).date().isoformat()
+                                      result["fresh_for_today"]=asof==today
+                          except (ValueError,zipfile.BadZipFile) as e:
+                              result["reason"]=str(e)
+                      z.unlink(missing_ok=True)
+          report["sector_data_quality"]=result
+          report["sector_trade_ready"]=False
+          health.write_text(json.dumps(report,ensure_ascii=False,indent=2))
+          print(json.dumps(result,ensure_ascii=False,indent=2))
+          PY
+
       - name: Upload pipeline health evidence
         if: always()
         uses: actions/upload-artifact@v4
