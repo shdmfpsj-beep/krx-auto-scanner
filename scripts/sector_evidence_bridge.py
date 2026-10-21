@@ -358,6 +358,49 @@ def stock_market_metrics(root,watch,asof):
                     age=len(series)-1-i
                     pullback_review=("RECENT_RISING_SMA20_PULLBACK" if age<=10
                                      else "STALE_RISING_SMA20_PULLBACK")
+        # As-of pullback quality diagnostics, never an entry signal.
+        # 60-session alignment requires 60 real closes (no proxy filling).
+        pullback_first_touch="UNVERIFIED"
+        sma60_alignment="INSUFFICIENT_60_BARS"
+        pullback_volume="INSUFFICIENT_VOLUME_HISTORY"
+        pullback_close_recovery="NOT_OBSERVED"
+        if len(series)>=60 and series[-1][0]==asof:
+            close_values=[v[0] for _,v in series]
+            sma60=sum(close_values[-60:])/60
+            sma20_now=sum(close_values[-20:])/20
+            sma60_alignment=("SMA20_ABOVE_SMA60_AND_CLOSE_ABOVE_BOTH"
+                             if sma20_now>sma60 and close_values[-1]>sma20_now
+                             else "NO_CONFIRMED_20_60_ALIGNMENT")
+        if pullback_date and len(series)>=30:
+            # Count earlier qualifying touches within the preceding 20 sessions.
+            # This is a repeat-touch diagnostic, not a validated trend-leg count.
+            closes_pb=[v[0] for _,v in series]
+            ma_pb=[None]*len(series)
+            for i in range(19,len(series)):
+                ma_pb[i]=sum(closes_pb[i-19:i+1])/20
+            signal_idx=next((i for i,(d,_) in enumerate(series)
+                             if d==pullback_date),None)
+            if signal_idx is not None:
+                touches=0
+                for i in range(max(25,signal_idx-20),signal_idx):
+                    low=series[i][1][2]
+                    if (low is not None and ma_pb[i]>ma_pb[i-5]
+                        and .98*ma_pb[i]<=low<=1.02*ma_pb[i]
+                        and closes_pb[i]>=ma_pb[i]):
+                        touches+=1
+                pullback_first_touch=("FIRST_TOUCH_IN_PRIOR_20_SESSIONS"
+                                      if touches==0 else "REPEATED_TOUCH_IN_PRIOR_20_SESSIONS")
+                # No future data relative to the as-of date. Volume is not
+                # present in this evidence feed; turnover is NOT volume.
+                pullback_volume="VOLUME_NOT_IN_SOURCE"
+                if signal_idx<len(series)-1:
+                    later=series[signal_idx+1:]
+                    pullback_close_recovery=("CLOSE_ABOVE_SIGNAL_HIGH_OBSERVED"
+                        if any(v[0]>series[signal_idx][1][3] for _,v in later
+                               if series[signal_idx][1][3] is not None)
+                        else "NO_CLOSE_ABOVE_SIGNAL_HIGH")
+                else:
+                    pullback_close_recovery="SIGNAL_ON_ASOF_NO_FOLLOWUP"
         pattern_history=historical_pattern_review(series)
         # No pattern is an executable entry without independent validation.
         # Closing-price pivots are preliminary structure observations only.
@@ -449,6 +492,10 @@ def stock_market_metrics(root,watch,asof):
                        "pattern_history_reclaim_ambiguous_same_bar_count":pattern_history["RECLAIM_10D_HIGH"]["ambiguous_same_bar_count"],
                        "pattern_history_reclaim_neither_count":pattern_history["RECLAIM_10D_HIGH"]["neither_count"],
                        "pattern_history_reclaim_risk_reference_invalid_count":pattern_history["RECLAIM_10D_HIGH"]["risk_reference_invalid_count"],
+                       "pullback_first_touch_review":pullback_first_touch,
+                       "sma60_alignment_review":sma60_alignment,
+                       "pullback_volume_review":pullback_volume,
+                       "pullback_close_recovery_review":pullback_close_recovery,
                        "historical_pattern_trade_verified":"NO",
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
@@ -612,6 +659,10 @@ def main():
                                      "pattern_history_reclaim_ambiguous_same_bar_count",
                                      "pattern_history_reclaim_neither_count",
                                      "pattern_history_reclaim_risk_reference_invalid_count",
+                                     "pullback_first_touch_review",
+                                     "sma60_alignment_review",
+                                     "pullback_volume_review",
+                                     "pullback_close_recovery_review",
                                      "historical_pattern_trade_verified",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
