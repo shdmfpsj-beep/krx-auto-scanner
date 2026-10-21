@@ -16,8 +16,8 @@ class TenSessionPipelineTests(unittest.TestCase):
         future=bar("005930","2026-10-12",999)
         updated=bar("005930",self.dates[-1],115)
         rows=merge(self.a,self.b+[updated,future],"2026-10-11")
-        self.assertEqual(len(rows),11)
-        self.assertEqual(rows[-1]["Close"],"115")
+        self.assertEqual(len(rows),22)
+        self.assertEqual(next(r for r in rows if r["ticker"]=="005930" and r["Date"]==self.dates[-1])["Close"],"115")
     def test_rank_and_incomplete_exclusion(self):
         ranked,info=rank(self.a+self.b[:-1],"2026-10-11")
         self.assertEqual([r["ticker"] for r in ranked],["005930"])
@@ -26,7 +26,8 @@ class TenSessionPipelineTests(unittest.TestCase):
         self.assertEqual(ranked[0]["trade_approval"],"NO")
     def test_no_future_data(self):
         ranked,info=rank(self.a+self.b,"2026-10-10")
-        self.assertEqual(ranked[0]["end_date"],"2026-10-10")
+        self.assertEqual(info["reason"],"INSUFFICIENT_SESSIONS")
+        self.assertEqual(ranked,[])
     def test_insufficient_sessions(self):
         ranked,info=rank(self.a[:4],"2026-10-11")
         self.assertEqual(info["reason"],"INSUFFICIENT_SESSIONS")
