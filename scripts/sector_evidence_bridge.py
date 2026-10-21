@@ -200,6 +200,60 @@ def historical_pattern_review(series, horizon=5):
             for k,v in out.items()}
 
 
+
+def historical_pullback_quality_review(series, horizon=5):
+    """Compare first versus repeated rising-SMA20 touches without look-ahead.
+
+    Prior-touch lookback is 20 sessions. Classifications and trend alignment
+    are known on signal day; 5-session forward close and OHLC are outcomes.
+    Research only: no entry fill, costs, or structural stop is assumed.
+    """
+    labels=("FIRST_TOUCH","REPEATED_TOUCH")
+    observations={label:[] for label in labels}
+    if len(series)<65 or any(v[2] is None or v[3] is None for _,v in series):
+        return {label:{"count":0,"positive_count":0,
+                       "mean_forward_5d_pct":"","mean_mae_5d_pct":"",
+                       "mean_mfe_5d_pct":"","aligned_count":0}
+                for label in labels}
+    closes=[v[0] for _,v in series]
+    lows=[v[2] for _,v in series]
+    highs=[v[3] for _,v in series]
+    ma20=[None]*len(series)
+    ma60=[None]*len(series)
+    for i in range(19,len(series)):
+        ma20[i]=sum(closes[i-19:i+1])/20
+    for i in range(59,len(series)):
+        ma60[i]=sum(closes[i-59:i+1])/60
+    last_signal=-horizon-1
+    for i in range(60,len(series)-horizon):
+        matched=(ma20[i]>ma20[i-5] and closes[i-1]>1.03*ma20[i-1]
+                 and .98*ma20[i]<=lows[i]<=1.02*ma20[i]
+                 and closes[i]>=ma20[i])
+        if not matched or i-last_signal<=horizon:
+            continue
+        earlier=sum(
+            ma20[j]>ma20[j-5] and .98*ma20[j]<=lows[j]<=1.02*ma20[j]
+            and closes[j]>=ma20[j]
+            for j in range(max(25,i-20),i))
+        label="FIRST_TOUCH" if earlier==0 else "REPEATED_TOUCH"
+        aligned=(ma20[i]>ma60[i] and closes[i]>ma20[i])
+        future=series[i+1:i+horizon+1]
+        observations[label].append((
+            100*(closes[i+horizon]/closes[i]-1),
+            100*(min(v[2] for _,v in future)/closes[i]-1),
+            100*(max(v[3] for _,v in future)/closes[i]-1),
+            aligned))
+        last_signal=i
+    return {label:{
+        "count":len(values),
+        "positive_count":sum(x[0]>0 for x in values),
+        "mean_forward_5d_pct":round(sum(x[0] for x in values)/len(values),3) if values else "",
+        "mean_mae_5d_pct":round(sum(x[1] for x in values)/len(values),3) if values else "",
+        "mean_mfe_5d_pct":round(sum(x[2] for x in values)/len(values),3) if values else "",
+        "aligned_count":sum(x[3] for x in values)}
+        for label,values in observations.items()}
+
+
 def stock_market_metrics(root,watch,asof):
     """As-of daily bars and five-session investor flows, research only."""
     from collections import defaultdict
@@ -401,6 +455,7 @@ def stock_market_metrics(root,watch,asof):
                         else "NO_CLOSE_ABOVE_SIGNAL_HIGH")
                 else:
                     pullback_close_recovery="SIGNAL_ON_ASOF_NO_FOLLOWUP"
+        pullback_quality_history=historical_pullback_quality_review(series)
         pattern_history=historical_pattern_review(series)
         # No pattern is an executable entry without independent validation.
         # Closing-price pivots are preliminary structure observations only.
@@ -496,6 +551,18 @@ def stock_market_metrics(root,watch,asof):
                        "sma60_alignment_review":sma60_alignment,
                        "pullback_volume_review":pullback_volume,
                        "pullback_close_recovery_review":pullback_close_recovery,
+                       "pullback_quality_first_count":pullback_quality_history["FIRST_TOUCH"]["count"],
+                       "pullback_quality_first_positive_count":pullback_quality_history["FIRST_TOUCH"]["positive_count"],
+                       "pullback_quality_first_mean_5d_pct":pullback_quality_history["FIRST_TOUCH"]["mean_forward_5d_pct"],
+                       "pullback_quality_first_mean_mae_5d_pct":pullback_quality_history["FIRST_TOUCH"]["mean_mae_5d_pct"],
+                       "pullback_quality_first_mean_mfe_5d_pct":pullback_quality_history["FIRST_TOUCH"]["mean_mfe_5d_pct"],
+                       "pullback_quality_first_aligned_count":pullback_quality_history["FIRST_TOUCH"]["aligned_count"],
+                       "pullback_quality_repeated_count":pullback_quality_history["REPEATED_TOUCH"]["count"],
+                       "pullback_quality_repeated_positive_count":pullback_quality_history["REPEATED_TOUCH"]["positive_count"],
+                       "pullback_quality_repeated_mean_5d_pct":pullback_quality_history["REPEATED_TOUCH"]["mean_forward_5d_pct"],
+                       "pullback_quality_repeated_mean_mae_5d_pct":pullback_quality_history["REPEATED_TOUCH"]["mean_mae_5d_pct"],
+                       "pullback_quality_repeated_mean_mfe_5d_pct":pullback_quality_history["REPEATED_TOUCH"]["mean_mfe_5d_pct"],
+                       "pullback_quality_repeated_aligned_count":pullback_quality_history["REPEATED_TOUCH"]["aligned_count"],
                        "historical_pattern_trade_verified":"NO",
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
@@ -663,6 +730,18 @@ def main():
                                      "sma60_alignment_review",
                                      "pullback_volume_review",
                                      "pullback_close_recovery_review",
+                                     "pullback_quality_first_count",
+                                     "pullback_quality_first_positive_count",
+                                     "pullback_quality_first_mean_5d_pct",
+                                     "pullback_quality_first_mean_mae_5d_pct",
+                                     "pullback_quality_first_mean_mfe_5d_pct",
+                                     "pullback_quality_first_aligned_count",
+                                     "pullback_quality_repeated_count",
+                                     "pullback_quality_repeated_positive_count",
+                                     "pullback_quality_repeated_mean_5d_pct",
+                                     "pullback_quality_repeated_mean_mae_5d_pct",
+                                     "pullback_quality_repeated_mean_mfe_5d_pct",
+                                     "pullback_quality_repeated_aligned_count",
                                      "historical_pattern_trade_verified",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
