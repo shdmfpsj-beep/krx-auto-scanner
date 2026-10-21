@@ -1,0 +1,38 @@
+name: Sector Evidence v18 daily auto-dispatch
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 18:25 Asia/Seoul on weekdays (UTC 09:25).
+    # On Korean market holidays the collector must validate its as-of date.
+    - cron: '25 9 * * 1-5'
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: sector-evidence-v18-daily-dispatch
+  cancel-in-progress: false
+
+jobs:
+  trigger-backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Dispatch existing v18 in backfill mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Empty asof instructs v18 to determine the latest eligible completed market session.
+          # Do not use baseline_only: that only reproduces historical v14 evidence.
+          gh workflow run sector_evidence_v18.yml \
+            --repo "$GH_REPO" \
+            --ref "${{ github.ref_name }}" \
+            -f mode=backfill \
+            -f asof='' \
+            -f v14_run_id='' \
+            -f price_start=''
+          echo 'Requested v18 backfill. This job confirms dispatch, not data validity.'
