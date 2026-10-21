@@ -23,6 +23,18 @@ class BridgeTests(unittest.TestCase):
         missing=plan_research_entry(bars[:-1],"64")
         self.assertEqual(missing["plan_status"],"INSUFFICIENT_ASOF_OHLC")
 
+    def test_entry_plan_does_not_invent_nearby_stop(self):
+        # A completed pivot from >20 bars ago is not a fresh support,
+        # even when it would produce an attractive artificial stop.
+        closes=[100.0]*65
+        closes[10]=80.0
+        for i in range(11,65):
+            closes[i]=100.0+(i-11)*0.2
+        bars=[(str(i),(v,100000,v-1,v+1)) for i,v in enumerate(closes)]
+        result=plan_research_entry(bars,"64")
+        self.assertEqual(result["plan_trade_approval"],"NO")
+        self.assertNotEqual(result["plan_status"],"STRUCTURE_CANDIDATE_REQUIRES_VALIDATION")
+
     def test_prior_verified_evidence_is_research_only(self):
         status={"asof":"2026-10-20","datasets":{k:{"status":"OK"} for k in REQUIRED}}
         _,summary=build(status,[],"2026-10-21")
