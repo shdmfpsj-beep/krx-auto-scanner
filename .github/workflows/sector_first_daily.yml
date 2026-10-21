@@ -1,0 +1,132 @@
+name: C3 K100 Sector First simple daily report
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 22:00 Asia/Seoul weekdays, after sector v18 collection window.
+    - cron: '0 13 * * 1-5'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: sector-first-simple-daily
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Sparse checkout only sector-first scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/sector_evidence_bridge.py
+            /scripts/sector_first_daily.py
+            /scripts/test_sector_first_daily.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check sector-first report safety
+        run: |
+          python -m py_compile scripts/sector_first_daily.py scripts/sector_evidence_bridge.py
+          python scripts/test_sector_first_daily.py
+
+      - name: Download latest matching artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/scan inputs/evidence output
+          python - <<'PY'
+          import json,os,subprocess,zipfile,io
+          from pathlib import Path
+          repo=os.environ["GH_REPO"]
+          for wf,name,dest in [
+            ("krx_recovery_scan.yml","krx-recovery-scan","inputs/scan"),
+            ("sector_evidence_v18.yml","sector-evidence-v18-report","inputs/evidence")]:
+              p=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/workflows/{wf}/runs",
+                                "-f","per_page=20"],capture_output=True,text=True,check=True)
+              runs=json.loads(p.stdout)["workflow_runs"]
+              candidates=[r for r in runs if r.get("conclusion")=="success"]
+              if wf=="sector_evidence_v18.yml":
+                candidates=[r for r in candidates if r.get("event")=="workflow_dispatch"]
+              if not candidates: raise SystemExit(f"NO_SUCCESSFUL_RUN:{wf}")
+              found=False
+              for run in candidates:
+                a=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/runs/{run['id']}/artifacts"],
+                                 capture_output=True,text=True,check=True)
+                artifacts=json.loads(a.stdout).get("artifacts",[])
+                match=next((x for x in artifacts if x["name"]==name and not x.get("expired")),None)
+                if not match: continue
+                z=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/artifacts/{match['id']}/zip"],
+                                 capture_output=True,check=True)
+                with zipfile.ZipFile(io.BytesIO(z.stdout)) as archive:
+                  names=archive.namelist()
+                  if wf=="sector_evidence_v18.yml":
+                    # Baseline-only runs can succeed but have no current
+                    # sector features. Prefer the latest complete backfill.
+                    features=[n for n in names if n.endswith("research/sector_evidence_latest.csv")]
+                    statuses=[n for n in names if n.endswith("diagnostics/collection_status.json")]
+                    if len(features)!=1 or len(statuses)!=1:
+                      print(f"SKIP_NON_BACKFILL run_id={run['id']}")
+                      continue
+                    state=json.loads(archive.read(statuses[0]))
+                    needed=("prices","flows","etf_prices","holdings","normalization")
+                    if any(state.get("datasets",{}).get(k,{}).get("status")!="OK" for k in needed):
+                      print(f"SKIP_INCOMPLETE_CORE run_id={run['id']}")
+                      continue
+                  for entry in archive.infolist():
+                    target=Path(dest,entry.filename)
+                    if target.resolve()!=Path(dest).resolve() and Path(dest).resolve() not in target.resolve().parents:
+                      raise SystemExit("UNSAFE_ARTIFACT_PATH")
+                  archive.extractall(dest)
+                print(f"SELECTED_ARTIFACT workflow={wf} run_id={run['id']} created_at={run.get('created_at')} artifact_id={match['id']}")
+                found=True
+                break
+              if not found: raise SystemExit(f"ARTIFACT_UNAVAILABLE:{name}")
+          PY
+      - name: Produce research-only sector ranking
+        run: |
+          python - <<'PY'
+          import subprocess,sys
+          from pathlib import Path
+          root=Path("inputs/evidence")
+          matches=list(root.rglob("diagnostics/collection_status.json"))
+          scan=list(Path("inputs/scan").rglob("status.json"))
+          if len(matches)!=1 or len(scan)!=1:
+              raise SystemExit(f"AMBIGUOUS_OR_MISSING_INPUT evidence={len(matches)} scan={len(scan)}")
+          subprocess.run([sys.executable,"scripts/sector_evidence_bridge.py",
+                          "--evidence",str(matches[0].parent.parent),
+                          "--scan-status",str(scan[0]),"--out","output"],check=True)
+          PY
+      - name: Publish simple sector TOP3 to stock TOP5 mobile report
+        if: always()
+        run: python scripts/sector_first_daily.py --input output --out output
+
+      - name: Render mobile report (CASH on missing or stale evidence)
+        if: always()
+        run: python scripts/sector_first_daily.py --input output --out output
+
+      - name: Upload simple mobile summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sector-first-daily
+          path: |
+            output/sector_first_daily_mobile.md
+            output/sector_first_daily_status.json
+            output/sector_research_ranking.csv
+            output/sector_stock_research_ranking.csv
+            output/sector_bridge_status.json
+          if-no-files-found: warn
+          retention-days: 14
