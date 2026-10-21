@@ -113,6 +113,81 @@ def stock_watchlist(root,sector_ids,asof,limit=20):
             break
     return chosen,("ETF_MEMBERSHIP_BALANCED_RESEARCH_ONLY" if chosen else "NO_DATED_MEMBERSHIP")
 
+def stock_market_metrics(root,watch,asof):
+    """As-of daily bars and five-session investor flows, research only."""
+    from collections import defaultdict
+    from datetime import date,timedelta
+    if not watch or not asof:
+        return []
+    tickers={r["ticker"] for r in watch}
+    start=(date.fromisoformat(asof)-timedelta(days=50)).isoformat()
+    bars=defaultdict(dict)
+    prices=root/"market/daily_prices"
+    for market in ("KOSPI","KOSDAQ"):
+        folder=prices/market
+        if not folder.is_dir(): continue
+        for p in sorted(folder.glob("*.csv")):
+            if not (start<=p.stem<=asof): continue
+            with p.open(encoding="utf-8-sig",newline="") as f:
+                for r in csv.DictReader(f):
+                    t=r.get("ticker")
+                    if t in tickers:
+                        close=number(r,"Close")
+                        turnover=number(r,"TurnoverKRW")
+                        if close is not None and close>0 and turnover is not None and turnover>=0:
+                            bars[t][r["Date"]]=(close,turnover)
+    flows=defaultdict(lambda:defaultdict(float))
+    flow_days=set()
+    for market in ("KOSPI","KOSDAQ"):
+        folder=root/"market/daily_flows"/market
+        if not folder.is_dir(): continue
+        for p in folder.glob("*.csv"):
+            d=p.name[:10]
+            if start<=d<=asof: flow_days.add(d)
+    # The five most recent observed market dates; missing investor files
+    # must be flagged rather than silently interpreted as zero flow.
+    flow_dates=set(sorted(flow_days)[-5:])
+    coverage=defaultdict(set)
+    for market in ("KOSPI","KOSDAQ"):
+        folder=root/"market/daily_flows"/market
+        if not folder.is_dir(): continue
+        for p in folder.glob("*.csv"):
+            if p.name[:10] not in flow_dates: continue
+            with p.open(encoding="utf-8-sig",newline="") as f:
+                for r in csv.DictReader(f):
+                    t=r.get("ticker")
+                    investor=r.get("investor","")
+                    value=number(r,"net_buy_krw")
+                    if t in tickers and value is not None and investor in ("외국인","기관합계"):
+                        flows[t][investor]+=value
+                        coverage[t].add((r.get("date"),investor))
+    results=[]
+    for row in watch:
+        t=row["ticker"]
+        series=sorted(bars[t].items())
+        reasons=[]
+        if len(series)<21 or not series or series[-1][0]!=asof:
+            reasons.append("INSUFFICIENT_OR_STALE_DAILY_BARS")
+        if len(flow_dates)!=5 or len(coverage[t])!=10:
+            reasons.append("INCOMPLETE_5D_INVESTOR_FLOW")
+        last=series[-1][1][0] if series else None
+        previous=series[-6][1][0] if len(series)>=6 else None
+        sma20=sum(v[0] for _,v in series[-20:])/20 if len(series)>=20 else None
+        avg_turnover=sum(v[1] for _,v in series[-5:])/5 if len(series)>=5 else None
+        change=100*(last/previous-1) if last and previous else None
+        result=dict(row)
+        result.update({"close":last if last is not None else "",
+                       "return_5d_pct":round(change,3) if change is not None else "",
+                       "sma20":round(sma20,2) if sma20 is not None else "",
+                       "avg_turnover_5d_krw":round(avg_turnover) if avg_turnover is not None else "",
+                       "foreign_net_5d_krw":round(flows[t]["외국인"]) if not reasons else "",
+                       "institution_net_5d_krw":round(flows[t]["기관합계"]) if not reasons else "",
+                       "price_flow_ready":"YES" if not reasons else "NO",
+                       "data_warnings":";".join(reasons),
+                       "trade_approval":"NO"})
+        results.append(result)
+    return results
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--evidence",required=True)
@@ -143,6 +218,16 @@ def main():
         stock_fields=["sector_id","ticker","name","weight_pct","snapshot_date","asof",
                       "point_in_time_status","fundamentals_verified","chart_entry_verified","trade_approval"]
         w=csv.DictWriter(f,fieldnames=stock_fields);w.writeheader();w.writerows(watch)
+    enriched=stock_market_metrics(root,watch,summary["asof"])
+    summary["stock_price_flow_ready_count"]=sum(r["price_flow_ready"]=="YES" for r in enriched)
+    metrics_fields=["sector_id","ticker","name","weight_pct","snapshot_date","asof",
+                    "close","return_5d_pct","sma20","avg_turnover_5d_krw",
+                    "foreign_net_5d_krw","institution_net_5d_krw",
+                    "price_flow_ready","data_warnings","point_in_time_status",
+                    "fundamentals_verified","chart_entry_verified","trade_approval"]
+    with (out/"sector_stock_market_metrics.csv").open("w",encoding="utf-8-sig",newline="") as f:
+        w=csv.DictWriter(f,fieldnames=metrics_fields,extrasaction="ignore")
+        w.writeheader();w.writerows(enriched)
     fields=["sector_id","sector_name","asof","rs_5d_pp","breadth_up_5d_pct",
             "foreign_net_buy_5d_krw","institution_net_buy_5d_krw",
             "research_eligible","warnings","final_sector_score","trade_approval"]
