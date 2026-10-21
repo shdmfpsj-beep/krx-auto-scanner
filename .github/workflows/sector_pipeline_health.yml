@@ -108,7 +108,10 @@ jobs:
                               result["reason"]=str(e)
                       z.unlink(missing_ok=True)
           report["sector_data_quality"]=result
-          report["sector_evidence_verified"]=bool(result.get("fresh_for_today")) and result.get("status") not in ("NOT_VERIFIED","UNKNOWN","DATA_PENDING","BASELINE_VERIFIED")
+          required=("prices","flows","etf_prices","holdings","normalization")
+          dataset_ok=all(result.get("datasets",{}).get(k)=="OK" for k in required)
+          report["sector_evidence_verified"]=bool(result.get("fresh_for_today")) and dataset_ok and result.get("status") not in ("NOT_VERIFIED","UNKNOWN","DATA_PENDING","BASELINE_VERIFIED")
+          report["sector_required_datasets_ok"]=dataset_ok
           report["pipeline_ready"]=bool(report.get("workflow_execution_ready")) and report["sector_evidence_verified"]
           report["sector_trade_ready"]=False
           health.write_text(json.dumps(report,ensure_ascii=False,indent=2))
