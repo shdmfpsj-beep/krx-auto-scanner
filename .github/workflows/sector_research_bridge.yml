@@ -7,6 +7,7 @@ on:
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/preignition_monthly_validation.py'
+      - 'scripts/preignition_five_day_audit.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
@@ -30,6 +31,7 @@ jobs:
             /scripts/sector_evidence_bridge.py
             /scripts/test_sector_evidence_bridge.py
             /scripts/preignition_monthly_validation.py
+            /scripts/preignition_five_day_audit.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify research bridge guardrails
@@ -38,6 +40,19 @@ jobs:
           python - <<'PY'
           import sys
           sys.path.insert(0,"scripts")
+          from preignition_five_day_audit import audit,summarize
+          def case(lows,highs):
+              r={"entry":"100","stop":"95","target":"110"}
+              for i,(lo,hi) in enumerate(zip(lows,highs),1):
+                  r[f"f{i}_low"]=str(lo)
+                  r[f"f{i}_high"]=str(hi)
+              return r
+          assert audit(case([94,100,100,100,100],[111,105,105,105,105]))=="AMBIGUOUS_SAME_DAY"
+          assert audit(case([94,100,100,100,100],[105]*5))=="STOP_FIRST"
+          assert audit(case([99]*5,[111,105,105,105,105]))=="TARGET_FIRST"
+          assert audit(case([99]*5,[105]*5))=="NEITHER_WITHIN_5D"
+          assert audit(case([99],[105]))=="INCOMPLETE_FORWARD_BARS"
+          assert summarize([case([99]*5,[105]*5)])["trade_approval"]=="NO"
           from preignition_monthly_validation import compute
           rows=[dict(month=m,top=t,ma20_up="1",above_ma60="1",
                      above_ma20="1",near_high="0",pre5="-2",vol_ratio="0.9")
