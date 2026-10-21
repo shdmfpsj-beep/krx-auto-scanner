@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 import csv
-from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics, historical_pattern_review, historical_pullback_quality_review, build, REQUIRED
+from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics, historical_pattern_review, historical_pullback_quality_review, plan_research_entry, build, REQUIRED
 
 class BridgeTests(unittest.TestCase):
     def test_pullback_quality_requires_complete_forward_window(self):
@@ -13,6 +13,15 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(set(result),{"FIRST_TOUCH","REPEATED_TOUCH"})
         self.assertEqual(sum(v["count"] for v in result.values()),0)
         self.assertTrue(all(v["mean_mae_5d_pct"]=="" for v in result.values()))
+
+    def test_entry_plan_requires_completed_structure(self):
+        bars=[(str(i),(100+i,100000,99+i,100.5+i)) for i in range(45)]
+        result=plan_research_entry(bars,"44")
+        self.assertEqual(result["plan_trade_approval"],"NO")
+        self.assertEqual(result["plan_status"],"NO_VALID_STRUCTURE")
+        self.assertEqual(result["plan_first_weight_pct"]+result["plan_second_weight_pct"],100)
+        missing=plan_research_entry(bars[:-1],"44")
+        self.assertEqual(missing["plan_status"],"INSUFFICIENT_ASOF_OHLC")
 
     def test_prior_verified_evidence_is_research_only(self):
         status={"asof":"2026-10-20","datasets":{k:{"status":"OK"} for k in REQUIRED}}
