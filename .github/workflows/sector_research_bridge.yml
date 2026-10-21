@@ -6,6 +6,7 @@ on:
     paths:
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/test_sector_evidence_bridge.py'
+      - 'scripts/preignition_monthly_validation.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
@@ -28,10 +29,26 @@ jobs:
           sparse-checkout: |
             /scripts/sector_evidence_bridge.py
             /scripts/test_sector_evidence_bridge.py
+            /scripts/preignition_monthly_validation.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify research bridge guardrails
-        run: python scripts/test_sector_evidence_bridge.py
+        run: |
+          python scripts/test_sector_evidence_bridge.py
+          python - <<'PY'
+          import sys
+          sys.path.insert(0,"scripts")
+          from preignition_monthly_validation import compute
+          rows=[dict(month=m,top=t,ma20_up="1",above_ma60="1",
+                     above_ma20="1",near_high="0",pre5="-2",vol_ratio="0.9")
+                for m,t in [("2026-07","True"),("2026-07","False"),
+                            ("2026-08","False"),("2026-08","False")]]
+          out=compute(rows)
+          a=next(r for r in out if r["scope"]=="TRAIN" and r["condition"]=="PREIGNITION_COMBO")
+          b=next(r for r in out if r["scope"]=="HOLDOUT" and r["condition"]=="PREIGNITION_COMBO")
+          assert (a["selected"],a["top10_hits"])==(2,1)
+          assert (b["selected"],b["top10_hits"])==(2,0)
+          PY
       - name: Download latest matching artifacts
         shell: bash
         run: |
