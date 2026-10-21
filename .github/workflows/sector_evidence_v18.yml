@@ -187,6 +187,10 @@ jobs:
           
           def ticker_code(v):
               s = str(v).strip()
+              # Some KRX/pykrx responses use an A-prefixed six-digit security code.
+              # Strip only this documented prefix, never coerce arbitrary index values.
+              if re.fullmatch(r"A[0-9]{6}", s):
+                  s = s[1:]
               if not re.fullmatch(r"[0-9]{1,6}", s):
                   raise EvidenceError("INVALID_TICKER_CODE")
               return s.zfill(6)
