@@ -16,8 +16,12 @@ def number(row,key):
 def build(status,rows,scan_date):
     asof=status.get("asof")
     datasets=status.get("datasets",{})
-    valid=bool(asof and asof==scan_date and
-               all(datasets.get(k,{}).get("status")=="OK" for k in REQUIRED))
+    # A newer scan must not erase a fully verified older evidence snapshot.
+    # Preserve evidence as-of for research only; never label it current or tradeable.
+    dates_ordered=bool(asof and scan_date and asof<=scan_date)
+    core_complete=all(datasets.get(k,{}).get("status")=="OK" for k in REQUIRED)
+    valid=bool(dates_ordered and core_complete)
+    scan_lagged=bool(valid and asof!=scan_date)
     result=[]
     for r in rows:
         if r.get("sector_id") in EXCLUDE: continue
@@ -58,6 +62,10 @@ def build(status,rows,scan_date):
     eligible.sort(key=lambda r:(-(r["rs_5d_pp"]),-(r["breadth_up_5d_pct"]),r["sector_id"]))
     return eligible+[r for r in result if r["research_eligible"]!="YES"],{
         "asof":asof,"scan_date":scan_date,"core_data_verified":valid,
+        "evidence_scan_dates_aligned":bool(asof and asof==scan_date),
+        "research_uses_prior_evidence_snapshot":scan_lagged,
+        "data_date_gate":"PRIOR_VERIFIED_RESEARCH_ONLY" if scan_lagged else
+                         ("ALIGNED" if valid else "INVALID"),
         "research_eligible_sectors":len(eligible),
         "research_top3_sector_ids":[r["sector_id"] for r in eligible[:3]],
         "research_top3_not_trade_approved":True,
