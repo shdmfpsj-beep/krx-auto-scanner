@@ -566,7 +566,13 @@ jobs:
                                    "DIGITS" if raw.isascii() and raw.isdigit() else
                                    "ALNUM" if raw.isascii() and raw.isalnum() else
                                    "MIXED")
-                          raise EvidenceError("INVALID_TICKER_INDEX_" + kind + "_" + shape) from None
+                          # Length and index metadata help identify ISIN/market suffixes
+                          # without exposing a raw security identifier.
+                          length = str(len(raw)) if len(raw) <= 40 else "GT40"
+                          index_names = getattr(frame.index, "names", None)
+                          named = "NAMED" if index_names and any(x is not None for x in index_names) else "UNNAMED"
+                          raise EvidenceError("INVALID_TICKER_INDEX_" + kind + "_" + shape +
+                                              "_LEN" + length + "_" + named) from None
                   result.append(row)
               return result
           
