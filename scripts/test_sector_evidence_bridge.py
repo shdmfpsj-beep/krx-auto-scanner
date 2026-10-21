@@ -15,12 +15,12 @@ class BridgeTests(unittest.TestCase):
         self.assertTrue(all(v["mean_mae_5d_pct"]=="" for v in result.values()))
 
     def test_entry_plan_requires_completed_structure(self):
-        bars=[(str(i),(100+i,100000,99+i,100.5+i)) for i in range(45)]
-        result=plan_research_entry(bars,"44")
+        bars=[(str(i),(100+i,100000,99+i,100.5+i)) for i in range(65)]
+        result=plan_research_entry(bars,"64")
         self.assertEqual(result["plan_trade_approval"],"NO")
         self.assertEqual(result["plan_status"],"NO_VALID_STRUCTURE")
         self.assertEqual(result["plan_first_weight_pct"]+result["plan_second_weight_pct"],100)
-        missing=plan_research_entry(bars[:-1],"44")
+        missing=plan_research_entry(bars[:-1],"64")
         self.assertEqual(missing["plan_status"],"INSUFFICIENT_ASOF_OHLC")
 
     def test_prior_verified_evidence_is_research_only(self):
