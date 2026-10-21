@@ -78,6 +78,11 @@ def safe_url(s):
 def title_text(s):
     return re.sub(r"\s+"," ",str(s or "").replace("|","/").replace("[","(").replace("]",")")).strip()[:150]
 
+def headline_signature(title):
+    """Exact-normalized headline fingerprint to discount newswire syndication."""
+    words=re.findall(r"[a-z0-9가-힣]+",str(title or "").casefold())
+    return " ".join(words[:24])
+
 def build_url(query,start,end):
     params={
        "query":"("+query+")",
@@ -155,11 +160,13 @@ def collect(end,fetch=retrieve,limit=None,sleep_seconds=1.5):
         recent=[x for x in arr if (end-seen_time(x["seen_at_utc"])).total_seconds()<=48*3600]
         publishers={x["publisher_domain"] for x in recent}
         countries={x["source_country"] for x in recent}
+        unique_headlines={headline_signature(x["title"]) for x in recent}
         counts[sid]={"articles_observed":len(arr),
             "recent_48h_observed":len(recent),
             "independent_domains_48h":len(publishers),
+            "distinct_headlines_48h":len(unique_headlines),
             "source_countries_48h":len(countries),
-            "early_watch":len(publishers)>=2 and len(recent)>=2,
+            "early_watch":len(publishers)>=2 and len(unique_headlines)>=2,
             "positive_catalyst_verified":False,
             "relevance_to_korean_equities_verified":False}
     audit={"schema":"global_sector_discovery_v1","collected_at_utc":end.isoformat(timespec="seconds"),
