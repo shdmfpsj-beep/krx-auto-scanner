@@ -29,6 +29,8 @@ jobs:
             /scripts/sector_evidence_bridge.py
             /scripts/sector_first_daily.py
             /scripts/test_sector_first_daily.py
+            /scripts/sector_catalyst_enrich.py
+            /scripts/test_sector_catalyst_enrich.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -41,6 +43,7 @@ jobs:
         run: |
           python -m py_compile scripts/sector_first_daily.py scripts/sector_evidence_bridge.py
           python scripts/test_sector_first_daily.py
+          python scripts/test_sector_catalyst_enrich.py
 
       - name: Download latest matching artifacts
         shell: bash
@@ -113,6 +116,10 @@ jobs:
         if: always()
         run: python scripts/sector_first_daily.py --input output --out output
 
+      - name: Add dated source news and DART filings to sector-first report
+        if: always()
+        run: python scripts/sector_catalyst_enrich.py --report-root output --evidence-root inputs/evidence
+
       - name: Upload simple mobile summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -121,6 +128,8 @@ jobs:
           path: |
             output/sector_first_daily_mobile.md
             output/sector_first_daily_status.json
+            output/sector_first_with_catalysts_mobile.md
+            output/sector_first_with_catalysts.json
             output/sector_research_ranking.csv
             output/sector_stock_research_ranking.csv
             output/sector_bridge_status.json
