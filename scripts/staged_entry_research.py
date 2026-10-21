@@ -43,16 +43,16 @@ def simulate(bars,i,split=(.6,.4),horizon=5,cost_bps=30,
         op,lo,hi=[float(b[x]) for x in ("open","low","high")]
         if op<=stop:
             status="STOP_GAP_OPEN";exit_price=op;break
-        # A target may be reached before a resting second limit on the
-        # same daily candle. OHLC cannot establish which occurred first.
+        # Opening prices are known to occur before the day's intraday
+        # high/low. A gap through the existing target must exit first.
+        if second_weight and not second_filled and op>=entry+2*(entry-stop):
+            status="TARGET_GAP_OPEN";exit_price=entry+2*(entry-stop);break
+        # Otherwise an intraday second fill and first-position target in
+        # the same candle cannot be ordered from daily OHLC alone.
         if second_weight and not second_filled and op>second_limit and lo<=second_limit:
             first_target=entry+2*(entry-stop)
             if hi>=first_target:
                 return {"status":"AMBIGUOUS_SECOND_AND_TARGET","setup":name}
-        # If price opens above the first-position target, take profit before
-        # processing any intraday second-order fill.
-        if second_weight and not second_filled and op>=entry+2*(entry-stop):
-            status="TARGET_GAP_OPEN";exit_price=entry+2*(entry-stop);break
         if second_weight and not second_filled and op<=second_limit:
             qty2=capital_second/op
             second_filled=True
