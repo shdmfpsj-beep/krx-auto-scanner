@@ -96,7 +96,6 @@ def structural_row(candidate,history,snapshot,c3=None,k100=None):
                 out.update(structural_stop_reference=round(stop,2),
                            structural_risk_pct=round(risk*100,2))
             if 'STRUCTURAL_RISK_NEEDS_REVIEW' not in errors:
-            else:
                 out['entry1_close_reference']=round(close,2)
                 ma20=sum(r['close'] for r in bars[-20:])/20
                 if stop<ma20<close:out['entry2_ma20_proxy']=round(ma20,2)
