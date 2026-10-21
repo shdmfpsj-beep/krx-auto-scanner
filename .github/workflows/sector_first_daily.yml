@@ -27,6 +27,7 @@ jobs:
         with:
           sparse-checkout: |
             /scripts/sector_evidence_bridge.py
+            /scripts/test_sector_evidence_bridge.py
             /scripts/sector_first_daily.py
             /scripts/test_sector_first_daily.py
             /scripts/sector_catalyst_enrich.py
@@ -43,6 +44,7 @@ jobs:
         run: |
           python -m py_compile scripts/sector_first_daily.py scripts/sector_evidence_bridge.py
           python scripts/test_sector_first_daily.py
+          python scripts/test_sector_evidence_bridge.py
           python scripts/test_sector_catalyst_enrich.py
 
       - name: Download latest matching artifacts
