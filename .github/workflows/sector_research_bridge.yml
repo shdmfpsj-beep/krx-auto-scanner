@@ -21,8 +21,11 @@ jobs:
         with:
           sparse-checkout: |
             /scripts/sector_evidence_bridge.py
+            /scripts/test_sector_evidence_bridge.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
+      - name: Test evidence bridge safety rules
+        run: python -m unittest discover -s scripts -p "test_sector_evidence_bridge.py" -v
       - name: Download latest matching artifacts
         shell: bash
         run: |
@@ -39,6 +42,8 @@ jobs:
                                 "-f","per_page=20"],capture_output=True,text=True,check=True)
               runs=json.loads(p.stdout)["workflow_runs"]
               candidates=[r for r in runs if r.get("conclusion")=="success"]
+              if wf=="sector_evidence_v18.yml":
+                candidates=[r for r in candidates if r.get("event")=="workflow_dispatch"]
               if not candidates: raise SystemExit(f"NO_SUCCESSFUL_RUN:{wf}")
               found=False
               for run in candidates:
@@ -50,6 +55,10 @@ jobs:
                 z=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/artifacts/{match['id']}/zip"],
                                  capture_output=True,check=True)
                 with zipfile.ZipFile(io.BytesIO(z.stdout)) as archive:
+                  for entry in archive.infolist():
+                    target=Path(dest,entry.filename)
+                    if target.resolve()!=Path(dest).resolve() and Path(dest).resolve() not in target.resolve().parents:
+                      raise SystemExit("UNSAFE_ARTIFACT_PATH")
                   archive.extractall(dest)
                 found=True
                 break
