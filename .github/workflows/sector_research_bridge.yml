@@ -29,6 +29,8 @@ on:
       - 'scripts/test_staged_robustness.py'
       - 'scripts/staged_temporal_holdout.py'
       - 'scripts/test_staged_temporal_holdout.py'
+      - 'scripts/structural_support_comparison.py'
+      - 'scripts/test_structural_support_comparison.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
@@ -74,6 +76,8 @@ jobs:
             /scripts/test_staged_robustness.py
             /scripts/staged_temporal_holdout.py
             /scripts/test_staged_temporal_holdout.py
+            /scripts/structural_support_comparison.py
+            /scripts/test_structural_support_comparison.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify research bridge guardrails
@@ -88,6 +92,7 @@ jobs:
           python scripts/test_staged_entry_comparison.py
           python scripts/test_staged_robustness.py
           python scripts/test_staged_temporal_holdout.py
+          python scripts/test_structural_support_comparison.py
           python - <<'PY'
           import sys
           sys.path.insert(0,"scripts")
@@ -247,6 +252,22 @@ jobs:
       - name: Evaluate fixed-rule temporal holdout
         run: |
           python scripts/staged_temporal_holdout.py --paired output/staged_entry_paired.csv --out output/staged_temporal_holdout.json
+      - name: Compare structural second-entry supports
+        run: |
+          python - <<'PY'
+          import json,subprocess,sys
+          from pathlib import Path
+          matches=list(Path("inputs/evidence").rglob("diagnostics/collection_status.json"))
+          state=Path("output/sector_bridge_status.json")
+          watch=Path("output/sector_stock_watchlist.csv")
+          if len(matches)!=1 or not state.exists() or not watch.exists():
+              raise SystemExit("MISSING_STRUCTURAL_SUPPORT_INPUT")
+          asof=json.loads(state.read_text(encoding="utf-8-sig")).get("asof")
+          if not asof:raise SystemExit("MISSING_ASOF")
+          subprocess.run([sys.executable,"scripts/structural_support_comparison.py",
+                          "--evidence",str(matches[0].parent.parent),
+                          "--watchlist",str(watch),"--asof",asof,"--out","output"],check=True)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
