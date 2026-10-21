@@ -1,9 +1,13 @@
 # FULL COPY: add this complete file to .github/workflows/sector_evidence_v18.yml
 # Standalone: source, configuration, and integrity tests are embedded below.
-# Read-only evidence collection. No cron, repository write, strategy edit, or order.
+# Read-only evidence collection. Daily scheduled backfill uses only free public and registered read APIs;
+# no repository write, strategy edit, or order.
 name: Sector Evidence v18 (standalone)
 
 'on':
+  schedule:
+    # 18:20 KST weekdays, after completed Korean cash market session (09:20 UTC).
+    - cron: '20 9 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
@@ -1546,13 +1550,13 @@ jobs:
       - name: Test provenance, dates, real flows and original exit behavior (offline fixtures)
         run: python -m unittest discover -s scripts -p 'test_sector_evidence_v18.py' -v
       - name: Install KRX collector dependencies for backfill
-        if: inputs.mode == 'backfill'
+        if: github.event_name == 'schedule' || inputs.mode == 'backfill'
         run: python -m pip install --disable-pip-version-check -r requirements-v18.txt
       - name: Recover v14 original data and collect requested evidence
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          MODE: ${{ inputs.mode }}
+          MODE: ${{ github.event_name == 'schedule' && 'backfill' || inputs.mode }}
           ASOF: ${{ inputs.asof }}
           V14_RUN_ID: ${{ inputs.v14_run_id }}
           PRICE_START: ${{ inputs.price_start }}
