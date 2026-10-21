@@ -2,7 +2,7 @@ import sys,unittest,io,json,urllib.error
 from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).parent))
-from kiwoom_daily_readonly import normalize,check_ok,diagnostic_codes,post
+from kiwoom_daily_readonly import normalize,check_ok,diagnostic_codes,diagnostic_body_shape,post
 
 class KiwoomReadOnlyTests(unittest.TestCase):
     def test_daily_normalization(self):
@@ -44,6 +44,16 @@ class KiwoomReadOnlyTests(unittest.TestCase):
         self.assertNotIn("DONT_LOG_THIS_SECRET",msg)
         self.assertNotIn("PRIVATE_APP_KEY",msg)
         self.assertNotIn("PRIVATE_APP_SECRET",msg)
+
+    def test_body_shape_never_exposes_response_values(self):
+        kind,fields=diagnostic_body_shape(json.dumps({
+            "return_msg":"PRIVATE_CREDENTIAL_VALUE",
+            "return_code":3}).encode())
+        self.assertEqual(kind,"JSON_OBJECT")
+        self.assertIn("return_msg",fields)
+        self.assertNotIn("PRIVATE_CREDENTIAL_VALUE",fields)
+        kind,fields=diagnostic_body_shape(b"<html>PRIVATE_CREDENTIAL_VALUE</html>")
+        self.assertEqual((kind,fields),("HTML","none"))
 
     def test_no_missing_list_silently_accepted(self):
         with self.assertRaises(ValueError):normalize({"return_code":0},"005930")
