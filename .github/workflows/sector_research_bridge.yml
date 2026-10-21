@@ -27,6 +27,8 @@ on:
       - 'scripts/test_staged_entry_comparison.py'
       - 'scripts/staged_robustness.py'
       - 'scripts/test_staged_robustness.py'
+      - 'scripts/staged_temporal_holdout.py'
+      - 'scripts/test_staged_temporal_holdout.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
@@ -70,6 +72,8 @@ jobs:
             /scripts/test_staged_entry_comparison.py
             /scripts/staged_robustness.py
             /scripts/test_staged_robustness.py
+            /scripts/staged_temporal_holdout.py
+            /scripts/test_staged_temporal_holdout.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify research bridge guardrails
@@ -83,6 +87,7 @@ jobs:
           python scripts/test_batch_staged_entry_comparison.py
           python scripts/test_staged_entry_comparison.py
           python scripts/test_staged_robustness.py
+          python scripts/test_staged_temporal_holdout.py
           python - <<'PY'
           import sys
           sys.path.insert(0,"scripts")
@@ -239,6 +244,9 @@ jobs:
       - name: Evaluate paired-entry robustness by month and second fill
         run: |
           python scripts/staged_robustness.py --paired output/staged_entry_paired.csv --out output/staged_robustness.json
+      - name: Evaluate fixed-rule temporal holdout
+        run: |
+          python scripts/staged_temporal_holdout.py --paired output/staged_entry_paired.csv --out output/staged_temporal_holdout.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
