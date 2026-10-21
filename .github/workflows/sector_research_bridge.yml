@@ -165,7 +165,7 @@ jobs:
           root=Path("inputs/evidence")
           matches=list(root.rglob("diagnostics/collection_status.json"))
           watch=Path("output/sector_stock_watchlist.csv")
-          summary=Path("output/sector_research_summary.json")
+          summary=Path("output/sector_bridge_status.json")
           if len(matches)!=1 or not watch.exists():
               raise SystemExit("MISSING_EVIDENCE_OR_WATCHLIST")
           if summary.exists():
