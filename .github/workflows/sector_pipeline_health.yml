@@ -3,8 +3,8 @@ name: KRX sector pipeline daily health audit
 on:
   workflow_dispatch:
   schedule:
-    # 20:40 KST weekdays, after 16:45 KRX and 18:25 sector runs.
-    - cron: '40 11 * * 1-5'
+    # 21:40 KST weekdays, allowing v18 up to its 180-minute timeout.
+    - cron: '40 12 * * 1-5'
 
 permissions:
   actions: read
