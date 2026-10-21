@@ -25,12 +25,20 @@ class GlobalJoinTests(unittest.TestCase):
         self.assertEqual(len(report["sector_top3"][0]["global_news_observations"]),1)
         self.assertIn("해외",render(report,"# sector report"))
     def test_two_independent_publishers_create_research_watch_only(self):
-        a=[article(sector="POWER",domain="one.com"),
-           article(sector="POWER",domain="two.com")]
+        second=article(sector="POWER",domain="two.com")
+        second["title"]="European grid operators announce new transformer backlog"
+        a=[article(sector="POWER",domain="one.com"),second]
         out=combine(BASE,AUDIT,a,NOW)
         self.assertEqual(out["global_early_watch_outside_top3"][0]["sector_id"],"POWER")
         self.assertEqual(out["global_early_watch_outside_top3"][0]["trade_approval"],"NO")
         self.assertEqual(out["decision"],"CASH")
+    def test_two_publishers_same_syndicated_title_do_not_create_early_watch(self):
+        a=[article(sector="POWER",domain="one.com"),
+           article(sector="POWER",domain="two.com")]
+        out=combine(BASE,AUDIT,a,NOW)
+        self.assertEqual(out["global_early_watch_outside_top3"],[])
+        self.assertEqual(out["decision"],"CASH")
+
     def test_duplicate_same_publisher_does_not_imply_confirmation(self):
         a=[article(sector="POWER"),article(sector="POWER")]
         out=combine(BASE,AUDIT,a,NOW)
