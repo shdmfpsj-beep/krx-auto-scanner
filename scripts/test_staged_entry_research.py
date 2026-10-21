@@ -33,6 +33,16 @@ class StagedTests(unittest.TestCase):
     def test_intraday_second_and_stop_is_ambiguous(self):
         b=sample();b[67]={"open":105.,"high":106.,"low":99.,"close":101.}
         self.assertEqual(self.run_sim(b)["status"],"AMBIGUOUS_SECOND_AND_STOP")
+    def test_second_and_target_same_bar_is_ambiguous(self):
+        b=sample()
+        b[67]={"open":105.,"high":116.,"low":102.,"close":110.}
+        self.assertEqual(self.run_sim(b)["status"],"AMBIGUOUS_SECOND_AND_TARGET")
+    def test_target_gap_before_second_limit(self):
+        b=sample()
+        b[67]={"open":117.,"high":119.,"low":102.,"close":105.}
+        r=self.run_sim(b)
+        self.assertEqual(r["status"],"TARGET_GAP_OPEN")
+        self.assertFalse(r["second_filled"])
     def test_four_splits(self):
         for split in SPLITS.values():
             r=self.run_sim(sample(),split=split,limit=103. if split[1] else None)
