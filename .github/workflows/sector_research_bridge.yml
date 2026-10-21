@@ -33,6 +33,7 @@ jobs:
             /scripts/test_sector_evidence_bridge.py
             /scripts/preignition_monthly_validation.py
             /scripts/preignition_five_day_audit.py
+            /scripts/ten_day_holdout_research.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify research bridge guardrails
