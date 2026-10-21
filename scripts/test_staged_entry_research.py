@@ -20,7 +20,9 @@ class StagedTests(unittest.TestCase):
         self.assertTrue(r["second_filled"])
         self.assertLess(r["average_entry"],105)
     def test_no_second_if_no_pullback(self):
-        b=sample();b[67]["open"]=105;b[67]["low"]=104
+        b=sample()
+        for k in range(67,71):
+            b[k].update(open=105.,high=108.,low=104.,close=105.)
         r=self.run_sim(b)
         self.assertFalse(r["second_filled"])
     def test_stop_before_second_if_gap(self):
