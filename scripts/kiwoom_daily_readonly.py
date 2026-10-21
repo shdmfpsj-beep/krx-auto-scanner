@@ -22,7 +22,7 @@ def diagnostic_codes(payload):
     message=str(payload.get("return_msg",""))
     match=re.search(r"\[([0-9]{3,5})(?::|\])",message)
     if not match:
-    match=re.search(r"\[([0-9]{3,5})(?::|\])",message)
+        match=re.search(r"\bCODE\s*[=:]\s*([0-9]{3,5})",message,re.I)
     embedded=match.group(1) if match else "unknown"
     return code,embedded
 
