@@ -10,6 +10,7 @@ on:
       - 'scripts/preignition_five_day_audit.py'
       - 'scripts/ten_day_holdout_research.py'
       - 'scripts/five_day_setup_comparison.py'
+      - 'scripts/batch_five_day_setup_audit.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
   schedule:
@@ -36,6 +37,7 @@ jobs:
             /scripts/preignition_five_day_audit.py
             /scripts/ten_day_holdout_research.py
             /scripts/five_day_setup_comparison.py
+            /scripts/batch_five_day_setup_audit.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Verify research bridge guardrails
@@ -154,6 +156,29 @@ jobs:
           subprocess.run([sys.executable,"scripts/sector_evidence_bridge.py",
                           "--evidence",str(matches[0].parent.parent),
                           "--scan-status",str(scan[0]),"--out","output"],check=True)
+          PY
+      - name: Audit historical watchlist setups from real dated OHLC
+        run: |
+          python - <<'PY'
+          import json,subprocess,sys
+          from pathlib import Path
+          root=Path("inputs/evidence")
+          matches=list(root.rglob("diagnostics/collection_status.json"))
+          watch=Path("output/sector_stock_watchlist.csv")
+          summary=Path("output/sector_research_summary.json")
+          if len(matches)!=1 or not watch.exists():
+              raise SystemExit("MISSING_EVIDENCE_OR_WATCHLIST")
+          if summary.exists():
+              data=json.loads(summary.read_text(encoding="utf-8-sig"))
+              asof=data.get("asof")
+          else:
+              candidates=list(Path("output").glob("*summary*.json"))
+              if not candidates:raise SystemExit("MISSING_ASOF_SUMMARY")
+              asof=json.loads(candidates[0].read_text(encoding="utf-8-sig")).get("asof")
+          if not asof:raise SystemExit("MISSING_ASOF")
+          subprocess.run([sys.executable,"scripts/batch_five_day_setup_audit.py",
+                          "--evidence",str(matches[0].parent.parent),
+                          "--watchlist",str(watch),"--asof",asof,"--out","output"],check=True)
           PY
       - uses: actions/upload-artifact@v4
         if: always()
