@@ -7,6 +7,8 @@ on:
     paths:
       - 'scripts/sector_first_daily.py'
       - 'scripts/test_sector_first_daily.py'
+      - 'scripts/sector_catalyst_enrich.py'
+      - 'scripts/test_sector_catalyst_enrich.py'
       - '.github/workflows/sector_first_daily_checks.yml'
 
 permissions:
@@ -23,6 +25,8 @@ jobs:
           sparse-checkout: |
             /scripts/sector_first_daily.py
             /scripts/test_sector_first_daily.py
+            /scripts/sector_catalyst_enrich.py
+            /scripts/test_sector_catalyst_enrich.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -33,13 +37,15 @@ jobs:
 
       - name: Syntax and sector-first evidence tests
         run: |
-          python -m py_compile scripts/sector_first_daily.py scripts/test_sector_first_daily.py
+          python -m py_compile scripts/sector_first_daily.py scripts/test_sector_first_daily.py scripts/sector_catalyst_enrich.py scripts/test_sector_catalyst_enrich.py
           python -m unittest discover -s scripts -p 'test_sector_first_daily.py' -v
+          python -m unittest discover -s scripts -p 'test_sector_catalyst_enrich.py' -v
 
       - name: Simulate missing evidence safely
         run: |
           mkdir -p source_empty output
           python scripts/sector_first_daily.py --input source_empty --out output
+          python scripts/sector_catalyst_enrich.py --report-root output --evidence-root source_empty
           python - <<'PY'
           import json
           from pathlib import Path
@@ -48,6 +54,10 @@ jobs:
           assert r['sector_top3']==[]
           assert r['stock_research_top5']==[]
           assert not r['trade_approved']
+          enriched=json.loads(Path('output/sector_first_with_catalysts.json').read_text())
+          assert enriched['decision']=='CASH'
+          assert enriched['sector_top3']==[]
+          assert enriched['catalyst_positive_count_verified']==0
           print('CASH_FALLBACK_TEST_PASSED')
           PY
 
@@ -58,4 +68,6 @@ jobs:
           path: |
             output/sector_first_daily_status.json
             output/sector_first_daily_mobile.md
+            output/sector_first_with_catalysts_mobile.md
+            output/sector_first_with_catalysts.json
           retention-days: 7
