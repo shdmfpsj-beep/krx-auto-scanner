@@ -39,7 +39,7 @@ def build(status,rows,scan_date):
         coverages=[number(r,k) for k in coverage_keys]
         if any(v is None for v in coverages):
             reasons.append("COVERAGE_UNVERIFIED")
-        elif any(v < 0.8 for v in coverages):
+        elif any(v < 0.95 for v in coverages):
             reasons.append("LOW_METRIC_COVERAGE")
         if flow is not None and inst is not None and flow + inst <= 0:
             reasons.append("NO_POSITIVE_NET_FLOW_PROXY")
