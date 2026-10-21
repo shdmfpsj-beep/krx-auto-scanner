@@ -52,7 +52,7 @@ class FocusStructureTests(unittest.TestCase):
         self.assertGreater(out["historical_stop_reference"],0)
         self.assertEqual(out["trade_state"],"CASH_NO_BUY_APPROVAL")
     def test_old_quote_is_not_marked_fresh(self):
-        out=calculate_fixture(asof=ASOF+timedelta(days=10))
+        out=calculate_fixture(rows=bars(),asof=ASOF+timedelta(days=10))
         self.assertEqual(out["historical_stop_reference"],"")
         self.assertEqual(out["structure_state"],"STALE_DAILY_CLOSE")
     def test_future_quote_cannot_be_reused(self):
