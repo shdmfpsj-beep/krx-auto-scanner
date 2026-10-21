@@ -10,7 +10,7 @@ import json
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
-from global_sector_news import MACRO,SECTORS,safe_url,seen_time,title_text
+from global_sector_news import MACRO,SECTORS,safe_url,seen_time,title_text,headline_signature
 
 def read_csv(path):
     if not path.is_file():
@@ -78,9 +78,11 @@ def combine(base,audit,articles,now):
         relevant=[x for x in valid if x["sector_id"]==sid and
                   seen_time(x["seen_at_utc"])>=now-timedelta(hours=48)]
         domains={x["publisher_domain"] for x in relevant}
-        if len(domains)>=2:
+        independent_headlines={headline_signature(x["title"]) for x in relevant}
+        if len(domains)>=2 and len(independent_headlines)>=2:
             emerging.append(dict(sector_id=sid,foreign_article_sample=len(relevant),
-              independent_publishers=len(domains),sources=relevant[:2],
+              independent_publishers=len(domains),
+              distinct_headlines=len(independent_headlines),sources=relevant[:2],
               status="WORLD_NEWS_EARLY_REVIEW_ONLY",
               trade_approval="NO"))
     emerging.sort(key=lambda r:(-r["independent_publishers"],
