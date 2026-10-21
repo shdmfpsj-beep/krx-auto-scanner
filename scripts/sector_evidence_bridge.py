@@ -214,36 +214,64 @@ def stock_market_metrics(root,watch,asof):
                 low_pivot_review=("CLOSE_BROKE_PIVOT_LOW" if
                                   post_pivot_min_close<low_pivot_price else
                                   "PIVOT_HELD_ON_SUBSEQUENT_CLOSES")
-        # Candidate breakout/retest sequence using only as-of OHLC data.
-        # Breakout: close > highest high of preceding 20 sessions.
-        # Retest: subsequent day's low touches +/-2% of breakout level
-        # and close finishes at or above that level. Observation only.
+        # Evaluate ALL historical breakout candidates, not just the latest one.
+        # Select the freshest still-held retest; no look-ahead or trade approval.
         breakout_date=""
         breakout_level=""
         retest_date=""
         retest_low=""
         breakout_review="NO_OBSERVED_20D_BREAKOUT"
+        breakout_candidates_count=0
+        valid_retests=[]
+        last_broken=False
         if len(series)>=30 and series[-1][0]==asof and all(
                 v[2] is not None and v[3] is not None for _,v in series):
-            candidates=[]
             for i in range(20,len(series)-1):
-                prior_high=max(v[3] for _,v in series[i-20:i])
-                if series[i][1][0]>prior_high:
-                    candidates.append((i,prior_high))
-            if candidates:
-                i,level=candidates[-1]
+                level=max(v[3] for _,v in series[i-20:i])
+                if series[i][1][0]<=level:
+                    continue
+                breakout_candidates_count+=1
+                retests=[(j,series[j][1][2]) for j in range(i+1,len(series))
+                         if .98*level<=series[j][1][2]<=1.02*level
+                         and series[j][1][0]>=level]
+                for j,low in retests:
+                    if all(v[0]>=level for _,v in series[j+1:]):
+                        valid_retests.append((j,i,level,low))
+                if not valid_retests and any(v[0]<level for _,v in series[i+1:]):
+                    last_broken=True
+            if valid_retests:
+                j,i,level,low=max(valid_retests,key=lambda x:(x[0],x[1]))
                 breakout_date=series[i][0]
                 breakout_level=level
-                breakout_review="BREAKOUT_NO_RETEST_OBSERVED"
-                for d,v in series[i+1:]:
-                    if .98*level<=v[2]<=1.02*level and v[0]>=level:
-                        retest_date=d
-                        retest_low=v[2]
-                        breakout_review="RETEST_CLOSE_HOLD_OBSERVED"
-                        break
-                if not retest_date and any(v[0]<level for _,v in series[i+1:]):
-                    breakout_review="BREAKOUT_LEVEL_LOST_ON_CLOSE"
-        # This pattern is not yet a verified executable entry setup.
+                retest_date=series[j][0]
+                retest_low=low
+                age=len(series)-1-j
+                breakout_review=("RECENT_RETEST_HELD_TO_ASOF" if age<=10 else
+                                 "STALE_RETEST_HELD_TO_ASOF")
+            elif breakout_candidates_count:
+                breakout_review=("NO_VALID_HELD_RETEST" if last_broken else
+                                 "BREAKOUT_NO_RETEST_OBSERVED")
+        # Alternative: rising 20-session mean, first pullback into the mean
+        # following a prior close >3% above it; observational only.
+        pullback_review="NO_RISING_SMA20_PULLBACK"
+        pullback_date=""
+        if len(series)>=30 and series[-1][0]==asof:
+            closes=[v[0] for _,v in series]
+            ma=[None]*len(series)
+            for i in range(19,len(series)):
+                ma[i]=sum(closes[i-19:i+1])/20
+            for i in range(25,len(series)):
+                if (ma[i] is not None and ma[i-5] is not None
+                    and ma[i]>ma[i-5]
+                    and closes[i-1]>1.03*ma[i-1]
+                    and series[i][1][2] is not None
+                    and .98*ma[i]<=series[i][1][2]<=1.02*ma[i]
+                    and closes[i]>=ma[i]):
+                    pullback_date=series[i][0]
+                    age=len(series)-1-i
+                    pullback_review=("RECENT_RISING_SMA20_PULLBACK" if age<=10
+                                     else "STALE_RISING_SMA20_PULLBACK")
+        # No pattern is an executable entry without independent validation.
         # Closing-price pivots are preliminary structure observations only.
         # Require at least 30 daily observations and an as-of latest bar.
         pivot_lows=[]
@@ -300,6 +328,9 @@ def stock_market_metrics(root,watch,asof):
                        "retest_observed_date":retest_date,
                        "retest_observed_low":retest_low,
                        "breakout_retest_review_status":breakout_review,
+                       "breakout_candidates_count":breakout_candidates_count,
+                       "rising_sma20_pullback_review":pullback_review,
+                       "rising_sma20_pullback_date":pullback_date,
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
                        "trade_approval":"NO"})
@@ -406,7 +437,14 @@ def main():
         for r in enriched)
     summary["breakout_retest_verified_count"]=0
     summary["retest_close_hold_observed_count"]=sum(
-        r.get("breakout_retest_review_status")=="RETEST_CLOSE_HOLD_OBSERVED"
+        r.get("breakout_retest_review_status") in (
+            "RECENT_RETEST_HELD_TO_ASOF","STALE_RETEST_HELD_TO_ASOF")
+        for r in enriched)
+    summary["recent_retest_held_count"]=sum(
+        r.get("breakout_retest_review_status")=="RECENT_RETEST_HELD_TO_ASOF"
+        for r in enriched)
+    summary["recent_rising_sma20_pullback_count"]=sum(
+        r.get("rising_sma20_pullback_review")=="RECENT_RISING_SMA20_PULLBACK"
         for r in enriched)
     research_fields=metrics_fields+["distance_sma20_pct","recent_close_high_20d",
                                      "extension_warning","entry_setup_verified",
@@ -422,6 +460,9 @@ def main():
                                      "breakout_20d_date","breakout_20d_level",
                                      "retest_observed_date","retest_observed_low",
                                      "breakout_retest_review_status",
+                                     "breakout_candidates_count",
+                                     "rising_sma20_pullback_review",
+                                     "rising_sma20_pullback_date",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
     with (out/"sector_stock_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
