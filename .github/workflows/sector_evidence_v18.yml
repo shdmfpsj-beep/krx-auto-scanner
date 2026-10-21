@@ -528,6 +528,9 @@ jobs:
                       if not callable(getattr(stock, name, None)):
                           raise EvidenceError("PYKRX_API_SCHEMA_CHANGED")
           
+              def call_ticker_list(self, day, market):
+                  return self.stock.get_market_ticker_list(day, market=market)
+
               def call(self, name, *args, **kwargs):
                   for attempt in range(self.retries + 1):
                       time.sleep(self.pause)
@@ -543,6 +546,24 @@ jobs:
                               raise EvidenceError("KRX_CALL_FAILED_OR_EMPTY") from None
           
           
+          def resolve_name_index(krx, frame, day, market):
+              if frame.index.name != "종목명":
+                  return frame
+              tickers = krx.call_ticker_list(day.strftime("%Y%m%d"), market)
+              names = {}
+              for ticker in tickers:
+                  code = ticker_code(ticker)
+                  name = krx.stock.get_market_ticker_name(code)
+                  names.setdefault(name, set()).add(code)
+              missing = [name for name in frame.index if name not in names]
+              ambiguous = [name for name in frame.index if name in names and len(names[name]) != 1]
+              if missing or ambiguous:
+                  raise EvidenceError("UNVERIFIED_NAME_TO_TICKER_MAPPING")
+              result = frame.copy()
+              result.index = [next(iter(names[name])) for name in frame.index]
+              result.index.name = "종목코드"
+              return result
+
           def krx_prices(frame, dated=None):
               required = {"시가": "Open", "고가": "High", "저가": "Low", "종가": "Close", "거래량": "Volume"}
               if not set(required).issubset(frame.columns):
@@ -667,7 +688,8 @@ jobs:
                   preflight = {m: krx.call("get_market_ohlcv", effective.strftime("%Y%m%d"), market=m)
                                for m in self.config["markets"]}
                   for m, frame in preflight.items():
-                      if len(krx_prices(frame, effective)) < 100:
+                      preflight[m] = resolve_name_index(krx, frame, effective, m)
+                      if len(krx_prices(preflight[m], effective)) < 100:
                           raise EvidenceError("MARKET_PREFLIGHT_UNEXPECTED_COVERAGE")
                   self.mark("krx_preflight", "OK", pykrx=importlib.metadata.version("pykrx"),
                             asof=effective.isoformat())
@@ -679,7 +701,7 @@ jobs:
                               break
                           try:
                               frame = preflight[m] if d == effective else krx.call("get_market_ohlcv", d.strftime("%Y%m%d"), market=m)
-                              rows = krx_prices(frame, d)
+                              rows = krx_prices(resolve_name_index(krx, frame, d, m), d)
                               if len(rows) < 100:
                                   raise EvidenceError("MARKET_PRICE_COVERAGE_UNEXPECTEDLY_SMALL")
                               csv_write(self.out / f"market/daily_prices/{m}/{d.isoformat()}.csv", rows, ["ticker", *PRICE_FIELDS])
