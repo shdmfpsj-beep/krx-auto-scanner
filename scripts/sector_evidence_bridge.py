@@ -121,7 +121,9 @@ def historical_pattern_review(series, horizon=5):
     """
     out={k:[] for k in ("BREAKOUT_20D","RISING_SMA20_PULLBACK","RECLAIM_10D_HIGH")}
     if len(series)<31 or any(v[2] is None or v[3] is None for _,v in series):
-        return {k:{"count":0,"mean_forward_5d_pct":"","positive_count":0}
+        return {k:{"count":0,"mean_forward_5d_pct":"","positive_count":0,
+                   "mean_mae_5d_pct":"","mean_mfe_5d_pct":"",
+                   "hypothetical_10d_low_breach_count":0}
                 for k in out}
     closes=[v[0] for _,v in series]
     highs=[v[3] for _,v in series]
@@ -143,11 +145,23 @@ def historical_pattern_review(series, horizon=5):
         }
         for name,matched in signals.items():
             if matched and i-last_used[name]>horizon:
-                out[name].append(100*(closes[i+horizon]/closes[i]-1))
+                entry=closes[i]
+                future=series[i+1:i+horizon+1]
+                # The signal-day 10-bar low is a research-only risk reference,
+                # NOT an executable structural stop or an intraday fill.
+                reference_low=min(lows[i-9:i+1])
+                out[name].append((
+                    100*(closes[i+horizon]/entry-1),
+                    100*(min(v[2] for _,v in future)/entry-1),
+                    100*(max(v[3] for _,v in future)/entry-1),
+                    any(v[2]<reference_low for _,v in future)))
                 last_used[name]=i
     return {k:{"count":len(v),
-               "mean_forward_5d_pct":round(sum(v)/len(v),3) if v else "",
-               "positive_count":sum(x>0 for x in v)}
+               "mean_forward_5d_pct":round(sum(x[0] for x in v)/len(v),3) if v else "",
+               "positive_count":sum(x[0]>0 for x in v),
+               "mean_mae_5d_pct":round(sum(x[1] for x in v)/len(v),3) if v else "",
+               "mean_mfe_5d_pct":round(sum(x[2] for x in v)/len(v),3) if v else "",
+               "hypothetical_10d_low_breach_count":sum(x[3] for x in v)}
             for k,v in out.items()}
 
 
@@ -372,10 +386,19 @@ def stock_market_metrics(root,watch,asof):
                        "rising_sma20_pullback_date":pullback_date,
                        "pattern_history_breakout_count":pattern_history["BREAKOUT_20D"]["count"],
                        "pattern_history_breakout_mean_5d_pct":pattern_history["BREAKOUT_20D"]["mean_forward_5d_pct"],
+                       "pattern_history_breakout_mean_mae_5d_pct":pattern_history["BREAKOUT_20D"]["mean_mae_5d_pct"],
+                       "pattern_history_breakout_mean_mfe_5d_pct":pattern_history["BREAKOUT_20D"]["mean_mfe_5d_pct"],
+                       "pattern_history_breakout_10d_low_breach_count":pattern_history["BREAKOUT_20D"]["hypothetical_10d_low_breach_count"],
                        "pattern_history_pullback_count":pattern_history["RISING_SMA20_PULLBACK"]["count"],
                        "pattern_history_pullback_mean_5d_pct":pattern_history["RISING_SMA20_PULLBACK"]["mean_forward_5d_pct"],
+                       "pattern_history_pullback_mean_mae_5d_pct":pattern_history["RISING_SMA20_PULLBACK"]["mean_mae_5d_pct"],
+                       "pattern_history_pullback_mean_mfe_5d_pct":pattern_history["RISING_SMA20_PULLBACK"]["mean_mfe_5d_pct"],
+                       "pattern_history_pullback_10d_low_breach_count":pattern_history["RISING_SMA20_PULLBACK"]["hypothetical_10d_low_breach_count"],
                        "pattern_history_reclaim_count":pattern_history["RECLAIM_10D_HIGH"]["count"],
                        "pattern_history_reclaim_mean_5d_pct":pattern_history["RECLAIM_10D_HIGH"]["mean_forward_5d_pct"],
+                       "pattern_history_reclaim_mean_mae_5d_pct":pattern_history["RECLAIM_10D_HIGH"]["mean_mae_5d_pct"],
+                       "pattern_history_reclaim_mean_mfe_5d_pct":pattern_history["RECLAIM_10D_HIGH"]["mean_mfe_5d_pct"],
+                       "pattern_history_reclaim_10d_low_breach_count":pattern_history["RECLAIM_10D_HIGH"]["hypothetical_10d_low_breach_count"],
                        "historical_pattern_trade_verified":"NO",
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
@@ -511,10 +534,19 @@ def main():
                                      "rising_sma20_pullback_date",
                                      "pattern_history_breakout_count",
                                      "pattern_history_breakout_mean_5d_pct",
+                                     "pattern_history_breakout_mean_mae_5d_pct",
+                                     "pattern_history_breakout_mean_mfe_5d_pct",
+                                     "pattern_history_breakout_10d_low_breach_count",
                                      "pattern_history_pullback_count",
                                      "pattern_history_pullback_mean_5d_pct",
+                                     "pattern_history_pullback_mean_mae_5d_pct",
+                                     "pattern_history_pullback_mean_mfe_5d_pct",
+                                     "pattern_history_pullback_10d_low_breach_count",
                                      "pattern_history_reclaim_count",
                                      "pattern_history_reclaim_mean_5d_pct",
+                                     "pattern_history_reclaim_mean_mae_5d_pct",
+                                     "pattern_history_reclaim_mean_mfe_5d_pct",
+                                     "pattern_history_reclaim_10d_low_breach_count",
                                      "historical_pattern_trade_verified",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
