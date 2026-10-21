@@ -554,7 +554,19 @@ jobs:
                   # Missing provider turnover stays blank. Close*volume is NOT actual trading value.
                   row["TurnoverKRW"] = numeric(r["거래대금"]) if "거래대금" in frame.columns else ""
                   if dated:
-                      row["ticker"] = ticker_code(idx)
+                      try:
+                          row["ticker"] = ticker_code(idx)
+                      except EvidenceError as exc:
+                          # Report only the index type/shape, never provider values or credentials.
+                          raw = str(idx).strip()
+                          kind = "DATETIME" if isinstance(idx, (pd.Timestamp, datetime, date)) else (
+                              "INTEGER" if isinstance(idx, (int,)) else (
+                              "TUPLE" if isinstance(idx, tuple) else "OTHER"))
+                          shape = ("EMPTY" if not raw else
+                                   "DIGITS" if raw.isascii() and raw.isdigit() else
+                                   "ALNUM" if raw.isascii() and raw.isalnum() else
+                                   "MIXED")
+                          raise EvidenceError("INVALID_TICKER_INDEX_" + kind + "_" + shape) from None
                   result.append(row)
               return result
           
