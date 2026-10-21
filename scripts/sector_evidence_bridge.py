@@ -203,6 +203,17 @@ def stock_market_metrics(root,watch,asof):
         valid_low_pivots=[p for p in low_pivots if last and p[1]<last]
         low_pivot_date,low_pivot_price=(valid_low_pivots[-1]
                                        if valid_low_pivots else ("",None))
+        # Review whether a completed low pivot has held on subsequent closes.
+        # A historical hold is NOT proof of a fresh breakout-retest setup.
+        low_pivot_review="NO_LOW_PIVOT"
+        post_pivot_min_close=""
+        if low_pivot_price is not None:
+            subsequent=[v[0] for d,v in series if d>low_pivot_date]
+            if subsequent:
+                post_pivot_min_close=min(subsequent)
+                low_pivot_review=("CLOSE_BROKE_PIVOT_LOW" if
+                                  post_pivot_min_close<low_pivot_price else
+                                  "PIVOT_HELD_ON_SUBSEQUENT_CLOSES")
         # Closing-price pivots are preliminary structure observations only.
         # Require at least 30 daily observations and an as-of latest bar.
         pivot_lows=[]
@@ -251,6 +262,9 @@ def stock_market_metrics(root,watch,asof):
                        "ohlc_valid_bar_count":len(low_series),
                        "daily_close_bar_count":len(series),
                        "ohlc_pivot_is_stop_price":"NO",
+                       "ohlc_pivot_review_status":low_pivot_review,
+                       "post_pivot_min_close":post_pivot_min_close,
+                       "breakout_retest_verified":"NO",
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
                        "trade_approval":"NO"})
@@ -352,6 +366,10 @@ def main():
         r.get("ohlc_low_history_complete")=="YES" for r in enriched)
     summary["ohlc_pivot_observed_count"]=sum(
         r.get("preliminary_ohlc_pivot_low")!="" for r in enriched)
+    summary["ohlc_pivot_close_hold_count"]=sum(
+        r.get("ohlc_pivot_review_status")=="PIVOT_HELD_ON_SUBSEQUENT_CLOSES"
+        for r in enriched)
+    summary["breakout_retest_verified_count"]=0
     research_fields=metrics_fields+["distance_sma20_pct","recent_close_high_20d",
                                      "extension_warning","entry_setup_verified",
                                      "structure_stop_verified","entry_review_status",
@@ -361,6 +379,8 @@ def main():
                                      "preliminary_ohlc_pivot_low_date","preliminary_ohlc_pivot_low",
                                      "ohlc_low_history_complete","ohlc_pivot_is_stop_price",
                                      "ohlc_valid_bar_count","daily_close_bar_count",
+                                     "ohlc_pivot_review_status","post_pivot_min_close",
+                                     "breakout_retest_verified",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
     with (out/"sector_stock_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
