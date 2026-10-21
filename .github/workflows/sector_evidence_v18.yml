@@ -551,20 +551,39 @@ jobs:
           
           
           def resolve_name_index(krx, frame, day, market):
-              if frame.index.name != "종목명":
-                  return frame
+              # The provider can return a ticker index or a named index whose
+              # label varies by pykrx version. Resolve against an independent,
+              # date-scoped universe; do not trust the index label alone.
               tickers = krx.call_ticker_list(day.strftime("%Y%m%d"), market)
+              codes = {}
               names = {}
               for ticker in tickers:
                   code = ticker_code(ticker)
-                  name = krx.stock.get_market_ticker_name(code)
-                  names.setdefault(name, set()).add(code)
-              missing = [name for name in frame.index if name not in names]
-              ambiguous = [name for name in frame.index if name in names and len(names[name]) != 1]
-              if missing or ambiguous:
-                  raise EvidenceError("UNVERIFIED_NAME_TO_TICKER_MAPPING")
+                  codes[code] = code
+                  name = str(krx.stock.get_market_ticker_name(code)).strip()
+                  if name:
+                      names.setdefault(name, set()).add(code)
+              if not codes:
+                  raise EvidenceError("TICKER_UNIVERSE_EMPTY")
+              resolved = []
+              for raw in frame.index:
+                  key = str(raw).strip()
+                  try:
+                      candidate = ticker_code(key)
+                  except EvidenceError:
+                      candidate = None
+                  if candidate is not None and candidate in codes:
+                      resolved.append(candidate)
+                  elif key in names and len(names[key]) == 1:
+                      resolved.append(next(iter(names[key])))
+                  elif key in names:
+                      raise EvidenceError("AMBIGUOUS_TICKER_NAME_MAPPING")
+                  else:
+                      raise EvidenceError("UNRESOLVED_TICKER_INDEX")
+              if len(resolved) != len(set(resolved)):
+                  raise EvidenceError("DUPLICATE_RESOLVED_TICKERS")
               result = frame.copy()
-              result.index = [next(iter(names[name])) for name in frame.index]
+              result.index = resolved
               result.index.name = "종목코드"
               return result
 
