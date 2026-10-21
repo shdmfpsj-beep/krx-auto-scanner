@@ -7,7 +7,7 @@ from kiwoom_execution_audit import outcome,evaluate
 def bars(next_open=100,second_open=100,second_low=98,second_high=102):
     data=[{"date":f"day{i}","open":100.0,"high":103.0,"low":97.0,"close":100.0}
           for i in range(75)]
-    data[66].update(open=next_open,high=max(next_open,102),low=min(next_open,98))
+    data[66].update(open=next_open,high=max(next_open,106),low=min(next_open,101))
     data[67].update(open=second_open,low=second_low,high=second_high)
     return data
 
