@@ -21,6 +21,8 @@ on:
       - 'scripts/test_kiwoom_execution_audit.py'
       - 'scripts/staged_entry_research.py'
       - 'scripts/test_staged_entry_research.py'
+      - 'scripts/batch_staged_entry_comparison.py'
+      - 'scripts/test_batch_staged_entry_comparison.py'
       - 'scripts/staged_entry_comparison.py'
       - 'scripts/test_staged_entry_comparison.py'
       - '.github/workflows/sector_research_bridge.yml'
@@ -60,6 +62,8 @@ jobs:
             /scripts/test_kiwoom_execution_audit.py
             /scripts/staged_entry_research.py
             /scripts/test_staged_entry_research.py
+            /scripts/batch_staged_entry_comparison.py
+            /scripts/test_batch_staged_entry_comparison.py
             /scripts/staged_entry_comparison.py
             /scripts/test_staged_entry_comparison.py
           sparse-checkout-cone-mode: false
@@ -72,6 +76,7 @@ jobs:
           python scripts/test_kiwoom_five_day_bridge.py
           python scripts/test_kiwoom_execution_audit.py
           python scripts/test_staged_entry_research.py
+          python scripts/test_batch_staged_entry_comparison.py
           python scripts/test_staged_entry_comparison.py
           python - <<'PY'
           import sys
@@ -207,6 +212,22 @@ jobs:
               asof=json.loads(candidates[0].read_text(encoding="utf-8-sig")).get("asof")
           if not asof:raise SystemExit("MISSING_ASOF")
           subprocess.run([sys.executable,"scripts/batch_five_day_setup_audit.py",
+                          "--evidence",str(matches[0].parent.parent),
+                          "--watchlist",str(watch),"--asof",asof,"--out","output"],check=True)
+          PY
+      - name: Compare staged entries on identical historical watchlist signals
+        run: |
+          python - <<'PY'
+          import json,subprocess,sys
+          from pathlib import Path
+          matches=list(Path("inputs/evidence").rglob("diagnostics/collection_status.json"))
+          watch=Path("output/sector_stock_watchlist.csv")
+          state=Path("output/sector_bridge_status.json")
+          if len(matches)!=1 or not watch.exists() or not state.exists():
+              raise SystemExit("MISSING_PAIRED_RESEARCH_INPUT")
+          asof=json.loads(state.read_text(encoding="utf-8-sig")).get("asof")
+          if not asof:raise SystemExit("MISSING_ASOF")
+          subprocess.run([sys.executable,"scripts/batch_staged_entry_comparison.py",
                           "--evidence",str(matches[0].parent.parent),
                           "--watchlist",str(watch),"--asof",asof,"--out","output"],check=True)
           PY
