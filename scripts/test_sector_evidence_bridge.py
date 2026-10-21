@@ -58,6 +58,15 @@ class BridgeTests(unittest.TestCase):
         shortened=historical_pattern_review(bars[:29])
         self.assertTrue(all(v["count"]==0 for v in shortened.values()))
 
+    def test_daily_bar_risk_outcomes_partition_signals(self):
+        bars=[(str(i),(100+i,100000,99+i,100.5+i)) for i in range(35)]
+        stats=historical_pattern_review(bars)["BREAKOUT_20D"]
+        total=sum(stats[k] for k in ("risk_first_count","target_first_count",
+                    "ambiguous_same_bar_count","neither_count",
+                    "risk_reference_invalid_count"))
+        self.assertEqual(total,stats["count"])
+        self.assertEqual(stats["risk_reference_invalid_count"],0)
+
     def test_missing_ohlc_blocks_pattern_review(self):
         bars=[(str(i),(100+i,100000,None,None)) for i in range(40)]
         result=historical_pattern_review(bars)
