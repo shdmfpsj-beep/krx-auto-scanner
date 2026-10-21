@@ -24,6 +24,8 @@ jobs:
             /scripts/run.py
             /scripts/rank_candidates.py
             /scripts/test_rank_candidates.py
+            /scripts/free_structural_v52.py
+            /scripts/test_free_structural_v52.py
             /requirements.txt
             /reports/candidates.csv
           sparse-checkout-cone-mode: false
@@ -39,6 +41,9 @@ jobs:
 
       - name: Run offline ranking safety regression tests
         run: python -m unittest discover -s scripts -p 'test_rank_candidates.py' -v
+
+      - name: Verify no-cost daily structural analysis safety (offline)
+        run: python -m unittest discover -s scripts -p 'test_free_structural_v52.py' -v
 
       - name: Collect fresh KRX OHLCV
         run: python scripts/run.py
@@ -60,6 +65,9 @@ jobs:
       - name: Rank technical candidates (research only)
         run: python scripts/rank_candidates.py
 
+      - name: Build research-only structural stop and two-entry reference report
+        run: python scripts/free_structural_v52.py
+
       - name: Publish scan artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -71,5 +79,9 @@ jobs:
             reports/c3_preliminary.csv
             reports/k100_preliminary.csv
             reports/ranking_status.json
+            reports/candidate_daily_history_v52.csv
+            reports/free_structural_v52_all.csv
+            reports/free_structural_v52_status.json
+            reports/free_structural_v52_mobile.md
           if-no-files-found: warn
           retention-days: 14
