@@ -131,7 +131,10 @@ def historical_pattern_review(series, horizon=5):
     if len(series)<31 or any(v[2] is None or v[3] is None for _,v in series):
         return {k:{"count":0,"mean_forward_5d_pct":"","positive_count":0,
                    "mean_mae_5d_pct":"","mean_mfe_5d_pct":"",
-                   "hypothetical_10d_low_breach_count":0}
+                   "hypothetical_10d_low_breach_count":0,
+                   "risk_first_count":0,"target_first_count":0,
+                   "ambiguous_same_bar_count":0,"neither_count":0,
+                   "risk_reference_invalid_count":0}
                 for k in out}
     closes=[v[0] for _,v in series]
     highs=[v[3] for _,v in series]
@@ -140,6 +143,9 @@ def historical_pattern_review(series, horizon=5):
     for i in range(19,len(series)):
         ma[i]=sum(closes[i-19:i+1])/20
     last_used={k:-horizon-1 for k in out}
+    event_counts={k:{"risk_first_count":0,"target_first_count":0,
+                     "ambiguous_same_bar_count":0,"neither_count":0,
+                     "risk_reference_invalid_count":0} for k in out}
     for i in range(25,len(series)-horizon):
         signals={
             "BREAKOUT_20D":closes[i]>max(highs[i-20:i]),
@@ -158,6 +164,26 @@ def historical_pattern_review(series, horizon=5):
                 # The signal-day 10-bar low is a research-only risk reference,
                 # NOT an executable structural stop or an intraday fill.
                 reference_low=min(lows[i-9:i+1])
+                # Research-only 2R target versus 10-bar low reference.
+                # Both reached on one daily bar => unknown intraday order.
+                if reference_low>=entry:
+                    event_counts[name]["risk_reference_invalid_count"]+=1
+                else:
+                    target=entry+2*(entry-reference_low)
+                    outcome="neither_count"
+                    for _,bar in future:
+                        hit_risk=bar[2]<=reference_low
+                        hit_target=bar[3]>=target
+                        if hit_risk and hit_target:
+                            outcome="ambiguous_same_bar_count"
+                            break
+                        if hit_risk:
+                            outcome="risk_first_count"
+                            break
+                        if hit_target:
+                            outcome="target_first_count"
+                            break
+                    event_counts[name][outcome]+=1
                 out[name].append((
                     100*(closes[i+horizon]/entry-1),
                     100*(min(v[2] for _,v in future)/entry-1),
@@ -169,7 +195,8 @@ def historical_pattern_review(series, horizon=5):
                "positive_count":sum(x[0]>0 for x in v),
                "mean_mae_5d_pct":round(sum(x[1] for x in v)/len(v),3) if v else "",
                "mean_mfe_5d_pct":round(sum(x[2] for x in v)/len(v),3) if v else "",
-               "hypothetical_10d_low_breach_count":sum(x[3] for x in v)}
+               "hypothetical_10d_low_breach_count":sum(x[3] for x in v),
+               **event_counts[k]}
             for k,v in out.items()}
 
 
@@ -397,16 +424,31 @@ def stock_market_metrics(root,watch,asof):
                        "pattern_history_breakout_mean_mae_5d_pct":pattern_history["BREAKOUT_20D"]["mean_mae_5d_pct"],
                        "pattern_history_breakout_mean_mfe_5d_pct":pattern_history["BREAKOUT_20D"]["mean_mfe_5d_pct"],
                        "pattern_history_breakout_10d_low_breach_count":pattern_history["BREAKOUT_20D"]["hypothetical_10d_low_breach_count"],
+                       "pattern_history_breakout_risk_first_count":pattern_history["BREAKOUT_20D"]["risk_first_count"],
+                       "pattern_history_breakout_target_first_count":pattern_history["BREAKOUT_20D"]["target_first_count"],
+                       "pattern_history_breakout_ambiguous_same_bar_count":pattern_history["BREAKOUT_20D"]["ambiguous_same_bar_count"],
+                       "pattern_history_breakout_neither_count":pattern_history["BREAKOUT_20D"]["neither_count"],
+                       "pattern_history_breakout_risk_reference_invalid_count":pattern_history["BREAKOUT_20D"]["risk_reference_invalid_count"],
                        "pattern_history_pullback_count":pattern_history["RISING_SMA20_PULLBACK"]["count"],
                        "pattern_history_pullback_mean_5d_pct":pattern_history["RISING_SMA20_PULLBACK"]["mean_forward_5d_pct"],
                        "pattern_history_pullback_mean_mae_5d_pct":pattern_history["RISING_SMA20_PULLBACK"]["mean_mae_5d_pct"],
                        "pattern_history_pullback_mean_mfe_5d_pct":pattern_history["RISING_SMA20_PULLBACK"]["mean_mfe_5d_pct"],
                        "pattern_history_pullback_10d_low_breach_count":pattern_history["RISING_SMA20_PULLBACK"]["hypothetical_10d_low_breach_count"],
+                       "pattern_history_pullback_risk_first_count":pattern_history["RISING_SMA20_PULLBACK"]["risk_first_count"],
+                       "pattern_history_pullback_target_first_count":pattern_history["RISING_SMA20_PULLBACK"]["target_first_count"],
+                       "pattern_history_pullback_ambiguous_same_bar_count":pattern_history["RISING_SMA20_PULLBACK"]["ambiguous_same_bar_count"],
+                       "pattern_history_pullback_neither_count":pattern_history["RISING_SMA20_PULLBACK"]["neither_count"],
+                       "pattern_history_pullback_risk_reference_invalid_count":pattern_history["RISING_SMA20_PULLBACK"]["risk_reference_invalid_count"],
                        "pattern_history_reclaim_count":pattern_history["RECLAIM_10D_HIGH"]["count"],
                        "pattern_history_reclaim_mean_5d_pct":pattern_history["RECLAIM_10D_HIGH"]["mean_forward_5d_pct"],
                        "pattern_history_reclaim_mean_mae_5d_pct":pattern_history["RECLAIM_10D_HIGH"]["mean_mae_5d_pct"],
                        "pattern_history_reclaim_mean_mfe_5d_pct":pattern_history["RECLAIM_10D_HIGH"]["mean_mfe_5d_pct"],
                        "pattern_history_reclaim_10d_low_breach_count":pattern_history["RECLAIM_10D_HIGH"]["hypothetical_10d_low_breach_count"],
+                       "pattern_history_reclaim_risk_first_count":pattern_history["RECLAIM_10D_HIGH"]["risk_first_count"],
+                       "pattern_history_reclaim_target_first_count":pattern_history["RECLAIM_10D_HIGH"]["target_first_count"],
+                       "pattern_history_reclaim_ambiguous_same_bar_count":pattern_history["RECLAIM_10D_HIGH"]["ambiguous_same_bar_count"],
+                       "pattern_history_reclaim_neither_count":pattern_history["RECLAIM_10D_HIGH"]["neither_count"],
+                       "pattern_history_reclaim_risk_reference_invalid_count":pattern_history["RECLAIM_10D_HIGH"]["risk_reference_invalid_count"],
                        "historical_pattern_trade_verified":"NO",
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
@@ -545,16 +587,31 @@ def main():
                                      "pattern_history_breakout_mean_mae_5d_pct",
                                      "pattern_history_breakout_mean_mfe_5d_pct",
                                      "pattern_history_breakout_10d_low_breach_count",
+                                     "pattern_history_breakout_risk_first_count",
+                                     "pattern_history_breakout_target_first_count",
+                                     "pattern_history_breakout_ambiguous_same_bar_count",
+                                     "pattern_history_breakout_neither_count",
+                                     "pattern_history_breakout_risk_reference_invalid_count",
                                      "pattern_history_pullback_count",
                                      "pattern_history_pullback_mean_5d_pct",
                                      "pattern_history_pullback_mean_mae_5d_pct",
                                      "pattern_history_pullback_mean_mfe_5d_pct",
                                      "pattern_history_pullback_10d_low_breach_count",
+                                     "pattern_history_pullback_risk_first_count",
+                                     "pattern_history_pullback_target_first_count",
+                                     "pattern_history_pullback_ambiguous_same_bar_count",
+                                     "pattern_history_pullback_neither_count",
+                                     "pattern_history_pullback_risk_reference_invalid_count",
                                      "pattern_history_reclaim_count",
                                      "pattern_history_reclaim_mean_5d_pct",
                                      "pattern_history_reclaim_mean_mae_5d_pct",
                                      "pattern_history_reclaim_mean_mfe_5d_pct",
                                      "pattern_history_reclaim_10d_low_breach_count",
+                                     "pattern_history_reclaim_risk_first_count",
+                                     "pattern_history_reclaim_target_first_count",
+                                     "pattern_history_reclaim_ambiguous_same_bar_count",
+                                     "pattern_history_reclaim_neither_count",
+                                     "pattern_history_reclaim_risk_reference_invalid_count",
                                      "historical_pattern_trade_verified",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
