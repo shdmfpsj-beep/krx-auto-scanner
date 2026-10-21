@@ -9,6 +9,10 @@ on:
       - 'scripts/test_sector_first_daily.py'
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/test_sector_evidence_bridge.py'
+      - 'scripts/global_sector_news.py'
+      - 'scripts/test_global_sector_news.py'
+      - 'scripts/global_sector_join.py'
+      - 'scripts/test_global_sector_join.py'
       - 'scripts/sector_catalyst_enrich.py'
       - 'scripts/test_sector_catalyst_enrich.py'
       - '.github/workflows/sector_first_daily_checks.yml'
@@ -29,6 +33,10 @@ jobs:
             /scripts/test_sector_first_daily.py
             /scripts/sector_evidence_bridge.py
             /scripts/test_sector_evidence_bridge.py
+            /scripts/global_sector_news.py
+            /scripts/test_global_sector_news.py
+            /scripts/global_sector_join.py
+            /scripts/test_global_sector_join.py
             /scripts/sector_catalyst_enrich.py
             /scripts/test_sector_catalyst_enrich.py
           sparse-checkout-cone-mode: false
@@ -45,12 +53,16 @@ jobs:
           python -m unittest discover -s scripts -p 'test_sector_first_daily.py' -v
           python -m unittest discover -s scripts -p 'test_sector_catalyst_enrich.py' -v
           python -m unittest discover -s scripts -p 'test_sector_evidence_bridge.py' -v
+          python -m py_compile scripts/global_sector_news.py scripts/global_sector_join.py scripts/test_global_sector_news.py scripts/test_global_sector_join.py
+          python -m unittest discover -s scripts -p 'test_global_sector_news.py' -v
+          python -m unittest discover -s scripts -p 'test_global_sector_join.py' -v
 
       - name: Simulate missing evidence safely
         run: |
           mkdir -p source_empty output
           python scripts/sector_first_daily.py --input source_empty --out output
           python scripts/sector_catalyst_enrich.py --report-root output --evidence-root source_empty
+          python scripts/global_sector_join.py --report-root output --news-root source_empty
           python - <<'PY'
           import json
           from pathlib import Path
@@ -63,6 +75,10 @@ jobs:
           assert enriched['decision']=='CASH'
           assert enriched['sector_top3']==[]
           assert enriched['catalyst_positive_count_verified']==0
+          global_report=json.loads(Path('output/sector_first_global.json').read_text())
+          assert global_report['decision']=='CASH'
+          assert global_report['sector_top3']==[]
+          assert global_report['global_positive_catalysts_verified']==0
           print('CASH_FALLBACK_TEST_PASSED')
           PY
 
@@ -75,4 +91,6 @@ jobs:
             output/sector_first_daily_mobile.md
             output/sector_first_with_catalysts_mobile.md
             output/sector_first_with_catalysts.json
+            output/sector_first_global_mobile.md
+            output/sector_first_global.json
           retention-days: 7
