@@ -737,8 +737,10 @@ def main():
         summary["reason"]="Historical baseline-only artifact lacks current sector feature rows"
     out=Path(a.out);out.mkdir(parents=True,exist_ok=True)
     watch,watch_status=stock_watchlist(root,summary["research_top3_sector_ids"],
-                                       summary["asof"],20)
+                                       summary["asof"],40)
     summary["watchlist_count"]=len(watch)
+    summary["watchlist_target_count"]=40
+    summary["watchlist_shortfall_count"]=max(0,40-len(watch))
     summary["watchlist_status"]=watch_status
     summary["stock_top5_verified"]=False
     with (out/"sector_stock_watchlist.csv").open("w",encoding="utf-8-sig",newline="") as f:
