@@ -65,6 +65,11 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual([sum(r["sector_id"]==s for r in rows) for s in "ABC"],[7,7,6])
             self.assertEqual(len({r["ticker"] for r in rows}),20)
             self.assertTrue(all(r["trade_approval"]=="NO" for r in rows))
+            expanded,_=stock_watchlist(Path(d),["A","B","C"],"2026-10-20",40)
+            self.assertEqual(len(expanded),24)
+            self.assertEqual(len({r["ticker"] for r in expanded}),24)
+            self.assertEqual([sum(r["sector_id"]==sector for r in expanded)
+                              for sector in "ABC"],[8,8,8])
     def test_missing_prices_never_approve(self):
         with tempfile.TemporaryDirectory() as d:
             watch=[dict(ticker="000001",sector_id="A",name="Test")]
