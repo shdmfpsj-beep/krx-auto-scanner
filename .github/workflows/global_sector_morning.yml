@@ -24,6 +24,8 @@ jobs:
           sparse-checkout: |
             /scripts/global_sector_news.py
             /scripts/test_global_sector_news.py
+            /scripts/global_preopen_brief.py
+            /scripts/test_global_preopen_brief.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -36,9 +38,14 @@ jobs:
         run: |
           python -m py_compile scripts/global_sector_news.py scripts/test_global_sector_news.py
           python -m unittest discover -s scripts -p 'test_global_sector_news.py' -v
+          python -m unittest discover -s scripts -p 'test_global_preopen_brief.py' -v
 
       - name: Discover global news before Korean market opens
         run: python scripts/global_sector_news.py --out output
+
+      - name: Build mobile-first foreign preopen watch report
+        if: always()
+        run: python scripts/global_preopen_brief.py --root output
 
       - name: Save world news evidence for 08:35 preview
         if: always()
@@ -48,5 +55,7 @@ jobs:
           path: |
             output/global_sector_articles.csv
             output/global_sector_news_status.json
+            output/global_preopen_brief.json
+            output/global_preopen_brief_mobile.md
           if-no-files-found: warn
           retention-days: 7
