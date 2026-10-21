@@ -9,7 +9,11 @@ class PairedTests(unittest.TestCase):
         bars[12]["low"]=102.
         bars[19]["low"]=104.
         bars[20-1]["low"]=103.
-        self.assertEqual(second_support(bars,19,99,110),102)
+        self.assertEqual(second_support(bars,19,99,110),100.)
+    def test_support_ignores_future_low(self):
+        bars=[{"low":105.} for _ in range(21)]
+        bars[20]["low"]=101.
+        self.assertEqual(second_support(bars,19,99,110),105.)
     def test_support_rejects_below_stop(self):
         bars=[{"low":90.} for _ in range(20)]
         self.assertIsNone(second_support(bars,19,95,110))
