@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 import csv
-from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics
+from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics, historical_pattern_review
 
 class BridgeTests(unittest.TestCase):
     def test_balanced_and_unique_watchlist(self):
@@ -31,6 +31,24 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(rows[0]["structure_stop_verified"],"NO")
             self.assertEqual(rows[0]["trade_approval"],"NO")
             self.assertEqual(rank_stock_research(rows),[])
+    def test_pattern_review_requires_complete_forward_window(self):
+        bars=[]
+        for i in range(35):
+            close=100+i
+            bars.append((f"2026-09-{i+1:02d}",(close,100000,close-1,close+1)))
+        result=historical_pattern_review(bars)
+        self.assertEqual(set(result),{"BREAKOUT_20D","RISING_SMA20_PULLBACK",
+                                      "RECLAIM_10D_HIGH"})
+        self.assertEqual(result["BREAKOUT_20D"]["count"],1)
+        self.assertGreater(result["BREAKOUT_20D"]["mean_forward_5d_pct"],0)
+        shortened=historical_pattern_review(bars[:29])
+        self.assertTrue(all(v["count"]==0 for v in shortened.values()))
+
+    def test_missing_ohlc_blocks_pattern_review(self):
+        bars=[(str(i),(100+i,100000,None,None)) for i in range(40)]
+        result=historical_pattern_review(bars)
+        self.assertTrue(all(v["count"]==0 for v in result.values()))
+
     def test_ranking_does_not_create_entry(self):
         rows=[]
         for i in range(3):
