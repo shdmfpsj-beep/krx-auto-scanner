@@ -585,6 +585,8 @@ jobs:
               if not codes:
                   raise EvidenceError("TICKER_UNIVERSE_EMPTY")
               resolved = []
+              unresolved_shapes = set()
+              unresolved_count = 0
               for raw in frame.index:
                   key = str(raw).strip()
                   try:
@@ -598,7 +600,16 @@ jobs:
                   elif key in names:
                       raise EvidenceError("AMBIGUOUS_TICKER_NAME_MAPPING")
                   else:
-                      raise EvidenceError("UNRESOLVED_TICKER_INDEX")
+                      unresolved_count += 1
+                      pattern = "".join("D" if c.isascii() and c.isdigit() else
+                                        "L" if c.isascii() and c.isalpha() else
+                                        "H" if "\\uac00" <= c <= "\\ud7a3" else "X"
+                                        for c in key[:12])
+                      unresolved_shapes.add("LEN" + str(min(len(key), 99)) + "_" + pattern)
+                      continue
+              if unresolved_count:
+                  raise EvidenceError("UNRESOLVED_TICKER_INDEX_COUNT_" + str(min(unresolved_count, 9999)) +
+                                      "_SHAPE_" + "_".join(sorted(unresolved_shapes)[:3]))
               if len(resolved) != len(set(resolved)):
                   raise EvidenceError("DUPLICATE_RESOLVED_TICKERS")
               result = frame.copy()
