@@ -113,6 +113,44 @@ def stock_watchlist(root,sector_ids,asof,limit=20):
             break
     return chosen,("ETF_MEMBERSHIP_BALANCED_RESEARCH_ONLY" if chosen else "NO_DATED_MEMBERSHIP")
 
+def historical_pattern_review(series, horizon=5):
+    """Non-overlapping research observations with forward 5-session close returns.
+
+    Signals use only bars through signal day. Final horizon bars are excluded;
+    no intraday fill, costs, stops, or execution assumptions are implied.
+    """
+    out={k:[] for k in ("BREAKOUT_20D","RISING_SMA20_PULLBACK","RECLAIM_10D_HIGH")}
+    if len(series)<31 or any(v[2] is None or v[3] is None for _,v in series):
+        return {k:{"count":0,"mean_forward_5d_pct":"","positive_count":0}
+                for k in out}
+    closes=[v[0] for _,v in series]
+    highs=[v[3] for _,v in series]
+    lows=[v[2] for _,v in series]
+    ma=[None]*len(series)
+    for i in range(19,len(series)):
+        ma[i]=sum(closes[i-19:i+1])/20
+    last_used={k:-horizon-1 for k in out}
+    for i in range(25,len(series)-horizon):
+        signals={
+            "BREAKOUT_20D":closes[i]>max(highs[i-20:i]),
+            "RISING_SMA20_PULLBACK":(
+                ma[i]>ma[i-5] and closes[i-1]>1.03*ma[i-1]
+                and .98*ma[i]<=lows[i]<=1.02*ma[i] and closes[i]>=ma[i]),
+            "RECLAIM_10D_HIGH":(
+                closes[i]>max(highs[i-10:i]) and
+                closes[i-1]<=max(highs[i-11:i-1]) and
+                min(closes[i-5:i])<ma[i-1])
+        }
+        for name,matched in signals.items():
+            if matched and i-last_used[name]>horizon:
+                out[name].append(100*(closes[i+horizon]/closes[i]-1))
+                last_used[name]=i
+    return {k:{"count":len(v),
+               "mean_forward_5d_pct":round(sum(v)/len(v),3) if v else "",
+               "positive_count":sum(x>0 for x in v)}
+            for k,v in out.items()}
+
+
 def stock_market_metrics(root,watch,asof):
     """As-of daily bars and five-session investor flows, research only."""
     from collections import defaultdict
@@ -271,6 +309,7 @@ def stock_market_metrics(root,watch,asof):
                     age=len(series)-1-i
                     pullback_review=("RECENT_RISING_SMA20_PULLBACK" if age<=10
                                      else "STALE_RISING_SMA20_PULLBACK")
+        pattern_history=historical_pattern_review(series)
         # No pattern is an executable entry without independent validation.
         # Closing-price pivots are preliminary structure observations only.
         # Require at least 30 daily observations and an as-of latest bar.
@@ -331,6 +370,13 @@ def stock_market_metrics(root,watch,asof):
                        "breakout_candidates_count":breakout_candidates_count,
                        "rising_sma20_pullback_review":pullback_review,
                        "rising_sma20_pullback_date":pullback_date,
+                       "pattern_history_breakout_count":pattern_history["BREAKOUT_20D"]["count"],
+                       "pattern_history_breakout_mean_5d_pct":pattern_history["BREAKOUT_20D"]["mean_forward_5d_pct"],
+                       "pattern_history_pullback_count":pattern_history["RISING_SMA20_PULLBACK"]["count"],
+                       "pattern_history_pullback_mean_5d_pct":pattern_history["RISING_SMA20_PULLBACK"]["mean_forward_5d_pct"],
+                       "pattern_history_reclaim_count":pattern_history["RECLAIM_10D_HIGH"]["count"],
+                       "pattern_history_reclaim_mean_5d_pct":pattern_history["RECLAIM_10D_HIGH"]["mean_forward_5d_pct"],
+                       "historical_pattern_trade_verified":"NO",
                        "entry_risk_reward_verified":"NO",
                        "data_warnings":";".join(reasons),
                        "trade_approval":"NO"})
@@ -463,6 +509,13 @@ def main():
                                      "breakout_candidates_count",
                                      "rising_sma20_pullback_review",
                                      "rising_sma20_pullback_date",
+                                     "pattern_history_breakout_count",
+                                     "pattern_history_breakout_mean_5d_pct",
+                                     "pattern_history_pullback_count",
+                                     "pattern_history_pullback_mean_5d_pct",
+                                     "pattern_history_reclaim_count",
+                                     "pattern_history_reclaim_mean_5d_pct",
+                                     "historical_pattern_trade_verified",
                                      "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
     with (out/"sector_stock_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
