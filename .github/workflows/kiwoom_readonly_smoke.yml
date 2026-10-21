@@ -1,0 +1,79 @@
+name: Kiwoom REST daily chart read-only test (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: 'Six-digit stock code (e.g. 005930)'
+        required: true
+        type: string
+        default: '005930'
+      base_date:
+        description: 'Optional as-of date YYYYMMDD; blank uses today in Asia/Seoul'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  read-daily-chart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate parameters and presence of credential pair
+        shell: bash
+        env:
+          TICKER: ${{ inputs.ticker }}
+          BASE_DATE: ${{ inputs.base_date }}
+          KIWOOM_APP_KEY: ${{ secrets.KTSCA_API_KEY }}
+          KIWOOM_APP_SECRET: ${{ secrets.KIWOOM_APP_SECRET }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TICKER" =~ ^[0-9]{6}$ ]]; then
+            echo "::error::ticker must contain exactly six digits."
+            exit 1
+          fi
+          if [[ -n "$BASE_DATE" && ! "$BASE_DATE" =~ ^[0-9]{8}$ ]]; then
+            echo "::error::base_date must be YYYYMMDD or empty."
+            exit 1
+          fi
+          if [[ -z "${KIWOOM_APP_KEY:-}" || -z "${KIWOOM_APP_SECRET:-}" ]]; then
+            echo "::error::Both KTSCA_API_KEY (App Key) and KIWOOM_APP_SECRET (App Secret) must be set."
+            exit 1
+          fi
+          echo "Safe to proceed: stock chart read-only request, no account or order API."
+
+      - name: Request one daily chart (read-only, real API credentials)
+        shell: bash
+        env:
+          TICKER: ${{ inputs.ticker }}
+          BASE_DATE: ${{ inputs.base_date }}
+          KIWOOM_APP_KEY: ${{ secrets.KTSCA_API_KEY }}
+          KIWOOM_APP_SECRET: ${{ secrets.KIWOOM_APP_SECRET }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$BASE_DATE" ]]; then
+            BASE_DATE="$(TZ=Asia/Seoul date +%Y%m%d)"
+          fi
+          python scripts/kiwoom_daily_readonly.py \
+            --ticker "$TICKER" \
+            --base-date "$BASE_DATE" \
+            --live \
+            --out "kiwoom_test_output/daily_chart.csv"
+
+      - name: Upload only OHLCV data (no secrets or tokens)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiwoom-daily-chart-readonly
+          path: kiwoom_test_output/daily_chart.csv
+          if-no-files-found: error
+          retention-days: 3
