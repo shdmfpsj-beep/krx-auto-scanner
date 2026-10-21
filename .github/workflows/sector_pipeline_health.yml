@@ -50,7 +50,7 @@ jobs:
               except (ValueError,KeyError):
                   report["checks"][label]={"status":"PARSE_ERROR"}
                   continue
-              current=[r for r in runs if r.get("created_at","")[:10]==today]
+              current=[r for r in runs if datetime.fromisoformat(r["created_at"].replace("Z","+00:00")).astimezone(timezone(timedelta(hours=9))).date().isoformat()==today]
               if not current:
                   report["checks"][label]={"status":"NOT_RUN_TODAY"}
                   continue
@@ -89,7 +89,7 @@ jobs:
                   if target:
                       z=Path("audit/evidence.zip")
                       with z.open("wb") as f:
-                          d=subprocess.run(["gh","api","-H","Accept: application/vnd.github+json",
+                          d=subprocess.run(["gh","api","-X","GET","-H","Accept: application/vnd.github+json",
                             f"repos/{os.environ['GH_REPO']}/actions/artifacts/{target['id']}/zip"],stdout=f,stderr=subprocess.PIPE)
                       if d.returncode==0:
                           try:
