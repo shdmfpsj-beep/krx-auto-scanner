@@ -62,9 +62,17 @@ def main():
     root=Path(a.evidence)
     status=json.loads((root/"diagnostics/collection_status.json").read_text())
     scan=json.loads(Path(a.scan_status).read_text())
-    with (root/"research/sector_evidence_latest.csv").open(encoding="utf-8-sig",newline="") as f:
-        rows=list(csv.DictReader(f))
+    evidence_csv=root/"research/sector_evidence_latest.csv"
+    if evidence_csv.is_file():
+        with evidence_csv.open(encoding="utf-8-sig",newline="") as f:
+            rows=list(csv.DictReader(f))
+    else:
+        rows=[]
     ranked,summary=build(status,rows,scan.get("market_data_date"))
+    if not evidence_csv.is_file():
+        summary["missing_evidence"]="research/sector_evidence_latest.csv"
+        summary["decision"]="CASH"
+        summary["reason"]="Historical baseline-only artifact lacks current sector feature rows"
     out=Path(a.out);out.mkdir(parents=True,exist_ok=True)
     fields=["sector_id","sector_name","asof","rs_5d_pp","breadth_up_5d_pct",
             "foreign_net_buy_5d_krw","institution_net_buy_5d_krw",
