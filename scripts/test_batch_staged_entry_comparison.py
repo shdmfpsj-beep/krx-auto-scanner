@@ -6,7 +6,7 @@ from batch_staged_entry_comparison import second_support,compare,summary
 class PairedTests(unittest.TestCase):
     def test_support_uses_only_signal_and_prior(self):
         bars=[{"low":100.} for _ in range(20)]
-        bars[7]["low"]=102.
+        bars[12]["low"]=102.
         bars[19]["low"]=104.
         bars[20-1]["low"]=103.
         self.assertEqual(second_support(bars,19,99,110),102)
