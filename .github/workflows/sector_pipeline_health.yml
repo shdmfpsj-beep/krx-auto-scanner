@@ -57,12 +57,12 @@ jobs:
               run=current[0]
               report["checks"][label]={"status":run["status"],"conclusion":run.get("conclusion"),
                 "run_id":run["id"],"url":run.get("html_url")}
-          report["pipeline_ready"]=all(
+          report["workflow_execution_ready"]=all(
               report["checks"].get(k,{}).get("conclusion")=="success"
               for k in workflows.values())
           Path("audit/sector_pipeline_health.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
           print(json.dumps(report,ensure_ascii=False,indent=2))
-          if not report["pipeline_ready"]:
+          if not report["workflow_execution_ready"]:
               print("::warning::Pipeline not fully successful; sector report must show incomplete evidence.")
           PY
 
@@ -108,6 +108,8 @@ jobs:
                               result["reason"]=str(e)
                       z.unlink(missing_ok=True)
           report["sector_data_quality"]=result
+          report["sector_evidence_verified"]=bool(result.get("fresh_for_today")) and result.get("status") not in ("NOT_VERIFIED","UNKNOWN","DATA_PENDING","BASELINE_VERIFIED")
+          report["pipeline_ready"]=bool(report.get("workflow_execution_ready")) and report["sector_evidence_verified"]
           report["sector_trade_ready"]=False
           health.write_text(json.dumps(report,ensure_ascii=False,indent=2))
           print(json.dumps(result,ensure_ascii=False,indent=2))
