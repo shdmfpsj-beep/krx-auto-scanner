@@ -79,6 +79,8 @@ def structural_row(candidate,history,snapshot,c3=None,k100=None):
     if candidate.get('turnover_source')!='SOURCE_REPORTED':errors.append('TURNOVER_IS_ESTIMATED')
     bars,problem=history_check(history,ticker,snapshot)
     if problem:errors.append(problem)
+    elif bars[-1]['source']!=candidate.get('data_source'):
+        errors.append('CANDIDATE_HISTORY_SOURCE_MISMATCH')
     else:
         close=bars[-1]['close'];atr=atr14(bars)
         out.update(close_reference=round(close,2),atr14=round(atr,2))
@@ -87,9 +89,13 @@ def structural_row(candidate,history,snapshot,c3=None,k100=None):
         else:
             stop=pivot-max(0.25*atr,0.003*close)
             risk=(close-stop)/close
-            out.update(confirmed_pivot_date=when.isoformat(),confirmed_pivot_low=round(pivot,2),
-                       structural_stop_reference=round(stop,2),structural_risk_pct=round(risk*100,2))
-            if not 0.015<=risk<=0.12:errors.append('STRUCTURAL_RISK_NEEDS_REVIEW')
+            out.update(confirmed_pivot_date=when.isoformat(),confirmed_pivot_low=round(pivot,2))
+            if not (stop>0 and 0.015<=risk<=0.12):
+                errors.append('STRUCTURAL_RISK_NEEDS_REVIEW')
+            else:
+                out.update(structural_stop_reference=round(stop,2),
+                           structural_risk_pct=round(risk*100,2))
+            if 'STRUCTURAL_RISK_NEEDS_REVIEW' not in errors:
             else:
                 out['entry1_close_reference']=round(close,2)
                 ma20=sum(r['close'] for r in bars[-20:])/20
@@ -104,9 +110,14 @@ def structural_row(candidate,history,snapshot,c3=None,k100=None):
                     out['rr_to_prior_resistance']=round(rr,2)
                     if rr<2:errors.append('REWARD_RISK_BELOW_2')
                 else:errors.append('NO_PRIOR_HIGH_ABOVE_NO_CHASE')
-    out['structure_status']=('STRUCTURE_REFERENCE_ONLY'
-      if out['structural_stop_reference']!='' and
-      'STRUCTURAL_RISK_NEEDS_REVIEW' not in errors and
+    geometric_pass=(out['structural_stop_reference']!='' and
+      out['rr_to_prior_resistance']!='' and
+      number(out['rr_to_prior_resistance']) is not None and
+      float(out['rr_to_prior_resistance'])>=2 and
+      'SPECIAL_INSTRUMENT_EXCLUDED' not in errors and
+      'NO_VALID_SECOND_ENTRY_PROXY' not in errors)
+    out['structure_status']=('RESEARCH_GEOMETRY_PASS' if geometric_pass else
+      'STRUCTURE_REFERENCE_ONLY' if out['structural_stop_reference']!='' and
       'SPECIAL_INSTRUMENT_EXCLUDED' not in errors else 'WAIT_DATA_OR_STRUCTURE')
     out['blocking_reasons']='|'.join(dict.fromkeys(errors))
     return out
@@ -131,21 +142,24 @@ def build(status,candidates,histories,c3_rank,k100_rank,asof):
        snapshot,c3.get(str(r.get('ticker','')).zfill(6)),
        k100.get(str(r.get('ticker','')).zfill(6))) for r in candidates]
     def top(key):
-        valid=[r for r in plans if r['structure_status']=='STRUCTURE_REFERENCE_ONLY'
+        valid=[r for r in plans if r['structure_status']=='RESEARCH_GEOMETRY_PASS'
           and 'SPECIAL_INSTRUMENT_EXCLUDED' not in r['blocking_reasons']]
         def rank(r):
             try:return int(r[key])
             except (ValueError,TypeError):return 0
+        if problems:return []  # Stale or unverified scanner snapshots do not produce a new Top5.
         return [r['ticker'] for r in sorted(valid,key=lambda x:(-rank(x),x['ticker']))[:5]]
     report=dict(version='free_structural_v52',asof_kst=str(asof),
       market_data_date=str(snapshot) if snapshot else None,coverage_ratio=coverage,
       candidates=len(candidates),structural_reference_count=sum(
-      r['structure_status']=='STRUCTURE_REFERENCE_ONLY' for r in plans),
+      r['structural_stop_reference']!='' for r in plans),
+      geometry_pass_count=sum(r['structure_status']=='RESEARCH_GEOMETRY_PASS' for r in plans),
       c3_research_top5=top('c3_preliminary_score'),
       k100_research_top5=top('k100_preliminary_score'),
       global_blockers=list(dict.fromkeys(problems+[
        'VERIFIED_SECTOR_AND_FOREIGN_INSTITUTION_FLOWS_MISSING',
        'FUNDAMENTAL_AND_CATALYST_CHECK_MISSING',
+       'SECTOR_EXCLUSIONS_NOT_INDEPENDENTLY_VERIFIED',
        'LIVE_PRICE_CAPITAL_AND_ENTRY_TRIGGER_MISSING'])),
       decision='CASH',trade_approved=False,orders_enabled=False,
       note='Preliminary technical score is not an 85+ final score or validated five-day rise probability.',
@@ -199,7 +213,7 @@ def main():
       read_csv(a.c3_ranked),read_csv(a.k100_ranked),date.fromisoformat(a.asof))
     write_output(a.outdir,rows,report)
     print(json.dumps({k:report[k] for k in ('market_data_date','candidates',
-      'structural_reference_count','decision','global_blockers',
+      'structural_reference_count','geometry_pass_count','decision','global_blockers',
       'c3_research_top5','k100_research_top5')},ensure_ascii=False))
 
 if __name__=='__main__':main()
