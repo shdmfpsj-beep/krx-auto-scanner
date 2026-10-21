@@ -808,8 +808,9 @@ jobs:
                   failures = 0
                   snapshots = weekly_snapshots(sessions, mapping_start)
                   for s in self.config["sectors"]:
-                      if failures >= int(self.config["circuit_breaker_failures"]):
-                          break
+                      # A bad holding snapshot for one ETF must not suppress
+                      # price collection and validation for unrelated ETFs.
+                      failures = 0
                       try:
                           frame = krx.call("get_etf_ohlcv_by_date", start.strftime("%Y%m%d"), effective.strftime("%Y%m%d"), s["etf"])
                           rows = krx_prices(frame)
@@ -853,6 +854,8 @@ jobs:
                           except EvidenceError as e:
                               failures += 1
                               self.log_request("holdings", d, s["id"], e.args[0])
+                      # Keep partial coverage explicit: never mark missing
+                      # snapshots as zero-weight holdings or as successful.
                   csv_write(self.out / "market/sector_membership_dated.csv", hold_rows, HOLD_FIELDS)
                   self.mark("etf_prices", "OK" if etf_good == len(self.config["sectors"]) else "DATA_PENDING",
                             successful_series=etf_good, requested_series=len(self.config["sectors"]))
