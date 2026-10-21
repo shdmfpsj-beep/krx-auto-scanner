@@ -5,7 +5,7 @@ Default is OFFLINE fixture mode. Live calls require --live AND explicit
 KIWOOM_APP_KEY/KIWOOM_APP_SECRET environment secrets. Never log credentials,
 bearer tokens, raw API responses, or account data.
 """
-import argparse,csv,json,os,time,urllib.request,urllib.error
+import argparse,csv,json,os,time,re,urllib.request,urllib.error
 from datetime import date
 from pathlib import Path
 
@@ -13,16 +13,44 @@ HOST="https://api.kiwoom.com"
 CHART_PATH="/api/dostk/chart"
 DAILY_ID="ka10081"
 
+def diagnostic_codes(payload):
+    """Extract only numeric API error codes; never log response messages or keys."""
+    if not isinstance(payload,dict):
+        return "unknown", "unknown"
+    raw=str(payload.get("return_code","unknown"))
+    code=raw if re.fullmatch(r"-?[0-9]{1,6}",raw) else "unknown"
+    message=str(payload.get("return_msg",""))
+    match=re.search(r"\\[([0-9]{3,5})(?::|\\])",message)
+    if not match:
+        match=re.search(r"\\bCODE\\s*[=:]\\s*([0-9]{3,5})",message,re.I)
+    embedded=match.group(1) if match else "unknown"
+    return code,embedded
+
 def post(path,headers,body):
     req=urllib.request.Request(HOST+path,data=json.dumps(body).encode(),
         headers=headers,method="POST")
-    with urllib.request.urlopen(req,timeout=20) as response:
-        payload=json.loads(response.read().decode())
-        return payload,dict(response.headers.items())
+    try:
+        with urllib.request.urlopen(req,timeout=20) as response:
+            payload=json.loads(response.read().decode())
+            return payload,dict(response.headers.items())
+    except urllib.error.HTTPError as exc:
+        # HTTP 400 may contain an API-specific return code.
+        # Log numeric codes only. Raw messages or payloads might contain secrets.
+        try:
+            payload=json.loads(exc.read(8192).decode("utf-8"))
+        except (ValueError,UnicodeDecodeError):
+            payload={}
+        code,embedded=diagnostic_codes(payload)
+        stage="AUTH_TOKEN" if path=="/oauth2/token" else "DAILY_CHART"
+        raise RuntimeError(
+            f"KIWOOM_HTTP_REJECTED stage={stage} http_status={exc.code} "
+            f"return_code={code} embedded_code={embedded}"
+        ) from None
 
 def check_ok(payload):
     if not isinstance(payload,dict) or str(payload.get("return_code","0"))!="0":
-        raise ValueError("KIWOOM_RESPONSE_NOT_SUCCESS")
+        code,embedded=diagnostic_codes(payload)
+        raise ValueError(f"KIWOOM_RESPONSE_NOT_SUCCESS return_code={code} embedded_code={embedded}")
     return payload
 
 def normalize(payload,ticker):
