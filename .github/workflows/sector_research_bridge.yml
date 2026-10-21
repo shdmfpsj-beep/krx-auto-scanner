@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/sector_evidence_bridge.py'
+      - 'scripts/sector_first_daily.py'
+      - 'scripts/test_sector_first_daily.py'
       - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/preignition_monthly_validation.py'
       - 'scripts/preignition_five_day_audit.py'
@@ -52,6 +54,8 @@ jobs:
         with:
           sparse-checkout: |
             /scripts/sector_evidence_bridge.py
+            /scripts/sector_first_daily.py
+            /scripts/test_sector_first_daily.py
             /scripts/test_sector_evidence_bridge.py
             /scripts/preignition_monthly_validation.py
             /scripts/preignition_five_day_audit.py
@@ -83,6 +87,7 @@ jobs:
       - name: Verify research bridge guardrails
         run: |
           python scripts/test_sector_evidence_bridge.py
+          python scripts/test_sector_first_daily.py
           python scripts/test_kiwoom_daily_readonly.py
           python scripts/test_kiwoom_ten_day_pipeline.py
           python scripts/test_kiwoom_five_day_bridge.py
@@ -207,6 +212,10 @@ jobs:
                           "--evidence",str(matches[0].parent.parent),
                           "--scan-status",str(scan[0]),"--out","output"],check=True)
           PY
+      - name: Publish simple sector TOP3 to stock TOP5 mobile report
+        if: always()
+        run: python scripts/sector_first_daily.py --input output --out output
+
       - name: Audit historical watchlist setups from real dated OHLC
         run: |
           python - <<'PY'
