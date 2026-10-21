@@ -7,6 +7,8 @@ on:
     paths:
       - 'scripts/sector_first_daily.py'
       - 'scripts/test_sector_first_daily.py'
+      - 'scripts/sector_evidence_bridge.py'
+      - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/sector_catalyst_enrich.py'
       - 'scripts/test_sector_catalyst_enrich.py'
       - '.github/workflows/sector_first_daily_checks.yml'
@@ -25,6 +27,8 @@ jobs:
           sparse-checkout: |
             /scripts/sector_first_daily.py
             /scripts/test_sector_first_daily.py
+            /scripts/sector_evidence_bridge.py
+            /scripts/test_sector_evidence_bridge.py
             /scripts/sector_catalyst_enrich.py
             /scripts/test_sector_catalyst_enrich.py
           sparse-checkout-cone-mode: false
@@ -37,9 +41,10 @@ jobs:
 
       - name: Syntax and sector-first evidence tests
         run: |
-          python -m py_compile scripts/sector_first_daily.py scripts/test_sector_first_daily.py scripts/sector_catalyst_enrich.py scripts/test_sector_catalyst_enrich.py
+          python -m py_compile scripts/sector_first_daily.py scripts/test_sector_first_daily.py scripts/sector_catalyst_enrich.py scripts/test_sector_catalyst_enrich.py scripts/sector_evidence_bridge.py scripts/test_sector_evidence_bridge.py
           python -m unittest discover -s scripts -p 'test_sector_first_daily.py' -v
           python -m unittest discover -s scripts -p 'test_sector_catalyst_enrich.py' -v
+          python -m unittest discover -s scripts -p 'test_sector_evidence_bridge.py' -v
 
       - name: Simulate missing evidence safely
         run: |
