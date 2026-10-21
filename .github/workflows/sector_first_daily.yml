@@ -32,6 +32,10 @@ jobs:
             /scripts/test_sector_first_daily.py
             /scripts/sector_catalyst_enrich.py
             /scripts/test_sector_catalyst_enrich.py
+            /scripts/global_sector_news.py
+            /scripts/test_global_sector_news.py
+            /scripts/global_sector_join.py
+            /scripts/test_global_sector_join.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -46,6 +50,12 @@ jobs:
           python scripts/test_sector_first_daily.py
           python scripts/test_sector_evidence_bridge.py
           python scripts/test_sector_catalyst_enrich.py
+          python scripts/test_global_sector_news.py
+          python scripts/test_global_sector_join.py
+
+      - name: Collect global industry and macro news from GDELT (free, read only)
+        if: always()
+        run: python scripts/global_sector_news.py --out output
 
       - name: Download latest matching artifacts
         shell: bash
@@ -122,6 +132,10 @@ jobs:
         if: always()
         run: python scripts/sector_catalyst_enrich.py --report-root output --evidence-root inputs/evidence
 
+      - name: Combine worldwide early signals with Korean sector TOP3
+        if: always()
+        run: python scripts/global_sector_join.py --report-root output --news-root output
+
       - name: Upload simple mobile summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -132,6 +146,10 @@ jobs:
             output/sector_first_daily_status.json
             output/sector_first_with_catalysts_mobile.md
             output/sector_first_with_catalysts.json
+            output/global_sector_articles.csv
+            output/global_sector_news_status.json
+            output/sector_first_global_mobile.md
+            output/sector_first_global.json
             output/sector_research_ranking.csv
             output/sector_stock_research_ranking.csv
             output/sector_bridge_status.json
