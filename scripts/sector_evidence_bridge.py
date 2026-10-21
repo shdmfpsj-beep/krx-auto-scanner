@@ -175,6 +175,14 @@ def stock_market_metrics(root,watch,asof):
         sma20=sum(v[0] for _,v in series[-20:])/20 if len(series)>=20 else None
         avg_turnover=sum(v[1] for _,v in series[-5:])/5 if len(series)>=5 else None
         change=100*(last/previous-1) if last and previous else None
+        distance=100*(last/sma20-1) if last and sma20 else None
+        recent_high=max(v[0] for _,v in series[-20:]) if len(series)>=20 else None
+        # These are screening warnings, not validated buy/sell thresholds.
+        extension=[]
+        if change is not None and change>=10:
+            extension.append("FIVE_DAY_RALLY_GE_10PCT")
+        if distance is not None and distance>=15:
+            extension.append("DISTANCE_ABOVE_SMA20_GE_15PCT")
         result=dict(row)
         result.update({"close":last if last is not None else "",
                        "return_5d_pct":round(change,3) if change is not None else "",
@@ -183,6 +191,11 @@ def stock_market_metrics(root,watch,asof):
                        "foreign_net_5d_krw":round(flows[t]["외국인"]) if not reasons else "",
                        "institution_net_5d_krw":round(flows[t]["기관합계"]) if not reasons else "",
                        "price_flow_ready":"YES" if not reasons else "NO",
+                       "distance_sma20_pct":round(distance,3) if distance is not None else "",
+                       "recent_close_high_20d":recent_high if recent_high is not None else "",
+                       "extension_warning":";".join(extension),
+                       "entry_setup_verified":"NO",
+                       "structure_stop_verified":"NO",
                        "data_warnings":";".join(reasons),
                        "trade_approval":"NO"})
         results.append(result)
@@ -217,7 +230,13 @@ def rank_stock_research(rows):
                        "research_rank":"","rank_basis":"RELATIVE_PRICE_FLOW_ONLY",
                        "final_stock_score":"","entry_price":"","stop_price":"",
                        "trade_approval":"NO"})
-    result.sort(key=lambda r:(-r["research_proxy_index"],r["ticker"]))
+    # Preserve the original relative score but put extended names into a
+    # separate observation queue, never silently treating momentum as entry.
+    for r in result:
+        r["entry_review_status"]=(
+            "WAIT_FOR_PULLBACK_OR_RECLAIM" if r["extension_warning"]
+            else "STRUCTURE_AND_RISK_REVIEW_REQUIRED")
+    result.sort(key=lambda r:(bool(r["extension_warning"]),-r["research_proxy_index"],r["ticker"]))
     for i,r in enumerate(result,1):
         r["research_rank"]=i
     return result
@@ -266,7 +285,13 @@ def main():
     summary["research_ranked_stocks"]=len(research)
     summary["research_top5_tickers"]=[r["ticker"] for r in research[:5]]
     summary["research_top5_not_trade_approved"]=True
-    research_fields=metrics_fields+["research_proxy_index","research_rank","rank_basis",
+    summary["extension_warning_count"]=sum(bool(r["extension_warning"]) for r in enriched)
+    summary["entry_setup_verified_count"]=0
+    summary["structure_stop_verified_count"]=0
+    research_fields=metrics_fields+["distance_sma20_pct","recent_close_high_20d",
+                                     "extension_warning","entry_setup_verified",
+                                     "structure_stop_verified","entry_review_status",
+                                     "research_proxy_index","research_rank","rank_basis",
                                      "final_stock_score","entry_price","stop_price"]
     with (out/"sector_stock_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
         w=csv.DictWriter(f,fieldnames=research_fields,extrasaction="ignore")
