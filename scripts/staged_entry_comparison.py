@@ -2,7 +2,7 @@
 """Compare staged allocations on the SAME historical OHLC signals.
 
 Second support is computed using ONLY bars available at signal close:
-lowest low in preceding 10 sessions, provided stop < support < next open.
+median low in the preceding five sessions, provided stop < support < next open.
 No hindsight support selection. Results are research only, not trade advice.
 """
 import argparse,csv,json
@@ -26,7 +26,8 @@ def compare(rows,asof,horizon=5):
             if i<next_allowed or not setup(bars,i):continue
             stop=pivot_stop(bars,i)
             if stop is None:continue
-            support=min(b["low"] for b in bars[max(0,i-9):i+1])
+            recent_lows=sorted(b["low"] for b in bars[max(0,i-4):i+1])
+            support=recent_lows[len(recent_lows)//2]
             entry=bars[i+1]["open"]
             if not stop<support<entry:continue
             cohort=[]
