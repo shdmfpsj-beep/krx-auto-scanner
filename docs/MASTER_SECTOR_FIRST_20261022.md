@@ -12,6 +12,14 @@ No new paid server, Kiwoom token requirement or trading order API in the baselin
 4. **Stop BEFORE buys** — establish actual completed DAILY-bar confirmed structural pivot/retest invalidation (not 10-minute low), ensure positive rational stop and feasible risk. Then show 1st and 2nd entry price ranges based on support/reclaim, no-chase cap, realistic resistance-based target and forward R:R. Never use fixed arbitrary 1% or automatic averaging. Absence of verified level => unpriced watch / CASH.
 5. **Trade gate** — CASH at top if market weak, total verified stock score <85, price extended, R:R poor, cash/position unknown, or any critical evidence missing. No simultaneous C3 second position. Do not invent available cash or orderable shares. Existing K100 Core positions are managed separately from new entries.
 
+## World-first leading-news intake (free GitHub Actions)
+- **08:05 KST weekdays**: `.github/workflows/global_sector_morning.yml` collects GDELT foreign industry/macro *search samples* and writes `global_preopen_brief_mobile.md`. Label independent-headline early-watch sectors as foreign **research only**. Count different source domains AND distinct headline signatures, discounting exact syndicated duplicates.
+- **08:35 KST alarm**: read that morning artifact; explain overseas event → likely industry exposure → possible Korean beneficiaries/losers → **KRX verification still required**. Use dated original articles and company disclosures where independently verifiable; do not conflate GDELT seen timestamp with original publication.
+- **18:20 KST weekdays**: Sector Evidence v18 scheduled full backfill (read-only) attempts updated KRX completed bar/foreign-institution constituent flow, memberships and domestic Naver/OpenDART observation files.
+- **22:00 KST weekdays**: sector-first daily mobile job reads latest valid `schedule` or `workflow_dispatch` v18 ZIP and latest KRX scan after provenance/coverage check, and joins worldwide headlines. 22:15 alarm analyzes the result after checking collection completeness.
+- Global `early_watch` is NOT the confirmed sector TOP3 and must not automatically raise sector points or authorize an order. No evidence of Korean net buying, real fundamental uplift, dated catalyst substance and completed-daily support => CASH.
+- GitHub cron scheduling can be delayed, and public news/market APIs may fail or rate-limit; reports must state the actual capture timestamp and missing/partial status.
+
 ## Daily in-chat report, priority order
 - **One-line decision:** BUY candidate / WAIT / CASH, with grounded reason, market data as-of and completion time.
 - **Sector TOP3 table:** rank, sector, verified catalyst (date), turnover/volume acceleration, breadth, foreign/institutional flows when verified, source confidence, score.
