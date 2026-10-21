@@ -256,63 +256,78 @@ def historical_pullback_quality_review(series, horizon=5):
 
 
 def plan_research_entry(series, asof):
-    """Structure-first candidate prices, not broker orders or buy approval.
+    """As-of structure candidates, not executable orders or trade approval.
 
-    1st tranche: as-of close reclaim of a completed 5-bar swing high.
-    2nd tranche: planned retest near that breakout level, only if it holds.
-    Stop reference: most recent *completed* 5-bar low pivot below close.
-    Reject distant/too-close stops and unattractive next resistance.
+    Select the best of recent swing-high reclaim, supported retest and rising
+    SMA20 pullback. Every setup needs a completed swing-low risk reference.
+    Proposed first entry is the observed close, second is a conditional
+    support retest, never an unconditional averaging-down order.
     """
-    blank={"plan_status":"NO_VALID_STRUCTURE","plan_setup":"RECLAIM_COMPLETED_SWING_HIGH",
+    blank={"plan_status":"NO_VALID_STRUCTURE","plan_setup":"",
            "plan_first_entry":"","plan_second_entry":"","plan_stop_reference":"",
            "plan_first_weight_pct":60,"plan_second_weight_pct":40,
            "plan_risk_pct":"","plan_resistance":"","plan_reward_risk":"",
            "plan_trade_approval":"NO"}
-    if len(series)<35 or not asof or series[-1][0]!=asof or any(
+    if len(series)<60 or not asof or series[-1][0]!=asof or any(
             v[2] is None or v[3] is None for _,v in series):
         return {**blank,"plan_status":"INSUFFICIENT_ASOF_OHLC"}
     closes=[v[0] for _,v in series]
     lows=[v[2] for _,v in series]
     highs=[v[3] for _,v in series]
     i=len(series)-1
+    first=closes[i]
+    ma20=sum(closes[-20:])/20
+    prior_ma20=sum(closes[-25:-5])/20
+    ma60=sum(closes[-60:])/60
     pivot_highs=[(j,highs[j]) for j in range(2,i-2)
                  if highs[j]>max(highs[j-2:j]) and
                     highs[j]>=max(highs[j+1:j+3])]
     pivot_lows=[(j,lows[j]) for j in range(2,i-2)
                 if lows[j]<min(lows[j-2:j]) and
                    lows[j]<=min(lows[j+1:j+3])]
-    if not pivot_highs or not pivot_lows:
+    if not pivot_lows:
         return blank
-    # A completed swing high must have been below the previous close;
-    # today must close back above it. The breakout is observed, not predicted.
-    eligible=[(j,level) for j,level in pivot_highs
-              if j>=i-25 and closes[i-1]<=level<closes[i]]
-    if not eligible:
-        return {**blank,"plan_status":"WAIT_FOR_RECLAIM"}
-    j,level=max(eligible,key=lambda x:x[0])
-    stops=[(k,low) for k,low in pivot_lows if k< i and low<level]
-    if not stops:
-        return {**blank,"plan_status":"NO_COMPLETED_STOP_PIVOT"}
-    k,stop=max(stops,key=lambda x:x[0])
-    first=closes[i]
-    risk=100*(first-stop)/first
-    if risk<2 or risk>12:
-        return {**blank,"plan_status":"RISK_DISTANCE_OUT_OF_RANGE",
-                "plan_first_entry":first,"plan_stop_reference":stop,
-                "plan_risk_pct":round(risk,3)}
-    # Resistance must be a known prior historical high, not future bars.
-    resistance=max(highs[max(0,i-60):i])
-    reward_risk=(resistance-first)/(first-stop)
-    if reward_risk<1.5:
-        return {**blank,"plan_status":"INSUFFICIENT_KNOWN_RESISTANCE_RR",
-                "plan_first_entry":first,"plan_stop_reference":stop,
-                "plan_resistance":resistance,
-                "plan_reward_risk":round(reward_risk,3)}
-    second=level
+    setups=[]
+    # Reclaim a previously confirmed swing high at today's close.
+    for j,level in pivot_highs:
+        if j>=i-25 and closes[i-1]<=level<first:
+            setups.append(("RECLAIM_SWING_HIGH",level,3))
+    # Breakout followed by a support retest on the latest daily candle.
+    for j in range(max(20,i-12),i):
+        level=max(highs[j-20:j])
+        if closes[j]>level and .98*level<=lows[i]<=1.02*level and first>=level:
+            if all(closes[k]>=level for k in range(j+1,i+1)):
+                setups.append(("HELD_BREAKOUT_RETEST",level,2))
+    # Trend-following pullback must reclaim the SMA20 on a completed bar.
+    if (ma20>prior_ma20 and ma20>ma60 and first>=ma20
+            and .98*ma20<=lows[i]<=1.02*ma20):
+        setups.append(("RISING_SMA20_PULLBACK",ma20,1))
+    if not setups:
+        return {**blank,"plan_status":"WAIT_FOR_RECLAIM_OR_PULLBACK"}
+    candidates=[]
+    for setup,level,priority in setups:
+        stops=[(j,low) for j,low in pivot_lows
+               if j<i and low<min(level,first)]
+        if not stops:
+            continue
+        _,stop=max(stops,key=lambda x:x[0])
+        risk=100*(first-stop)/first
+        if not 2<=risk<=12 or level<=stop or level>first:
+            continue
+        # Known prior resistance is only a research reference.
+        resistance=max(highs[max(0,i-60):i])
+        rr=(resistance-first)/(first-stop)
+        if rr<1.5:
+            continue
+        candidates.append((rr,priority,setup,level,stop,risk,resistance))
+    if not candidates:
+        return {**blank,"plan_status":"SETUP_FOUND_BUT_RISK_OR_RR_REJECTED"}
+    rr,_,setup,level,stop,risk,resistance=max(candidates)
     return {**blank,"plan_status":"STRUCTURE_CANDIDATE_REQUIRES_VALIDATION",
-            "plan_first_entry":first,"plan_second_entry":second,
+            "plan_setup":setup,"plan_first_entry":first,
+            "plan_second_entry":round(level,2),
             "plan_stop_reference":stop,"plan_risk_pct":round(risk,3),
-            "plan_resistance":resistance,"plan_reward_risk":round(reward_risk,3)}
+            "plan_resistance":resistance,"plan_reward_risk":round(rr,3)}
 
 
 def stock_market_metrics(root,watch,asof):
