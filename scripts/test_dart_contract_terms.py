@@ -85,6 +85,36 @@ class ContractTermsTests(unittest.TestCase):
         r=extract(fields)
         self.assertIsNone(r["amount_krw"])
         self.assertEqual(r["consistency"],"CONFLICT")
+    def test_issuer_branded_overseas_subsidiary_risk_not_external_customer(self):
+        source=[field("계약금액","1,688.72억원"),
+                field("계약상대","LS ELECTRIC America Inc.")]
+        r=extract(source,issuer_name="LS ELECTRIC")
+        self.assertEqual(r["amount_krw"],168_872_000_000)
+        self.assertEqual(r["counterparty_affiliation_review"],
+                         "ISSUER_BRANDED_COUNTERPARTY_POSSIBLE_AFFILIATE")
+        self.assertTrue(r["potential_intragroup_revenue_recognition_risk"])
+        self.assertFalse(r["consolidated_revenue_from_contract_verified"])
+        self.assertFalse(r["direct_company_positive_impact_verified"])
+    def test_explicit_dart_affiliate_words_trigger_review(self):
+        r=extract([field("계약상대","당사 종속기업(자회사) A")],
+                  issuer_name="다른회사")
+        self.assertEqual(r["counterparty_affiliation_review"],
+                         "RELATED_PARTY_TERMS_DISCLOSED_REVIEW")
+        self.assertTrue(r["potential_intragroup_revenue_recognition_risk"])
+    def test_unrelated_external_customer_does_not_trigger_name_flag(self):
+        r=extract([field("계약상대","미국 데이터센터 고객 ABC Inc.")],
+                  issuer_name="LS ELECTRIC")
+        self.assertFalse(r["potential_intragroup_revenue_recognition_risk"])
+        self.assertFalse(r["consolidated_revenue_from_contract_verified"])
+    def test_short_two_character_brand_does_not_match_unrelated_issuer(self):
+        r=extract([field("계약상대","LG Display America Inc.")],
+                  issuer_name="LG")
+        self.assertFalse(r["potential_intragroup_revenue_recognition_risk"])
+    def test_no_issuer_information_is_not_confirmed_affiliate(self):
+        r=extract([field("계약상대","LS ELECTRIC America Inc.")])
+        self.assertFalse(r["potential_intragroup_revenue_recognition_risk"])
+        self.assertEqual(r["counterparty_affiliation_review"],
+                         "NO_TEXTUAL_RELATED_PARTY_FLAG_NOT_INDEPENDENTLY_VERIFIED")
     def test_direct_document_value_is_never_an_order(self):
         r=extract([field("계약금액","500억원")])
         self.assertFalse(r["entry_or_stop_signal"])
