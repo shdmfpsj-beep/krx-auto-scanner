@@ -97,7 +97,7 @@ def lineage(signals,results):
         skips=skips,pending_or_missing=pending,
         integrity_defects=sorted(set(defects)),lineage_integrity=not defects)
 
-def check_account(account,signals):
+def check_account(account,signals,closed=()):
     issues=[]
     if not isinstance(account,dict) or account.get("account_type")!=(
        "SYNTHETIC_PAPER_ACCOUNT_NOT_USER_BALANCE"):
@@ -108,7 +108,10 @@ def check_account(account,signals):
                   if identity(s)}
     cash=numeric(account.get("starting_capital_krw"))
     if cash is None or cash<=0:return ["ACCOUNT_START_CASH_INVALID"]
+    verified_closed={(x["signal_date"],x["ticker"]):x for x in closed}
     completed=[]
+    last_exit=None
+    wins=0
     for t in account.get("trades",[]):
         if (t.get("signal_date"),t.get("ticker")) not in approved_ids:
             issues.append("ACCOUNT_TRADE_NOT_LOCKED_SIGNAL")
@@ -126,6 +129,17 @@ def check_account(account,signals):
             continue
         if not(day(t["signal_date"])<day(t["entry_date"])<=day(t["exit_date"])):
             issues.append("ACCOUNT_NONCHRONOLOGICAL_EXECUTION")
+        if last_exit and (day(t["signal_date"])<last_exit or
+                          day(t["entry_date"])<=last_exit):
+            issues.append("ACCOUNT_OVERLAPPING_POSITIONS")
+        source=verified_closed.get((t.get("signal_date"),t.get("ticker")))
+        if source is None:
+            issues.append("ACCOUNT_TRADE_NO_COMPLETED_FORWARD_EVALUATION")
+        elif (abs(entry-source["next_open_entry"])>.011 or
+              abs(sell-source["exit_price"])>.011 or
+              t.get("exit_reason")!=source.get("exit_reason")):
+            issues.append("ACCOUNT_PRICES_OR_EXIT_NOT_FROM_LOCKED_OUTCOME")
+        last_exit=day(t["exit_date"])
         if abs(prior-cash)>max(1.5,cash*.00001):
             issues.append("ACCOUNT_CASH_CHAIN_BROKEN")
         inferred=n*(sell*(1-fee/100)-entry*(1+fee/100))
@@ -139,12 +153,38 @@ def check_account(account,signals):
                 planned>prior*budget/100+max(1,prior*.00001)):
             issues.append("ACCOUNT_RISK_BUDGET_EXCEEDED")
         cash=prior+pnl
+        wins+=pnl>0
         completed.append(t)
     total=numeric(account.get("ending_realised_equity_krw"))
     if total is None or abs(total-cash)>max(3,len(completed)*.2):
         issues.append("ACCOUNT_FINAL_EQUITY_ARITHMETIC_MISMATCH")
     if account.get("traded_positions")!=len(completed):
         issues.append("ACCOUNT_TRADE_COUNT_MISMATCH")
+    if account.get("winning_positions")!=wins:
+        issues.append("ACCOUNT_WIN_COUNT_MISMATCH")
+    reported_return=numeric(account.get("realised_return_pct"))
+    expected_return=100*(cash/float(account["starting_capital_krw"])-1)
+    if reported_return is None or abs(reported_return-expected_return)>.015:
+        issues.append("ACCOUNT_REALIZED_PERCENT_ARITHMETIC_MISMATCH")
+    marks=account.get("equity_marks") or []
+    if not marks:
+        issues.append("ACCOUNT_MARK_TO_MARKET_PATH_UNVERIFIABLE")
+    else:
+        peak=float(account["starting_capital_krw"])
+        mdd=0.
+        previous_day=None
+        for m in sorted(marks,key=lambda x:(str(x.get("date","")),str(x.get("phase","")))):
+            d=day(m.get("date"))
+            equity=numeric(m.get("equity_krw"))
+            if not d or equity is None or equity<0 or (previous_day and d<previous_day):
+                issues.append("ACCOUNT_INVALID_EQUITY_MARK")
+                continue
+            peak=max(peak,equity)
+            mdd=max(mdd,100*(peak-equity)/peak)
+            previous_day=d
+        reported_mdd=numeric(account.get("mark_to_market_mdd_pct"))
+        if reported_mdd is None or abs(reported_mdd-mdd)>.02:
+            issues.append("ACCOUNT_MARK_TO_MARKET_MDD_MISMATCH")
     return sorted(set(issues))
 
 def bootstrap_lower_by_date(closed):
@@ -167,7 +207,7 @@ def bootstrap_lower_by_date(closed):
 
 def audit(signals,results,account,ab=None):
     closed,journal=lineage(signals,results)
-    issues=list(journal["integrity_defects"])+check_account(account,signals)
+    issues=list(journal["integrity_defects"])+check_account(account,signals,closed)
     samples=sorted(closed,key=lambda x:(x["signal_date"],x["ticker"]))
     n=len(samples)
     span=(day(samples[-1]["signal_date"])-day(samples[0]["signal_date"])).days if n>=2 else 0
