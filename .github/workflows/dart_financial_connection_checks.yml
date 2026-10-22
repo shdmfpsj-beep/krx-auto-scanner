@@ -68,7 +68,9 @@ jobs:
               print("ANNUAL_RESEARCH_DIAGNOSTICS",
                     {"ticker":row.get("ticker"),"status":row.get("status"),
                      "fiscal_year":row.get("annual_fiscal_year"),
-                     "statement":row.get("division")})
+                     "statement":row.get("division"),
+                     "missing_metric_keys":row.get("missing_metric_keys",[]),
+                     "statement_row_count":row.get("available_statement_rows")})
           # No token, company registry code, URLs with authentication, or
           # sensitive HTTP request details are printed.
           PY
