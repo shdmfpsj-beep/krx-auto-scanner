@@ -189,6 +189,51 @@ class StockEvidenceTests(unittest.TestCase):
         self.assertIn("2026-10-21 잠정공시 수치 미검증",render(r))
         self.assertFalse(stock["company_catalyst_impact_verified"])
         self.assertEqual(r["decision"],"CASH")
+    def test_actual_quarterly_weakening_vetoes_older_positive_half_year(self):
+        source=dict(schema="dart_contract_source_v1",asof=DAY,
+            issuer_samples=[dict(ticker="005930",filings=[],
+                latest_preliminary_earnings=[dict(
+                    date="2026-10-21",title="연결재무제표기준영업(잠정)실적",
+                    receipt_no="20261021800151",
+                    url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261021800151",
+                    financial_figures_verified=True,
+                    original_financial_status="PRELIMINARY_SINGLE_QUARTER_SOURCE_RESEARCH_ONLY",
+                    original_financial_analysis=dict(
+                        status="PRELIMINARY_SINGLE_QUARTER_SOURCE_RESEARCH_ONLY",
+                        receipt_no="20261021800151",receipt_date="2026-10-21",
+                        preliminary_figures_source_verified=True,
+                        revenue_yoy_pct=-11.2,operating_profit_yoy_pct=-17.5,
+                        earnings_quality="RECENT_PRELIMINARY_WEAKENING",
+                        quarter_period={"current_end":"2026-09-30"}))])])
+        result=build(inputs(),source)
+        stock=result["candidates"][0]
+        self.assertTrue(stock["recent_preliminary_quarter_source_verified"])
+        self.assertTrue(stock["recent_preliminary_quarter_weakening"])
+        self.assertTrue(stock["checks"]["recent_ytd_weakening"])
+        self.assertFalse(stock["checks"]["annual_and_interim_growth"])
+        self.assertFalse(stock["newer_preliminary_earnings_not_parsed"])
+        self.assertIn("RECENT_PRELIMINARY_QUARTER_WEAKENING",
+                      stock["unmet_evidence"])
+        self.assertEqual(result["decision"],"CASH")
+        self.assertFalse(stock["final_85_score_verified"])
+    def test_unmatched_preliminary_source_receipt_is_unverified(self):
+        b=inputs()
+        source=dict(schema="dart_contract_source_v1",asof=DAY,
+            issuer_samples=[dict(ticker="005930",filings=[],
+                latest_preliminary_earnings=[dict(
+                    date="2026-10-21",title="연결재무제표기준영업(잠정)실적",
+                    receipt_no="20261021800151",
+                    url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261021800151",
+                    financial_figures_verified=True,
+                    original_financial_analysis=dict(
+                        status="PRELIMINARY_SINGLE_QUARTER_SOURCE_RESEARCH_ONLY",
+                        receipt_no="WRONG",receipt_date="2026-10-21",
+                        preliminary_figures_source_verified=True,
+                        revenue_yoy_pct=20,earnings_quality="PRELIMINARY_SALES_AND_OP_GROWTH_OBSERVED"))])])
+        r=build(b,source)["candidates"][0]
+        self.assertFalse(r["recent_preliminary_quarter_source_verified"])
+        self.assertTrue(r["newer_preliminary_earnings_not_parsed"])
+
     def test_current_day_or_future_preliminary_notice_cannot_backfill(self):
         source=dict(schema="dart_contract_source_v1",asof=DAY,
             issuer_samples=[dict(ticker="005930",filings=[],
