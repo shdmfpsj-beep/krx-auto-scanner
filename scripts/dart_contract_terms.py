@@ -78,13 +78,42 @@ def dates_in(text):
         except ValueError:return []
     return found
 
-def extract(fields,correction_risk="NO_CORRECTION_TITLE_FLAG"):
+def counterparty_consolidation_review(issuer,counterparty):
+    """Flag likely issuer-group counterparties; not proof of legal affiliation.
+
+    Direct parent->subsidiary sales may be eliminated on consolidation until
+    a genuinely external sale occurs. This text check never asserts how much
+    accounting revenue is recognized.
+    """
+    cp=str(counterparty or "").strip()
+    if not cp:return "COUNTERPARTY_NOT_VERIFIED"
+    normalized=re.sub(r"[^A-Za-z0-9가-힣]","",cp).upper()
+    if any(word in normalized for word in
+           ("종속회사","종속기업","자회사","계열회사","관계회사","계열사")):
+        return "RELATED_PARTY_TERMS_DISCLOSED_REVIEW"
+    core=re.sub(r"[^A-Za-z0-9가-힣]","",str(issuer or "")).upper()
+    core=re.sub(r"^(주식회사|CO|CORP)","",core)
+    core=re.sub(r"(주식회사|CORPORATION|COLTD)$","",core)
+    if (len(core)>=6 and normalized.startswith(core) and
+        len(normalized)>len(core)):
+        extra=normalized[len(core):]
+        if any(extra.startswith(region) for region in (
+           "AMERICA","USA","US","CHINA","VIETNAM","EUROPE","JAPAN",
+           "SINGAPORE","INDIA","KOREA","HOLDINGS","INC","LTD","CO")):
+            return "ISSUER_BRANDED_COUNTERPARTY_POSSIBLE_AFFILIATE"
+    return "NO_TEXTUAL_RELATED_PARTY_FLAG_NOT_INDEPENDENTLY_VERIFIED"
+
+def extract(fields,correction_risk="NO_CORRECTION_TITLE_FLAG",
+            issuer_name=None):
     """Returns exact textual provenance plus conservative typed candidates."""
     result=dict(status="NO_UNAMBIGUOUS_LABELED_TERMS",
         amount_krw=None,recent_sales_krw=None,
         disclosed_sales_ratio_pct=None,
         calculated_sales_ratio_pct=None,
         contract_period=None,counterparty_text=None,
+        counterparty_affiliation_review="COUNTERPARTY_NOT_VERIFIED",
+        potential_intragroup_revenue_recognition_risk=False,
+        consolidated_revenue_from_contract_verified=False,
         consistency="NOT_TESTABLE",
         correction_risk=correction_risk,
         direct_company_positive_impact_verified=False,
@@ -126,6 +155,12 @@ def extract(fields,correction_risk="NO_CORRECTION_TITLE_FLAG"):
         label,v=buckets["counterparty_text"][0]
         if len(v)<=100 and v not in ("-","해당사항 없음"):
             result["counterparty_text"]=v
+    result["counterparty_affiliation_review"]=counterparty_consolidation_review(
+        issuer_name,result["counterparty_text"])
+    result["potential_intragroup_revenue_recognition_risk"]=(
+        result["counterparty_affiliation_review"] in (
+        "RELATED_PARTY_TERMS_DISCLOSED_REVIEW",
+        "ISSUER_BRANDED_COUNTERPARTY_POSSIBLE_AFFILIATE"))
     result["conflicting_fields"]=conflicts
     if conflicts:
         result["status"]="CONFLICTING_LABELED_FILING_VALUES"
