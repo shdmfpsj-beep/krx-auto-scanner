@@ -17,12 +17,14 @@ OPERATING={"dart_OperatingIncomeLoss"}
 DETAILS=("","-")
 
 def amount(value):
-    if value is None or str(value).strip() in ("","-","－"):return None
-    try:
-        v=float(str(value).replace(",","").strip())
-        return int(v) if math.isfinite(v) else None
-    except (ValueError,TypeError):
+    """Exact signed KRW integers, including amounts above float's 2**53."""
+    if value is None or isinstance(value,bool):return None
+    s=str(value).strip()
+    if s in ("","-","－"):return None
+    if not re.fullmatch(r"[+-]?(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)",s):
         return None
+    try:return int(s.replace(",",""))
+    except ValueError:return None
 
 def identify_interim_filing(latest,asof):
     """Return pinned period and receipt, or None; no inference by run month."""
