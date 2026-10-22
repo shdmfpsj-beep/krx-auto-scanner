@@ -30,6 +30,13 @@ class ShadowTests(unittest.TestCase):
         self.assertEqual(new_signals(REPORT,[REF],run_date=date(2026,10,23)),[])
         self.assertEqual(new_signals(REPORT,[REF],run_date=date(2026,10,21)),[])
         self.assertEqual(len(new_signals(REPORT,[REF],run_date=date(2026,10,22))),1)
+    def test_same_date_price_disagreement_blocks_research_signal_entirely(self):
+        report={**REPORT,"focus_close_conflict_tickers":["005930"],
+            "stock_research_top5":[{**REPORT["stock_research_top5"][0],
+               "independent_stop_status":"CROSS_SOURCE_CLOSE_CONFLICT"}]}
+        self.assertEqual(new_signals(report,[REF],run_date=date(2026,10,22)),[])
+        report2={**REPORT,"focus_close_conflict_tickers":["005930"]}
+        self.assertEqual(new_signals(report2,[REF],run_date=date(2026,10,22)),[])
     def test_stale_source_never_creates_new_entry(self):
         self.assertEqual(new_signals(REPORT,[{**REF,"latest_complete_date":"2026-10-21"}],run_date=date(2026,10,22)),[])
         self.assertEqual(new_signals({**REPORT,"asof":"2026-10-21"},[REF],run_date=date(2026,10,22)),[])
