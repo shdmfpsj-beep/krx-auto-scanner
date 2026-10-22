@@ -35,6 +35,35 @@ class PreliminaryTests(unittest.TestCase):
         self.assertEqual(r["quarter_period"]["frequency"],"SINGLE_QUARTER_NON_CUMULATIVE")
         self.assertEqual(r["statement_scope"],"CFS")
         self.assertFalse(r["trade_approved"])
+    def test_latest_filing_with_last_year_quarter_is_not_fresh_growth(self):
+        rows=[*ROWS]
+        rows[0]=["당해실적","2025.07.01 ~ 2025.09.30"]
+        rows[1]=["전년동기실적","2024.07.01 ~ 2024.09.30"]
+        parsed=assess(data(rows),FILE,DAY)
+        self.assertEqual(parsed["status"],
+            "PRELIMINARY_QUARTER_TOO_OLD_FOR_LATEST_EARNINGS")
+        self.assertGreater(parsed["filing_lag_calendar_days"],120)
+        self.assertFalse(parsed["preliminary_figures_source_verified"])
+        self.assertIsNone(parsed["revenue_yoy_pct"])
+    def test_partial_three_month_period_is_not_standard_quarter(self):
+        rows=[*ROWS]
+        rows[0]=["당해실적","2026.07.02 ~ 2026.09.30"]
+        rows[1]=["전년동기실적","2025.07.02 ~ 2025.09.30"]
+        parsed=assess(data(rows),FILE,DAY)
+        self.assertEqual(parsed["status"],
+            "PRELIMINARY_QUARTER_COMPARISON_PERIOD_NOT_VERIFIED")
+        self.assertFalse(parsed["preliminary_figures_source_verified"])
+    def test_days_mismatch_same_calendar_quarter_blocked(self):
+        rows=[*ROWS]
+        rows[1]=["전년동기실적","2025.07.02 ~ 2025.09.30"]
+        parsed=assess(data(rows),FILE,DAY)
+        self.assertEqual(parsed["status"],
+            "PRELIMINARY_QUARTER_COMPARISON_PERIOD_NOT_VERIFIED")
+    def test_newly_reported_complete_q3_remains_valid(self):
+        r=assess(data(),FILE,DAY)
+        self.assertEqual(r["quarter_period"]["current_start"],"2026-07-01")
+        self.assertEqual(r["filing_lag_calendar_days"],21)
+        self.assertTrue(r["preliminary_figures_source_verified"])
     def test_no_disclosed_unit_blocks_amount_as_known(self):
         r=assess(data(units=[]),FILE,DAY)
         self.assertEqual(r["status"],"PRELIMINARY_UNIT_MISSING_OR_AMBIGUOUS")
