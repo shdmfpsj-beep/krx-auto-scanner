@@ -1,0 +1,55 @@
+name: Official KIS KRX regular-minute price source offline safety
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/kis_regular_minute.py'
+      - 'scripts/kis_regular_minute_cli.py'
+      - 'scripts/test_kis_regular_minute.py'
+      - '.github/workflows/kis_regular_minute_checks.yml'
+      - '.github/workflows/kis_regular_minute_audit.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/kis_regular_minute.py'
+      - 'scripts/kis_regular_minute_cli.py'
+      - 'scripts/test_kis_regular_minute.py'
+      - '.github/workflows/kis_regular_minute_checks.yml'
+      - '.github/workflows/kis_regular_minute_audit.yml'
+permissions:
+  contents: read
+jobs:
+  read-only-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/kis_regular_minute.py
+            /scripts/kis_regular_minute_cli.py
+            /scripts/test_kis_regular_minute.py
+            /.github/workflows/kis_regular_minute_audit.yml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Run frozen real-session-like 1-minute safety tests
+        run: |
+          python -m py_compile scripts/kis_regular_minute.py scripts/kis_regular_minute_cli.py scripts/test_kis_regular_minute.py
+          python -m unittest discover -s scripts -p 'test_kis_regular_minute.py' -v
+      - name: Assert official minute KRX market only and no broker order integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src=Path("scripts/kis_regular_minute_cli.py").read_text()
+          wf=Path(".github/workflows/kis_regular_minute_audit.yml").read_text()
+          assert "FID_COND_MRKT_DIV_CODE" in src
+          assert '"J"' in src
+          assert "FHKST03010230" in src
+          assert "inquire-time-dailychartprice" in src
+          assert "scripts/kis_regular_minute_cli.py" in wf
+          assert "KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}" in wf
+          assert "KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}" in wf
+          assert "actions/upload-artifact" in wf
+          assert "orders_enabled" not in src
+          assert "/trading/" not in src and "/order-" not in src
+          PY
