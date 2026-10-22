@@ -42,6 +42,8 @@ jobs:
             /scripts/test_sector_dynamic_structure.py
             /scripts/sector_first_compact_report.py
             /scripts/test_sector_first_compact_report.py
+            /scripts/shadow_trade_audit.py
+            /scripts/test_shadow_trade_audit.py
             /requirements.txt
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -61,6 +63,7 @@ jobs:
           python scripts/test_global_sector_join.py
           python scripts/test_sector_dynamic_structure.py
           python scripts/test_sector_first_compact_report.py
+          python scripts/test_shadow_trade_audit.py
 
       - name: Collect global industry and macro news from GDELT (free, read only)
         if: always()
@@ -206,6 +209,52 @@ jobs:
         if: always()
         run: python scripts/sector_first_compact_report.py --root output
 
+      - name: Recover the last prospective shadow-trade signal ledger (if any)
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p output
+          python - <<'PY'
+          import io,json,os,subprocess,zipfile
+          from pathlib import Path
+          try:
+              repo=os.environ["GH_REPO"]
+              def api(url):
+                  return subprocess.run(["gh","api","-X","GET",url],
+                                        capture_output=True,check=True).stdout
+              runs=json.loads(api(f"repos/{repo}/actions/workflows/sector_first_daily.yml/runs?per_page=25")).get("workflow_runs",[])
+              found=False
+              for run in runs:
+                  if run.get("conclusion")!="success":continue
+                  artifacts=json.loads(api(f"repos/{repo}/actions/runs/{run['id']}/artifacts")).get("artifacts",[])
+                  match=next((a for a in artifacts if a.get("name")=="sector-first-daily" and not a.get("expired")),None)
+                  if not match:continue
+                  with zipfile.ZipFile(io.BytesIO(api(f"repos/{repo}/actions/artifacts/{match['id']}/zip"))) as archive:
+                      candidates=[m for m in archive.infolist() if Path(m.filename).name=="shadow_signals.json"
+                                   and not m.is_dir() and m.file_size<=1000000]
+                      if len(candidates)!=1:continue
+                      raw=archive.read(candidates[0])
+                      payload=json.loads(raw.decode("utf-8"))
+                      if not isinstance(payload,list):continue
+                      Path("output/previous_shadow_signals.json").write_bytes(raw)
+                      found=True
+                      print("SHADOW_LEDGER_CONTINUED_FROM_RUN",run["id"])
+                      break
+              if not found:print("SHADOW_LEDGER_NEW_OR_PREVIOUS_ARTIFACT_UNAVAILABLE")
+          except Exception as err:
+              print("SHADOW_LEDGER_RECOVERY_FAILED",type(err).__name__)
+          PY
+
+      - name: Score next-day-open prospective 5-session trades with costs
+        if: always()
+        run: |
+          python scripts/shadow_trade_audit.py \
+            --report output/sector_first_with_prices.json \
+            --dynamic output/dynamic/focus_daily_structure_prices.csv \
+            --history inputs/evidence \
+            --previous output/previous_shadow_signals.json \
+            --out output
+
       - name: Upload simple mobile summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -228,6 +277,10 @@ jobs:
             output/sector_first_with_prices.json
             output/sector_first_with_prices_mobile.md
             output/sector_first_compact_mobile.md
+            output/shadow_signals.json
+            output/shadow_results.json
+            output/shadow_scorecard.json
+            output/shadow_scorecard_mobile.md
             output/sector_research_ranking.csv
             output/sector_stock_research_ranking.csv
             output/sector_bridge_status.json
