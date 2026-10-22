@@ -9,6 +9,12 @@ on:
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/sector_first_daily.py'
+      - 'scripts/entry_setup_audit.py'
+      - 'scripts/test_entry_setup_audit.py'
+      - 'scripts/focus_structure_join.py'
+      - 'scripts/focus_daily_structure.py'
+      - 'scripts/sector_dynamic_structure.py'
+      - 'scripts/sector_financial_join.py'
       - 'scripts/stock_evidence_matrix.py'
       - 'scripts/test_stock_evidence_matrix.py'
       - '.github/workflows/sector_daily_money_checks.yml'
@@ -33,6 +39,12 @@ jobs:
             /scripts/sector_evidence_bridge.py
             /scripts/test_sector_evidence_bridge.py
             /scripts/sector_first_daily.py
+            /scripts/entry_setup_audit.py
+            /scripts/test_entry_setup_audit.py
+            /scripts/focus_structure_join.py
+            /scripts/focus_daily_structure.py
+            /scripts/sector_dynamic_structure.py
+            /scripts/sector_financial_join.py
             /scripts/stock_evidence_matrix.py
             /scripts/test_stock_evidence_matrix.py
           sparse-checkout-cone-mode: false
@@ -144,6 +156,42 @@ jobs:
                 [(x["ticker"],x["cohort"]) for x in result["candidates"]])
           PY
 
+      - name: Run real Oct21 KRX completed 65+ bars through daily geometry and support bridge
+        run: |
+          python -m unittest discover -s scripts -p test_entry_setup_audit.py -v
+          python scripts/sector_dynamic_structure.py \
+             --status output/sector_bridge_status.json \
+             --watchlist output/sector_stock_research_ranking.csv \
+             --evidence-root inputs/asof_evidence \
+             --out output/dynamic \
+             --asof 2026-10-21 --max-total 12 --per-sector 4
+          python scripts/focus_structure_join.py --root output
+          python scripts/sector_financial_join.py --root output
+          python scripts/entry_setup_audit.py --root output
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          s=json.loads(Path("output/entry_setup_audit.json").read_text())
+          market=json.loads(Path("output/sector_first_with_prices.json").read_text())
+          with Path("output/dynamic/focus_daily_structure_prices.csv").open(
+                 encoding="utf-8-sig") as f:
+              rows=list(csv.DictReader(f))
+          assert s["asof"]=="2026-10-21"
+          assert s["decision"]=="CASH" and s["prospective_trades_created"]==0
+          assert s["stock_count"]==len(market["stock_research_top5"])
+          assert len(rows)>=5
+          assert all(r["latest_complete_date"]<="2026-10-21" for r in rows
+                     if r["latest_complete_date"])
+          assert all(r["data_source"]=="V18_KRX_CACHED"
+                     for r in rows if r["latest_complete_date"]=="2026-10-21")
+          assert all(x["stop_krw"] is None or x["stop_krw"]>0 for x in s["candidates"])
+          print("REAL_ASOF_20261021_ENTRY_GEOMETRY_RISK_AUDIT_PASSED",
+                "total=",s["stock_count"],
+                "ready=",s["technical_geometry_pass_count"],
+                "outcomes=",[(x["ticker"],x["code"],x["forward_rr_at_first_ceiling"])
+                            for x in s["candidates"]])
+          PY
+
       - name: Save independently calculated money-first TOP3 report
         if: always()
         uses: actions/upload-artifact@v4
@@ -157,5 +205,9 @@ jobs:
             output/sector_first_daily_mobile.md
             output/company_evidence_matrix.json
             output/company_evidence_matrix_mobile.md
+            output/dynamic/focus_daily_structure_status.json
+            output/sector_first_with_prices.json
+            output/entry_setup_audit.json
+            output/entry_setup_audit_mobile.md
           if-no-files-found: warn
           retention-days: 30
