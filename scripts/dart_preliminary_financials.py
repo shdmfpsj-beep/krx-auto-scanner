@@ -62,7 +62,12 @@ def parse_date_pairs(rows):
             kind=column_kind(key)
             if kind not in ("current","previous_same_period"):continue
             # Do not read an unrelated metric amount as a period.
-            matches=DATE_RE.findall(texts[i+1])
+            # Korean SGML often splits dates into 3 table cells:
+            # ['당기실적','2026-07-01','~','2026-09-30'].
+            # Do not join a different labeled row or other table.
+            next_fields=texts[i+1:i+4]
+            if any(column_kind(x) for x in next_fields):continue
+            matches=DATE_RE.findall("".join(next_fields))
             if len(matches)!=2:continue
             days=[]
             try:
@@ -82,7 +87,7 @@ def parse_date_pairs(rows):
                 previous_start=b[0].isoformat(),previous_end=b[1].isoformat(),
                 frequency="SINGLE_QUARTER_NON_CUMULATIVE")
 
-def metrics_from_rows(rows,unit):
+def metrics_from_rows(rows,unit,period=None):
     """Require exact current+prior column headers and consistent metric values."""
     values={}
     for i,head in enumerate(rows):
@@ -100,6 +105,36 @@ def metrics_from_rows(rows,unit):
             prev=parse_amount(row[p],unit)
             if curr is not None and prev is not None:
                 values.setdefault(k,set()).add((curr,prev))
+    # Official KRX preliminary disclosure has merged header cells; the
+    # second row contains quarter names and each metric's '당해실적'
+    # occupies an extra cell before numeric columns. Accept indices 2/6
+    # ONLY if exact two-year Q labels independently match dated periods.
+    if period:
+        current_end=date.fromisoformat(period["current_end"])
+        previous_end=date.fromisoformat(period["previous_end"])
+        cq=(current_end.month-1)//3+1
+        pq=(previous_end.month-1)//3+1
+        for i,head in enumerate(rows):
+            flat=[clean(x) for x in head]
+            if not (len(flat)>=6 and flat[:6]==[
+                "구분","당기실적","전기실적","전기대비",
+                "전년동기실적","전년동기대비"]):
+                continue
+            if i+1>=len(rows):continue
+            sub=[clean(x) for x in rows[i+1]]
+            if len(sub)<5:continue
+            q_now=f"{str(current_end.year)[-2:]}.{cq}Q"
+            q_prior=f"{str(previous_end.year)[-2:]}.{pq}Q"
+            if q_now not in sub[0] or q_prior not in sub[4]:
+                continue
+            for row in rows[i+2:i+15]:
+                if len(row)<7 or clean(row[1])!="당해실적":continue
+                k=metric(row[0])
+                if k not in REQUIRED:continue
+                curr=parse_amount(row[2],unit)
+                prev=parse_amount(row[6],unit)
+                if curr is not None and prev is not None:
+                    values.setdefault(k,set()).add((curr,prev))
     conflicts=[k for k in REQUIRED if len(values.get(k,set()))>1]
     found={k:next(iter(values[k])) if len(values.get(k,set()))==1 else None
            for k in REQUIRED}
@@ -218,14 +253,23 @@ def assess(data,filing,asof):
     dated=[]
     complete=[]
     conflicts_found=False
-    for rows in groups:
+    for i,rows in enumerate(groups):
         period=parse_date_pairs(rows)
         if period is None:continue
         dated.append(period)
-        vals,conflicts=metrics_from_rows(rows,unit)
+        # Normal layout: period labels and numerical metrics same table.
+        vals,conflicts=metrics_from_rows(rows,unit,period)
         if conflicts:conflicts_found=True
         if all(vals.get(k) is not None for k in REQUIRED) and not conflicts:
             complete.append((period,vals))
+        # Actual DART fair disclosures: period rows in TABLE 1, the
+        # immediately following TABLE 2 has a quarter-coded merged header.
+        # Never use nonadjacent tables or unmarked quarter cells.
+        elif i+1<len(groups):
+            adjacent,adj_conflicts=metrics_from_rows(groups[i+1],unit,period)
+            if adj_conflicts:conflicts_found=True
+            if all(adjacent.get(k) is not None for k in REQUIRED) and not adj_conflicts:
+                complete.append((period,adjacent))
     if conflicts_found:
         result["status"]="PRELIMINARY_DUPLICATE_METRIC_CONFLICT";return result
     if not dated:
