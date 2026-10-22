@@ -4,6 +4,7 @@ import unittest,csv,tempfile
 from pathlib import Path
 from datetime import date,timedelta
 from sector_dynamic_structure import select,generate,reuse_v18_daily_bars
+from focus_daily_structure import save,OUTPUT_FIELDS
 
 ASOF=date(2026,10,22)
 STATUS={"asof":str(ASOF),"scan_date":str(ASOF),"core_data_verified":True,
@@ -121,6 +122,23 @@ class DynamicSectorTests(unittest.TestCase):
             self.assertEqual(results[0]["historical_stop_reference"],"")
             self.assertEqual(results[0]["structure_state"],"DATA_MISSING")
 
+    def test_dynamic_output_candidate_source_provenance_can_be_written(self):
+        with tempfile.TemporaryDirectory() as folder:
+            record=dict.fromkeys(OUTPUT_FIELDS,"")
+            record.update(ticker="005930",name="삼성전자",
+                 latest_complete_date=str(ASOF),
+                 data_source="V18_KRX_CACHED",
+                 candidate_source="TOP3_SECTOR_DYNAMIC_RESEARCH",
+                 close=220000,structure_state="NO_HELD_CONFIRMED_PIVOT")
+            audit=save([record],Path(folder))
+            self.assertEqual(audit["research_count"],1)
+            with (Path(folder)/"focus_daily_structure_prices.csv").open(
+                  encoding="utf-8-sig",newline="") as file:
+                persisted=list(csv.DictReader(file))
+            self.assertEqual(len(persisted),1)
+            self.assertEqual(persisted[0]["candidate_source"],
+                "TOP3_SECTOR_DYNAMIC_RESEARCH")
+            self.assertEqual(persisted[0]["data_source"],"V18_KRX_CACHED")
     def test_max_twenty(self):
         src=[row(f"{i:06d}","SEMICON",str(100-i)) for i in range(1,40)]
         names,_=select(STATUS,src,ASOF,max_total=20)
