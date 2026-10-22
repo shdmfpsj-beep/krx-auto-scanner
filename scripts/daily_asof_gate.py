@@ -9,12 +9,27 @@ import argparse
 import json
 import csv
 from decimal import Decimal, InvalidOperation, ROUND_FLOOR
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from trade_approval_policy import BUY_REVIEW_SCORE_MIN, SCORE_MAX, evaluate_review
 from c3_account_state import load_c3_position, c3_mobile_line
+
+
+
+def nominal_last_completed_krx_session(now_kst: datetime) -> str:
+    """Conservative weekday/cutoff candidate, NOT an exchange holiday calendar.
+
+    At 05:00 Friday the last completed session is Thursday. Even at 16:00
+    today's date requires source-date/price-quality verification downstream.
+    """
+    d=now_kst.date()
+    if d.weekday() >= 5 or (d.weekday() < 5 and now_kst.hour < 16):
+        d-=timedelta(days=1)
+    while d.weekday()>=5:
+        d-=timedelta(days=1)
+    return d.isoformat()
 
 
 def load_json(path: Path) -> dict:
@@ -166,6 +181,7 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         "final_score_verified": False,
         "manual_review_gate": evaluate_review(None, {}, cost_adjusted_rr=None),
         "target_kst_date": day,
+        "target_session_semantics": "MOST_RECENT_NOMINAL_COMPLETED_KRX_WEEKDAY_NOT_HOLIDAY_VERIFIED",
         "source_dates": dates,
         "recovery_universe": universe,
         "recovery_valid_ohlcv": valid,
@@ -218,7 +234,9 @@ def to_markdown(data: dict) -> str:
             f"차단: {candidate['blocking_reasons']}. 가격은 한국거래소 일반주식 호가단위로 내림한 연구 참고치(매수·손절 주문 미승인)입니다.")
     else:
         research_line = "**오늘 확인한 기술 연구후보:** 검증된 당일 연구 행 없음"
-    return f"""# 📅 {data['target_kst_date']} C3·K100 실제 데이터 교차검증
+    return f"""# 📅 {data['target_kst_date']} 종가 기준 C3·K100 데이터 교차검증
+
+*장전·주말 실행은 직전 완료 거래일을 대상으로 합니다. 실제 휴장일과 원본 수집 완료 여부는 별도로 검증하며, 일치하지 않으면 매수를 승인하지 않습니다.*
 
 🚦 **신규매수: CASH (0건 승인)**
 
@@ -263,7 +281,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("output"))
     parser.add_argument("--c3-state", type=Path, default=Path("config/c3_position_state.json"))
     args = parser.parse_args()
-    target_day = args.date or datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+    target_day = args.date or nominal_last_completed_krx_session(
+        datetime.now(ZoneInfo("Asia/Seoul")))
     recovery = load_json(args.recovery)
     structure = load_json(args.recovery_structure) if args.recovery_structure else {}
     for field in ("geometry_pass_count", "c3_research_top5", "k100_research_top5"):
