@@ -87,7 +87,20 @@ jobs:
     timeout-minutes: 90
 
     steps:
+      # Full checkout fails on legacy accidentally committed non-portable
+      # paths (embedded newlines/overlong directory names). Scheduled scans
+      # only need ordinary Python scripts, dated CSV inputs and requirements.
+      # Include research report caches for manual modes, but avoid malformed
+      # historic repository paths until they are repaired separately.
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.csv
+            /reports/**
+            /requirements.txt
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
