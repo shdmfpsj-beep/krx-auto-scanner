@@ -220,6 +220,37 @@ jobs:
                   assert marker in source,(filename,marker)
               print("PROVENANCE_ADMISSION_PRESENT",filename)
           PY
+      - name: Ensure missing-source CASH reports bypass external GDELT and research pipelines
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path(".github/workflows/sector_first_daily.yml")
+          src=p.read_text(encoding="utf-8")
+          assert src.index("name: Download latest matching artifacts") < src.index(
+              "name: Collect global industry and macro news from GDELT")
+          gated=[
+              "Collect global industry and macro news from GDELT (free, read only)",
+              "Compute independent daily stops for freshly selected TOP3-sector stocks",
+              "Add dated source news and DART filings to sector-first report",
+              "Fetch latest independently computed daily price evidence",
+              "Check actual issuer contract filings against original official OpenDART XML",
+              "Score next-day-open prospective 5-session trades with costs",
+              "Run C3 one-position account-level paper risk and equity simulation",
+              "Independently audit the evidence for profitable C3 execution"]
+          for title in gated:
+              marker="      - name: "+title+chr(10)
+              assert marker in src,title
+              rest=src.split(marker,1)[1].split("      - name: ",1)[0]
+              assert "steps.source_inputs.outputs.ready == 'true'" in rest,title
+          for title in ("Render mobile report (CASH on missing or stale evidence)",
+                        "Produce short phone-first TOP3 sector and TOP5 price report"):
+              marker="      - name: "+title+chr(10)
+              assert marker in src
+              assert "if: always()" in src.split(marker,1)[1].split("      - name: ",1)[0]
+          print("INVALID_MARKET_FAST_CASH_CONTRACT_PASSED")
+          PY
+
       - name: Simulate missing evidence safely
         run: |
           mkdir -p source_empty output

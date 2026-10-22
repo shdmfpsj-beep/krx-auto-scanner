@@ -138,6 +138,42 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(result["plan_trade_approval"],"NO")
         self.assertNotEqual(result["plan_status"],"STRUCTURE_CANDIDATE_REQUIRES_VALIDATION")
 
+    def test_legacy_source_without_ohlc_integrity_does_not_promote_old_5d_sector(self):
+        status={"asof":"2026-10-22",
+                "datasets":{k:{"status":"OK"} for k in REQUIRED
+                            if k!="price_ohlc_integrity"}}
+        rows=[dict(date="2026-10-22",sector_id="POWER",sector_name="POWER",
+                   price_flow_proxy_ready="true",live_selection_authorized="false",
+                   stock_members="12",rs_5d_pp="3",breadth_up_5d_pct="60",
+                   foreign_net_buy_5d_krw="2000000000",
+                   institution_net_buy_5d_krw="2000000000",
+                   member_turnover_krw="30000000000",
+                   breadth_coverage="1",turnover_coverage="1",
+                   foreign_5d_coverage="1",institution_5d_coverage="1")]
+        ranked,summary=build(status,rows,"2026-10-22")
+        self.assertFalse(summary["core_data_verified"])
+        self.assertEqual(summary["research_top3_sector_ids"],[])
+        self.assertEqual(ranked[0]["research_eligible"],"NO")
+        self.assertIn("CORE_DATA_OR_DATE_UNVERIFIED",ranked[0]["warnings"])
+        self.assertEqual(summary["decision"],"CASH")
+
+    def test_user_excluded_pharma_and_biotech_not_in_sector_research(self):
+        status={"asof":"2026-10-22",
+                "datasets":{k:{"status":"OK"} for k in REQUIRED}}
+        data=[dict(date="2026-10-22",sector_id=sector,sector_name=sector,
+             price_flow_proxy_ready="true",live_selection_authorized="false",
+             stock_members="12",rs_5d_pp="3",breadth_up_5d_pct="80",
+             foreign_net_buy_5d_krw="3000000000",
+             institution_net_buy_5d_krw="3000000000",
+             member_turnover_krw="30000000000",
+             breadth_coverage="1",turnover_coverage="1",
+             foreign_5d_coverage="1",institution_5d_coverage="1")
+             for sector in ("PHARMA","BIOTECH","HEALTH","POWER")]
+        ranked,summary=build(status,data,"2026-10-22")
+        self.assertEqual(summary["research_top3_sector_ids"],["POWER"])
+        self.assertEqual([r["sector_id"] for r in ranked],["POWER"])
+        self.assertEqual(summary["decision"],"CASH")
+
     def test_prior_verified_evidence_is_research_only(self):
         status={"asof":"2026-10-20","datasets":{k:{"status":"OK"} for k in REQUIRED}}
         _,summary=build(status,[],"2026-10-21")

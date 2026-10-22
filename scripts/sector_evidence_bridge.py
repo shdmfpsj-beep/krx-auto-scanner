@@ -3,8 +3,8 @@
 import argparse,csv,json,math
 from pathlib import Path
 
-EXCLUDE={"HEALTH"}
-REQUIRED=("prices","flows","etf_prices","holdings","normalization")
+EXCLUDE={"HEALTH","PHARMA","BIOTECH"}
+REQUIRED=("prices","price_ohlc_integrity","flows","etf_prices","holdings","normalization")
 
 def number(row,key):
     try:
