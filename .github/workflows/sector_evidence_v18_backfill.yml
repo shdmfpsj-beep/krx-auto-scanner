@@ -539,6 +539,36 @@ jobs:
                   shutil.rmtree(stage, ignore_errors=True)
           
           
+          def audit_daily_ohlc_session(rows):
+              """Source diagnostics: outside-range closes may be mixed trading sessions.
+              Do NOT infer a normal-session close, modify prices or certify its cause.
+              """
+              counts = {"checked": 0, "invalid": 0, "below_low": 0,
+                        "above_high": 0, "other": 0, "nontrading": 0}
+              for r in rows:
+                  t = str(r.get("ticker", ""))
+                  if not re.fullmatch(r"[0-9]{6}", t):
+                      continue
+                  try:
+                      op, hi, lo, cl, vol = (numeric(r[k]) for k in
+                                                ("Open","High","Low","Close","Volume"))
+                  except (KeyError, TypeError, ValueError, EvidenceError):
+                      continue
+                  if op == hi == lo == 0 and cl > 0:
+                      counts["nontrading"] += 1
+                      continue
+                  if cl <= 0:
+                      continue
+                  counts["checked"] += 1
+                  if not (0 < lo <= min(op,cl) <= max(op,cl) <= hi and vol >= 0):
+                      counts["invalid"] += 1
+                      reason=("below_low" if cl < lo else
+                              "above_high" if cl > hi else "other")
+                      counts[reason] += 1
+              counts["invalid_pct"] = round(100 * counts["invalid"] /
+                                            max(counts["checked"],1),2)
+              return counts
+
           def price_quality(rows):
               result, issues = [], []
               prev_date = ""
@@ -1002,6 +1032,23 @@ jobs:
                   price_ok = sum(r["status"] == "OK" for r in price_requests)
                   self.mark("prices", "OK" if price_ok == expected else "DATA_PENDING", rows=total,
                             expected_requests=expected, successful_requests=price_ok)
+                  # Request success is distinct from a coherent completed trading bar.
+                  # From 2026-09-14 KRX also runs an after-market until 20:00 KST.
+                  # Mixed-session OHLC is a hypothesis, not a proven correction.
+                  latest_rows = []
+                  for market in self.config["markets"]:
+                      latest_rows.extend(read_csv(
+                          self.out / "market/daily_prices" / market /
+                          (effective.isoformat() + ".csv")))
+                  q = audit_daily_ohlc_session(latest_rows)
+                  valid = q["checked"] >= 100 and q["invalid_pct"] <= 1.0
+                  self.mark("price_ohlc_integrity", "OK" if valid else "DATA_PENDING",
+                            **q, source_basis="RAW_PYKRX_DATE_ONLY_SESSION_UNVERIFIED",
+                            issue="SESSION_MIX_OR_PROVIDER_INCONSISTENCY_UNRESOLVED"
+                            if not valid else "NONE",
+                            price_requests_ok=(price_ok == expected),
+                            no_auto_price_repair=True)
+
                   failures, flow_rows = 0, 0
                   flow_dates = [d for d in sessions if d >= flow_start]
                   for d in flow_dates:
@@ -1550,7 +1597,7 @@ jobs:
           def finalize(collector, mode):
               out, data = collector.out, collector.status["datasets"]
               base_ok = data.get("v14_replication", {}).get("status") == "VERIFIED"
-              core_ok = all(data.get(k, {}).get("status") == "OK" for k in ("prices", "flows", "etf_prices", "holdings", "normalization"))
+              core_ok = all(data.get(k, {}).get("status") == "OK" for k in ("prices", "price_ohlc_integrity", "flows", "etf_prices", "holdings", "normalization"))
               features_ok = data.get("sector_features", {}).get("status") == "EXPLORATORY"
               ready = base_ok if mode == "baseline_only" else base_ok and core_ok and features_ok
               state = "BASELINE_VERIFIED" if mode == "baseline_only" and ready else "EVIDENCE_PARTIAL_CATALYST_PIT_PENDING" if ready else "DATA_PENDING"
@@ -1815,6 +1862,21 @@ jobs:
                   _, issues = v.price_quality([r, r])
                   self.assertTrue(issues)
           
+              def test_aftermarket_mixed_session_cannot_be_reported_as_verified_prices(self):
+                  rows=[
+                    {"ticker":"005930","Open":100,"High":104,"Low":98,"Close":97,"Volume":100},
+                    {"ticker":"000660","Open":100,"High":104,"Low":98,"Close":106,"Volume":100},
+                    {"ticker":"035420","Open":100,"High":104,"Low":98,"Close":102,"Volume":100},
+                    {"ticker":"009999","Open":0,"High":0,"Low":0,"Close":100,"Volume":0}]
+                  q=v.audit_daily_ohlc_session(rows)
+                  self.assertEqual(q["checked"],3)
+                  self.assertEqual(q["invalid"],2)
+                  self.assertEqual(q["below_low"],1)
+                  self.assertEqual(q["above_high"],1)
+                  self.assertEqual(q["nontrading"],1)
+                  self.assertGreater(q["invalid_pct"],1)
+                  self.assertEqual(rows[0]["Close"],97)  # no silent price repair
+
               def test_turnover_never_fabricated(self):
                   frame = pd.DataFrame({"시가": [100], "고가": [110], "저가": [98], "종가": [105], "거래량": [200]}, index=["005930"])
                   rows = v.krx_prices(frame, date(2026, 10, 1))
