@@ -1,0 +1,39 @@
+name: KRX source quality health gate offline tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/sector_pipeline_health_gate.py'
+      - 'scripts/test_sector_pipeline_health_gate.py'
+      - '.github/workflows/sector_pipeline_health.yml'
+      - '.github/workflows/sector_pipeline_health_checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/sector_pipeline_health_gate.py'
+      - 'scripts/test_sector_pipeline_health_gate.py'
+      - '.github/workflows/sector_pipeline_health.yml'
+      - '.github/workflows/sector_pipeline_health_checks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/sector_pipeline_health_gate.py
+            /scripts/test_sector_pipeline_health_gate.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Compile and verify source quality gate with offline fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/sector_pipeline_health_gate.py scripts/test_sector_pipeline_health_gate.py
+          python -m unittest discover -s scripts -p test_sector_pipeline_health_gate.py -v
