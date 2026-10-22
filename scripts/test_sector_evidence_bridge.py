@@ -94,12 +94,16 @@ class BridgeTests(unittest.TestCase):
         report=dict(schema="sector_daily_money_v1",asof="2026-10-22",
                    market_ohlc_quality_verified=False,
                    raw_ohlc_conflict_pct=24.7,
+                   raw_ohlc_conflict_count=633,
+                   raw_tradable_ohlc_checked=2563,
                    selected_top3=[],complete_three=False,
                    sector_samples=[dict(sector_id="CONSTRUCTION",
                        base_eligible=False,day_net_flow_krw=210000000000)],
                    decision="CASH",trade_approved=False)
         ranked,result=apply_daily_money_rank(rows,summary,report)
         self.assertEqual(result["daily_money_gate"],"MARKET_OHLC_CONFLICT")
+        self.assertEqual(result["raw_ohlc_conflict_count"],633)
+        self.assertEqual(result["raw_tradable_ohlc_checked"],2563)
         self.assertEqual(result["research_top3_sector_ids"],[])
         self.assertFalse(result["daily_money_rank_applied"])
         self.assertFalse(result["final_sector_top3_verified"])
