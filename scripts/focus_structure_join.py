@@ -12,6 +12,24 @@ def read_rows(path):
     with path.open(encoding="utf-8-sig",newline="") as f:
         return list(csv.DictReader(f))
 
+def combine_price_sources(base_rows,dynamic_rows,sector_asof):
+    """Choose best completed-bar evidence, not merely the latest file order."""
+    index={}
+    for r in list(base_rows)+list(dynamic_rows):
+        ticker=str(r.get("ticker","")).strip()
+        if not (len(ticker)==6 and ticker.isdigit()):
+            continue
+        def quality(x):
+            valid_date=x.get("latest_complete_date")==sector_asof
+            verified_source=x.get("data_source") in ("pykrx","FinanceDataReader")
+            return (int(valid_date),int(verified_source),
+                    int(bool(x.get("historical_stop_reference"))),
+                    int(bool(x.get("entry1_research_range"))))
+        previous=index.get(ticker)
+        if previous is None or quality(r)>quality(previous):
+            index[ticker]=r
+    return list(index.values())
+
 def merge(report,price_rows):
     out=dict(report)
     sector_asof=str(report.get("asof") or "")
@@ -39,8 +57,16 @@ def merge(report,price_rows):
             r["independent_stop_support_date"]=ref.get("pivot_date")
             r["independent_stop_source"]=ref.get("data_source")
             r["independent_stop_status"]="HISTORICAL_DAILY_REFERENCE_ONLY"
+            r["independent_first_entry_reference"]=ref.get("entry1_research_range") or None
+            r["independent_second_entry_reference"]=ref.get("entry2_support_research_range") or None
+            r["independent_prior_high_rr"]=ref.get("prior_high_rr") or None
+            r["independent_structure_state"]=ref.get("structure_state")
         else:
             r["independently_collected_daily_stop_reference"]=None
+            r["independent_first_entry_reference"]=None
+            r["independent_second_entry_reference"]=None
+            r["independent_prior_high_rr"]=None
+            r["independent_structure_state"]=None
             r["independent_stop_status"]=(
                 "FOCUS_DATE_MISMATCH" if ref and not ref["matches_sector_data_date"]
                 else ref["structure_state"] if ref else "NOT_IN_FOCUS_WATCHLIST")
@@ -57,7 +83,21 @@ def merge(report,price_rows):
     return out
 
 def render(report,previous):
-    lines=["","## ⑤ 주요 관심·보유 종목: 자동 일봉 구조 가격","",
+    lines=["","## ⑤ 섹터 TOP5 실제 일봉가격 재검증","",
+       "이 가격은 TOP3 섹터에서 실제 추린 종목을 무료 일봉으로 다시 확인한 연구값입니다. 계산값과 매수 승인 여부는 별도입니다.",""]
+    for stock in report.get("stock_research_top5",[]):
+        stop=stock.get("independently_collected_daily_stop_reference")
+        lines.append("### "+str(stock.get("name",""))+" ("+str(stock.get("ticker",""))+")")
+        if stop:
+            lines.append("- **일봉 손절 참고가:** "+str(stop)+"원"+
+                " / 1차 연구: "+str(stock.get("independent_first_entry_reference") or "진입 범위 부적격")+
+                " / 2차 연구: "+str(stock.get("independent_second_entry_reference") or "지지 미형성"))
+            lines.append("- 직전 고점 대비 연구 손익비: "+str(stock.get("independent_prior_high_rr") or "계산 근거 부족")+
+                 " / 매수승인 없음")
+        else:
+            lines.append("- 구조손절 별도 계산 미제공: "+str(stock.get("independent_stop_status")))
+        lines.append("")
+    lines+=["","## ⑥ 기존 관심·보유종목 및 섹터 내부 연구 종목","",
        "여기 표시된 가격은 별도 무료 일봉 수집으로 계산합니다. 섹터 TOP3의 최종 적격 종목 명단이 아니며 자동매수 승인도 아닙니다.","",
        "| 종목 | 자료일 | 기준 종가 | 구조손절 참고 | 1차 연구 | 2차 연구 | 자동검증 결과 |",
        "|---|---|---:|---:|---|---|---|"]
@@ -93,7 +133,10 @@ def main():
     if not source.is_file():source=a.root/"sector_first_daily_status.json"
     if not source.is_file():raise SystemExit("NO_SECTOR_FIRST_BASE_REPORT")
     base=json.loads(source.read_text(encoding="utf-8"))
-    merged=merge(base,read_rows(a.root/"focus_daily_structure_prices.csv"))
+    merged=merge(base,combine_price_sources(
+        read_rows(a.root/"focus_daily_structure_prices.csv"),
+        read_rows(a.root/"dynamic/focus_daily_structure_prices.csv"),
+        str(base.get("asof") or "")))
     (a.root/"sector_first_with_prices.json").write_text(
         json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8")
     old=a.root/"sector_first_global_mobile.md"
