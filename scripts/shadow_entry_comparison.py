@@ -161,7 +161,7 @@ def save(out,rows):
     (out/"entry_ab_results.json").write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding="utf-8")
     (out/"entry_ab_scorecard.json").write_text(json.dumps(stats,ensure_ascii=False,indent=2),encoding="utf-8")
     lines=["# C3·K100 진입방식 A/B 실전형 연구","",
-      "**실제 신규매수: CASH — 모의성과와 최종 종목 85점은 별개**","",
+      "**실제 신규매수: CASH — 모의성과와 최종 종목 80점은 별개**","",
       "| 지표 | 다음 날 시초가 | D+1~D+2 눌림 지정가 |",
       "|---|---:|---:|"]
     for k,label in (("closed","완료된 모의매매"),
