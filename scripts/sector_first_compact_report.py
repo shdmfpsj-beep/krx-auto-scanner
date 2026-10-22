@@ -59,9 +59,9 @@ def format_summary(data):
            "**신규매수: CASH** — 전체 80점 검증·당일 진입 조건 완료 전",
            "",f"일봉·섹터 기준일: {txt(data.get('asof'),'미확보')}",
            "이하 모든 가격은 해당일 완료된 일봉 연구 참고가격이며 실시간 주문호가가 아닙니다.","",
-           "## ① 국내 자금 중심 섹터 TOP3 (연구 순위)","",
-           "| 섹터 | 중복 제거 1일 순매수(억)* | 5일 순매수(억)* | 거래대금(억)* |",
-           "|---|---:|---:|---:|"]
+           "## ① 자금 선행 섹터 TOP3 (매수 미승인 관찰 순위)","",
+           "| 섹터 | 중복 제거 1일 순매수(억)* | 5일 순매수(억)* | 거래대금(억)* | 상승확산 | 단계 |",
+           "|---|---:|---:|---:|---:|---|"]
     for s in sectors[:3]:
         flow=s.get("flow_proxy_5d_krw")
         turnover=s.get("member_turnover_krw")
@@ -70,13 +70,17 @@ def format_summary(data):
             except (TypeError,ValueError,OverflowError):return "—"
         lines.append("| "+txt(s.get("name"))+" | "+
           hundred_million(s.get("day_net_flow_1d_incremental_krw"))+" | "+
-          hundred_million(flow)+" | "+hundred_million(turnover)+" |")
+          hundred_million(flow)+" | "+hundred_million(turnover)+" | "+
+          (txt(s.get("day_breadth_up_pct"))+"%" if s.get("day_breadth_up_pct") is not None else "—")+" | "+
+          txt(s.get("flow_phase"),"연구용") +" |")
     if not sectors:
-        lines.append("| 오늘 확정 자료 미충족 | — | — | — |")
+        lines.append("| 오늘 확정 자료 미충족 | — | — | — | — | — |")
     lines+=["","*ETF 구성종목 기준 표본 수급·거래대금이며 전체 산업 섹터의 확정 유입금액은 아닙니다.",
        "당일 외국인·기관 순매수와 5일 합산 수급을 분리했습니다."
        " ETF 겹친 주식 순매수는 당일 수치에서 중복 제거하지만,"
-       " 이는 전체 산업 자금 유입이나 확정된 최종 100점 점수가 아닙니다.","",
+       " 이는 전체 산업 자금 유입이나 확정된 최종 100점 점수가 아닙니다.",
+       "상승확산 60% 미만도 연구 후보이며 매수 승인과 무관합니다."
+       " 상승 종목 0%일 때의 순매수는 하락 흡수 위험이 있어 별도 주의합니다.","",
        "## ② 섹터 내 연구 종목 TOP5 — 산정 가능한 가격은 숫자로 표시","",
        "| 종목 | 1차 일봉 연구 | 2차 지지 연구 | 구조손절 참고 |",
        "|---|---|---|---|"]
@@ -121,7 +125,7 @@ def format_summary(data):
            "; 최종 80점·당일 지지/수급/손익비 검증 전")
     if not stocks:
         if data.get("daily_money_gate")=="VERIFIED_NO_QUALIFYING_SECTOR":
-            lines.append("- 오늘 완료된 KRX 수급자료는 검증됐으나 상승확산 60% 이상과 순매수 조건을 동시에 충족한 섹터가 없어 TOP3·TOP5 및 신규매수는 0건입니다.")
+            lines.append("- 당일 KRX 자료가 검증됐으나 완전한 가격·수급 표본에서 플러스 순매수인 섹터가 없어 TOP3·TOP5 연구후보 0건입니다. 신규매수는 CASH입니다.")
         else:
             lines.append("- 섹터 또는 투자자 수급·가격 자료가 해당일 완결되지 않아 종목 선정 자체가 제한됨")
     lines+=["","## ③ 해외에서 먼저 관찰된 뉴스 (원문 근거 목록)",""]
