@@ -93,6 +93,21 @@ class DartAnnualTests(unittest.TestCase):
              get_corps=lambda key:{"005930":"00126380"},request_json=req)
         self.assertEqual(calls,["list.json"])
         self.assertEqual(r["researched"][0]["status"],"NO_ELIGIBLE_DATED_ANNUAL_FILING")
+    def test_january_uses_last_filed_annual_not_future_unpublished_year(self):
+        early=date(2027,1,12)
+        params_seen=[]
+        def request(endpoint,params,key):
+            params_seen.append(dict(params))
+            if endpoint=="list.json":
+                return filing(received="20260318",year=2025)
+            return dict(status="000",list=good_rows())
+        r=collect(early,[TICKER],key="a"*40,today=early,
+                  get_corps=lambda k:{"005930":"00126380"},
+                  request_json=request)
+        self.assertEqual(r["researched"][0]["annual_fiscal_year"],2025)
+        self.assertEqual(params_seen[-1]["bsns_year"],"2025")
+        self.assertEqual(r["screen_pass_count"],1)
+
     def test_financial_api_error_one_stock_does_not_hide_other(self):
         two=[TICKER,{**TICKER,"ticker":"000660","name":"SK하이닉스"}]
         def req(endpoint,params,key):
