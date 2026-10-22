@@ -15,6 +15,11 @@ def read_rows(path):
 def combine_price_sources(base_rows,dynamic_rows,sector_asof):
     """Choose best completed-bar evidence, not merely the latest file order."""
     index={}
+    all_rows={}
+    for r in list(base_rows)+list(dynamic_rows):
+        ticker=str(r.get("ticker","")).strip()
+        if len(ticker)==6 and ticker.isdigit():
+            all_rows.setdefault(ticker,[]).append(r)
     for r in list(base_rows)+list(dynamic_rows):
         ticker=str(r.get("ticker","")).strip()
         if not (len(ticker)==6 and ticker.isdigit()):
@@ -28,6 +33,34 @@ def combine_price_sources(base_rows,dynamic_rows,sector_asof):
         previous=index.get(ticker)
         if previous is None or quality(r)>quality(previous):
             index[ticker]=r
+    for ticker,choice in index.items():
+        # Cross-source conflict means NO research price can be presented as an
+        # actionable level. Do not simply prefer whichever has a valid pivot.
+        prices=[]
+        for r in all_rows.get(ticker,[]):
+            if r.get("latest_complete_date")!=sector_asof:continue
+            if r.get("data_source") not in ("pykrx","FinanceDataReader","V18_KRX_CACHED"):
+                continue
+            try:
+                close=float(r.get("close"))
+            except (ValueError,TypeError):
+                continue
+            if close>0:
+                prices.append((r.get("data_source"),close))
+        conflict=any(source!=source2 and price!=price2
+            for i,(source,price) in enumerate(prices)
+            for source2,price2 in prices[i+1:])
+        if conflict:
+            choice["price_conflict"]=True
+            choice["price_conflict_sources"]=[
+                {"source":name,"close":close} for name,close in prices]
+            choice["historical_stop_reference"]=""
+            choice["entry1_research_range"]=""
+            choice["entry2_support_research_range"]=""
+            choice["structure_state"]="CROSS_SOURCE_CLOSE_CONFLICT"
+            choice["next_action"]="동일 기준일 종가 공급원 불일치: 원인 확인 전 가격 사용 금지"
+        else:
+            choice["price_conflict"]=False
     return list(index.values())
 
 def merge(report,price_rows):
@@ -42,7 +75,8 @@ def merge(report,price_rows):
         item=dict(x)
         item["matches_sector_data_date"]=valid_date
         item["self_computed_reference_usable"]=(
-            valid_date and bool(x.get("historical_stop_reference")) and
+            valid_date and not bool(x.get("price_conflict")) and
+            bool(x.get("historical_stop_reference")) and
             x.get("structure_state") not in ("STALE_DAILY_CLOSE","INVALID_DAILY_SERIES",
                 "DATA_MISSING","PIVOT_RISK_INVALID","NO_HELD_CONFIRMED_PIVOT"))
         item["trade_approval"]="NO"
@@ -68,7 +102,8 @@ def merge(report,price_rows):
             r["independent_prior_high_rr"]=None
             r["independent_structure_state"]=None
             r["independent_stop_status"]=(
-                "FOCUS_DATE_MISMATCH" if ref and not ref["matches_sector_data_date"]
+                "CROSS_SOURCE_CLOSE_CONFLICT" if ref and ref.get("price_conflict")
+                else "FOCUS_DATE_MISMATCH" if ref and not ref["matches_sector_data_date"]
                 else ref["structure_state"] if ref else "NOT_IN_FOCUS_WATCHLIST")
         selected.append(r)
     out["stock_research_top5"]=selected
@@ -76,6 +111,8 @@ def merge(report,price_rows):
     out["focus_daily_price_matched_count"]=sum(x["matches_sector_data_date"] for x in enriched)
     out["focus_independent_stop_reference_count"]=sum(
          x["self_computed_reference_usable"] for x in enriched)
+    out["focus_close_conflict_tickers"]=[x["ticker"] for x in enriched
+        if x.get("price_conflict")]
     out["focus_price_is_independent_trade_approval"]=False
     out["decision"]="CASH"
     out["trade_approved"]=False
@@ -102,7 +139,10 @@ def render(report,previous):
        "| 종목 | 자료일 | 기준 종가 | 구조손절 참고 | 1차 연구 | 2차 연구 | 자동검증 결과 |",
        "|---|---|---:|---:|---|---|---|"]
     for item in report.get("focus_daily_structure_research",[]):
-        if not item["matches_sector_data_date"]:
+        if item.get("price_conflict"):
+            detail="종가 공급원 불일치: 가격 사용 금지"
+            price="—";stop="—";first="—";second="—"
+        elif not item["matches_sector_data_date"]:
             detail="날짜 불일치: 기존자료 비사용"
             price="—";stop="—";first="—";second="—"
         else:
