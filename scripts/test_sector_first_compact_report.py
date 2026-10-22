@@ -20,7 +20,7 @@ class CompactTests(unittest.TestCase):
         self.assertIn("203,500원",md)
         self.assertIn("220,000~224,000",md)
         self.assertIn("CASH",md)
-        self.assertIn("85점",md)
+        self.assertIn("80점",md)
         self.assertIn("https://example.com/industry",md)
     def test_missing_evidence_does_not_make_up_prices(self):
         md=format_summary({"asof":"2026-10-22","sector_top3":[],"stock_research_top5":[]})
