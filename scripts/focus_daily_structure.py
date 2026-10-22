@@ -203,20 +203,25 @@ def save(records,out):
       caveat="Completed daily bars only; historic pivots are computed automatically but NOT validated executable stop orders. Corporate actions/price feed issues require review.")
     (out/"focus_daily_structure_status.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
     md=["# 관심종목 무료 일봉 구조 분석","",
-        "**신규매수 최종 승인: 없음 (CASH)** — 가격 산정 여부와 BUY 적합성은 별개입니다.","",
-        "| 종목 | 자료일 | 종가 | 일봉 구조손절 참고 | 1차 가격 연구 | 2차 지지 연구 | 결과 |",
-        "|---|---|---:|---:|---|---|---|"]
+        "**신규매수 최종 승인: 없음 (CASH)** — 과거 일봉에서 산정 가능한 값과 BUY 판단은 구분합니다.",""]
     for r in records:
-        md.append(f"| {r['name']} | {r['latest_complete_date'] or '데이터 없음'} | "
-           f"{r['close'] or '—'} | {r['historical_stop_reference'] or '—'} | "
-           f"{r['entry1_research_range'] or '—'} | "
-           f"{r['entry2_support_research_range'] or '—'} | {r['structure_state']} |")
-    md+=["","## 가격이 빠진 이유 / 다음 자동 검증",""]
-    for r in records:
-        md.append(f"- {r['name']} ({r['ticker']}): {r['next_action']}"
-          +(" / 수집 오류: "+r["data_problems"] if r["data_problems"] else ""))
-    md+=["","* 표시값은 정규장 확정 일봉을 이용한 연구용 참고가격입니다. "
-           "KRX 호가단위 보정·가격조정·기업행위·최신 수급 검증 전에는 지정가 주문으로 사용하지 않습니다.",""]
+        md += ["## "+r["name"]+" ("+r["ticker"]+")",
+               "- 기준일/종가: "+str(r["latest_complete_date"] or "자료 미확보")+
+                  " / "+(f"{r['close']:,}원" if r["close"] else "자료 없음")]
+        if r["historical_stop_reference"]:
+            md.append("- **계산된 구조 손절 참고:** "+f"{r['historical_stop_reference']:,}원"+
+               " (확정 저점 "+str(r["pivot_date"])+", "+f"{r['pivot_low']:,}원; "
+               +f"현재 종가 대비 {r['stop_distance_pct']}%)")
+        else:
+            md.append("- 구조 손절 참고: 산정 불가 — "+str(r["structure_state"]))
+        md.append("- 1차 진입 연구: "+str(r["entry1_research_range"] or "유효 진입 조건 없음")+
+          " / 2차 지지 연구: "+str(r["entry2_support_research_range"] or "별도 지지 확인 전"))
+        md.append("- **판정:** "+str(r["structure_state"])+" / 조치: "+str(r["next_action"]))
+        if r["data_problems"]:
+            md.append("- 데이터 수집 상태: "+str(r["data_problems"]))
+        md.append("")
+    md+=["* 표시값은 완료된 KRX 일봉으로 계산한 연구 참고가격입니다. "
+           "실제 최신 시세·기업행위·거래소 호가단위·섹터/재무/수급 검증 없이 주문 가격으로 사용하지 않습니다.",""]
     (out/"focus_daily_structure_mobile.md").write_text("\n".join(md),encoding="utf-8")
     return report
 
