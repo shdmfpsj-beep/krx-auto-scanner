@@ -86,6 +86,22 @@ class DailyAsOfGateTests(unittest.TestCase):
         self.assertIn("2,604", f"{output['recovery_valid_ohlcv']:,}")
         self.assertIn("불일치", to_markdown(output))
 
+    def test_pending_sector_output_and_closed_position_are_explicit(self):
+        from c3_account_state import load_c3_position
+        self.sector["sector_selection_outcome"]="PENDING_DATA_VALIDATION"
+        self.sector["stock_selection_outcome"]="PENDING_DATA_VALIDATION"
+        self.sector["sector_top3"]=[]
+        self.sector["stock_research_top5"]=[]
+        state=load_c3_position()
+        r=evaluate(self.today,self.recovery,self.focus,self.sector,self.money,
+                   c3_state=state)
+        self.assertIn("SECTOR_STOCK_FINAL_SELECTION_PENDING_DATA",
+                      r["data_integrity_blockers"])
+        self.assertEqual(r["sector_selection_outcome"],"PENDING_DATA_VALIDATION")
+        self.assertEqual(r["c3_position_state"]["closed_shares_remaining"],0)
+        self.assertIn("세방전지(004490) 전량 매도",to_markdown(r))
+        self.assertEqual(r["decision"],"CASH")
+
     def test_dates_alone_never_trigger_buy(self):
         output = self.run_gate()
         self.assertTrue(output["all_source_dates_aligned"])
