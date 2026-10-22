@@ -128,8 +128,10 @@ def evaluate(signal,bars,horizon=HORIZON,cost_pct=ROUNDTRIP_COST_PCT,
     t0=datestr(signal.get("signal_date"))
     if not t0:return dict(status="INVALID_SIGNAL")
     future=[r for r in bars if r["date"]>t0]
-    if not future:return dict(status="PENDING_NEXT_TRADING_DAY")
     calendar=[d for d in (market_sessions or []) if d>t0]
+    if not future:
+        return dict(status="MISSING_NEXT_SESSION_PRICE" if calendar
+                    else "PENDING_NEXT_TRADING_DAY")
     if calendar and future[0]["date"]!=calendar[0]:
         return dict(status="MISSING_NEXT_SESSION_PRICE")
     first=future[0]
