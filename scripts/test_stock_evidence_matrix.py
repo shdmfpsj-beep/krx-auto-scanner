@@ -143,6 +143,17 @@ class StockEvidenceTests(unittest.TestCase):
         self.assertEqual(r["contract_amount_or_positive_impact_confirmed_count"],0)
         self.assertIn("원문 표 확인",render(r))
         self.assertEqual(r["decision"],"CASH")
+    def test_real_sgml_official_original_is_document_not_positive_catalyst(self):
+        observed=dict(schema="dart_contract_source_v1",asof=DAY,
+          issuer_samples=[dict(ticker="005930",filings=[dict(
+            date="2026-10-21",receipt_no="20261021000001",
+            url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261021000001",
+            filing_contents_status="DART_DOCUMENT_SGML_TABLES_PARSED")])])
+        actual=build(inputs(),observed)
+        self.assertTrue(actual["candidates"][0]["original_contract_text_observed"])
+        self.assertFalse(actual["candidates"][0]["direct_contract_amount_confirmed"])
+        self.assertEqual(actual["company_catalyst_verified_count"],0)
+        self.assertFalse(actual["trade_approved"])
     def test_future_or_other_date_contract_cannot_enter_company_matrix(self):
         contract=dict(schema="dart_contract_source_v1",asof="2026-10-23",
               issuer_samples=[dict(ticker="005930",filings=[dict(
