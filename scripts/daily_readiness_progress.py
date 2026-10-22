@@ -78,8 +78,8 @@ def build(source,sector,summary,entry,shadow,proof):
     ]
     done=sum(x[1] for x in gate_rows)
     weak=bool(cover and not ranked and
-              not any(s.get("base_eligible") is True and
-                      s.get("day_net_flow_krw",0)>0 for s in samples))
+              all(s.get("base_eligible") is True for s in samples) and
+              not any(s.get("day_net_flow_krw",0)>0 for s in samples))
     if not aligned:
         market_status="SOURCE_ASOF_MISMATCH"
     elif not price_and_flow or not cover:
