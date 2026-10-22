@@ -4,7 +4,7 @@ import io,zipfile,unittest,csv,tempfile
 from pathlib import Path
 from datetime import date
 from dart_financial_screen import (
-    annual_receipt,parse_corps,extract_metric,evaluate_accounts,collect,render,
+    annual_receipt,latest_periodic_filing,parse_corps,extract_metric,evaluate_accounts,collect,render,
     read_stocks)
 
 ASOF=date(2026,10,22)
@@ -187,6 +187,33 @@ class DartAnnualTests(unittest.TestCase):
         self.assertEqual(r["researched"][0]["annual_fiscal_year"],2025)
         self.assertEqual(params_seen[-1]["bsns_year"],"2025")
         self.assertEqual(r["screen_pass_count"],1)
+
+    def test_latest_asof_half_year_filing_is_not_annual_profit_verified(self):
+        payload=filing()
+        payload["list"].extend([
+            dict(report_nm="반기보고서 (2026.06)",rcept_dt="20260814",
+                 rcept_no="20260814000011"),
+            dict(report_nm="분기보고서 (2026.09)",rcept_dt="20261114",
+                 rcept_no="20261114000019")])
+        latest=latest_periodic_filing(payload,ASOF)
+        self.assertEqual(latest[0],date(2026,8,14))
+        self.assertIn("반기",latest[2])
+        def req(endpoint,params,key):
+            if endpoint=="list.json":return payload
+            return dict(status="000",list=good_rows())
+        r=collect(ASOF,[TICKER],key="a"*40,today=ASOF,
+            get_corps=lambda _:{"005930":"00126380"},request_json=req)
+        row=r["researched"][0]
+        self.assertEqual(row["latest_periodic_receipt_date"],"2026-08-14")
+        self.assertEqual(row["annual_fiscal_year"],2025)
+        self.assertFalse(row["latest_periodic_financials_analyzed"])
+        self.assertFalse(row["recent_financial_results_fully_verified"])
+        self.assertEqual(row["status"],"DATED_ANNUAL_RESEARCH_ONLY")
+    def test_latest_periodic_does_not_use_post_asof_disclosure(self):
+        filings=dict(status="000",list=[
+            dict(report_nm="3분기보고서 (2026.09)",
+                 rcept_dt="20261023",rcept_no="20261023000010")])
+        self.assertIsNone(latest_periodic_filing(filings,ASOF))
 
     def test_financial_api_error_one_stock_does_not_hide_other(self):
         two=[TICKER,{**TICKER,"ticker":"000660","name":"SK하이닉스"}]
