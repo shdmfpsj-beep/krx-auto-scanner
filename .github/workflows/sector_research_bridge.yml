@@ -6,6 +6,8 @@ on:
     paths:
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/sector_first_daily.py'
+      - 'scripts/c3_account_state.py'
+      - 'config/c3_position_state.json'
       - 'scripts/test_sector_first_daily.py'
       - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/preignition_monthly_validation.py'
@@ -55,6 +57,8 @@ jobs:
           sparse-checkout: |
             /scripts/sector_evidence_bridge.py
             /scripts/sector_first_daily.py
+            /scripts/c3_account_state.py
+            /config/c3_position_state.json
             /scripts/test_sector_first_daily.py
             /scripts/test_sector_evidence_bridge.py
             /scripts/preignition_monthly_validation.py
