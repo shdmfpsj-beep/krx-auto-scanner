@@ -1,0 +1,62 @@
+name: KRX regular-only 18:00 safe final report
+on:
+  workflow_dispatch:
+  schedule:
+    # 18:00 KST weekday, ahead of 18:30 ChatGPT notification.
+    - cron: '0 9 * * 1-5'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/krx_regular_daily_report.py
+            /scripts/krx_regular_after_layers.py
+            /scripts/krx_session_probe.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Get independently archived *regular* observation (no aftermarket artifact)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input output
+          gh api "repos/$GH_REPO/actions/workflows/krx_session_layers.yml/runs?per_page=50" \
+            --jq '.workflow_runs[] | select(.conclusion == "success") | .id' |
+          while read -r id; do
+            [[ "$id" == "$GITHUB_RUN_ID" ]] && continue
+            if gh run download "$id" -R "$GH_REPO" -n krx-regular-observation -D input 2>/dev/null; then
+              echo "DOWNLOADED_REGULAR_OBSERVATION run=$id"
+              break
+            fi
+          done
+          [[ -f input/regular_observation.json ]] || echo "REGULAR_OBSERVATION_UNAVAILABLE"
+      - name: Publish report only from date-matched regular archive
+        shell: bash
+        run: |
+          python scripts/krx_regular_daily_report.py \
+            --regular input/regular_observation.json --out output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          s=json.loads(Path('output/regular_only_final_status.json').read_text())
+          assert s['after_market_excluded'] is True
+          assert s['approved_buy_count']==0 and s['decision']=='CASH'
+          assert s['mode']=='KRX_REGULAR_ONLY_0900_1530'
+          print('REGULAR_ONLY_SOURCE_RESULT',s['market_source_status'],s['blockers'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: krx-regular-only-18h-final
+          path: |
+            output/regular_only_final_status.json
+            output/regular_only_final_mobile.md
+          retention-days: 14
