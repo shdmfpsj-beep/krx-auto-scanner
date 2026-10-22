@@ -92,9 +92,25 @@ def build(report,contracts=None):
             url=official_url(notice.get("url"))
             if not(asof and date_ and date_<asof and
                    (asof-date_).days<=7 and url):continue
+            study=notice.get("original_financial_analysis") or {}
+            verified=(notice.get("financial_figures_verified") is True and
+                study.get("status")=="PRELIMINARY_SINGLE_QUARTER_SOURCE_RESEARCH_ONLY" and
+                study.get("preliminary_figures_source_verified") is True and
+                study.get("receipt_no")==notice.get("receipt_no") and
+                study.get("receipt_date")==str(date_))
             prelim.append(dict(date=str(date_),url=url,
                 title=str(notice.get("title",""))[:120],
-                financial_figures_verified=False,
+                financial_figures_verified=verified,
+                quarter_end=study.get("quarter_period",{}).get("current_end")
+                    if verified else None,
+                preliminary_revenue_yoy_pct=study.get("revenue_yoy_pct")
+                    if verified else None,
+                preliminary_operating_profit_yoy_pct=study.get("operating_profit_yoy_pct")
+                    if verified else None,
+                preliminary_earnings_quality=study.get("earnings_quality")
+                    if verified else "UNVERIFIED",
+                original_source_status=notice.get("original_financial_status",
+                                             "NOT_DOWNLOADED"),
                 recent_quarter_catalyst_verified=False))
         originals=[]
         for filing in issuer.get("filings",[])[:3]:
@@ -151,8 +167,13 @@ def build(report,contracts=None):
             bool(finances.get("latest_periodic_financials_verified")))
         dual_growth=bool(price.get("annual_plus_interim_growth_pass")) or (
             t in dual and dual[t].get("annual_plus_interim_growth_pass") is True)
-        weakness=bool(price.get("recent_financial_weakening_veto") or
+        historical_weakness=bool(price.get("recent_financial_weakening_veto") or
                       finances.get("recent_financial_weakening_veto"))
+        preliminary_weakness=any(
+            x["financial_figures_verified"] and
+            x["preliminary_earnings_quality"]=="RECENT_PRELIMINARY_WEAKENING"
+            for x in prelim)
+        weakness=historical_weakness or preliminary_weakness
         if weakness:dual_growth=False
         conflict=t in (report.get("focus_close_conflict_tickers") or []) or (
             price.get("independent_stop_status")=="CROSS_SOURCE_CLOSE_CONFLICT")
@@ -176,7 +197,9 @@ def build(report,contracts=None):
         if not has_money:reasons.append("DAY_MONEY_EVIDENCE_MISSING")
         if not annual_verified:reasons.append("ANNUAL_FINANCIALS_UNVERIFIED")
         if not verified_interim:reasons.append("CURRENT_INTERIM_YTD_UNVERIFIED")
-        if prelim:reasons.append("FRESH_PRELIMINARY_EARNINGS_NUMBERS_NOT_PARSED")
+        if prelim and not any(x["financial_figures_verified"] for x in prelim):
+            reasons.append("FRESH_PRELIMINARY_EARNINGS_NUMBERS_NOT_PARSED")
+        if preliminary_weakness:reasons.append("RECENT_PRELIMINARY_QUARTER_WEAKENING")
         if weakness:reasons.append("RECENT_YTD_WEAKENING")
         if conflict:reasons.append("CROSS_SOURCE_CLOSE_CONFLICT")
         if not price_ready:reasons.append("COMPLETED_DAILY_ENTRY_STOP_NOT_VERIFIED")
@@ -194,7 +217,11 @@ def build(report,contracts=None):
                 "completed_daily_structure_reference")),
             direct_company_filings=direct,
             official_contract_originals=originals,
-            newer_preliminary_earnings_not_parsed=bool(prelim),
+            newer_preliminary_earnings_not_parsed=bool(
+                prelim and not any(x["financial_figures_verified"] for x in prelim)),
+            recent_preliminary_quarter_source_verified=any(
+                x["financial_figures_verified"] for x in prelim),
+            recent_preliminary_quarter_weakening=preliminary_weakness,
             recent_preliminary_earnings_disclosures=prelim,
             original_contract_text_observed=any(
                 x["original_status"] in (
@@ -254,9 +281,14 @@ def render(data):
         lines.append("| "+x["name"].replace("|","/")[:26]+" | "+
           cell(c["positive_daily_sector_flow"])+
           " | "+financial+
-          ("·"+x["recent_preliminary_earnings_disclosures"][0]["date"]+
-           " 잠정공시 수치 미검증" if x["newer_preliminary_earnings_not_parsed"]
-           else "")+" | "+
+          (("·"+x["recent_preliminary_earnings_disclosures"][0]["date"]+
+           " 잠정 3개월 실적 "+str(
+              x["recent_preliminary_earnings_disclosures"][0]["preliminary_earnings_quality"])
+             if x["recent_preliminary_quarter_source_verified"] and
+                x["recent_preliminary_earnings_disclosures"] else
+           "·"+x["recent_preliminary_earnings_disclosures"][0]["date"]+
+           " 잠정공시 수치 미검증" if x["newer_preliminary_earnings_not_parsed"] else ""))+
+          " | "+
           (("원문 계약액 "+format(x["document_labeled_contract_amounts"][0]["amount_krw"]/100_000_000,",.2f")+
             "억·실질효과 미검증") if x["document_labeled_contract_amounts"]
            else "원문 표 확인·실질효과 미검증" if x["original_contract_text_observed"]
