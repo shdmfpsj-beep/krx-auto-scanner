@@ -104,6 +104,67 @@ def build(status,rows,scan_date):
         "final_sector_top3_verified":False,"trade_approvals":0,
         "decision":"CASH","note":"ETF-member flow proxy is not verified whole-sector capital inflow; catalyst PIT and earnings not scored."}
 
+def apply_daily_money_rank(ranked,summary,report):
+    """Prefer independently collected *one-day* KRX sector flows for research.
+
+    A negative five-day flow does not erase a strongly positive completed
+    session. But the one-day figure never becomes a verified 85-point score.
+    Stale/incomplete daily source cannot silently fall back to a made-up TOP3.
+    """
+    out=dict(summary)
+    rows=[dict(x) for x in ranked]
+    out["daily_money_rank_applied"]=False
+    chosen=report.get("selected_top3") if isinstance(report,dict) else None
+    valid=(isinstance(chosen,list) and chosen and
+        report.get("schema")=="sector_daily_money_v1" and
+        report.get("asof")==out.get("asof") and
+        out.get("core_data_verified") is True and
+        out.get("evidence_scan_dates_aligned") is True and
+        report.get("decision")=="CASH" and
+        report.get("trade_approved") is False)
+    source={str(r.get("sector_id")):r for r in rows}
+    if valid:
+        ids=[]
+        for item in chosen[:3]:
+            code=str(item.get("sector_id",""))
+            coverage=number(item,"flow_coverage")
+            breadth=number(item,"day_breadth_pct")
+            net=number(item,"incremental_day_net_flow_krw")
+            if (code not in source or code in ids or code in EXCLUDE or
+                coverage is None or coverage<.95 or breadth is None or breadth<60 or
+                net is None or net<=0 or item.get("trade_approval")!="NO"):
+                valid=False
+                break
+            ids.append(code)
+    if not valid:
+        out["research_top3_sector_ids"]=[]
+        out["daily_money_gate"]="INVALID_STALE_OR_INCOMPLETE"
+        out["reason"]="Daily as-of market flow and scan evidence did not align; no TOP3 promoted"
+        out["decision"]="CASH"
+        return rows,out
+    for item in chosen[:3]:
+        row=source[item["sector_id"]]
+        row["research_eligible"]="YES"
+        row["research_priority_index"]=""
+        row["rank_basis"]="ONE_DAY_DEDUPED_KRX_FLOW_RESEARCH_ONLY"
+        row["daily_money_rank"]=item["rank"]
+        row["day_net_1d_incremental_krw"]=item["incremental_day_net_flow_krw"]
+        row["day_net_1d_raw_krw"]=item["raw_day_net_flow_krw"]
+        row["day_breadth_up_pct"]=item["day_breadth_pct"]
+        row["member_turnover_krw"]=item["day_turnover_krw"]
+        row["warnings"]=str(row.get("warnings",""))+"|DAILY_FLOW_CAN_DIVERGE_FROM_5D"
+        row["trade_approval"]="NO"
+    out["research_top3_sector_ids"]=[item["sector_id"] for item in chosen[:3]]
+    out["research_sector_priority_formula"]="ASOF_KRX_1D_NONOVERLAP_NET_BUY_WITH_BREADTH_GT60"
+    out["daily_money_gate"]="VERIFIED_1D_CONSTITUENT_PROXY_RESEARCH_ONLY"
+    out["daily_money_rank_applied"]=True
+    out["daily_money_top3_count"]=len(chosen[:3])
+    out["daily_money_rolling_5d_not_ignored"]=True
+    out["final_sector_top3_verified"]=False
+    out["trade_approvals"]=0
+    out["decision"]="CASH"
+    return rows,out
+
 def stock_watchlist(root,sector_ids,asof,limit=20):
     """ETF membership watchlist only; not a fundamentals or entry ranking."""
     path=root/"market/sector_membership_dated.csv"
@@ -752,6 +813,8 @@ def main():
     p.add_argument("--evidence",required=True)
     p.add_argument("--scan-status",required=True)
     p.add_argument("--out",required=True)
+    p.add_argument("--daily-money",default=None,
+       help="Optional completed-market 1D money-first sector evidence JSON")
     a=p.parse_args()
     root=Path(a.evidence)
     status=json.loads((root/"diagnostics/collection_status.json").read_text())
@@ -763,6 +826,12 @@ def main():
     else:
         rows=[]
     ranked,summary=build(status,rows,scan.get("market_data_date"))
+    if a.daily_money is not None:
+        try:
+            money=json.loads(Path(a.daily_money).read_text(encoding="utf-8"))
+        except (OSError,ValueError):
+            money={}
+        ranked,summary=apply_daily_money_rank(ranked,summary,money)
     if not evidence_csv.is_file():
         summary["missing_evidence"]="research/sector_evidence_latest.csv"
         summary["decision"]="CASH"
@@ -914,6 +983,8 @@ def main():
             "foreign_net_buy_5d_krw","institution_net_buy_5d_krw",
             "research_net_flow_5d_krw","member_turnover_krw","stock_members",
             "research_priority_index","research_eligible","warnings",
+            "daily_money_rank","day_net_1d_incremental_krw",
+            "day_net_1d_raw_krw","day_breadth_up_pct","rank_basis",
             "final_sector_score","trade_approval"]
     with (out/"sector_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
         w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(ranked)
