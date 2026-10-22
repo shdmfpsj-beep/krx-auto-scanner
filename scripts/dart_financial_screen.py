@@ -29,11 +29,14 @@ def iso_day(value):
     except (TypeError,ValueError):return None
 
 def integer(value):
-    if value is None or value in ("","-","－"):return None
-    try:
-        v=float(str(value).replace(",",""))
-        return int(v) if math.isfinite(v) else None
-    except (ValueError,TypeError):return None
+    """Preserve exact OpenDART KRW digits; never float-round or truncate."""
+    if value is None or isinstance(value,bool):return None
+    s=str(value).strip()
+    if s in ("","-","－"):return None
+    if not re.fullmatch(r"[+-]?(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)",s):
+        return None
+    try:return int(s.replace(",",""))
+    except ValueError:return None
 
 def api_json(endpoint,params,key,fetch=None):
     """Restrict all remote reads to literal OpenDART official endpoints."""
