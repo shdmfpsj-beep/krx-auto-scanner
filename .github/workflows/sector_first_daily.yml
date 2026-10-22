@@ -1,23 +1,16 @@
-name: C3 K100 Sector First simple daily report
+name: C3 K100 legacy all-session Sector First (manual diagnostic only)
 
 on:
   workflow_dispatch:
-  # Late v18 completed-source jobs may finish after the fixed 22:00 scan.
-  # Re-run report when the verified source collector finishes, so the
-  # completed prior-day data is not stranded in an artifact overnight.
-  workflow_run:
-    workflows: ["Sector Evidence v18 (standalone)"]
-    types: [completed]
-    branches: [main]
+  # Regular-only production analysis now uses krx_regular_final.yml.
+  # Old v18 all-session research must be manually invoked and cannot
+  # replace the 18:30 user-facing regular close report.
   # Only edits to this workflow launch an extra live integration run.
   # Ordinary strategy/script commits use fast offline CI to save API quota.
   push:
     branches: [main]
     paths:
       - '.github/workflows/sector_first_daily.yml'
-  schedule:
-    # 22:00 Asia/Seoul weekdays, after sector v18 collection window.
-    - cron: '0 13 * * 1-5'
 
 permissions:
   actions: read

@@ -1,5 +1,15 @@
 # C3 / K100 MASTER — Sector First (2026-10-22)
 
+## 2026-10-23 ACTIVE OVERRIDE — REGULAR ONLY (supersedes full-day instructions below)
+
+- Production C3/K100 strategy uses **KRX regular 09:00–15:30 only**. KRX after-market 16:00–20:00, and off-hours closing-price trades 15:40–16:00, must stay in a separate diagnostic layer; never merge later OHLC, turnover, prices or money-flow with the regular strategy.
+- User alerts KST are 08:35 premarket, 13:00 intraday, 16:00 regular-close preview, and **18:30 REGULAR-ONLY final** (replaces 22:15). Github regular-only 18:00 report precedes it. Old automatic 22:00 Sector First and 22:05 research bridge are now **manual-only** all-session historical diagnostics.
+- Strict early capture is scheduled at **15:35 KST**, before off-hours trading starts 15:40. Actual API execution start AND completion must fall in 15:33–15:39. Scheduler/API late => CAPTURE_WINDOW_NOT_VERIFIED / CASH. No retroactive dating.
+- PyKRX get_market_ohlcv(date, market) is a date-only source without explicit regular-session attestation; capture time alone does not prove regular-only OHLC, turnover or investor flows. Never invent such attestation. Require verified session-scoped minute candles or independently documented, session-certified source before BUY can be considered.
+- Separate archives: krx-regular-observation at 15:35, krx-aftermarket-observation at 20:25 (diagnosis only), krx-regular-only-18h-final at 18:00. The final report must never download the after-market archive.
+- A BUY setup requires >=65 correctly scoped historical regular-session bars, verified regular-session foreign/institution investor flow and constituent turnover, daily structure stop before entries, cost-adjusted R:R>=2, verified final score >=80/100, cash and one-slot C3 checks. Data unavailable -> PENDING_DATA_VALIDATION and CASH, not confirmed 0 candidate universe.
+- Legacy v18 20:15 source is an **all-session diagnostic**, not regular-only production evidence. Workflow CI success is not proof of valid quotes, actual returns, or BUY approval. Orders disabled.
+
 ## One outcome
 **Every completed Korean trading day, identify the three sectors with the strongest verifiable convergence of fresh positive catalysts, trading activity, and investor money flow; select quality stocks only from these sectors; propose a technically justified structural stop first and then realistic 1st/2nd entry prices. If evidence or entry quality is insufficient, recommend CASH.**
 

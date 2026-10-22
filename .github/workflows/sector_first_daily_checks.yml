@@ -290,8 +290,10 @@ jobs:
           assert nominal_last_completed_krx_session(dt("2026-10-23T20:10:00"))=="2026-10-23"
           assert nominal_last_completed_krx_session(dt("2026-10-24T01:00:00"))=="2026-10-23"
           wf=Path(".github/workflows/sector_first_daily.yml").read_text()
-          assert 'workflows: ["Sector Evidence v18 (standalone)"]' in wf
-          assert "github.event.workflow_run.conclusion == 'success'" in wf
+          assert 'workflows: ["Sector Evidence v18 (standalone)"]' not in wf
+          assert "cron: '0 13 * * 1-5'" not in wf
+          assert "workflow_dispatch:" in wf
+          assert "Legacy" in wf or "legacy" in wf
           assert "nominal_last_completed_krx_session" in Path("scripts/sector_first_daily.py").read_text()
           print("LATE_SOURCE_RETRY_AND_FULL_SESSION_CLOCK_PASSED")
           PY

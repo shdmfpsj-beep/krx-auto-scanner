@@ -1,0 +1,68 @@
+name: KRX regular-only source and report safety tests
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/krx_regular_after_layers.py'
+      - 'scripts/test_krx_regular_after_layers.py'
+      - 'scripts/krx_regular_after_layers_cli.py'
+      - 'scripts/krx_regular_daily_report.py'
+      - 'scripts/test_krx_regular_daily_report.py'
+      - '.github/workflows/krx_session_layers.yml'
+      - '.github/workflows/krx_regular_final.yml'
+      - '.github/workflows/krx_regular_only_checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/krx_regular_after_layers.py'
+      - 'scripts/test_krx_regular_after_layers.py'
+      - 'scripts/krx_regular_after_layers_cli.py'
+      - 'scripts/krx_regular_daily_report.py'
+      - 'scripts/test_krx_regular_daily_report.py'
+      - '.github/workflows/krx_session_layers.yml'
+      - '.github/workflows/krx_regular_final.yml'
+      - '.github/workflows/krx_regular_only_checks.yml'
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/krx_session_probe.py
+            /scripts/krx_regular_after_layers.py
+            /scripts/test_krx_regular_after_layers.py
+            /scripts/krx_regular_after_layers_cli.py
+            /scripts/krx_regular_daily_report.py
+            /scripts/test_krx_regular_daily_report.py
+            /.github/workflows/krx_session_layers.yml
+            /.github/workflows/krx_regular_final.yml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Validate import and offline price session separation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/krx_session_probe.py scripts/krx_regular_after_layers.py scripts/krx_regular_after_layers_cli.py scripts/krx_regular_daily_report.py
+          python -m unittest discover -s scripts -p test_krx_regular_after_layers.py -v
+          python -m unittest discover -s scripts -p test_krx_regular_daily_report.py -v
+      - name: Assert no after-market artifact can be fed to final KRX regular report
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src=Path('.github/workflows/krx_regular_final.yml').read_text()
+          assert 'krx-regular-observation' in src
+          assert 'krx-aftermarket-observation' not in src
+          assert 'krx_session_layers.yml' in src
+          assert 'regular_only_final_mobile.md' in src
+          assert 'pykrx' not in src.lower()
+          x=Path('.github/workflows/krx_session_layers.yml').read_text()
+          assert "cron: '35 6 * * 1-5'" in x
+          assert "cron: '25 11 * * 1-5'" in x
+          assert "name: krx-regular-observation" in x
+          assert "name: krx-aftermarket-observation" in x
+          PY
