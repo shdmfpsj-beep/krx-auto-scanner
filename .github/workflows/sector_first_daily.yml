@@ -242,7 +242,7 @@ jobs:
       - name: Collect as-of official OpenDART annual figures for up to 20 sector stocks
         if: always()
         env:
-          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
           python scripts/dart_financial_screen.py \
             --input output/sector_stock_research_ranking.csv \
