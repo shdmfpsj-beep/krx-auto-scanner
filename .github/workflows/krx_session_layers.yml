@@ -1,0 +1,106 @@
+name: KRX session-isolated observations (no trading)
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        required: true
+        type: choice
+        options: [regular, after]
+  schedule:
+    # GitHub cron times are UTC. 15:35 KST strict regular close snapshot.
+    # Github scheduling latency may cause capture rejection; never backdate.
+    - cron: '35 6 * * 1-5'
+    # 20:25 KST after-market comparison, diagnostic only.
+    - cron: '25 11 * * 1-5'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  regular:
+    if: (github.event_name == 'schedule' && github.event.schedule == '35 6 * * 1-5') || (github.event_name == 'workflow_dispatch' && inputs.phase == 'regular')
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/krx_session_probe.py
+            /scripts/krx_regular_after_layers.py
+            /scripts/krx_regular_after_layers_cli.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check 'pykrx==1.2.9'
+      - name: Record actual KST capture time; do not accept late 15:40 captures
+        run: |
+          python scripts/krx_regular_after_layers_cli.py --phase regular --output output/regular_observation.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: krx-regular-observation
+          path: output/regular_observation.json
+          retention-days: 14
+
+  after:
+    if: (github.event_name == 'schedule' && github.event.schedule == '25 11 * * 1-5') || (github.event_name == 'workflow_dispatch' && inputs.phase == 'after')
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/krx_session_probe.py
+            /scripts/krx_regular_after_layers.py
+            /scripts/krx_regular_after_layers_cli.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check 'pykrx==1.2.9'
+      - name: Retrieve independently archived regular observation if available
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p prior
+          gh api "repos/$GH_REPO/actions/workflows/krx_session_layers.yml/runs?per_page=40" \
+            --jq '.workflow_runs[] | select(.conclusion == "success") | .id' |
+          while read -r id; do
+            [[ "$id" == "$GITHUB_RUN_ID" ]] && continue
+            if gh run download "$id" -R "$GH_REPO" -n krx-regular-observation -D prior 2>/dev/null; then
+              echo "FOUND_REGULAR_OBSERVATION $id"
+              break
+            fi
+          done
+          [[ -f prior/regular_observation.json ]] || echo "NO_REGULAR_OBSERVATION"
+      - name: Capture after-market separately, never overwrite regular
+        run: |
+          python scripts/krx_regular_after_layers_cli.py --phase after --output output/after_observation.json
+          python scripts/krx_regular_after_layers_cli.py --phase compare \
+            --regular prior/regular_observation.json \
+            --after output/after_observation.json \
+            --output output/session_comparison.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('output/session_comparison.json').read_text())
+          assert x['decision']=='CASH'
+          assert x['source_regular_strategy_ready'] is False
+          assert x['regular_ohlcv_certified'] is False
+          print('SESSIONS_ARE_SEPARATE',x['blockers'])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: krx-aftermarket-observation
+          path: |
+            output/after_observation.json
+            output/session_comparison.json
+          retention-days: 14
