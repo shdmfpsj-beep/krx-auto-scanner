@@ -96,9 +96,19 @@ def parse_date_pairs(rows):
                 previous_start=b[0].isoformat(),previous_end=b[1].isoformat(),
                 frequency="SINGLE_QUARTER_NON_CUMULATIVE")
 
+def numeric_disclosed_yoy(value):
+    """DART quarter-table numeric percentage; transition text is not a YoY %."""
+    s=clean(value).replace("%","")
+    if not re.fullmatch(r"-?[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,4})?|"
+                        r"-?[0-9]+(?:\.[0-9]{1,4})?",s):
+        return None
+    try:return Decimal(s.replace(",",""))
+    except InvalidOperation:return None
+
 def metrics_from_rows(rows,unit,period=None,only_staggered=False):
     """Require exact current+prior column headers and consistent metric values."""
     values={}
+    mismatches=set()
     for i,head in enumerate(rows if not only_staggered else []):
         labels=[column_kind(h) for h in head]
         if labels.count("current")!=1 or labels.count("previous_same_period")!=1:
@@ -144,7 +154,20 @@ def metrics_from_rows(rows,unit,period=None,only_staggered=False):
                 prev=parse_amount(row[6],unit)
                 if curr is not None and prev is not None:
                     values.setdefault(k,set()).add((curr,prev))
+                    # Table header explicitly says '전년동기대비'; position 7
+                    # in this merged 9-cell row is the *published* YoY rate.
+                    # Never assume the earlier position 4 (QoQ) is YoY.
+                    if len(row)>7:
+                        stated=numeric_disclosed_yoy(row[7])
+                        if stated is not None:
+                            if prev<=0:
+                                mismatches.add(k+"_disclosed_yoy_mismatch")
+                            else:
+                                calculated=(Decimal(curr)/Decimal(prev)-1)*100
+                                if abs(calculated-stated)>Decimal("0.15"):
+                                    mismatches.add(k+"_disclosed_yoy_mismatch")
     conflicts=[k for k in REQUIRED if len(values.get(k,set()))>1]
+    conflicts+=sorted(mismatches)
     found={k:next(iter(values[k])) if len(values.get(k,set()))==1 else None
            for k in REQUIRED}
     return found,conflicts
@@ -262,13 +285,17 @@ def assess(data,filing,asof):
     dated=[]
     complete=[]
     conflicts_found=False
+    yoy_rate_mismatch=False
     for i,rows in enumerate(groups):
         period=parse_date_pairs(rows)
         if period is None:continue
         dated.append(period)
         # Normal layout: period labels and numerical metrics same table.
         vals,conflicts=metrics_from_rows(rows,unit,period)
-        if conflicts:conflicts_found=True
+        if conflicts:
+            conflicts_found=True
+            yoy_rate_mismatch=yoy_rate_mismatch or any(
+                "disclosed_yoy_mismatch" in x for x in conflicts)
         if all(vals.get(k) is not None for k in REQUIRED) and not conflicts:
             complete.append((period,vals))
         # Actual DART fair disclosures: period rows in TABLE 1, the
@@ -277,11 +304,16 @@ def assess(data,filing,asof):
         elif i+1<len(groups):
             adjacent,adj_conflicts=metrics_from_rows(groups[i+1],unit,period,
                                                    only_staggered=True)
-            if adj_conflicts:conflicts_found=True
+            if adj_conflicts:
+                conflicts_found=True
+                yoy_rate_mismatch=yoy_rate_mismatch or any(
+                    "disclosed_yoy_mismatch" in x for x in adj_conflicts)
             if all(adjacent.get(k) is not None for k in REQUIRED) and not adj_conflicts:
                 complete.append((period,adjacent))
     if conflicts_found:
-        result["status"]="PRELIMINARY_DUPLICATE_METRIC_CONFLICT";return result
+        result["status"]=("PRELIMINARY_DISCLOSED_YOY_RATE_MISMATCH"
+            if yoy_rate_mismatch else "PRELIMINARY_DUPLICATE_METRIC_CONFLICT")
+        return result
     if not dated:
         result["status"]="PRELIMINARY_QUARTER_COMPARISON_PERIOD_NOT_VERIFIED"
         return result
