@@ -20,9 +20,10 @@ def nominal_regular_day(now):
 
 def report(snapshot,day):
     snap=snapshot if isinstance(snapshot,dict) else {}
-    blockers=assess_capture(snap)
+    blockers=assess_capture(snap) if snap else ["SNAPSHOT_MISSING"]
     if snap.get("asof")!=day:blockers.append("REGULAR_SOURCE_ASOF_MISMATCH")
-    if snap.get("trade_session")!=REGULAR:blockers.append("REGULAR_SESSION_REQUIRED")
+    if snap.get("trade_session")!=REGULAR or snap.get("phase")!="regular":
+        blockers.append("REGULAR_SESSION_REQUIRED")
     if snap.get("regular_strategy_eligible") is not True:blockers.append("REGULAR_ONLY_SOURCE_NOT_CERTIFIED")
     if snap.get("trade_approved") is not False:blockers.append("READ_ONLY_ORDER_SAFETY_UNKNOWN")
     if snap.get("orders_enabled") is not False:blockers.append("READ_ONLY_ORDER_SAFETY_UNKNOWN")
