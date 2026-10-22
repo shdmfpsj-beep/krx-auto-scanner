@@ -60,7 +60,7 @@ def format_summary(data):
            "",f"일봉·섹터 기준일: {txt(data.get('asof'),'미확보')}",
            "이하 모든 가격은 해당일 완료된 일봉 연구 참고가격이며 실시간 주문호가가 아닙니다.","",
            "## ① 국내 자금 중심 섹터 TOP3 (연구 순위)","",
-           "| 섹터 | 연구 우선지수 | 관측 순매수(억)* | 거래대금(억)* |",
+           "| 섹터 | 중복 제거 1일 순매수(억)* | 5일 순매수(억)* | 거래대금(억)* |",
            "|---|---:|---:|---:|"]
     for s in sectors[:3]:
         flow=s.get("flow_proxy_5d_krw")
@@ -69,12 +69,14 @@ def format_summary(data):
             try:return f"{float(v)/1e8:,.1f}"
             except (TypeError,ValueError,OverflowError):return "—"
         lines.append("| "+txt(s.get("name"))+" | "+
-          txt(s.get("research_priority_index"))+" | "+
+          hundred_million(s.get("day_net_flow_1d_incremental_krw"))+" | "+
           hundred_million(flow)+" | "+hundred_million(turnover)+" |")
     if not sectors:
         lines.append("| 오늘 확정 자료 미충족 | — | — | — |")
     lines+=["","*ETF 구성종목 기준 표본 수급·거래대금이며 전체 산업 섹터의 확정 유입금액은 아닙니다.",
-       "연구 우선지수는 업종 간 상대순위이며 최종 검증 100점 점수가 아닙니다.","",
+       "당일 외국인·기관 순매수와 5일 합산 수급을 분리했습니다."
+       " ETF 겹친 주식 순매수는 당일 수치에서 중복 제거하지만,"
+       " 이는 전체 산업 자금 유입이나 확정된 최종 100점 점수가 아닙니다.","",
        "## ② 섹터 내 연구 종목 TOP5 — 산정 가능한 가격은 숫자로 표시","",
        "| 종목 | 1차 일봉 연구 | 2차 지지 연구 | 구조손절 참고 |",
        "|---|---|---|---|"]
