@@ -37,9 +37,12 @@ class DailyAsOfGateTests(unittest.TestCase):
     def test_dates_alone_never_trigger_buy(self):
         output = self.run_gate()
         self.assertTrue(output["all_source_dates_aligned"])
+        self.assertEqual(output["final_score_threshold"], 80)
+        self.assertEqual(output["score_scale_max"], 100)
+        self.assertFalse(output["final_score_verified"])
         self.assertFalse(output["trade_approved"])
         self.assertFalse(output["orders_enabled"])
-        self.assertIn("FINAL_85_LIVE_ENTRY_CASH_HOLDINGS_NOT_VERIFIED", output["data_integrity_blockers"])
+        self.assertIn("FINAL_80_LIVE_ENTRY_CASH_HOLDINGS_NOT_VERIFIED", output["data_integrity_blockers"])
 
     def test_low_coverage_and_candidate_mismatch_block(self):
         self.recovery["coverage_ratio"] = .89
