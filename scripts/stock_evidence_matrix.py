@@ -96,10 +96,15 @@ def build(report,contracts=None):
                 not re.fullmatch(r"\d{14}",receipt) or
                 not url or receipt not in url):
                 continue
+            terms=filing.get("structured_contract_terms") or {}
             originals.append(dict(receipt_no=receipt,date=str(filed),
                 title=str(filing.get("title",""))[:110],
                 url=url,original_status=filing.get("filing_contents_status"),
                 correction_risk=filing.get("correction_risk"),
+                typed_term_status=terms.get("status","NO_TYPED_CONTRACT_AMOUNT"),
+                document_amount_krw=terms.get("amount_krw"),
+                document_sales_ratio_pct=terms.get("disclosed_sales_ratio_pct"),
+                single_filing_arithmetic_status=terms.get("consistency","NOT_TESTABLE"),
                 raw_xml_cells_are_corroborated_contract_terms=False,
                 actual_revenue_effect_verified=False))
         direct=[]
@@ -184,6 +189,11 @@ def build(report,contracts=None):
                     "DART_DOCUMENT_SGML_TABLES_PARSED")
                 for x in originals),
             direct_contract_amount_confirmed=False,
+            document_labeled_contract_amounts=[dict(
+                receipt_no=x["receipt_no"],amount_krw=x["document_amount_krw"],
+                ratio_pct=x["document_sales_ratio_pct"],
+                arithmetic=x["single_filing_arithmetic_status"])
+                for x in originals if isinstance(x.get("document_amount_krw"),int)],
             global_sector_context=global_items,
             latest_annual_receipt_url=price.get("financial_receipt_url") or
                  finances.get("annual_receipt_url"),
@@ -231,7 +241,9 @@ def render(data):
         lines.append("| "+x["name"].replace("|","/")[:26]+" | "+
           cell(c["positive_daily_sector_flow"])+
           " | "+financial+" | "+
-          ("원문 표 확인·실질효과 미검증" if x["original_contract_text_observed"]
+          (("원문 계약액 "+format(x["document_labeled_contract_amounts"][0]["amount_krw"]/100_000_000,",.2f")+
+            "억·실질효과 미검증") if x["document_labeled_contract_amounts"]
+           else "원문 표 확인·실질효과 미검증" if x["original_contract_text_observed"]
            else "접수번호 확인·원문 미검증" if x["official_contract_originals"]
            else "제목만 확인" if c["direct_dart_filing_title_observed"]
            else "없음/미수집")+
