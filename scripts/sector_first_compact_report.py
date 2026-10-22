@@ -56,7 +56,7 @@ def format_summary(data):
     sectors=data.get("sector_top3") or []
     stocks=data.get("stock_research_top5") or []
     lines=["# C3·K100 일일 섹터·가격 요약","",
-           "**신규매수: CASH** — 전체 85점 검증·당일 진입 조건 완료 전",
+           "**신규매수: CASH** — 전체 80점 검증·당일 진입 조건 완료 전",
            "",f"일봉·섹터 기준일: {txt(data.get('asof'),'미확보')}",
            "이하 모든 가격은 해당일 완료된 일봉 연구 참고가격이며 실시간 주문호가가 아닙니다.","",
            "## ① 국내 자금 중심 섹터 TOP3 (연구 순위)","",
@@ -118,7 +118,7 @@ def format_summary(data):
     for x in stocks[:5]:
         reason=x.get("independent_stop_status") or x.get("reference_status") or "FINAL_SCORE_UNVERIFIED"
         lines.append("- "+txt(x.get("name"))+": "+txt(STATE_NAMES.get(reason,reason))+
-           "; 최종 85점·당일 지지/수급/손익비 검증 전")
+           "; 최종 80점·당일 지지/수급/손익비 검증 전")
     if not stocks:
         lines.append("- 섹터 또는 투자자 수급·가격 자료가 해당일 완결되지 않아 종목 선정 자체가 제한됨")
     lines+=["","## ③ 해외에서 먼저 관찰된 뉴스 (원문 근거 목록)",""]
@@ -142,7 +142,7 @@ def format_summary(data):
        "- 최신 확정 일봉, 구조저점·ATR, 1차·2차 지지와 전고점 대비 손익비",
        "- 외국인/기관 실제 순매수와 종목별 거래대금·상승 확산",
        "- 해외 호재 원문·한국 상장사 실질 수혜·재무 실적 연결",
-       "- 진입 당일 가격·확정 85점 이상 여부와 보유계좌 실행 조건","",
+       "- 진입 당일 가격·확정 80점 이상 여부와 보유계좌 실행 조건","",
        "**종목 가격을 계산했다는 사실이 매수 신호를 뜻하지 않습니다.**",""]
     return "\n".join(lines)
 
