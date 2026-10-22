@@ -109,14 +109,18 @@ def render(report,original=""):
         "출처: OpenDART 공시 접수일이 분석일 이전인 사업보고서만 사용합니다. "
         "최종 실적·미래 전망 검증 전 매수 승인은 없습니다.",
         "재무 수집 상태: "+str(report.get("financial_evidence_status","UNKNOWN")),"",
-        "| 종목 | 연간 매출 성장률 | 연간 영업이익률 | 최신 공시일 |",
-        "|---|---:|---:|---|"]
+        "| 종목 | 연간 매출 성장률 | 최신 누적 실적 |",
+        "|---|---:|---|"]
     for x in report.get("financial_quality_watch_top5",[]):
+        current=("최근 누적 악화 — 신규 후보 우선순위 제외"
+                 if x["recent_financial_weakening_veto"]
+                 else "연간·최신 누적 성장 확인"
+                 if x["annual_plus_interim_growth_pass"]
+                 else "미검증/혼재")
         lines.append("| "+str(x.get("name"))+" | "+
-          str(x.get("sales_yoy_pct"))+"% | "+str(x.get("operating_margin_pct"))+
-          "% | "+str(x.get("latest_periodic_receipt_date") or "미확인")+" |")
+          str(x.get("sales_yoy_pct"))+"% | "+current+" |")
     if not report.get("financial_quality_watch_top5"):
-        lines.append("| 연간 실적 검증된 성장 후보 없음 | — | — | — |")
+        lines.append("| 연간 실적 검증된 성장 후보 없음 | — | — |")
     lines+=["","### 실제 최신 누적(YTD) 실적까지 성장한 연구후보","",
         "| 종목 | 동일기간 매출 YoY | 동일기간 영업이익 YoY |",
         "|---|---:|---:|"]
