@@ -6,7 +6,7 @@ filing lists, verify receipt and ticker->corp_code, download a bounded official
 document ZIP, and surface contract field *candidates* for human/cross-source
 validation. NO auto BUY, score upgrade, contract value or earnings projection.
 """
-import argparse,io,json,os,re,zipfile,urllib.parse,urllib.request
+import argparse,io,json,os,re,signal,threading,zipfile,urllib.parse,urllib.request
 from datetime import date,datetime,timedelta
 from pathlib import Path
 from xml.etree import ElementTree
@@ -24,6 +24,8 @@ AMOUNT=re.compile(r"(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)\s*(?:원|백만원|천�
 TARGET_LABELS=("계약금액","계약기간","계약상대","최근매출액","매출액대비","매출액 대비")
 MAX_ZIP_BYTES=3_000_000
 MAX_UNCOMPRESSED=6_000_000
+MAX_SGML_FRAGMENT=250_000
+MAX_PARSE_SECONDS=8
 
 def contract_looking(name):
     title=str(name or "").replace(" ","")
@@ -153,6 +155,25 @@ def zip_document(raw):
                 if not re.search(r"<\s*table\b",html,re.I) or not re.search(
                         r"<\s*tr\b",html,re.I):
                     return {"status":"DART_DOCUMENT_XML_NOT_PARSEABLE"}
+                partial=False
+                # Historic SGML often has huge malformed tables. Parse only
+                # relevant bounded TABLE windows, not 6MB of arbitrary HTML.
+                if len(html)>MAX_SGML_FRAGMENT:
+                    snippets=[]
+                    lower=html.lower()
+                    indices=[lower.find(term.lower()) for term in TARGET_LABELS]
+                    for index in indices:
+                        if index<0:continue
+                        start=lower.rfind("<table",max(0,index-90000),index)
+                        if start<0:continue
+                        end=lower.find("</table",index,index+120000)
+                        end=(end+8 if end>=0 else min(len(html),index+25000))
+                        if 0<end-start<=MAX_SGML_FRAGMENT:
+                            snippets.append(html[start:end])
+                    if not snippets:
+                        return {"status":"DART_DOCUMENT_SGML_LARGE_NO_SAFE_TARGET_TABLE"}
+                    html="\n".join(snippets)[:MAX_SGML_FRAGMENT]
+                    partial=True
                 parser=LegacyTables()
                 try:parser.feed(html)
                 except (ValueError,AssertionError):
@@ -177,11 +198,29 @@ def download_original(receipt,key,fetch=None):
             req=urllib.request.Request(u,headers={"User-Agent":"KRX-research-readonly/1.0"})
             with urllib.request.urlopen(req,timeout=15) as response:
                 return response.read(MAX_ZIP_BYTES+1)
+    # On Linux GitHub runner, enforce finite CPU parsing time for untrusted
+    # filings. Historical SGML may have pathological nesting or giant tables.
+    def deadline(signum,frame):
+        raise TimeoutError("DART_ORIGINAL_PARSE_TIME_LIMIT")
+    armed=(hasattr(signal,"SIGALRM") and
+           threading.current_thread() is threading.main_thread())
+    previous=None
     try:
-        return zip_document(fetch(url))
+        raw=fetch(url)
+        if armed:
+            previous=signal.getsignal(signal.SIGALRM)
+            signal.signal(signal.SIGALRM,deadline)
+            signal.setitimer(signal.ITIMER_REAL,MAX_PARSE_SECONDS)
+        return zip_document(raw)
+    except TimeoutError:
+        return {"status":"DART_ORIGINAL_PARSE_TIMEOUT_REVIEW_REQUIRED"}
     except Exception as ex:
         # Error class only; exceptions may include URLs with secret parameters!
         return {"status":"DOCUMENT_FETCH_FAILED_"+type(ex).__name__}
+    finally:
+        if armed and previous is not None:
+            signal.setitimer(signal.ITIMER_REAL,0)
+            signal.signal(signal.SIGALRM,previous)
 
 def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
             document_reader=download_original,max_downloads=4):
