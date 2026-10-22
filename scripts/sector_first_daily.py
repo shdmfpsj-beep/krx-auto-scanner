@@ -211,7 +211,11 @@ def render(report):
            f"섹터 데이터 기준일: {show(report['asof'])} / 보고일: {report['report_date']}",
            f"섹터 상태: {report['status']}","",
            "원본 자료 확보: "+str((report.get("source_acquisition") or {}).get("status","확인되지 않음")),
-           "원본 확보 제한사유: "+", ".join((report.get("source_acquisition") or {}).get("errors",[])),"",
+           "원본 확보 제한사유: "+", ".join((report.get("source_acquisition") or {}).get("errors",[])),
+           "정규장/애프터마켓 원본 종가 대조: "+str((report.get("source_price_parity") or {}).get("status","NOT_YET_VERIFIED")),
+           ("비교 가능 종목 "+str((report.get("source_price_parity") or {}).get("overlap_tickers","미확인"))+
+            "개 / 종가 다른 종목 "+str((report.get("source_price_parity") or {}).get("close_mismatches","미확인"))+"개"),
+           "같은 날짜나 종가 일치는 독립 제공자 검증 또는 BUY 승인 근거가 아닙니다.","",
            f"섹터 선정판정: {report['sector_selection_outcome']} / 종목 선정판정: {report['stock_selection_outcome']}",
            "실제 BUY 승인: 0건 (80점·진입구조·실행자료 별도 미검증)","",
            "KRX 원본 OHLC 검증: "+
@@ -296,6 +300,19 @@ def main():
     except (OSError,ValueError):
         acquisition={}
     report["source_acquisition"]=acquisition
+    parity_path=a.out/"source_price_parity.json"
+    try:
+        price_parity=json.loads(parity_path.read_text(encoding="utf-8")) if parity_path.is_file() else {}
+    except (OSError,ValueError):
+        price_parity={}
+    report["source_price_parity"]=price_parity
+    if price_parity.get("status")=="CROSS_SOURCE_CLOSE_CONFLICT":
+        report["blockers"]=list(dict.fromkeys(
+            report["blockers"]+["CROSS_SOURCE_CLOSE_CONFLICT_REVIEW_REQUIRED"]))
+    if price_parity and (price_parity.get("trade_approved") is not False or
+                         price_parity.get("decision")!="CASH"):
+        report["blockers"]=list(dict.fromkeys(
+            report["blockers"]+["UNSAFE_PRICE_PARITY_REPORT"]))
     if acquisition.get("ready") is False:
         report["sector_selection_outcome"]="PENDING_DATA_VALIDATION"
         report["stock_selection_outcome"]="PENDING_DATA_VALIDATION"
