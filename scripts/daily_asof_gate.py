@@ -242,7 +242,7 @@ def to_markdown(data: dict) -> str:
 
 🎯 오늘 할 일: 종목 연구가격과 매수 승인 구분. 날짜 불일치가 해소되고 80점·실행가격·자금이 검증되기 전 신규 주문 보류.
 
-| 독립 자료 | 실제 자료 기준일 | 오늘 날짜 일치 |
+| 자료 출처 | 실제 자료 기준일 | 대상 완료 거래일 일치 |
 |---|---|---|
 | KRX 전종목 종가/기술스크리닝 | {fmt(src['recovery_krx_price'])} | {'확인' if src['recovery_krx_price']==data['target_kst_date'] else '불일치'} |
 | 관심종목 일봉 구조가격 | {fmt(src['focus_price'])} ({data.get('focus_source','미확인')}) | {'확인' if src['focus_price']==data['target_kst_date'] else '불일치'} |
