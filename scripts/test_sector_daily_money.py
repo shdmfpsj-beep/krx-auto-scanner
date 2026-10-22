@@ -76,18 +76,22 @@ class SectorDailyMoneyTests(unittest.TestCase):
             self.assertEqual(it["day_net_flow_krw"],30_000_000_000)
             self.assertIn("CASH",render(out))
             self.assertFalse(out["trade_approved"])
-    def test_positive_money_without_breadth_is_watch_only_no_buy(self):
+    def test_positive_money_without_breadth_is_visible_but_not_buy(self):
         with tempfile.TemporaryDirectory() as tmp:
             ev=Evidence(make_archive(tmp,weak_breadth=True))
             try:data=daily_evidence(ev,ASOF)
             finally:ev.close()
-            self.assertEqual(data["selected_top3"],[])
-            self.assertEqual(len(data["watch_only_positive_flow_top3"]),3)
-            self.assertTrue(all(x["day_breadth_pct"]==0
-                                for x in data["watch_only_positive_flow_top3"]))
+            self.assertEqual([x["sector_id"] for x in data["selected_top3"]],
+                             ["SEMICON","POWER","CONSTRUCTION"])
+            self.assertEqual(len(data["selected_top3"]),3)
+            self.assertTrue(all(x["day_breadth_pct"]==0 and
+                                x["flow_phase"]=="DIVERGENT_ALL_DOWN"
+                                for x in data["selected_top3"]))
             self.assertTrue(all(x["trade_approval"]=="NO"
-                                for x in data["watch_only_positive_flow_top3"]))
-            self.assertIn("매수 제외된 수급 관찰 섹터",render(data))
+                                for x in data["selected_top3"]))
+            self.assertEqual(data["pre_expansion_sector_count"],3)
+            self.assertIn("DIVERGENT_ALL_DOWN",render(data))
+            self.assertIn("매수 승인이 아닙니다",render(data))
             self.assertEqual(data["decision"],"CASH")
 
     def test_asof_mismatch_cannot_trick_report(self):

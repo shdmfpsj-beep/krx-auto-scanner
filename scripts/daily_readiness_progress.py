@@ -33,8 +33,18 @@ def build(source,sector,summary,entry,shadow,proof):
             for s in samples))
     ranked=source.get("selected_top3") or []
     qualified=bool(cover and len(ranked)==3 and
-        all(isinstance(s,dict) and s.get("day_breadth_pct",0)>=60 and
-            s.get("incremental_day_net_flow_krw",0)>0 for s in ranked))
+        source.get("complete_three") is True and
+        sector.get("daily_money_rank_applied") is True and
+        sector.get("daily_money_gate")=="VERIFIED_1D_EARLY_FLOW_RESEARCH_ONLY" and
+        [s.get("sector_id") for s in ranked] ==
+          [s.get("sector_id") for s in summary.get("sector_top3",[])] and
+        all(isinstance(s,dict) and
+            isinstance(s.get("day_breadth_pct"),(int,float)) and
+            0<=s["day_breadth_pct"]<=100 and
+            s.get("incremental_day_net_flow_krw",0)>0 and
+            s.get("flow_coverage",0)>=0.95
+            for s in ranked))
+    expanding=bool(qualified and all(s["day_breadth_pct"]>=60 for s in ranked))
     candidates=summary.get("stock_research_top5") or []
     top5=bool(qualified and len(candidates)==5)
     geometry=entry.get("candidates") or []
@@ -55,8 +65,8 @@ def build(source,sector,summary,entry,shadow,proof):
        "당일 증시 가격과 종목 수급 확보"),
       ("SECTOR_BREADTH_MEASURED",cover,
        "섹터별 상승확산·수급 검증"),
-      ("THREE_STRONG_SECTORS",qualified,
-       "조건에 맞는 주도 섹터 3개"),
+      ("THREE_FLOW_RESEARCH_SECTORS",qualified,
+       "검증된 수급 선행 섹터 3개 (확산·매수 별도)"),
       ("STOCK_TOP5",top5,
        "섹터에서 후보 TOP5 선별"),
       ("STRUCTURAL_ENTRY",entry_ok,
@@ -68,16 +78,18 @@ def build(source,sector,summary,entry,shadow,proof):
     ]
     done=sum(x[1] for x in gate_rows)
     weak=bool(cover and not ranked and
-              not any(s.get("day_net_flow_krw",0)>0 and
-                      s.get("day_breadth_pct",0)>=60 for s in samples))
+              all(s.get("base_eligible") is True for s in samples) and
+              not any(s.get("day_net_flow_krw",0)>0 for s in samples))
     if not aligned:
         market_status="SOURCE_ASOF_MISMATCH"
     elif not price_and_flow or not cover:
         market_status="DATA_MISSING_OR_LOW_COVERAGE"
     elif weak:
-        market_status="VERIFIED_WEAK_MARKET_NO_ELIGIBLE_SECTOR"
+        market_status="VERIFIED_NO_POSITIVE_FLOW_SECTOR"
     elif not qualified:
-        market_status="PARTIAL_SECTOR_SET_OR_UNVERIFIED"
+        market_status="FLOW_RANKING_MISSING_OR_PARTIAL"
+    elif not expanding:
+        market_status="PRE_EXPANSION_FLOW_WATCH"
     else:
         market_status="SECTOR_RESEARCH_TOP3_AVAILABLE"
     result=dict(schema=VERSION,asof=asof,
@@ -89,6 +101,9 @@ def build(source,sector,summary,entry,shadow,proof):
        verified_price_stock_count=stock_count if price_and_flow else None,
        sector_samples_checked=len(samples) if cover else 0,
        selected_sectors=len(ranked) if qualified else 0,
+       expanding_sector_count=sum(s["day_breadth_pct"]>=60 for s in ranked)
+           if qualified else 0,
+       flow_research_only=True,
        research_top5_count=len(candidates) if top5 else 0,
        geometry_research_pass_count=entry.get("technical_geometry_pass_count",0),
        prospective_signals=signals if isinstance(signals,int) else 0,
@@ -116,7 +131,8 @@ def markdown(r):
         "사전 기록 신호: "+str(r["prospective_signals"])+
          "건 / 5거래일 종료: "+str(r["completed_paper_trades"])+"건",
         "수익 실증 판정: "+r["profit_proof_status"],
-        "강한 섹터가 없는 날에는 억지로 TOP3를 채우지 않고 CASH로 보류합니다.",""]
+        "돈 유입이 먼저 나타난 섹터도 TOP3 관찰대상입니다. 60% 확산 미달은 경고이지 삭제조건이 아닙니다.",
+        "수급 연구 TOP3를 매수 승인이나 수익 검증으로 혼동하지 않습니다.",""]
     return "\n".join(lines)
 
 def main():
