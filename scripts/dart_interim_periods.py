@@ -39,7 +39,7 @@ def identify_interim_filing(latest,asof):
     if month!="06" and "분기보고서" not in typ:return None
     # No bare same-day market pre-close use: actual scanner runs after 22:00.
     return dict(fiscal_year=year,month=month,report_code=REPORT_CODES[month],
-                period_end=f"{year}-{month}-"+("31" if month in ("03","09") else "30"),
+                period_end=f"{year}-{month}-"+("31" if month=="03" else "30"),
                 receipt_date=day.isoformat(),receipt_no=str(receipt),
                 receipt_url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+str(receipt),
                 basis="CUMULATIVE_YEAR_TO_DATE")
