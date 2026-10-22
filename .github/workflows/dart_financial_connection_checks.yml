@@ -64,6 +64,13 @@ jobs:
           print("ELIGIBLE_ANNUAL_FINANCIAL_RECORDS",
                 sum(x.get("status")=="DATED_ANNUAL_RESEARCH_ONLY"
                     for x in data.get("researched",[])))
+          for row in data.get("researched",[]):
+              print("ANNUAL_RESEARCH_DIAGNOSTICS",
+                    {"ticker":row.get("ticker"),"status":row.get("status"),
+                     "fiscal_year":row.get("annual_fiscal_year"),
+                     "statement":row.get("division")})
+          # No token, company registry code, URLs with authentication, or
+          # sensitive HTTP request details are printed.
           PY
 
       - name: Preserve connection audit without credentials
