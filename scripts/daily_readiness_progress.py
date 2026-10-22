@@ -19,11 +19,11 @@ def build(source,sector,summary,entry,shadow,proof):
     asof=dated(source.get("asof"))
     aligned=(asof is not None and all(dated(r.get("asof"))==asof for r in
              (sector,summary,entry)))
-    samples=sector.get("sector_samples",[])
+    samples=source.get("sector_samples",[])
     samples=samples if isinstance(samples,list) else []
-    stock_count=sector.get("market_price_stock_count")
+    stock_count=source.get("market_price_stock_count")
     price_and_flow=bool(aligned and isinstance(stock_count,int) and
-        stock_count>=100 and samples and sector.get("overlaps_removed") is True)
+        stock_count>=100 and samples and source.get("overlaps_removed") is True)
     cover=bool(price_and_flow and len(samples)>=3 and
         all(isinstance(s,dict) and
             s.get("price_flow_coverage",0)>=0.95 and
@@ -31,7 +31,7 @@ def build(source,sector,summary,entry,shadow,proof):
             isinstance(s.get("day_breadth_pct"),(int,float)) and
             isinstance(s.get("day_net_flow_krw"),(int,float))
             for s in samples))
-    ranked=sector.get("selected_top3") or []
+    ranked=source.get("selected_top3") or []
     qualified=bool(cover and len(ranked)==3 and
         all(isinstance(s,dict) and s.get("day_breadth_pct",0)>=60 and
             s.get("incremental_day_net_flow_krw",0)>0 for s in ranked))
