@@ -68,7 +68,7 @@ def ratio_percent(text,label):
     try:v=Decimal(m[1])
     except InvalidOperation:return None
     if not v.is_finite() or v<=0 or v>1000:return None
-    return v
+    return float(v)
 
 def dates_in(text):
     parts=DATE.findall(str(text or "")[:120])
@@ -141,7 +141,7 @@ def extract(fields,correction_risk="NO_CORRECTION_TITLE_FLAG"):
         if disclosed is not None:
             # 0.15 percentage-point tolerance covers common filing rounding;
             # this only checks a *single* filing's arithmetic, not its truth.
-            diff=abs(calc-disclosed)
+            diff=abs(calc-Decimal(str(disclosed)))
             if diff>Decimal("0.15"):
                 result["consistency"]="DOCUMENT_RATIO_MISMATCH_REVIEW"
                 result["status"]="FILING_RATIO_MISMATCH"
