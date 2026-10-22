@@ -8,6 +8,7 @@ import argparse
 import json
 from pathlib import Path
 from urllib.parse import urlsplit
+from c3_account_state import c3_mobile_line
 
 STATE_NAMES={
  "HISTORICAL_DAILY_REFERENCE_ONLY":"일봉 손절 참고가 계산됨; 실제 진입조건 별도",
@@ -55,10 +56,15 @@ def stop_reference(s):
 def format_summary(data):
     sectors=data.get("sector_top3") or []
     stocks=data.get("stock_research_top5") or []
+    sector_outcome=data.get("sector_selection_outcome","PENDING_DATA_VALIDATION")
+    stock_outcome=data.get("stock_selection_outcome","PENDING_DATA_VALIDATION")
     lines=["# C3·K100 일일 섹터·가격 요약","",
            "**신규매수: CASH** — 전체 80점 검증·당일 진입 조건 완료 전",
            "",f"일봉·섹터 기준일: {txt(data.get('asof'),'미확보')}",
-           "이하 모든 가격은 해당일 완료된 일봉 연구 참고가격이며 실시간 주문호가가 아닙니다.","",
+           "이하 모든 가격은 해당일 완료된 일봉 연구 참고가격이며 실시간 주문호가가 아닙니다.",
+           "데이터 판정: "+txt(sector_outcome)+" / 종목 판정: "+txt(stock_outcome),
+           "최종 BUY 승인 0건 · 데이터 오류 때문에 후보가 공란인 것과 검증 후 후보 0개는 다릅니다.","",
+           c3_mobile_line(data.get("c3_position_state") or {}),"",
            "## ① 자금 선행 섹터 TOP3 (매수 미승인 관찰 순위)","",
            "| 섹터 | 중복 제거 1일 순매수(억)* | 5일 순매수(억)* | 거래대금(억)* | 상승확산 | 단계 |",
            "|---|---:|---:|---:|---:|---|"]
@@ -74,7 +80,11 @@ def format_summary(data):
           (txt(s.get("day_breadth_up_pct"))+"%" if s.get("day_breadth_up_pct") is not None else "—")+" | "+
           txt(s.get("flow_phase"),"연구용") +" |")
     if not sectors:
-        lines.append("| 오늘 확정 자료 미충족 | — | — | — | — | — |")
+        sector_label=("최종 판정 보류 (데이터 정합성 미충족)"
+                      if sector_outcome=="PENDING_DATA_VALIDATION"
+                      else "검증 완료: 적격 섹터 0개" if sector_outcome=="VERIFIED_NO_QUALIFYING_SECTOR"
+                      else "유효 연구 섹터 없음")
+        lines.append("| "+sector_label+" | — | — | — | — | — |")
     lines+=["","*ETF 구성종목 기준 표본 수급·거래대금이며 전체 산업 섹터의 확정 유입금액은 아닙니다.",
        "당일 외국인·기관 순매수와 5일 합산 수급을 분리했습니다."
        " ETF 겹친 주식 순매수는 당일 수치에서 중복 제거하지만,"
@@ -99,7 +109,10 @@ def format_summary(data):
         lines.append("| "+txt(x.get("name"))+" | "+first+" | "+
                      second+" | "+stop+" |")
     if not stocks:
-        lines.append("| 최신 섹터 연구 종목 없음 | — | — | — |")
+        stock_label=("TOP5 최종 산출 보류 (검증 미완료)"
+                     if stock_outcome=="PENDING_DATA_VALIDATION"
+                     else "검증 조건 충족 연구종목 없음")
+        lines.append("| "+stock_label+" | — | — | — |")
     leaders=data.get("sector_leader_watch") or []
     lines+=["","### 섹터별 대표 연구 관찰 (절대 TOP5와 별도)",""]
     for sector in sectors[:3]:
@@ -124,7 +137,9 @@ def format_summary(data):
         lines.append("- "+txt(x.get("name"))+": "+txt(STATE_NAMES.get(reason,reason))+
            "; 최종 80점·당일 지지/수급/손익비 검증 전")
     if not stocks:
-        if data.get("daily_money_gate")=="VERIFIED_NO_QUALIFYING_SECTOR":
+        if sector_outcome=="PENDING_DATA_VALIDATION":
+            lines.append("- 서로 다른 기준일 또는 데이터 무결성 문제로 TOP3·TOP5 **최종 산출 보류**. BUY 승인만 0건으로 확정.")
+        elif data.get("daily_money_gate")=="VERIFIED_NO_QUALIFYING_SECTOR":
             lines.append("- 당일 KRX 자료가 검증됐으나 완전한 가격·수급 표본에서 플러스 순매수인 섹터가 없어 TOP3·TOP5 연구후보 0건입니다. 신규매수는 CASH입니다.")
         else:
             lines.append("- 섹터 또는 투자자 수급·가격 자료가 해당일 완결되지 않아 종목 선정 자체가 제한됨")
