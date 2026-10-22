@@ -28,6 +28,17 @@ class FinancialJoinTests(unittest.TestCase):
         self.assertEqual(r["decision"],"CASH")
         self.assertFalse(r["trade_approved"])
         self.assertIn("실적 검증",render(r,"# sector report"))
+    def test_newer_semiannual_receipt_does_not_upgrade_annual_growth_to_quarterly(self):
+        data=research()
+        data["latest_periodic_receipt_date"]="2026-08-14"
+        data["latest_periodic_report_name"]="반기보고서 (2026.06)"
+        data["latest_periodic_financials_analyzed"]=False
+        result=join(BASE,source([data]))
+        top=result["stock_research_top5"][0]
+        self.assertEqual(top["latest_periodic_receipt_date"],"2026-08-14")
+        self.assertFalse(top["latest_periodic_financials_verified"])
+        self.assertFalse(result["fundamentals_full_final_15_points_scored"])
+        self.assertIn("연간 수치",render(result,"# research"))
     def test_missing_or_stale_finance_never_receives_fifteen_points(self):
         for financing in ({},source([research()],"2026-10-21")):
             r=join(BASE,financing)
