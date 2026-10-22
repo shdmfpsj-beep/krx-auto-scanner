@@ -230,13 +230,17 @@ jobs:
                   match=next((a for a in artifacts if a.get("name")=="sector-first-daily" and not a.get("expired")),None)
                   if not match:continue
                   with zipfile.ZipFile(io.BytesIO(api(f"repos/{repo}/actions/artifacts/{match['id']}/zip"))) as archive:
-                      candidates=[m for m in archive.infolist() if Path(m.filename).name=="shadow_signals.json"
-                                   and not m.is_dir() and m.file_size<=1000000]
-                      if len(candidates)!=1:continue
-                      raw=archive.read(candidates[0])
-                      payload=json.loads(raw.decode("utf-8"))
-                      if not isinstance(payload,list):continue
-                      Path("output/previous_shadow_signals.json").write_bytes(raw)
+                      signals=[m for m in archive.infolist() if Path(m.filename).name=="shadow_signals.json"
+                               and not m.is_dir() and m.file_size<=1000000]
+                      results=[m for m in archive.infolist() if Path(m.filename).name=="shadow_results.json"
+                               and not m.is_dir() and m.file_size<=1500000]
+                      if len(signals)!=1 or len(results)!=1:continue
+                      old_signals=archive.read(signals[0])
+                      old_results=archive.read(results[0])
+                      if not isinstance(json.loads(old_signals.decode("utf-8")),list):continue
+                      if not isinstance(json.loads(old_results.decode("utf-8")),list):continue
+                      Path("output/previous_shadow_signals.json").write_bytes(old_signals)
+                      Path("output/previous_shadow_results.json").write_bytes(old_results)
                       found=True
                       print("SHADOW_LEDGER_CONTINUED_FROM_RUN",run["id"])
                       break
@@ -253,6 +257,7 @@ jobs:
             --dynamic output/dynamic/focus_daily_structure_prices.csv \
             --history inputs/evidence \
             --previous output/previous_shadow_signals.json \
+            --previous-results output/previous_shadow_results.json \
             --out output
 
       - name: Upload simple mobile summary
