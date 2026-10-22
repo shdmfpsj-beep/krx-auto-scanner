@@ -11,7 +11,7 @@ run-name: BACKFILL sector evidence · ${{ github.run_number }}
   workflow_dispatch:
     inputs:
       asof:
-        description: '확장 수집 기준일 YYYY-MM-DD. 빈칸: 한국시간 18:10 이후 확정 가능한 최근 거래일'
+        description: '확장 수집 기준일 YYYY-MM-DD. 빈칸: 한국시간 20:10 이후 완료된 KRX 거래일(애프터마켓 종료 후)'
         required: false
         type: string
         default: ''
@@ -374,10 +374,10 @@ jobs:
               if now.tzinfo is None:
                   raise EvidenceError("TIMEZONE_REQUIRED")
               now = now.astimezone(KST)
-              cutoff = now.date() if (now.hour, now.minute) >= (18, 10) else now.date() - timedelta(days=1)
+              cutoff = now.date() if (now.hour, now.minute) >= (20, 10) else now.date() - timedelta(days=1)
               candidate = date.fromisoformat(requested) if requested else cutoff
               if candidate > cutoff:
-                  raise EvidenceError("ASOF_NOT_FINAL_AFTER_1810_KST")
+                  raise EvidenceError("ASOF_NOT_FINAL_AFTER_2010_KST")
               return candidate  # Holidays are resolved by returned benchmark sessions, never by weekdays alone.
           
           
@@ -1836,10 +1836,12 @@ jobs:
                           v.merge_raw_prices(roots, Path(t) / "merged")
           
               def test_final_data_cutoff_kst_and_future_rejection(self):
-                  self.assertEqual(v.completed_candidate(now=datetime(2026, 10, 14, 18, 9, tzinfo=v.KST)), date(2026, 10, 13))
-                  self.assertEqual(v.completed_candidate(now=datetime(2026, 10, 14, 18, 10, tzinfo=v.KST)), date(2026, 10, 14))
-                  with self.assertRaises(v.EvidenceError):
-                      v.completed_candidate("2026-10-14", datetime(2026, 10, 14, 15, 0, tzinfo=v.KST))
+                  self.assertEqual(v.completed_candidate(now=datetime(2026, 10, 14, 18, 20, tzinfo=v.KST)), date(2026, 10, 13))
+                  self.assertEqual(v.completed_candidate(now=datetime(2026, 10, 14, 20, 9, tzinfo=v.KST)), date(2026, 10, 13))
+                  self.assertEqual(v.completed_candidate(now=datetime(2026, 10, 14, 20, 10, tzinfo=v.KST)), date(2026, 10, 14))
+                  self.assertEqual(v.completed_candidate(now=datetime(2026, 10, 14, 21, 0, tzinfo=v.KST)), date(2026, 10, 14))
+                  with self.assertRaisesRegex(v.EvidenceError,"ASOF_NOT_FINAL_AFTER_2010_KST"):
+                      v.completed_candidate("2026-10-14", datetime(2026, 10, 14, 19, 59, tzinfo=v.KST))
           
               def test_month_shift_end_of_month(self):
                   self.assertEqual(v.month_shift(date(2026, 4, 30), -2), date(2026, 2, 28))
