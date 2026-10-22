@@ -62,8 +62,12 @@ def dated_filings(response,corp,ticker,asof,max_per_ticker=2):
             continue
         # Corrections must be reviewed with original & final contract; do not
         # silently use an old amended amount as if current.
-        risk=("CORRECTION_OR_WITHDRAWAL" if any(k in title
-              for k in ("정정","철회","해지","취소")) else "NO_CORRECTION_TITLE_FLAG")
+        remarks=str(r.get("rm") or "")
+        if "철" in remarks:
+            continue
+        risk=("CORRECTION_OR_WITHDRAWAL" if
+              any(k in title for k in ("정정","철회","해지","취소")) or
+              "정" in remarks else "NO_CORRECTION_TITLE_FLAG")
         out.append(dict(ticker=t,receipt_no=receipt,date=str(when),
             title=title[:120],correction_risk=risk,
             url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+receipt))
