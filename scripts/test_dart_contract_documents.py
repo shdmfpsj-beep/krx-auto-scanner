@@ -25,6 +25,21 @@ DOC="""<?xml version="1.0" encoding="utf-8"?>
 <TR><TH>매출액 대비</TH><TD>15%</TD></TR></TABLE></DOCUMENT>"""
 
 class DartContractTests(unittest.TestCase):
+    def test_preliminary_disclosure_withdrawal_and_later_amendment(self):
+        withdrawn=filing(title="연결재무제표기준영업(잠정)실적",
+                         receipt="20261021800152")
+        withdrawn["rm"]="유철"
+        corrected=filing(title="연결재무제표기준영업(잠정)실적",
+                         receipt="20261021800153")
+        corrected["rm"]="유정"
+        result=latest_preliminary_earnings(
+            {"status":"000","list":[withdrawn,corrected]},
+            "00123456","010120",ASOF)
+        self.assertEqual(len(result),1)
+        self.assertEqual(result[0]["receipt_no"],"20261021800153")
+        self.assertTrue(result[0]["correction_flag"])
+        self.assertTrue(result[0]["superseded_or_corrected"])
+        self.assertFalse(result[0]["financial_figures_verified"])
     def test_preliminary_profit_fair_disclosure_is_detected_before_asof(self):
         sources=dict(status="000",list=[
             filing(title="연결재무제표기준영업(잠정)실적(공정공시)",
