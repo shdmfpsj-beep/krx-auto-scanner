@@ -11,6 +11,9 @@ on:
       - 'scripts/sector_first_daily.py'
       - 'scripts/entry_setup_audit.py'
       - 'scripts/test_entry_setup_audit.py'
+      - 'scripts/sector_dynamic_structure.py'
+      - 'scripts/test_sector_dynamic_structure.py'
+      - 'scripts/focus_daily_structure.py'
       - 'scripts/focus_structure_join.py'
       - 'scripts/focus_daily_structure.py'
       - 'scripts/sector_dynamic_structure.py'
@@ -44,6 +47,7 @@ jobs:
             /scripts/focus_structure_join.py
             /scripts/focus_daily_structure.py
             /scripts/sector_dynamic_structure.py
+            /scripts/test_sector_dynamic_structure.py
             /scripts/sector_financial_join.py
             /scripts/stock_evidence_matrix.py
             /scripts/test_stock_evidence_matrix.py
@@ -159,6 +163,7 @@ jobs:
       - name: Run real Oct21 KRX completed 65+ bars through daily geometry and support bridge
         run: |
           python -m unittest discover -s scripts -p test_entry_setup_audit.py -v
+          python -m unittest discover -s scripts -p test_sector_dynamic_structure.py -v
           python scripts/sector_dynamic_structure.py \
              --status output/sector_bridge_status.json \
              --watchlist output/sector_stock_research_ranking.csv \
