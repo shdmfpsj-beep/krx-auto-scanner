@@ -61,6 +61,33 @@ class JoinTests(unittest.TestCase):
         merged=merge(BASE,collected)
         self.assertEqual(merged["focus_independent_stop_reference_count"],0)
         self.assertEqual(merged["decision"],"CASH")
+    def test_same_day_disagreeing_sources_block_stop_and_entry_even_if_pivot_exists(self):
+        local={**row(),"data_source":"FinanceDataReader","close":"166100"}
+        archive={**row(),"data_source":"V18_KRX_CACHED","close":"164800"}
+        combined=combine_price_sources([local],[archive],"2026-10-22")
+        self.assertEqual(len(combined),1)
+        self.assertTrue(combined[0]["price_conflict"])
+        self.assertEqual(combined[0]["historical_stop_reference"],"")
+        report=merge(BASE,combined)
+        self.assertEqual(report["focus_close_conflict_tickers"],["005930"])
+        top=report["stock_research_top5"][0]
+        self.assertIsNone(top["independently_collected_daily_stop_reference"])
+        self.assertEqual(top["independent_stop_status"],"CROSS_SOURCE_CLOSE_CONFLICT")
+        self.assertEqual(report["focus_independent_stop_reference_count"],0)
+        self.assertIn("종가 공급원 불일치",render(report,"# report"))
+    def test_same_day_matching_sources_keep_valid_historical_reference(self):
+        independent={**row(),"data_source":"FinanceDataReader","close":"1000"}
+        fromkrx={**row(),"data_source":"V18_KRX_CACHED","close":"1000"}
+        combined=combine_price_sources([independent],[fromkrx],"2026-10-22")
+        self.assertFalse(combined[0]["price_conflict"])
+        self.assertEqual(merge(BASE,combined)["focus_independent_stop_reference_count"],1)
+    def test_stale_disagreement_not_mistaken_for_same_day_conflict(self):
+        older={**row(when="2026-10-21"),"data_source":"pykrx","close":"900"}
+        current={**row(),"data_source":"V18_KRX_CACHED","close":"1000"}
+        combined=combine_price_sources([older],[current],"2026-10-22")
+        self.assertFalse(combined[0]["price_conflict"])
+        self.assertEqual(combined[0]["latest_complete_date"],"2026-10-22")
+
     def test_focus_price_does_not_create_85_score(self):
         o=merge(BASE,[row()])
         self.assertFalse(o["focus_price_is_independent_trade_approval"])
