@@ -182,9 +182,12 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
     except Exception as e:
         summary["status"]="CORPCODE_DOWNLOAD_FAILED_"+type(e).__name__
         return summary
-    year=asof.year-1
+    # In January-March, the prior fiscal year's annual report may not yet
+    # be published. Use the most recent ACTUALLY filed annual report,
+    # rather than treating all issuers as having missing fundamentals.
+    possible_years=(asof.year-1,asof.year-2)
     for s in stocks:
-        item=dict(**s,annual_fiscal_year=year,
+        item=dict(**s,annual_fiscal_year=None,
                   point_in_time_basis="FILING_RECEIVED_BY_ASOF_22KST")
         company=lookup.get(s["ticker"])
         if not company:
@@ -193,14 +196,19 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
             continue
         try:
             filings=request_json("list.json",{"corp_code":company,
-                "bgn_de":f"{year+1}0101","end_de":asof.strftime("%Y%m%d"),
+                "bgn_de":f"{asof.year-2}0101",
+                "end_de":asof.strftime("%Y%m%d"),
                 "page_count":100,"pblntf_ty":"A"},key)
-            receipt=annual_receipt(filings,year,asof)
-            if not receipt:
+            matched=[(year,annual_receipt(filings,year,asof))
+                     for year in possible_years]
+            matched=[(year,receipt) for year,receipt in matched if receipt]
+            if not matched:
                 item["status"]="NO_ELIGIBLE_DATED_ANNUAL_FILING"
                 summary["researched"].append(item)
                 continue
+            year,receipt=max(matched,key=lambda x:x[0])
             day_received,number=receipt
+            item["annual_fiscal_year"]=year
             item["receipt_date"]=str(day_received)
             item["receipt_no"]=number
             item["receipt_url"]="https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+number
