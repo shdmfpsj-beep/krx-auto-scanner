@@ -221,8 +221,9 @@ def zip_document(raw):
         extracted_candidate_cells=list(unique.values())[:15],
         amount_verified=False,contract_effect_verified=False)
 
-def download_original(receipt,key,fetch=None):
+def download_original(receipt,key,fetch=None,parser=None):
     if not RECEIPT.fullmatch(str(receipt)):return {"status":"INVALID_RECEIPT"}
+    if parser is None:parser=zip_document
     url=API+"?"+urllib.parse.urlencode({"crtfc_key":key,"rcept_no":receipt})
     if fetch is None:
         def fetch(u):
@@ -242,7 +243,7 @@ def download_original(receipt,key,fetch=None):
             previous=signal.getsignal(signal.SIGALRM)
             signal.signal(signal.SIGALRM,deadline)
             signal.setitimer(signal.ITIMER_REAL,MAX_PARSE_SECONDS)
-        return zip_document(raw)
+        return parser(raw)
     except TimeoutError:
         return {"status":"DART_ORIGINAL_PARSE_TIMEOUT_REVIEW_REQUIRED"}
     except Exception as ex:
@@ -254,7 +255,8 @@ def download_original(receipt,key,fetch=None):
             signal.signal(signal.SIGALRM,previous)
 
 def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
-            document_reader=download_original,max_downloads=4):
+            document_reader=download_original,max_downloads=4,
+            preliminary_reader=None):
     now=today or datetime.now(ZoneInfo("Asia/Seoul")).date()
     asof=iso_day(report.get("asof"))
     out=dict(schema=VERSION,asof=str(asof) if asof else None,
@@ -278,6 +280,15 @@ def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
     except Exception as err:
         out["status"]="CORPCODE_LOOKUP_FAILED_"+type(err).__name__
         return out
+    # Imported here because the strict original parser shares the bounded
+    # legacy DART table code from this module.
+    from dart_preliminary_financials import decode_document,assess
+    if preliminary_reader is None:
+        if document_reader is download_original:
+            preliminary_reader=lambda receipt,key:download_original(
+                receipt,key,parser=decode_document)
+        else:
+            preliminary_reader=document_reader
     for ticker,name in stocks:
         item=dict(ticker=ticker,name=name,filings=[],latest_preliminary_earnings=[],
                   source="OPEN_DART_OFFICIAL_LIST_AND_DOCUMENT",
@@ -297,6 +308,20 @@ def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
                 result,cc,ticker,asof)
             item["newer_preliminary_results_require_review"]=bool(
                 item["latest_preliminary_earnings"])
+            # Latest quarterly evidence is more time-sensitive than the
+            # contract title. Allocate the first free original download to
+            # provisional earnings when such a notice exists.
+            for notice in item["latest_preliminary_earnings"][:1]:
+                notice["original_financial_status"]="NOT_DOWNLOADED_LIMIT_OR_BUDGET"
+                notice["financial_figures_verified"]=False
+                if out["document_attempts"]<max_downloads:
+                    out["document_attempts"]+=1
+                    raw=preliminary_reader(notice["receipt_no"],key)
+                    study=assess(raw,notice,asof)
+                    notice["original_financial_status"]=study["status"]
+                    notice["original_financial_analysis"]=study
+                    notice["financial_figures_verified"]=bool(
+                        study["preliminary_figures_source_verified"])
             item["status"]=state
             for filing in recent:
                 filing["contract_amount_verified"]=False
@@ -318,6 +343,15 @@ def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
             item["status"]="ISSUER_SEARCH_FAILED_"+type(ex).__name__
         out["issuer_samples"].append(item)
     out["status"]="DIRECT_DART_EVIDENCE_COLLECTED_UNVERIFIED_IMPACT"
+    out["preliminary_financial_source_verified_count"]=sum(
+        bool(x.get("financial_figures_verified"))
+        for issuer in out["issuer_samples"]
+        for x in issuer.get("latest_preliminary_earnings",[]))
+    out["preliminary_earnings_weakening_count"]=sum(
+        x.get("original_financial_analysis",{}).get("earnings_quality")==
+              "RECENT_PRELIMINARY_WEAKENING"
+        for issuer in out["issuer_samples"]
+        for x in issuer.get("latest_preliminary_earnings",[]))
     return out
 
 def render(r):
@@ -344,14 +378,23 @@ def render(r):
                 f["url"]+") | "+display+" | "+status+" |")
     if not r.get("issuer_samples"):
         lines.append("| 회사 직접공시 미수집 | — | "+r["status"]+" | 아니요 |")
-    lines+=["","### 최신 잠정실적 공시 발견 (수치 추출 전)",""]
+    lines+=["","### 최신 잠정실적 실제 숫자 검증 (비감사 자료)",""]
     earnings_count=0
     for issuer in r.get("issuer_samples",[]):
         for x in issuer.get("latest_preliminary_earnings",[]):
             earnings_count+=1
+            study=x.get("original_financial_analysis",{})
+            if x.get("financial_figures_verified"):
+                rev=study.get("revenue_yoy_pct")
+                op=study.get("operating_profit_yoy_pct")
+                info=("매출 YoY "+str(rev)+"%, 영업이익 YoY "+
+                       (str(op)+"%" if op is not None else "흑자전환/비교 불가")+
+                       " / "+str(study.get("earnings_quality")))
+            else:
+                info="수치 미검증: "+str(x.get("original_financial_status",
+                                            "SOURCE_NOT_EXTRACTED"))
             lines.append("- "+issuer["name"]+": ["+x["date"]+" "+
-                x["title"]+"]("+x["url"]+") — 잠정실적 **발표 사실만 확인**."
-                " 최신 분기 수치·영업이익 증가율 검증 전")
+                x["title"]+"]("+x["url"]+") — "+info)
     if not earnings_count:
         lines.append("- 최근 7일 적격 잠정실적 공시 없음/미수집")
     lines+=["","*접수일만 확인한 공시는 기준일 당일 자료를 제외합니다. 정정·해지 공시는"
@@ -362,6 +405,8 @@ def render(r):
         " 다른 정보원으로 독립 확인한 사실이 아닙니다.",
         "*원문 단위가 불분명하거나 공시 간 정정·해지 내용이 있으면"
         " 실질 호재 점수에 포함하지 않습니다.",
+        "*잠정실적은 비감사 분기 성적표입니다. 검증된 같은 분기 실적과"
+        " 연간·반기 누적 실적을 서로 섞지 않으며 최종 BUY 승인으로 보지 않습니다.",
         "*출처: 금융감독원 OpenDART 공식 list.json 및 document.xml API.",""]
     return "\n".join(lines)
 
