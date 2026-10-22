@@ -9,8 +9,8 @@ STOCK=dict(ticker="005930",name="삼성전자",sector_id="SEMICON",
   independently_collected_daily_stop_reference="185000")
 ROW=dict(ticker="005930",name="삼성전자",latest_complete_date=DAY,
   data_source="V18_KRX_CACHED",bar_count="80",close="220000",
-  atr14="4000",pivot_date="2026-10-12",pivot_low="191000",
-  historical_stop_reference="190000",entry1_research_range="218,500~220,000",
+  atr14="4000",pivot_date="2026-10-12",pivot_low="200000",
+  historical_stop_reference="198000",entry1_research_range="218,500~220,000",
   entry2_support_research_range="210,000~213,000",
   prior_60d_high="290000",no_chase_reference="222000",
   structure_state="RESEARCH_GEOMETRY_CANDIDATE",data_problems="")
@@ -27,10 +27,10 @@ class EntryTests(unittest.TestCase):
         self.assertTrue(x["technical_research_pass"])
         self.assertEqual(x["first_entry_krw"],[218500,220000])
         self.assertEqual(x["second_entry_support_krw"],[210000,213000])
-        self.assertEqual(x["stop_krw"],190000)
+        self.assertEqual(x["stop_krw"],198000)
         self.assertEqual(x["resistance_krw"],290000)
-        self.assertAlmostEqual(x["forward_rr_at_first_ceiling"],2.33,places=2)
-        self.assertEqual(x["target_2r_krw"],280000)
+        self.assertAlmostEqual(x["forward_rr_at_first_ceiling"],3.18,places=2)
+        self.assertEqual(x["target_2r_krw"],264000)
         self.assertFalse(x["real_buy_approved"])
         self.assertEqual(r["decision"],"CASH")
     def test_very_close_stop_is_structural_quality_failure(self):
@@ -48,7 +48,7 @@ class EntryTests(unittest.TestCase):
         row={**ROW,"prior_60d_high":"245000"}
         x=build(input_report(row=row))["candidates"][0]
         self.assertEqual(x["code"],"FORWARD_REWARD_RISK_BELOW_2R")
-        self.assertEqual(x["forward_rr_at_first_ceiling"],.83)
+        self.assertEqual(x["forward_rr_at_first_ceiling"],1.14)
     def test_no_chase_ceiling_overrun(self):
         row={**ROW,"no_chase_reference":"219000"}
         x=build(input_report(row=row))["candidates"][0]
