@@ -39,6 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python -m py_compile scripts/daily_asof_gate.py scripts/test_daily_asof_gate.py
           python -m unittest discover -s scripts -p 'test_daily_asof_gate.py' -v
 
       - name: Download latest successful independent workflow artifacts
