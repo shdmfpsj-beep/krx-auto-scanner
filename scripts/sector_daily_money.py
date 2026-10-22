@@ -131,16 +131,16 @@ def daily_evidence(evidence,asof,expected_sectors=None):
                     prev=day(tail[-2].get("Date"))
                     now_close=num(tail[-1].get("Close"))
                     prev_close=num(tail[-2].get("Close"))
+                    # The dated stock history must agree with the valid
+                    # one-day market snapshot. Do not use revised closes
+                    # or malformed daily candles as a breadth signal.
+                    market_close=num(prices[t].get("Close"))
+                    same_close=(now_close is not None and market_close is not None
+                                and abs(now_close-market_close)<=0.00001)
                     ticker_cache[t]=(now_close>prev_close) if (
-                        prev and 0<(target-prev).days<=10 and
-                        now_close is not None and prev_close and prev_close>0) else None
+                        prev and 0<(target-prev).days<=10 and same_close
+                        and prev_close is not None and prev_close>0) else None
             up=ticker_cache[t]
-            # Breadth must use the same valid completed close as the
-            # investor-flow snapshot, not a silently revised 1D price.
-            if up is not None and t in prices and (
-                num(tail[-1].get("Close")) is None or
-                abs(num(tail[-1]["Close"])-num(prices[t]["Close"]))>0.00001):
-                up=None
             if up is not None:
                 by_company[t]=up
         breadth_coverage=len(by_company)/len(all_valid)
