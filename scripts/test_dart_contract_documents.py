@@ -122,7 +122,7 @@ class DartContractTests(unittest.TestCase):
         terms=row["structured_contract_terms"]
         self.assertEqual(terms["amount_krw"],50_000_000_000)
         self.assertEqual(terms["disclosed_sales_ratio_pct"],15)
-        self.assertEqual(terms["consistency"],"NOT_TESTABLE")
+        self.assertEqual(terms["consistency"],"RATIO_ONLY_NO_SALES_BASE")
         self.assertTrue(row["document_labeled_amount_research_only"])
         self.assertFalse(row["contract_amount_verified"])
         self.assertFalse(row["positive_catalyst_verified"])
