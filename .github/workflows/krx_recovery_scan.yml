@@ -2,6 +2,12 @@ name: KRX recovery scan (safe sparse checkout)
 
 on:
   workflow_dispatch:
+  # Run one real recovery scan when this isolated workflow is updated.
+  # Avoid launching market downloads for unrelated strategy commits.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/krx_recovery_scan.yml'
   schedule:
     - cron: '45 7 * * 1-5'
 
