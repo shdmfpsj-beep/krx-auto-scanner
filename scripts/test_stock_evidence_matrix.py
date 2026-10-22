@@ -126,6 +126,40 @@ class StockEvidenceTests(unittest.TestCase):
         self.assertEqual(len(build(b)["candidates"][0]["direct_company_filings"]),1)
     def test_naive_discovery_time_is_rejected(self):
         self.assertFalse(asof_seen("2026-10-21T12:00:00",__import__("datetime").date(2026,10,22)))
+    def test_matched_official_contract_xml_is_raw_evidence_not_positive_impact(self):
+        report=inputs()
+        original=dict(schema="dart_contract_source_v1",asof=DAY,
+             status="DIRECT_DART_EVIDENCE_COLLECTED_UNVERIFIED_IMPACT",
+             issuer_samples=[dict(ticker="005930",filings=[dict(
+               date="2026-10-21",receipt_no="20261021000001",
+               title="단일판매 공급계약",correction_risk="NO_CORRECTION_TITLE_FLAG",
+               url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261021000001",
+               filing_contents_status="DART_DOCUMENT_XML_TABLES_PARSED")])])
+        r=build(report,original)
+        a=r["candidates"][0]
+        self.assertTrue(a["original_contract_text_observed"])
+        self.assertFalse(a["direct_contract_amount_confirmed"])
+        self.assertFalse(a["company_catalyst_impact_verified"])
+        self.assertEqual(r["contract_amount_or_positive_impact_confirmed_count"],0)
+        self.assertIn("원문 표 확인",render(r))
+        self.assertEqual(r["decision"],"CASH")
+    def test_future_or_other_date_contract_cannot_enter_company_matrix(self):
+        contract=dict(schema="dart_contract_source_v1",asof="2026-10-23",
+              issuer_samples=[dict(ticker="005930",filings=[dict(
+                date="2026-10-23",receipt_no="20261023000001",
+                url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261023000001",
+                filing_contents_status="DART_DOCUMENT_XML_TABLES_PARSED")])])
+        r=build(inputs(),contract)
+        self.assertFalse(r["candidates"][0]["original_contract_text_observed"])
+        self.assertEqual(r["dart_original_source_status"],"NOT_COLLECTED_OR_DATE_MISMATCH")
+    def test_same_asof_contract_must_precede_day_without_exact_time(self):
+        contract=dict(schema="dart_contract_source_v1",asof=DAY,
+              issuer_samples=[dict(ticker="005930",filings=[dict(
+                date=DAY,receipt_no="20261022000001",
+                url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261022000001",
+                filing_contents_status="DART_DOCUMENT_XML_TABLES_PARSED")])])
+        self.assertFalse(build(inputs(),contract)["candidates"][0][
+            "original_contract_text_observed"])
     def test_unmatched_sector_prevents_leak_of_fundamental_watches(self):
         b=inputs()
         b["financial_quality_watch_top5"].append(dict(
