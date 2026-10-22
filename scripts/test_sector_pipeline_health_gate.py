@@ -1,5 +1,9 @@
 import copy
 import unittest
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from pathlib import Path
+from krx_session_clock import nominal_last_completed_krx_session
 from sector_pipeline_health_gate import REQUIRED, judge_collection
 
 TODAY="2026-10-23"
@@ -10,6 +14,29 @@ def sample():
             "datasets":{k:{"status":"OK"} for k in REQUIRED}}
 
 class HealthTests(unittest.TestCase):
+    def test_post_midnight_completion_retains_source_started_session(self):
+        v18_started=datetime.fromisoformat("2026-10-23T11:15:00+00:00")
+        audit_finished=datetime.fromisoformat("2026-10-24T01:05:00+09:00")
+        self.assertEqual(nominal_last_completed_krx_session(v18_started),"2026-10-23")
+        self.assertEqual(nominal_last_completed_krx_session(audit_finished),"2026-10-23")
+        weekend_end=datetime.fromisoformat("2026-10-25T02:05:00+09:00")
+        self.assertEqual(nominal_last_completed_krx_session(weekend_end),"2026-10-23")
+        self.assertTrue(judge_collection(sample(),"2026-10-23","success")["source_verified"])
+
+    def test_health_yaml_tracks_real_v18_not_manual_only_dispatcher(self):
+        # CI invokes from project root; user config cannot silently revive the
+        # long-disabled manual-only dispatch check or ignore after-midnight runs.
+        p=Path(__file__).resolve().parents[1]/".github/workflows/sector_pipeline_health.yml"
+        src=p.read_text(encoding="utf-8")
+        self.assertIn('workflows: ["Sector Evidence v18 (standalone)"]',src)
+        self.assertIn("V18_TRIGGER_RUN_ID",src)
+        self.assertIn("V18_TRIGGER_CREATED_AT",src)
+        self.assertIn('target=nominal_last_completed_krx_session(',src)
+        self.assertIn('result=judge_collection({},report["target_session"]',src)
+        self.assertIn('report["checks"].get(k,{}).get("conclusion")=="success"',src)
+        self.assertNotIn('"sector_evidence_v18_daily.yml":"sector_dispatch"',src)
+        self.assertIn('report["sector_trade_ready"]=False',src)
+
     def test_complete_clean_collection_is_research_only(self):
         s=sample()
         s["datasets"]["price_ohlc_integrity"].update(checked=2500,invalid=0,invalid_pct=0.0)
