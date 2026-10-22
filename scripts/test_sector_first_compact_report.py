@@ -27,11 +27,11 @@ class CompactTests(unittest.TestCase):
         self.assertIn("최신 섹터 연구 종목 없음",md)
         self.assertIn("해외 원문 출처 없음",md)
         self.assertIn("CASH",md)
-    def test_complete_oct22_weak_breadth_reports_cash_without_false_data_gap(self):
+    def test_verified_no_positive_flow_reports_cash_without_false_data_gap(self):
         md=format_summary({"asof":"2026-10-22",
              "daily_money_gate":"VERIFIED_NO_QUALIFYING_SECTOR",
              "sector_top3":[],"stock_research_top5":[]})
-        self.assertIn("오늘 완료된 KRX 수급자료는 검증됐으나",md)
+        self.assertIn("당일 KRX 자료가 검증됐으나",md)
         self.assertIn("플러스 순매수인 섹터가 없어",md)
         self.assertIn("신규매수: CASH",md)
         self.assertNotIn("해당일 완결되지 않아",md)
