@@ -21,6 +21,16 @@ class Tests(unittest.TestCase):
         self.assertEqual(r["decision"],"CASH")
         self.assertIn("PROVIDER_REGULAR_SESSION_SCOPE_NOT_ATTESTED",r["blockers"])
         self.assertIn("애프터마켓 자료",markdown(r))
+    def test_price_certification_alone_cannot_mark_market_ready_without_flows(self):
+        fake=obs()
+        fake["provider_session_scope_verified"]=True
+        fake["regular_strategy_eligible"]=True
+        r=report(fake,"2026-10-23")
+        self.assertEqual(r["market_source_status"],"PENDING_DATA_VALIDATION")
+        self.assertIn("REGULAR_ONLY_FOREIGN_INSTITUTION_FLOW_NOT_VERIFIED",r["blockers"])
+        self.assertFalse(r["trade_approved"])
+        self.assertEqual(r["approved_buy_count"],0)
+
     def test_previous_day_snapshot_cannot_be_used_as_today_close(self):
         r=report(obs(),"2026-10-26")
         self.assertIn("REGULAR_SOURCE_ASOF_MISMATCH",r["blockers"])
