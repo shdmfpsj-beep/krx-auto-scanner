@@ -120,9 +120,9 @@ def apply_daily_money_rank(ranked,summary,report):
         out["research_top3_sector_ids"]=[]
         out["daily_money_rank_applied"]=False
         out["daily_money_gate"]="MARKET_OHLC_CONFLICT"
-        out["reason"]="Completed KRX OHLC integrity invalid ("+str(
-            report.get("raw_ohlc_conflict_pct","unknown"))+
-            "% contradictory bars); no sectors eligible for new money-flow research"
+        out["reason"]=(f"Completed KRX OHLC integrity invalid "
+                       f"({report.get('raw_ohlc_conflict_pct','unknown')}% contradictory bars); "
+                       "no sectors eligible for new money-flow research")
         out["final_sector_top3_verified"]=False
         out["trade_approvals"]=0
         out["decision"]="CASH"
