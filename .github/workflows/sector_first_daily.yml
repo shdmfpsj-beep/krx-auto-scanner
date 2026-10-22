@@ -28,6 +28,8 @@ jobs:
           sparse-checkout: |
             /scripts/sector_evidence_bridge.py
             /scripts/test_sector_evidence_bridge.py
+            /scripts/sector_daily_money.py
+            /scripts/test_sector_daily_money.py
             /scripts/sector_first_daily.py
             /scripts/test_sector_first_daily.py
             /scripts/sector_catalyst_enrich.py
@@ -62,6 +64,7 @@ jobs:
           python -m py_compile scripts/sector_first_daily.py scripts/sector_evidence_bridge.py
           python scripts/test_sector_first_daily.py
           python scripts/test_sector_evidence_bridge.py
+          python scripts/test_sector_daily_money.py
           python scripts/test_sector_catalyst_enrich.py
           python scripts/test_global_sector_news.py
           python scripts/test_global_sector_join.py
@@ -131,6 +134,20 @@ jobs:
                 break
               if not found: raise SystemExit(f"ARTIFACT_UNAVAILABLE:{name}")
           PY
+      - name: Calculate completed 1-day KRX constituent money and remove ETF overlaps
+        run: |
+          python - <<'PY'
+          import json,subprocess,sys
+          from pathlib import Path
+          matches=list(Path("inputs/evidence").rglob("diagnostics/collection_status.json"))
+          if len(matches)!=1:
+              raise SystemExit("AMBIGUOUS_KRX_EVIDENCE_STATUS")
+          status=json.loads(matches[0].read_text(encoding="utf-8"))
+          subprocess.run([sys.executable,"scripts/sector_daily_money.py",
+               "--evidence",str(matches[0].parent.parent),
+               "--asof",status["asof"],"--out","output"],check=True)
+          PY
+
       - name: Produce research-only sector ranking
         run: |
           python - <<'PY'
@@ -143,7 +160,8 @@ jobs:
               raise SystemExit(f"AMBIGUOUS_OR_MISSING_INPUT evidence={len(matches)} scan={len(scan)}")
           subprocess.run([sys.executable,"scripts/sector_evidence_bridge.py",
                           "--evidence",str(matches[0].parent.parent),
-                          "--scan-status",str(scan[0]),"--out","output"],check=True)
+                          "--scan-status",str(scan[0]),"--out","output",
+                          "--daily-money","output/sector_daily_money.json"],check=True)
           PY
       - name: Install no-cost OHLCV collectors for dynamically chosen TOP3 stocks
         if: success()
@@ -319,5 +337,7 @@ jobs:
             output/sector_research_ranking.csv
             output/sector_stock_research_ranking.csv
             output/sector_bridge_status.json
+            output/sector_daily_money.json
+            output/sector_daily_money_mobile.md
           if-no-files-found: warn
           retention-days: 90
