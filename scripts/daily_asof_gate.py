@@ -115,7 +115,8 @@ def research_candidate_from_csv(path: Path, tickers: list, day: str) -> dict:
 
 def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
              research_candidate: dict | None = None,
-             c3_state: dict | None = None) -> dict:
+             c3_state: dict | None = None,
+             focus_source: str = "INDEPENDENT_WORKFLOW") -> dict:
     dates = {
         "recovery_krx_price": recovery.get("market_data_date"),
         "focus_price": focus.get("asof"),
@@ -135,8 +136,12 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         reasons.append("MARKET_UNIVERSE_COUNTS_MISSING_OR_INVALID")
     if recovery.get("candidate_date_mismatch") not in (False, 0, None):
         reasons.append("KRX_CANDIDATE_DATE_MISMATCH")
-    if focus.get("orders_enabled") is not False or focus.get("trade_approved") is not False:
+    if not focus:
+        reasons.append("FOCUS_SOURCE_MISSING")
+    elif focus.get("orders_enabled") is not False or focus.get("trade_approved") is not False:
         reasons.append("FOCUS_RESEARCH_ORDER_FLAG_NOT_SAFE")
+    if focus_source=="SECTOR_FIRST_EMBEDDED_FALLBACK":
+        reasons.append("FOCUS_SINGLE_PIPELINE_NOT_INDEPENDENT")
     if sector.get("orders_enabled") is not False or sector.get("trade_approved") is not False:
         reasons.append("SECTOR_RESEARCH_ORDER_FLAG_NOT_SAFE")
     if (sector.get("sector_selection_outcome")=="PENDING_DATA_VALIDATION" or
@@ -170,11 +175,20 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         "today_research_candidate": research_candidate or {},
         "focus_research_count": focus.get("research_count"),
         "focus_stop_reference_count": focus.get("stop_reference_count"),
+        "focus_source": focus_source,
+        "all_independent_sources_verified": bool(
+            all(x==day for x in dates.values()) and
+            focus_source=="INDEPENDENT_WORKFLOW" and
+            money.get("market_ohlc_quality_verified") is True),
         "sector_research_top3_count": len(sector.get("sector_top3") or []),
         "sector_research_top5_count": len(sector.get("stock_research_top5") or []),
         "sector_selection_outcome": sector.get("sector_selection_outcome","PENDING_DATA_VALIDATION"),
         "stock_selection_outcome": sector.get("stock_selection_outcome","PENDING_DATA_VALIDATION"),
         "c3_position_state": c3_state or {"status":"POSITION_UNVERIFIED","user_reported":False},
+        "market_ohlc_quality_verified": money.get("market_ohlc_quality_verified"),
+        "market_ohlc_checked": money.get("raw_tradable_ohlc_checked"),
+        "market_ohlc_invalid": money.get("raw_ohlc_conflict_count"),
+        "market_ohlc_invalid_pct": money.get("raw_ohlc_conflict_pct"),
         "all_source_dates_aligned": all(x == day for x in dates.values()),
         "data_integrity_blockers": reasons,
         "decision": "CASH",
@@ -213,11 +227,14 @@ def to_markdown(data: dict) -> str:
 | 독립 자료 | 실제 자료 기준일 | 오늘 날짜 일치 |
 |---|---|---|
 | KRX 전종목 종가/기술스크리닝 | {fmt(src['recovery_krx_price'])} | {'확인' if src['recovery_krx_price']==data['target_kst_date'] else '불일치'} |
-| 관심종목 일봉 구조가격 | {fmt(src['focus_price'])} | {'확인' if src['focus_price']==data['target_kst_date'] else '불일치'} |
+| 관심종목 일봉 구조가격 | {fmt(src['focus_price'])} ({data.get('focus_source','미확인')}) | {'확인' if src['focus_price']==data['target_kst_date'] else '불일치'} |
 | 섹터 TOP3 선정 | {fmt(src['sector_ranking'])} | {'확인' if src['sector_ranking']==data['target_kst_date'] else '불일치'} |
 | 섹터 구성종목 수급 | {fmt(src['sector_constituent_flow'])} | {'확인' if src['sector_constituent_flow']==data['target_kst_date'] else '불일치'} |
 
 **KRX 데이터 커버리지:** {fmt(data['recovery_valid_ohlcv'])}/{fmt(data['recovery_universe'])} ({pct})
+**OHLC 무결성:** {str(data.get('market_ohlc_invalid'))+' / '+str(data.get('market_ohlc_checked'))+'건 ('+str(data.get('market_ohlc_invalid_pct'))+'%)' if data.get('market_ohlc_invalid') is not None else '수치 미확보'} · {'검증 완료' if data.get('market_ohlc_quality_verified') is True else '검증 실패/미확인'}
+**독립 출처 교차확인:** {'완료' if data.get('all_independent_sources_verified') else '미완료 (동일 파이프라인 복사본은 별개 확인 아님)'}
+**중요:** 수집 워크플로 실행 성공 및 날짜 일치는 원본 OHLC·수급 신뢰성 검증의 충분조건이 아닙니다.
 **일봉 연구 구조 통과:** {fmt(data['recovery_research_geometry_pass'])}건 · 연구 티커 {watch}
 {research_line}
 **TOP3 판정:** {data.get('sector_selection_outcome','PENDING_DATA_VALIDATION')} · **TOP5 판정:** {data.get('stock_selection_outcome','PENDING_DATA_VALIDATION')} (보류와 검증 후 0개를 구분)
@@ -239,6 +256,7 @@ def main() -> None:
     parser.add_argument("--recovery-structure", type=Path, required=False)
     parser.add_argument("--recovery-csv", type=Path, required=False)
     parser.add_argument("--focus", type=Path, required=True)
+    parser.add_argument("--focus-fallback",type=Path,required=False)
     parser.add_argument("--sector", type=Path, required=True)
     parser.add_argument("--money", type=Path, required=True)
     parser.add_argument("--date", default=None)
@@ -254,9 +272,16 @@ def main() -> None:
     candidate = (research_candidate_from_csv(args.recovery_csv,
                  recovery.get("c3_research_top5", []), target_day)
                  if args.recovery_csv else {})
-    result = evaluate(target_day, recovery, load_json(args.focus),
+    focus=load_json(args.focus)
+    focus_source="INDEPENDENT_WORKFLOW" if focus else "MISSING"
+    if not focus and args.focus_fallback:
+        embedded=load_json(args.focus_fallback)
+        if embedded:
+            focus=embedded
+            focus_source="SECTOR_FIRST_EMBEDDED_FALLBACK"
+    result = evaluate(target_day, recovery, focus,
                       load_json(args.sector), load_json(args.money), candidate,
-                      load_c3_position(args.c3_state))
+                      load_c3_position(args.c3_state), focus_source)
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "today_asof_gate.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

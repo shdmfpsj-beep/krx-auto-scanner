@@ -191,6 +191,10 @@ def build(summary, sector_rows, stock_rows, today, c3_state=None):
       sector_watch_is_buy_recommendation=False,
       daily_money_rank_applied=bool(summary.get("daily_money_rank_applied")),
       daily_money_gate=summary.get("daily_money_gate","UNAVAILABLE"),
+      market_ohlc_quality_verified=summary.get("market_ohlc_quality_verified"),
+      raw_tradable_ohlc_checked=summary.get("raw_tradable_ohlc_checked"),
+      raw_ohlc_conflict_count=summary.get("raw_ohlc_conflict_count"),
+      raw_ohlc_conflict_pct=summary.get("raw_ohlc_conflict_pct"),
       blockers=list(dict.fromkeys(blockers)),
       source_note="V18 ETF-member flow and breadth are proxies, not confirmed whole-sector inflow.",
       required_next_data=["Dated KRX sector turnover and broad constituent money flow",
@@ -207,6 +211,12 @@ def render(report):
            f"섹터 상태: {report['status']}","",
            f"섹터 선정판정: {report['sector_selection_outcome']} / 종목 선정판정: {report['stock_selection_outcome']}",
            "실제 BUY 승인: 0건 (80점·진입구조·실행자료 별도 미검증)","",
+           "KRX 원본 OHLC 검증: "+
+           ("모순 "+str(report.get("raw_ohlc_conflict_count"))+"/"+
+            str(report.get("raw_tradable_ohlc_checked"))+
+            " ("+str(report.get("raw_ohlc_conflict_pct"))+"%)"
+            if report.get("raw_ohlc_conflict_count") is not None else
+            "교차검증 수치 미확보"),"",
            c3_mobile_line(report.get("c3_position_state") or {}),"",
            "## ① 자금 선행 섹터 TOP3 (매수 미승인 연구 후보)","",
            "| 순위 | 섹터 | 1일 중복제거 순매수(억)* | 구성종목 거래대금(억)* | 5일 순매수(억)* | 당일 상승 확산 | 단계 |",
