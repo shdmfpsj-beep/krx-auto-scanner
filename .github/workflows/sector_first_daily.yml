@@ -49,6 +49,8 @@ jobs:
             /scripts/test_dart_financial_screen.py
             /scripts/sector_financial_join.py
             /scripts/stock_evidence_matrix.py
+            /scripts/dart_contract_documents.py
+            /scripts/test_dart_contract_documents.py
             /scripts/entry_setup_audit.py
             /scripts/test_entry_setup_audit.py
             /scripts/test_stock_evidence_matrix.py
@@ -84,6 +86,7 @@ jobs:
           python scripts/test_dart_financial_screen.py
           python scripts/test_sector_financial_join.py
           python scripts/test_stock_evidence_matrix.py
+          python scripts/test_dart_contract_documents.py
           python scripts/test_entry_setup_audit.py
           python scripts/test_shadow_trade_audit.py
           python scripts/test_shadow_entry_comparison.py
@@ -262,6 +265,12 @@ jobs:
         if: always()
         run: python scripts/sector_financial_join.py --root output
 
+      - name: Check actual issuer contract filings against original official OpenDART XML
+        if: always()
+        env:
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: python scripts/dart_contract_documents.py --root output
+
       - name: Cross-check direct issuer DART, latest earnings, 1D money, global sector news and chart stops
         if: always()
         run: python scripts/stock_evidence_matrix.py --root output
@@ -367,6 +376,8 @@ jobs:
             output/sector_first_with_financials.json
             output/company_evidence_matrix.json
             output/company_evidence_matrix_mobile.md
+            output/direct_dart_contracts.json
+            output/direct_dart_contracts_mobile.md
             output/entry_setup_audit.json
             output/entry_setup_audit_mobile.md
             output/shadow_signals.json
