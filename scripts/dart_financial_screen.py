@@ -266,7 +266,7 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
     summary=dict(schema=VERSION,asof=str(asof),requested_stocks=len(stocks),
          researched=[],data_source="OPENDART_OFFICIAL_PERIODIC_REPORT",
          historical_replay_forbidden=True,trade_approved=False,decision="CASH",
-         final_85_score_verified=False)
+         final_80_score_verified=False,final_85_score_verified=False)
     if asof!=today:
         summary["status"]="HISTORICAL_REPLAY_NO_RETROACTIVE_FINANCIALS"
         return summary
@@ -455,7 +455,7 @@ def render(result):
       "*당해연도 분기 실적, 업종별 재무비율, 향후 컨센서스 및 뉴스의 실제 계약효과는 여기서 검증하지 않습니다.",
       "*연결재무제표를 우선하되 없는 경우 별도재무제표를 명시하며 두 기준을 무분별하게 섞지 않습니다.",
       "*공시 제출일 이후 자료만 취급하며 과거 리플레이에 현재 재무API 내용을 소급 투입하지 않습니다.",
-      "*매출 증가만으로 최종 85점이나 5거래일 상승확률을 만들어내지 않습니다.",""]
+      "*매출 증가만으로 최종 80점이나 5거래일 상승확률을 만들어내지 않습니다.",""]
     return "\n".join(lines)
 
 def main():
