@@ -9,11 +9,11 @@ import argparse
 import csv
 import json
 import re
-from datetime import date,datetime
+from datetime import date,datetime,timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from focus_daily_structure import calculate,fetch_history,save
+from focus_daily_structure import calculate,fetch_history,save,normalize
 
 BANNED=("HEALTH","PHARMA","BIOTECH","바이오","제약")
 
@@ -78,12 +78,69 @@ def select(status,rows,asof,max_total=12,per_sector=4):
         problems.append("NO_FRESH_TOP3_STOCK_RESEARCH_ROWS")
     return picked,problems
 
-def generate(status,stock_rows,asof,fetch=fetch_history,max_total=12,per_sector=4):
+def reuse_v18_daily_bars(evidence_root,tickers,asof):
+    """Reuse dated, completed KRX daily OHLCV already collected by v18.
+
+    No guessing about missing highs/lows. Missing or insufficient samples are
+    handled by the existing independent FDR/pykrx fallback instead.
+    """
+    if not evidence_root or not Path(evidence_root).is_dir() or not tickers:
+        return {}
+    roots=list(Path(evidence_root).rglob("market/daily_prices"))
+    if len(roots)!=1:
+        return {}
+    root=roots[0]
+    found={t:{} for t in tickers}
+    duplicates=set()
+    start=asof-timedelta(days=240)
+    for market in ("KOSPI","KOSDAQ"):
+        folder=root/market
+        if not folder.is_dir():continue
+        for path in sorted(folder.glob("*.csv")):
+            try:d=date.fromisoformat(path.stem[:10])
+            except ValueError:continue
+            if not start<=d<=asof:continue
+            with path.open(encoding="utf-8-sig",newline="") as file:
+                for r in csv.DictReader(file):
+                    ticker=str(r.get("ticker","")).strip()
+                    if ticker not in found:continue
+                    try:bar_date=date.fromisoformat(str(r.get("Date",""))[:10])
+                    except ValueError:continue
+                    if bar_date!=d:
+                        duplicates.add(ticker)
+                        continue
+                    if d in found[ticker]:
+                        duplicates.add(ticker)
+                    else:
+                        found[ticker][d]=dict(date=str(d),
+                            open=r.get("Open"),high=r.get("High"),
+                            low=r.get("Low"),close=r.get("Close"),
+                            volume=r.get("Volume"))
+    cache={}
+    for ticker,byday in found.items():
+        if ticker in duplicates or asof not in byday:continue
+        bars,problem=normalize(ticker,[byday[k] for k in sorted(byday)])
+        if not problem:
+            cache[ticker]=(bars,"V18_KRX_CACHED",[])
+    return cache
+
+def generate(status,stock_rows,asof,fetch=fetch_history,max_total=12,per_sector=4,
+             evidence_root=None):
     names,issues=select(status,stock_rows,asof,max_total,per_sector)
     results=[]
+    # Cached v18 evidence is read once across all selected candidates.
+    # Avoid N separate paid or redundant network requests.
+    try:
+        cache=reuse_v18_daily_bars(evidence_root,names,asof)
+    except (OSError,ValueError,csv.Error):
+        cache={}
+        issues.append("V18_OHLCV_CACHE_UNAVAILABLE")
     for ticker,name in names.items():
         try:
-            bars,source,errors=fetch(ticker,asof)
+            if ticker in cache:
+                bars,source,errors=cache[ticker]
+            else:
+                bars,source,errors=fetch(ticker,asof)
         except Exception as ex:
             bars,source,errors=[],"NONE",["COLLECTOR_"+type(ex).__name__]
         result=calculate(ticker,name,bars,source,errors,asof)
@@ -96,6 +153,7 @@ def main():
     parser.add_argument("--status",type=Path,default=Path("output/sector_bridge_status.json"))
     parser.add_argument("--watchlist",type=Path,default=Path("output/sector_stock_research_ranking.csv"))
     parser.add_argument("--out",type=Path,default=Path("output/dynamic"))
+    parser.add_argument("--evidence-root",type=Path,default=Path("inputs/evidence"))
     parser.add_argument("--max-total",type=int,default=12)
     parser.add_argument("--per-sector",type=int,default=4)
     parser.add_argument("--asof",default=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat())
@@ -108,7 +166,8 @@ def main():
     if not (1<=a.max_total<=20 and 1<=a.per_sector<=10):
         raise SystemExit("INVALID_SECTOR_FOCUS_LIMITS")
     rows,names,issues=generate(status,read_rows(a.watchlist),asof,
-                              max_total=a.max_total,per_sector=a.per_sector)
+                              max_total=a.max_total,per_sector=a.per_sector,
+                              evidence_root=a.evidence_root)
     audit=save(rows,a.out)
     audit.update(dynamic_top3_sector_watchlist=True,
        sector_research_asof=status.get("asof"),
