@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+"""Dated stock evidence joining: no mistaken catalysts, no fake BUY scores."""
+import unittest
+from stock_evidence_matrix import build,render,asof_seen,official_url
+
+DAY="2026-10-22"
+SEEN="2026-10-21T12:00:00+00:00"
+def inputs():
+    return dict(asof=DAY,daily_money_rank_applied=True,decision="CASH",
+      sector_top3=[
+        dict(sector_id="SEMICON",name="반도체",
+             day_net_flow_1d_incremental_krw=100000000000,
+             prior_day_dart_observations=[
+                dict(ticker="005930",date="2026-10-21",
+                     title="공급계약 체결",
+                     url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261021000001"),
+                dict(ticker="000660",date="2026-10-21",
+                     title="다른 회사 공시",
+                     url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261021000002")],
+             global_news_observations=[
+                dict(title="Global semiconductor capex expands",
+                     seen_at_utc=SEEN,url="https://example.com/semis")]),
+        dict(sector_id="POWER",name="전력설비",
+             day_net_flow_1d_incremental_krw=32000000000,
+             prior_day_dart_observations=[],global_news_observations=[])],
+      stock_research_top5=[
+        dict(ticker="005930",name="삼성전자",sector_id="SEMICON",
+             independently_collected_daily_stop_reference="201000",
+             independent_first_entry_reference="219000~220000",
+             independent_stop_status="HISTORICAL_DAILY_REFERENCE_ONLY",
+             fundamentals_filing_verified=True,
+             latest_periodic_financials_verified=True,
+             annual_plus_interim_growth_pass=True,
+             interim_ytd_sales_yoy_pct=18.7,
+             interim_ytd_operating_profit_yoy_pct=22.1,
+             financial_receipt_url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318000001"),
+        dict(ticker="010120",name="LS ELECTRIC",sector_id="POWER",
+             independent_stop_status="CROSS_SOURCE_CLOSE_CONFLICT",
+             fundamentals_filing_verified=True,
+             recent_financial_weakening_veto=True)],
+      sector_leader_watch=[
+         dict(ticker="005930",name="삼성전자",sector_id="SEMICON"),
+         dict(ticker="010120",name="LS ELECTRIC",sector_id="POWER")],
+      financial_quality_watch_top5=[
+         dict(ticker="005930",name="삼성전자",sector_id="SEMICON",sales_yoy_pct=10,
+              annual_receipt_url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260318000001")],
+      annual_plus_interim_growth_watch_top5=[
+         dict(ticker="005930",name="삼성전자",sector_id="SEMICON",
+              annual_plus_interim_growth_pass=True)])
+
+class StockEvidenceTests(unittest.TestCase):
+    def test_direct_dart_receipt_stock_match_not_separate_company(self):
+        r=build(inputs())
+        stock=r["candidates"][0]
+        self.assertEqual(len(stock["direct_company_filings"]),1)
+        self.assertEqual(stock["direct_company_filings"][0]["material_impact"],
+                         "NOT_CONTENT_VERIFIED")
+        self.assertFalse(stock["company_catalyst_impact_verified"])
+        self.assertEqual(r["company_catalyst_verified_count"],0)
+    def test_verified_interim_not_85_score_and_orders_disabled(self):
+        r=build(inputs())
+        stock=r["candidates"][0]
+        self.assertTrue(stock["checks"]["annual_and_interim_growth"])
+        self.assertIsNone(stock.get("final_85_score"))
+        self.assertFalse(stock["final_85_score_verified"])
+        self.assertEqual(r["decision"],"CASH")
+        self.assertFalse(r["trade_approved"])
+        self.assertFalse(r["orders_enabled"])
+    def test_news_is_sector_context_never_company_catalyst(self):
+        stock=build(inputs())["candidates"][0]
+        self.assertEqual(stock["global_sector_context"][0]["meaning"],
+                         "SECTOR_CONTEXT_ONLY_NOT_COMPANY_IMPACT")
+        self.assertFalse(stock["news_positive_verified"])
+        self.assertIn("확정",render(build(inputs())))
+    def test_foreign_seen_after_asof_not_in_historical_context(self):
+        b=inputs()
+        b["sector_top3"][0]["global_news_observations"][0][
+          "seen_at_utc"]="2026-10-23T00:00:00+00:00"
+        self.assertEqual(build(b)["candidates"][0]["global_sector_context"],[])
+    def test_direct_company_filing_on_asof_day_not_used_without_timestamp(self):
+        b=inputs()
+        b["sector_top3"][0]["prior_day_dart_observations"][0]["date"]=DAY
+        self.assertEqual(build(b)["candidates"][0]["direct_company_filings"],[])
+    def test_stale_old_filing_not_counted(self):
+        b=inputs()
+        b["sector_top3"][0]["prior_day_dart_observations"][0]["date"]="2026-10-01"
+        self.assertEqual(build(b)["candidates"][0]["direct_company_filings"],[])
+    def test_wrong_dart_host_and_unsafe_url_rejected(self):
+        self.assertIsNone(official_url("https://evil.example.com/dsaf001/main.do?rcpNo=20261021000001"))
+        self.assertIsNone(official_url("https://dart.fss.or.kr/dsaf001/main.do?rcpNo=3"))
+    def test_price_source_conflict_disables_entry_reference(self):
+        r=build(inputs())
+        price=r["candidates"][1]
+        self.assertFalse(price["checks"]["completed_daily_structure_reference"])
+        self.assertIsNone(price["entry1_research"])
+        self.assertTrue(price["checks"]["price_conflict"])
+    def test_recent_financial_weakening_veto_after_annual_success(self):
+        r=build(inputs())
+        price=r["candidates"][1]
+        self.assertTrue(price["checks"]["recent_ytd_weakening"])
+        self.assertFalse(price["checks"]["annual_and_interim_growth"])
+    def test_stale_or_missing_flow_never_faked(self):
+        b=inputs();b["daily_money_rank_applied"]=False
+        r=build(b)
+        self.assertFalse(r["sector_money_asof_aligned"])
+        self.assertFalse(r["candidates"][0]["checks"]["positive_daily_sector_flow"])
+    def test_relative_evidence_strength_is_not_85_score(self):
+        r=build(inputs())
+        self.assertLessEqual(r["candidates"][0]["research_evidence_strength"],6)
+        self.assertFalse(r["relative_evidence_strength_is_investment_score"])
+        self.assertFalse(r["trade_approved"])
+    def test_cohort_dedup_preserves_absolute_top5_before_watchlists(self):
+        r=build(inputs())
+        self.assertEqual([x["ticker"] for x in r["candidates"]],
+                         ["005930","010120"])
+        self.assertEqual(r["absolute_top5_count"],2)
+    def test_missing_all_evidence_cash_without_fake_data(self):
+        r=build(dict(asof=DAY,sector_top3=[],stock_research_top5=[]))
+        self.assertEqual(r["candidate_count"],0)
+        self.assertEqual(r["decision"],"CASH")
+        self.assertIn("당일 적격 후보 없음",render(r))
+    def test_duplicate_same_company_filing_is_counted_once(self):
+        b=inputs()
+        b["sector_top3"][0]["prior_day_dart_observations"].append(
+            b["sector_top3"][0]["prior_day_dart_observations"][0].copy())
+        self.assertEqual(len(build(b)["candidates"][0]["direct_company_filings"]),1)
+    def test_naive_discovery_time_is_rejected(self):
+        self.assertFalse(asof_seen("2026-10-21T12:00:00",__import__("datetime").date(2026,10,22)))
+    def test_unmatched_sector_prevents_leak_of_fundamental_watches(self):
+        b=inputs()
+        b["financial_quality_watch_top5"].append(dict(
+            ticker="012345",name="외부회사",sector_id="UNSELECTED",sales_yoy_pct=27))
+        self.assertNotIn("012345",[r["ticker"] for r in build(b)["candidates"]])
+
+if __name__=="__main__":unittest.main()
