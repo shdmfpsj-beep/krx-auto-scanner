@@ -58,6 +58,27 @@ class SectorFirstTests(unittest.TestCase):
         self.assertEqual(len(result["sector_leader_watch"]),2)
         self.assertNotIn("SHIP",[r["sector_id"] for r in result["sector_leader_watch"]])
         self.assertIn("데이터 부족",render(result))
+    def test_pre_expansion_money_sectors_are_visible_but_never_approved(self):
+        s,sectors,stocks=inputs()
+        s["research_top3_sector_ids"]=["CONSTRUCTION","POWER","DEFENSE"]
+        sectors=[]
+        for sid,breadth in (("CONSTRUCTION",43.75),("POWER",16.67),("DEFENSE",0)):
+            sectors.append(dict(sector_id=sid,sector_name=sid,asof=str(D),
+               research_eligible="YES",trade_approval="NO",
+               day_net_1d_incremental_krw="100000000",
+               day_breadth_up_pct=str(breadth),
+               flow_phase=("NARROW_POSITIVE" if breadth else "DIVERGENT_ALL_DOWN")))
+        stocks[0]["sector_id"]="CONSTRUCTION"
+        out=build(s,sectors,stocks,D)
+        self.assertEqual(len(out["sector_top3"]),3)
+        self.assertEqual(out["pre_expansion_sector_count"],3)
+        self.assertEqual(out["status"],"EARLY_FLOW_WATCH_ONLY")
+        self.assertEqual(out["decision"],"CASH")
+        self.assertFalse(out["orders_enabled"])
+        self.assertTrue(all(x["buy_approval"]=="NO" for x in out["sector_top3"]))
+        self.assertIn("DIVERGENT_ALL_DOWN",render(out))
+        self.assertIn("자금 선행",render(out))
+
     def test_stale_sector_data_never_becomes_current_top3(self):
         s,sectors,stocks=inputs()
         o=build(s,sectors,stocks,D+timedelta(days=1))
@@ -99,7 +120,7 @@ class SectorFirstTests(unittest.TestCase):
         o=build({},[],[],D)
         md=render(o)
         self.assertIn("CASH",md)
-        self.assertIn("오늘 확정할 섹터 없음",md)
+        self.assertIn("확인 가능한 자금유입 섹터 없음",md)
         self.assertEqual(o["sector_top3"],[])
         self.assertFalse(o["orders_enabled"])
     def test_source_stock_not_approved(self):
