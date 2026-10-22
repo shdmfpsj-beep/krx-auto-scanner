@@ -114,6 +114,13 @@ def apply_daily_money_rank(ranked,summary,report):
     out=dict(summary)
     rows=[dict(x) for x in ranked]
     out["daily_money_rank_applied"]=False
+    if isinstance(report,dict):
+        # Pass source-quality evidence all the way to final mobile reports.
+        # A data-error must not silently become an economic "zero sectors".
+        out["market_ohlc_quality_verified"]=report.get("market_ohlc_quality_verified")
+        out["raw_ohlc_conflict_count"]=report.get("raw_ohlc_conflict_count")
+        out["raw_tradable_ohlc_checked"]=report.get("raw_tradable_ohlc_checked")
+        out["raw_ohlc_conflict_pct"]=report.get("raw_ohlc_conflict_pct")
     chosen=report.get("selected_top3") if isinstance(report,dict) else None
     if (isinstance(report,dict) and
         report.get("market_ohlc_quality_verified") is False):
