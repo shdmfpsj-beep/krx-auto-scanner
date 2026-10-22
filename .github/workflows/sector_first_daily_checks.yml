@@ -239,13 +239,13 @@ jobs:
               "Run C3 one-position account-level paper risk and equity simulation",
               "Independently audit the evidence for profitable C3 execution"]
           for title in gated:
-              marker="      - name: "+title+"\\n"
+              marker="      - name: "+title+chr(10)
               assert marker in src,title
               rest=src.split(marker,1)[1].split("      - name: ",1)[0]
               assert "steps.source_inputs.outputs.ready == 'true'" in rest,title
           for title in ("Render mobile report (CASH on missing or stale evidence)",
                         "Produce short phone-first TOP3 sector and TOP5 price report"):
-              marker="      - name: "+title+"\\n"
+              marker="      - name: "+title+chr(10)
               assert marker in src
               assert "if: always()" in src.split(marker,1)[1].split("      - name: ",1)[0]
           print("INVALID_MARKET_FAST_CASH_CONTRACT_PASSED")
