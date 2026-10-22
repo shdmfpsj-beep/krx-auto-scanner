@@ -90,19 +90,27 @@ class LegacyTables(HTMLParser):
         self.rows=[]
         self.row=None
         self.cell=None
+    def finish_cell(self):
+        if self.cell is not None and self.row is not None:
+            self.row.append("".join(self.cell))
+            self.cell=None
+    def finish_row(self):
+        self.finish_cell()
+        if self.row is not None and len(self.row)>=2:
+            self.rows.append(self.row[:30])
+        self.row=None
     def handle_starttag(self,tag,attrs):
-        if tag=="tr" and self.row is None:self.row=[]
-        elif tag in ("td","th") and self.row is not None and self.cell is None:
+        if tag=="tr":
+            self.finish_row()
+            self.row=[]
+        elif tag in ("td","th") and self.row is not None:
+            self.finish_cell()
             self.cell=[]
     def handle_data(self,data):
         if self.cell is not None:self.cell.append(data)
     def handle_endtag(self,tag):
-        if tag in ("td","th") and self.cell is not None and self.row is not None:
-            self.row.append("".join(self.cell))
-            self.cell=None
-        elif tag=="tr" and self.row is not None:
-            if len(self.row)>=2:self.rows.append(self.row[:30])
-            self.row=None;self.cell=None
+        if tag in ("td","th"):self.finish_cell()
+        elif tag in ("tr","table"):self.finish_row()
 
 def text_decode(raw):
     head=raw[:500].decode("ascii","ignore")
