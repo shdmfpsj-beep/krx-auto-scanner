@@ -52,11 +52,26 @@ def daily_evidence(evidence,asof,expected_sectors=None):
             raise ValueError("CORE_DATA_UNVERIFIED_"+key.upper())
     prices={}
     flows=defaultdict(dict)
+    raw_tradable_count=0
+    raw_ohlc_conflicts=0
+    raw_nontrading_count=0
     for market in ("KOSPI","KOSDAQ"):
         for r in evidence.csv("market/daily_prices/"+market+"/"+asof+".csv"):
             t=r.get("ticker")
             close=num(r.get("Close"));turnover=num(r.get("TurnoverKRW"))
-            if not (t and len(t)==6 and t.isdigit() and close and turnover is not None and turnover>=0):
+            op=num(r.get("Open"));hi=num(r.get("High"));lo=num(r.get("Low"))
+            if not (t and len(t)==6 and t.isdigit() and close and close>0
+                    and turnover is not None and turnover>=0):
+                continue
+            # Some suspended stocks have 0/0/0 OHLC but a last known close.
+            # They are not completed trading bars and cannot confirm breadth.
+            if op==0 and hi==0 and lo==0:
+                raw_nontrading_count+=1
+                continue
+            raw_tradable_count+=1
+            if (op is None or hi is None or lo is None or
+                not (0<lo<=min(op,close)<=max(op,close)<=hi)):
+                raw_ohlc_conflicts+=1
                 continue
             if t in prices:raise ValueError("DUPLICATE_TICKER_MARKET")
             prices[t]=r
@@ -120,6 +135,12 @@ def daily_evidence(evidence,asof,expected_sectors=None):
                         prev and 0<(target-prev).days<=10 and
                         now_close is not None and prev_close and prev_close>0) else None
             up=ticker_cache[t]
+            # Breadth must use the same valid completed close as the
+            # investor-flow snapshot, not a silently revised 1D price.
+            if up is not None and t in prices and (
+                num(tail[-1].get("Close")) is None or
+                abs(num(tail[-1]["Close"])-num(prices[t]["Close"]))>0.00001):
+                up=None
             if up is not None:
                 by_company[t]=up
         breadth_coverage=len(by_company)/len(all_valid)
@@ -147,8 +168,14 @@ def daily_evidence(evidence,asof,expected_sectors=None):
             base_eligible=eligible,positive_catalyst_verified=False,
             investor_flow_by_ticker=daily_flow,
             included_tickers=sorted(included),rank_kind="ETF_CONSTITUENT_DAILY_FLOW_PROXY"))
+    # If many traded OHLC candles violate Low <= Open,Close <= High,
+    # do not rank seemingly attractive sectors from a corrupt market slice.
+    conflict_rate=(raw_ohlc_conflicts/raw_tradable_count
+                   if raw_tradable_count else 1.0)
+    market_ohlc_quality_verified=bool(conflict_rate<=0.01)
     used=set()
-    remaining=[x for x in sector_data if x["base_eligible"] and
+    remaining=[x for x in sector_data if market_ohlc_quality_verified
+               and x["base_eligible"] and
                x["day_net_flow_krw"]>0 and x["day_breadth_pct"] is not None]
     chosen=[]
     while len(chosen)<3 and remaining:
@@ -182,7 +209,8 @@ def daily_evidence(evidence,asof,expected_sectors=None):
     # Additional money-inflow candidates outside TOP3. Breadth under 60%
     # is an EARLY/WARNING classification, never a reason to conceal the flow.
     selected_ids={x["sector_id"] for x in chosen}
-    watch_pool=[x for x in sector_data if x["base_eligible"]
+    watch_pool=[x for x in sector_data if market_ohlc_quality_verified
+                and x["base_eligible"]
                 and x["day_net_flow_krw"]>0 and
                 x["day_breadth_pct"] is not None and
                 x["sector_id"] not in selected_ids]
@@ -216,6 +244,13 @@ def daily_evidence(evidence,asof,expected_sectors=None):
                         if k not in ("included_tickers","investor_flow_by_ticker")})
     return dict(schema=SCHEMA,asof=asof,source="KRX via PyKrx v18 raw dated ETF members",
       market_price_stock_count=len(prices),
+      raw_tradable_ohlc_checked=raw_tradable_count,
+      raw_ohlc_conflict_count=raw_ohlc_conflicts,
+      raw_nontrading_count=raw_nontrading_count,
+      raw_ohlc_conflict_pct=round(100*conflict_rate,2),
+      market_ohlc_quality_verified=market_ohlc_quality_verified,
+      market_source_status=("OK" if market_ohlc_quality_verified else
+                            "RAW_MARKET_OHLC_CONFLICT_HIGH"),
       sector_samples=compact,selected_top3=chosen,
       watch_only_positive_flow_top3=watch,
       complete_three=len(chosen)==3,
@@ -233,6 +268,9 @@ def render(data):
     lines=["# KRX 당일 실측 수급 중심 섹터 TOP3","",
       "**CASH · 실측 수급 순위는 최종 매수 승인과 다릅니다.**","",
       "데이터 기준일: "+data["asof"],"",
+      "시장 OHLC 품질: "+data["market_source_status"]+
+      " / 거래일봉 모순 "+str(data["raw_ohlc_conflict_count"])+
+      "건 ("+str(data["raw_ohlc_conflict_pct"])+"%)","",
       "| 연구 순위 | 섹터 | 중복제거 순매수(억) | 전체 구성종목 순매수(억) | 거래대금(억) | 상승확산 | 단계 | 5일 합산 순매수(억) |",
       "|---|---|---:|---:|---:|---:|---|---:|"]
     def eok(x):return f"{x/1e8:,.0f}"
@@ -252,6 +290,8 @@ def render(data):
                   f"{eok(row['incremental_day_net_flow_krw'])} | "
                   f"{row['day_breadth_pct']}% | {row['exclusion_reason']} |")
             lines.append("이 목록은 ETF 구성종목 수급의 잠정 관찰순위로 BUY 추천이 아닙니다.")
+    if not data["market_ohlc_quality_verified"]:
+        lines+=["","**가격·고가·저가가 서로 모순되는 당일 일봉이 많아 섹터 선정 보류(CASH).**"]
     lines+=["","*상승확산 60%는 관찰 단계 분류 기준입니다. 매수 승인이 아닙니다.",
         "*상승 종목 0% 상태의 순매수는 하락 종목 흡수/집중 매수 가능성도 있으므로 추세 확정 금지.",
         "*ETF 현금성 항목 제외·가격/매매주체 정보 누락 종목 점검 완료.",
