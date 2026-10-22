@@ -158,9 +158,14 @@ jobs:
                       print(f"SKIP_NON_BACKFILL run_id={run['id']}")
                       continue
                     state=json.loads(archive.read(statuses[0]))
-                    needed=("prices","flows","etf_prices","holdings","normalization")
+                    needed=("prices","price_ohlc_integrity","flows","etf_prices","holdings","normalization")
                     if any(state.get("datasets",{}).get(k,{}).get("status")!="OK" for k in needed):
-                      print(f"SKIP_INCOMPLETE_CORE run_id={run['id']}")
+                      print(f"SKIP_INCOMPLETE_CORE_OR_OHLC run_id={run['id']} "
+                            f"price_ohlc_integrity={state.get('datasets',{}).get('price_ohlc_integrity',{}).get('status','MISSING')}")
+                      continue
+                    if (state.get("orders_enabled") is not False or
+                        state.get("overall_status")!="EVIDENCE_PARTIAL_CATALYST_PIT_PENDING"):
+                      print(f"SKIP_NON_READONLY_OR_UNVERIFIED_SOURCE run_id={run['id']}")
                       continue
                   for entry in archive.infolist():
                     target=Path(dest,entry.filename)
