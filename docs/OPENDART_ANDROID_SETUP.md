@@ -1,19 +1,31 @@
-# 안드로이드 스마트폰으로 OpenDART 연결하기 (2026-10-22)
+# Android OpenDART 연결 가이드 (2026-10-22 수정)
 
-**현재 GitHub에서 확인한 연결 상태: `MISSING_DART_KEY`**
+**기존 등록명 `OPENDART_API_KEY` 유지 — 새 비밀키를 생성하거나 인증키를 다시 붙여 넣을 필요 없음.**
 
-코드는 준비되어 있지만 GitHub Actions의 `DART_API_KEY` 값이 비어 있습니다.
-이는 OpenDART 홈페이지에서 인증키를 발급받았는지와 별개의 문제입니다.
+사용자 GitHub 화면에서 기존 `OPENDART_API_KEY`의 **Update secret** 페이지가 확인됐습니다.
+기존 보고의 `MISSING_DART_KEY`는 새 일일 금융 분석 코드가 실수로
+`DART_API_KEY`만 읽었던 **워크플로 연결 오류**입니다.
 
-## 처음 한 번만 설정
+이제 일일 스크리너/섹터 증거 수집/접속 검사에서 GitHub 비밀키를 다음 순서로 선택합니다.
 
-1. 휴대폰 Chrome에서 [저장소 Actions 비밀키 설정](https://github.com/shdmfpsj-beep/krx-auto-scanner/settings/secrets/actions)을 엽니다.
-2. `Settings → Secrets and variables → Actions → New repository secret`로 이동합니다.
-   메뉴가 잘 안 보이면 브라우저 메뉴에서 **데스크톱 사이트**로 전환합니다.
-3. **Name:** `DART_API_KEY` (대소문자와 밑줄 정확히 입력).
-4. **Secret:** 본인이 발급받은 OpenDART API 인증키를 붙여 넣습니다.
-5. `Add secret`을 탭합니다. 키 값을 채팅·이슈·로그·소스코드에 작성하지 않습니다.
-6. [OpenDART 무료 연결 검사](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/dart_financial_connection_checks.yml)에서 `Run workflow`를 눌러 검사를 실행합니다.
+1. `OPENDART_API_KEY` (기존 이름 최우선)
+2. `OPEN_DART_API_KEY` (일부 이전 모듈 호환)
+3. `DART_API_KEY` (이전 별칭 호환)
+
+Python 금융 연구 코드에서도 세 이름을 지원합니다. GitHub Secrets의 실제 값은
+API·코드·로그에 노출하지 않습니다.
+
+## 실제 연결 확인 (모바일)
+
+1. [연결 검사 워크플로](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/dart_financial_connection_checks.yml)를 엽니다.
+2. 자동 실행된 최근 검사를 선택하거나, `Run workflow`를 눌러 실행합니다.
+3. `Check actual official OpenDART API with one Korean listed test company` 단계에서
+   `OPEN_DART_CONNECTIVITY_STATUS`를 확인합니다.
+4. `MISSING_DART_KEY`가 아니면 이름 불일치 문제는 해결된 것입니다.
+   공시/기업 고유번호 다운로드 등 후속 검사가 성공했는지도 별도로 확인해야 합니다.
+
+기존 GitHub `OPENDART_API_KEY` 설정은 바꾸지 마세요.
+보안상 비밀키를 채팅이나 GitHub 이슈·코드에 보내지 마세요.
 
 ## 성공 여부 판정
 
@@ -21,7 +33,7 @@
 
 | 결과 | 뜻 | 조치 |
 |---|---|---|
-| `MISSING_DART_KEY` | GitHub Secret 값이 없음 | Secret을 등록 |
+| `MISSING_DART_KEY` | 이름/값을 찾지 못함 — 기존 OPENDART_API_KEY가 해당 저장소에서 사용되는지 확인 | Secret을 등록 |
 | `INVALID_DART_KEY_FORMAT` | 길이/형식 부적합 | 정확한 원본 값 확인 |
 | `CORPCODE_DOWNLOAD_FAILED_...` | 고유번호 API 조회 실패 | 인증키 유효성·API 서버 상태 확인 |
 | `NO_ELIGIBLE_DATED_ANNUAL_FILING` | 해당 기준일에 적격 연간 사업보고서 검색 실패 | 접수일·회사별 공시 확인 |
