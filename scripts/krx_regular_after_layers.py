@@ -76,10 +76,24 @@ def split(regular,after):
     if regular.get("asof")!=after.get("asof"):errors.append("DATE_PAIR_MISMATCH")
     # Snapshot times are observational, not explicit trade timestamps.
     errors+=assess_capture(regular)
-    if window_check:=after.get("capture_window")!="AFTERMARKET_FINISHED":
+    if after.get("capture_window")!="AFTERMARKET_FINISHED":
         errors.append("AFTER_CAPTURE_WINDOW_MISSING")
+    if after.get("capture_completed_window")!="AFTERMARKET_FINISHED":
+        errors.append("AFTER_CAPTURE_FINISHED_OUTSIDE_WINDOW")
+    if after.get("source")!=SOURCE:
+        errors.append("AFTER_SOURCE_PROVENANCE_MISMATCH")
     deltas=[];different=0;outside=0
-    if not errors or set(errors)=={"PROVIDER_REGULAR_SESSION_SCOPE_NOT_ATTESTED"}:
+    # Diagnostic differences may be valuable precisely *because* the data is
+    # anomalous. Compare matching dated/time-bounded observations without
+    # upgrading them to regular-only evidence or making trading decisions.
+    comparison_ok=(regular.get("phase")=="regular" and
+        after.get("phase")=="after" and regular.get("asof")==after.get("asof")
+        and regular.get("capture_window")=="POST_REGULAR_PRE_OFFHOURS"
+        and regular.get("capture_completed_window")=="POST_REGULAR_PRE_OFFHOURS"
+        and after.get("capture_window")=="AFTERMARKET_FINISHED"
+        and after.get("capture_completed_window")=="AFTERMARKET_FINISHED"
+        and regular.get("source")==SOURCE and after.get("source")==SOURCE)
+    if comparison_ok:
         for ticker,r in (regular.get("stocks") or {}).items():
             a=(after.get("stocks") or {}).get(ticker)
             if not a or r.get("market")!=a.get("market"):continue
@@ -104,7 +118,9 @@ def split(regular,after):
                 after=dict(asof=after.get("asof"),source=after.get("source"),
                     capture_window=after.get("capture_window"),quality=after.get("quality"),
                     strategy_use=False),
-                comparison=dict(changed_snapshot_close_count=different,
+                comparison=dict(
+                    eligible_for_observational_comparison=comparison_ok,
+                    changed_snapshot_close_count=different,
                     invalid_after_price_vs_high_low_count=outside,
                     examples=deltas,observed_price_differences_are_not_execution_timestamps=True),
                 blockers=list(dict.fromkeys(errors)),
