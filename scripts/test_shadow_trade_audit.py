@@ -99,6 +99,23 @@ class ShadowTests(unittest.TestCase):
         self.assertEqual(results[0]["status"],"CLOSED")
         self.assertEqual(stats["closed_count"],1)
 
+    def test_no_stock_bar_after_market_session_is_missing_not_pending(self):
+        r=evaluate(SIG,[],market_sessions=DATES)
+        self.assertEqual(r["status"],"MISSING_NEXT_SESSION_PRICE")
+    def test_missing_next_session_cannot_count_as_late_entry_win(self):
+        series=[bar(DATES[1],high=111,low=97)]
+        r=evaluate(SIG,series,market_sessions=DATES)
+        self.assertEqual(r["status"],"MISSING_NEXT_SESSION_PRICE")
+    def test_missing_intermediate_session_cannot_disappear_from_loss_stats(self):
+        series=[bar(DATES[0],high=105,low=97),
+                bar(DATES[2],high=112,low=97)]
+        r=evaluate(SIG,series,market_sessions=DATES)
+        self.assertEqual(r["status"],"MISSING_INTERMEDIATE_SESSION_PRICE")
+    def test_market_calendar_does_not_invent_unobserved_future_session(self):
+        series=[bar(DATES[0],high=105,low=97)]
+        r=evaluate(SIG,series,market_sessions=[DATES[0]])
+        self.assertEqual(r["status"],"OPEN_WAIT_MORE_BARS")
+
     def test_ledger_disallows_comparing_two_different_versions(self):
         bad={**SIG,"plan_version":"unknown"}
         self.assertEqual(merge_signals([bad],[]),[])
