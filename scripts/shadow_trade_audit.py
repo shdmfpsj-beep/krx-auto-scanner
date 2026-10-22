@@ -261,7 +261,7 @@ def save(out,signals,results,stats):
     txt+=["","규칙: 신호 다음 거래일 시초가 진입, 갭상승 추격 금지, 구조 손절, 2R 목표, 5거래일 만기.",
       "같은 일봉에서 손절과 목표를 동시에 만졌다면 손절을 먼저 적용합니다.",
       "30건 미만 또는 표본 편향 검증 전 성과는 투자 우위가 입증됐다는 뜻이 아닙니다.",
-      "**최종 신규매수: CASH — 별도의 종목 85점 검증·실제 타점 확인 필요.**",""]
+      "**최종 신규매수: CASH — 별도의 종목 80점 검증·실제 타점 확인 필요.**",""]
     (out/"shadow_scorecard_mobile.md").write_text("\n".join(txt),encoding="utf-8")
     # Keep the two-table sector-first report intact, with one short
     # prospective performance paragraph at the end for phone readers.
