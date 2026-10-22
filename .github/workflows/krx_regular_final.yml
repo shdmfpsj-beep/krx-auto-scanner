@@ -1,0 +1,100 @@
+name: C3 K100 18:10 regular-only final evidence report
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekdays 18:10 KST (09:10 UTC), before user's 18:30 final alert.
+    - cron: '10 9 * * 1-5'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/regular_only_policy.py'
+      - 'scripts/regular_final_report.py'
+      - 'scripts/test_regular_final_report.py'
+      - 'scripts/krx_session_probe.py'
+      - '.github/workflows/krx_regular_final.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/regular_only_policy.py'
+      - 'scripts/regular_final_report.py'
+      - 'scripts/test_regular_final_report.py'
+      - 'scripts/krx_session_probe.py'
+      - '.github/workflows/krx_regular_final.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: c3-k100-regular-final
+  cancel-in-progress: false
+
+jobs:
+  regular-final-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/regular_only_policy.py
+            /scripts/regular_final_report.py
+            /scripts/krx_session_probe.py
+            /scripts/test_regular_final_report.py
+            /config/c3_position_state.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Offline safe-market policy regression
+        run: |
+          python -m py_compile scripts/regular_only_policy.py scripts/regular_final_report.py scripts/krx_session_probe.py scripts/test_regular_final_report.py
+          python -m unittest discover -s scripts -p test_regular_final_report.py -v
+      - name: Select today 15:45 regular-only snapshot without after-hours data
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/regular
+          python - <<'PY'
+          import json,subprocess,datetime,os
+          from zoneinfo import ZoneInfo
+          kst=ZoneInfo("Asia/Seoul")
+          now=datetime.datetime.now(kst)
+          day=now.date().isoformat()
+          repo=os.environ["GH_REPO"]
+          out=subprocess.run(["gh","api",f"repos/{repo}/actions/workflows/krx_session_probe.yml/runs?per_page=30"],
+                             capture_output=True,text=True,check=True)
+          runs=json.loads(out.stdout).get("workflow_runs",[])
+          chosen=None
+          for run in runs:
+              if run.get("conclusion")!="success" or run.get("head_branch")!="main":
+                  continue
+              ts=datetime.datetime.fromisoformat(run["created_at"].replace("Z","+00:00")).astimezone(kst)
+              if ts.date().isoformat()!=day or ts.hour!=15:
+                  continue
+              arts=json.loads(subprocess.run(["gh","api",f"repos/{repo}/actions/runs/{run['id']}/artifacts?per_page=100"],
+                    capture_output=True,text=True,check=True).stdout).get("artifacts",[])
+              a=next((x for x in arts if x.get("name")=="krx-session-regular" and not x.get("expired")),None)
+              if not a:continue
+              chosen=run["id"]
+              break
+          if chosen:
+              result=subprocess.run(["gh","run","download",str(chosen),"-R",repo,
+                    "-n","krx-session-regular","-D","inputs/regular"],capture_output=True,text=True)
+              print("REGULAR_SNAPSHOT_SOURCE_RUN",chosen)
+              print("DOWNLOAD_EXIT",result.returncode)
+          else:
+              print("REGULAR_SNAPSHOT_MISSING_TODAY")
+          PY
+      - name: Generate conservative regular-session report (never from 20:00 bars)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: python scripts/regular_final_report.py --out output/regular_final
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: krx-regular-final-report
+          path: output/regular_final/
+          retention-days: 14
