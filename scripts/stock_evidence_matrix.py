@@ -188,7 +188,9 @@ def build(report,contracts=None):
             annual_filing_verified=annual_verified,
             current_interim_ytd_verified=verified_interim,
             annual_and_interim_growth=dual_growth,
-            recent_ytd_weakening=weakness,
+            recent_ytd_weakening=historical_weakness,
+            recent_preliminary_quarter_weakening=preliminary_weakness,
+            any_recent_earnings_weakening=weakness,
             direct_dart_filing_title_observed=bool(direct),
             global_sector_article_observed=bool(global_items),
             completed_daily_structure_reference=price_ready,
@@ -200,7 +202,7 @@ def build(report,contracts=None):
         if prelim and not any(x["financial_figures_verified"] for x in prelim):
             reasons.append("FRESH_PRELIMINARY_EARNINGS_NUMBERS_NOT_PARSED")
         if preliminary_weakness:reasons.append("RECENT_PRELIMINARY_QUARTER_WEAKENING")
-        if weakness:reasons.append("RECENT_YTD_WEAKENING")
+        if historical_weakness:reasons.append("RECENT_YTD_WEAKENING")
         if conflict:reasons.append("CROSS_SOURCE_CLOSE_CONFLICT")
         if not price_ready:reasons.append("COMPLETED_DAILY_ENTRY_STOP_NOT_VERIFIED")
         if not direct:reasons.append("NO_DIRECT_COMPANY_FILING_IN_SAMPLE")
@@ -274,7 +276,7 @@ def render(data):
     for x in data.get("candidates",[]):
         if x["cohort"]!="ABSOLUTE_TOP5":continue
         c=x["checks"]
-        financial=("약화" if c["recent_ytd_weakening"]
+        financial=("약화" if c["any_recent_earnings_weakening"]
             else "성장 확인" if c["annual_and_interim_growth"]
             else "누적 확인" if c["current_interim_ytd_verified"]
             else "미검증")
