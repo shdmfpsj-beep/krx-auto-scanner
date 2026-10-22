@@ -18,8 +18,25 @@ def nominal_regular_day(now):
     while d.weekday()>=5:d-=timedelta(days=1)
     return d.isoformat()
 
-def report(snapshot,day):
+def report(snapshot,day,kis_audit=None):
     snap=snapshot if isinstance(snapshot,dict) else {}
+    probe=kis_audit if isinstance(kis_audit,dict) else {}
+    probe_date=str(probe.get("date",""))
+    probe_date_valid=(probe_date==day.replace("-",""))
+    probe_results=probe.get("regular_reconstructions") or []
+    valid_probes=([r for r in probe_results
+                   if isinstance(r,dict)
+                   and r.get("asof")==probe_date
+                   and r.get("market_code")=="J"
+                   and r.get("regular_ohlcv_reconstruction_verified") is True
+                   and r.get("trade_approved") is False
+                   and isinstance(r.get("regular_ohlcv"),dict)]
+                  if probe_date_valid and isinstance(probe_results,list) else [])
+    audited=probe.get("audited_tickers") or []
+    kis_probe_status=("NOT_CONNECTED" if not probe else
+                      "SOURCE_ASOF_MISMATCH" if not probe_date_valid else
+                      "REGULAR_MINUTE_PRICE_SUBSET_OBSERVED" if valid_probes else
+                      probe.get("data_status","PENDING_MARKET_DATA_VALIDATION"))
     blockers=assess_capture(snap) if snap else ["SNAPSHOT_MISSING"]
     if snap.get("asof")!=day:blockers.append("REGULAR_SOURCE_ASOF_MISMATCH")
     if snap.get("trade_session")!=REGULAR or snap.get("phase")!="regular":
@@ -40,6 +57,14 @@ def report(snapshot,day):
         regular_snapshot_available=bool(snap.get("stocks")),
         provider_session_scope_verified=snap.get("provider_session_scope_verified") is True,
         regular_quality=snap.get("quality") or {},
+        kis_krx_minute_price_probe=dict(status=kis_probe_status,
+          asof=probe_date or None,market="J:KRX",audited_tickers=audited,
+          verified_subset_count=len(valid_probes),
+          ticker_samples=[dict(ticker=r.get("ticker"),
+             ohlcv=r.get("regular_ohlcv"),
+             minute_count=r.get("minutes_seen")) for r in valid_probes],
+          market_wide_validated=False,investor_flow_validated=False,
+          strategy_price_source_authorized=False),
         sector_top3=[],stock_research_top5=[],
         sector_selection_outcome="PENDING_DATA_VALIDATION",
         stock_selection_outcome="PENDING_DATA_VALIDATION",
@@ -63,6 +88,8 @@ def markdown(r):
       f"| OHLC 유효성 확인 | {q.get('checked','미확인')}건 검사 / 오류 {q.get('invalid','미확인')}건 |",
       f"| 제공자 정규장 구간 보증 | {'확인' if r['provider_session_scope_verified'] else '미검증'} |",
       "| 외국인·기관 정규장 수급 | 별도 검증 필요 |",
+      "| 공식 KIS KRX 분봉 교차검증 | "+str(r.get("kis_krx_minute_price_probe",{}).get("status"))+
+        " / 유효 종목 "+str(r.get("kis_krx_minute_price_probe",{}).get("verified_subset_count",0))+"개 |",
       "| 섹터 TOP3 | 최종 판정 보류 |",
       "| 종목 TOP5 | 최종 판정 보류 |",
       "",
@@ -70,6 +97,7 @@ def markdown(r):
       "",
       "정규장 종가 확인 시점에 수집한 자료라도 데이터 공급원이 정규장 구간만 포함했는지는 별도 입증해야 합니다.",
       "애프터마켓 체결가·고저가·누적거래량을 정규장 값으로 수정·대체하지 않습니다.",
+      "KIS 분봉이 있더라도 일부 종목의 정규장 가격 교차검증 용도이며 시장 전체 수급 또는 매수 신호가 아닙니다.",
       "",
       "**Required Next Data:** 공급원 정규장 전용 시세 검증, 정규장 구간 외국인·기관 수급, 유효 일봉 65개 및 가격 구조.",
     ]
@@ -78,6 +106,7 @@ def markdown(r):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--regular",required=True)
+    p.add_argument("--kis-audit",default="")
     p.add_argument("--date",default="")
     p.add_argument("--out",default="output")
     a=p.parse_args()
@@ -85,7 +114,11 @@ def main():
     try:snap=json.loads(src.read_text(encoding="utf-8"))
     except (OSError,TypeError,ValueError):snap={}
     day=a.date or nominal_regular_day(datetime.now(ZoneInfo("Asia/Seoul")))
-    r=report(snap,day)
+    probe={}
+    if a.kis_audit:
+        try:probe=json.loads(Path(a.kis_audit).read_text(encoding="utf-8"))
+        except (OSError,ValueError,TypeError):pass
+    r=report(snap,day,probe)
     out=Path(a.out);out.mkdir(parents=True,exist_ok=True)
     (out/"regular_only_final_status.json").write_text(json.dumps(r,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     (out/"regular_only_final_mobile.md").write_text(markdown(r),encoding="utf-8")
