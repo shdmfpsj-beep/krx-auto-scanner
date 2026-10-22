@@ -57,6 +57,8 @@ def build(summary, sector_rows, stock_rows, today):
     asof=iso_day(summary.get("asof"))
     scan=iso_day(summary.get("scan_date"))
     blockers=[]
+    if summary.get("daily_money_gate")=="MARKET_OHLC_CONFLICT":
+        blockers.append("TODAYS_MARKET_OHLC_INVALID")
     if asof is None or scan is None or asof!=scan:
         blockers.append("SECTOR_SCAN_DATE_MISMATCH")
     if asof is None or asof!=today:
