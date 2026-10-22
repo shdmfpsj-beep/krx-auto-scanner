@@ -138,6 +138,10 @@ def build(report,contracts=None):
                 document_amount_krw=terms.get("amount_krw"),
                 document_sales_ratio_pct=terms.get("disclosed_sales_ratio_pct"),
                 single_filing_arithmetic_status=terms.get("consistency","NOT_TESTABLE"),
+                potential_intragroup_revenue_recognition_risk=bool(
+                    terms.get("potential_intragroup_revenue_recognition_risk")),
+                counterparty_affiliation_review=terms.get(
+                    "counterparty_affiliation_review","COUNTERPARTY_NOT_VERIFIED"),
                 raw_xml_cells_are_corroborated_contract_terms=False,
                 actual_revenue_effect_verified=False))
         direct=[]
@@ -215,6 +219,9 @@ def build(report,contracts=None):
         if historical_weakness:reasons.append("RECENT_YTD_WEAKENING")
         if conflict:reasons.append("CROSS_SOURCE_CLOSE_CONFLICT")
         if not price_ready:reasons.append("COMPLETED_DAILY_ENTRY_STOP_NOT_VERIFIED")
+        if any(x["potential_intragroup_revenue_recognition_risk"]
+               for x in originals):
+            reasons.append("AFFILIATE_COUNTERPARTY_CONSOLIDATED_REVENUE_RISK")
         if not direct:reasons.append("NO_DIRECT_COMPANY_FILING_IN_SAMPLE")
         if global_items:reasons.append("GLOBAL_NEWS_ONLY_SECTOR_CONTEXT")
         row=dict(ticker=t,name=str(original.get("name") or t),
@@ -240,10 +247,15 @@ def build(report,contracts=None):
                     "DART_DOCUMENT_SGML_TABLES_PARSED")
                 for x in originals),
             direct_contract_amount_confirmed=False,
+            potential_intragroup_revenue_recognition_risk=any(
+                x["potential_intragroup_revenue_recognition_risk"]
+                for x in originals),
             document_labeled_contract_amounts=[dict(
                 receipt_no=x["receipt_no"],amount_krw=x["document_amount_krw"],
                 ratio_pct=x["document_sales_ratio_pct"],
-                arithmetic=x["single_filing_arithmetic_status"])
+                arithmetic=x["single_filing_arithmetic_status"],
+                potential_intragroup_revenue_recognition_risk=x[
+                  "potential_intragroup_revenue_recognition_risk"])
                 for x in originals if isinstance(x.get("document_amount_krw"),int)],
             global_sector_context=global_items,
             latest_annual_receipt_url=price.get("financial_receipt_url") or
@@ -312,6 +324,12 @@ def render(data):
                 "출처 충돌" if c["price_conflict"] else "미검증")+" |")
     if not any(x["cohort"]=="ABSOLUTE_TOP5" for x in data.get("candidates",[])):
         lines.append("| 당일 적격 후보 없음 | — | — | — | — |")
+    for x in data.get("candidates",[]):
+        if x["cohort"]=="ABSOLUTE_TOP5" and x.get(
+              "potential_intragroup_revenue_recognition_risk"):
+            lines.append("- **"+x["name"].replace("|","/")+
+               ": 계약상대 계열사 가능성 / 연결재무 내부거래 제거 여부 확인 전"
+               " 계약금액을 확정 외부매출·이익으로 환산 금지**")
     lines+=["","### 섹터별 글로벌 선행 뉴스의 올바른 해석",""]
     sectors=set()
     for x in data.get("candidates",[]):
