@@ -4,7 +4,7 @@ import io,zipfile,unittest,csv,tempfile
 from pathlib import Path
 from datetime import date
 from dart_financial_screen import (
-    annual_receipt,latest_periodic_filing,latest_interim_filing,parse_corps,extract_metric,evaluate_accounts,collect,render,
+    annual_receipt,latest_periodic_filing,latest_interim_filing,integer,parse_corps,extract_metric,evaluate_accounts,collect,render,
     read_stocks)
 
 ASOF=date(2026,10,22)
@@ -24,6 +24,12 @@ def filing(received="20260318",year=2025):
              rcept_no="20260318000001")])
 
 class DartAnnualTests(unittest.TestCase):
+    def test_exact_krw_financial_source_numbers_never_float_truncated(self):
+        self.assertEqual(integer("9,007,199,254,740,993"),9007199254740993)
+        self.assertEqual(integer("-9,007,199,254,740,993"),-9007199254740993)
+        self.assertIsNone(integer("12.5"))
+        self.assertIsNone(integer("1e18"))
+        self.assertIsNone(integer(True))
     def test_corp_code_zip_maps_six_digit_ticker(self):
         xml=b"""<?xml version="1.0" encoding="UTF-8"?>
           <result><list><corp_code>00126380</corp_code><corp_name>Samsung</corp_name>
