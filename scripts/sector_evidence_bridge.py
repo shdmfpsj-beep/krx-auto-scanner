@@ -115,6 +115,18 @@ def apply_daily_money_rank(ranked,summary,report):
     rows=[dict(x) for x in ranked]
     out["daily_money_rank_applied"]=False
     chosen=report.get("selected_top3") if isinstance(report,dict) else None
+    if (isinstance(report,dict) and
+        report.get("market_ohlc_quality_verified") is False):
+        out["research_top3_sector_ids"]=[]
+        out["daily_money_rank_applied"]=False
+        out["daily_money_gate"]="MARKET_OHLC_CONFLICT"
+        out["reason"]="Completed KRX OHLC integrity invalid ("+str(
+            report.get("raw_ohlc_conflict_pct","unknown"))+
+            "% contradictory bars); no sectors eligible for new money-flow research"
+        out["final_sector_top3_verified"]=False
+        out["trade_approvals"]=0
+        out["decision"]="CASH"
+        return rows,out
     valid=(isinstance(chosen,list) and chosen and
         report.get("schema")=="sector_daily_money_v1" and
         report.get("asof")==out.get("asof") and
@@ -136,7 +148,8 @@ def apply_daily_money_rank(ranked,summary,report):
         report.get("complete_three") is False and
         isinstance(report.get("sector_samples"),list) and
         bool(report["sector_samples"]) and
-        all(isinstance(x,dict) and x.get("sector_id")
+        all(isinstance(x,dict) and x.get("sector_id") and
+                x.get("base_eligible") is True
             for x in report["sector_samples"]) and
         not any(x.get("base_eligible") is True and
                 (number(x,"day_net_flow_krw") or 0)>0
