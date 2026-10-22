@@ -97,6 +97,16 @@ jobs:
                      for x in report["stock_research_top5"])
           assert report["decision"]=="CASH"
           assert not report["trade_approved"]
+          leaders=report["sector_leader_watch"]
+          observed=[x["sector_id"] for x in leaders]
+          assert len(observed)==len(set(observed))
+          assert set(observed)<=set(s["sector_id"] for s in report["sector_top3"])
+          assert not report["sector_watch_is_buy_recommendation"]
+          print("REAL_ASOF_SECTOR_LEADERS",
+                [(x["sector_id"],x["ticker"],x["name"]) for x in leaders])
+          print("REAL_ASOF_TOP5_COUNTS",report["stock_top5_sector_counts"])
+          print("REAL_ASOF_TOP5_CONCENTRATION",
+                report["stock_top5_concentration_warning"])
           print("REAL_20261021_SECTOR_TO_STOCK_BRIDGE_PASSED",
                 "stock_research_count",len(report["stock_research_top5"]))
           PY
