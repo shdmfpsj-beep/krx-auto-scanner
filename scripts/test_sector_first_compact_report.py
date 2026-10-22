@@ -52,6 +52,19 @@ class CompactTests(unittest.TestCase):
         self.assertIn("신규매수: CASH",md)
         self.assertNotIn("해당일 완결되지 않아",md)
 
+    def test_corrupt_market_ohlc_totals_are_visible_not_invented(self):
+        state={"asof":"2026-10-22","sector_selection_outcome":"PENDING_DATA_VALIDATION",
+               "stock_selection_outcome":"PENDING_DATA_VALIDATION",
+               "sector_top3":[],"stock_research_top5":[],
+               "raw_tradable_ohlc_checked":2563,
+               "raw_ohlc_conflict_count":657,"raw_ohlc_conflict_pct":25.63}
+        md=format_summary(state)
+        self.assertIn("657/2563",md)
+        self.assertIn("25.63%",md)
+        self.assertIn("최종 판정 보류",md)
+        self.assertNotIn("검증 완료: 적격 섹터 0개",md)
+        self.assertIn("CASH",md)
+
     def test_pre_expansion_flow_visible_in_final_report_without_buy(self):
         sector=dict(BASE["sector_top3"][0],name="건설",
                     day_net_flow_1d_incremental_krw=210491705060,
