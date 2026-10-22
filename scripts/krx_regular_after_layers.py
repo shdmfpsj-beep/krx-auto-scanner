@@ -35,6 +35,8 @@ def assess_capture(payload):
     expected=("POST_REGULAR_PRE_OFFHOURS" if phase=="regular"
               else "AFTERMARKET_FINISHED" if phase=="after" else "UNKNOWN_PHASE")
     if payload.get("capture_window")!=expected:blockers.append("CAPTURE_WINDOW_NOT_VERIFIED")
+    if payload.get("capture_completed_window")!=expected:
+        blockers.append("CAPTURE_FINISHED_OUTSIDE_SESSION_WINDOW")
     if payload.get("source")!=SOURCE:blockers.append("SOURCE_PROVENANCE_MISMATCH")
     q=payload.get("quality") or {}
     if not isinstance(q.get("checked"),int) or q["checked"]<100:
@@ -46,10 +48,12 @@ def assess_capture(payload):
     if phase!="regular":blockers.append("AFTERMARKET_IS_NOT_TRADE_STRATEGY_SOURCE")
     return blockers
 
-def capture(phase,now,markets,provider_session_scope_verified=False):
+def capture(phase,now,markets,provider_session_scope_verified=False,completed_at=None):
     from krx_session_probe import new_snapshot
     base=new_snapshot(phase,now,markets)
     base["capture_window"]=window(phase,now)
+    base["capture_completed_at_kst"]=(completed_at or now).isoformat()
+    base["capture_completed_window"]=window(phase,completed_at or now)
     base["trade_session"]=REGULAR if phase=="regular" else AFTER
     base["source"]=SOURCE
     base["provider_session_scope_verified"]=bool(provider_session_scope_verified)
