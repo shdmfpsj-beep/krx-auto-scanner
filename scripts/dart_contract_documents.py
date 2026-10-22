@@ -14,6 +14,7 @@ from html.parser import HTMLParser
 from zoneinfo import ZoneInfo
 
 from dart_financial_screen import corp_codes,api_json,iso_day
+from dart_contract_terms import extract as parse_contract_terms
 
 VERSION="dart_contract_source_v1"
 API="https://opendart.fss.or.kr/api/document.xml"
@@ -273,6 +274,11 @@ def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
                     filing["filing_contents_status"]=content.get("status")
                     filing["original_text_fields"]=content.get(
                         "extracted_candidate_cells",[])
+                    filing["structured_contract_terms"]=parse_contract_terms(
+                        filing["original_text_fields"],
+                        correction_risk=filing["correction_risk"])
+                    filing["document_labeled_amount_research_only"]=bool(
+                        filing["structured_contract_terms"].get("amount_krw"))
                 item["filings"].append(filing)
         except Exception as ex:
             item["status"]="ISSUER_SEARCH_FAILED_"+type(ex).__name__
@@ -283,22 +289,35 @@ def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
 def render(r):
     lines=["","## 회사 직접 계약공시 원문 조회 (호재 여부 별도)","",
         "**신규매수 CASH · 계약 제목·원문 표 수치만으로 긍정적 수혜나 수익을 단정하지 않습니다.**","",
-        "| 종목 | 최근 직접계약 공시 | 원문 상태 | 실적 기여 확정 |",
-        "|---|---|---|---|"]
+        "| 종목 | 최근 직접계약 공시 | 원문 추출 계약액(억) | 검증 상태 |",
+        "|---|---|---:|---|"]
     for issuer in r.get("issuer_samples",[]):
         filings=issuer["filings"]
         if not filings:
             lines.append("| "+issuer["name"]+" | 없음/미확인 | "+issuer["status"]+" | 아니요 |")
         for f in filings:
+            terms=f.get("structured_contract_terms") or {}
+            amount=terms.get("amount_krw")
+            # A typed amount is a document quote, not a verified active
+            # contract. In particular amendments cannot count as new sales.
+            display=("%.2f"%(amount/100_000_000) if isinstance(amount,int)
+                     else "—")
+            status=terms.get("status") or f["filing_contents_status"]
+            if f.get("correction_risk")!="NO_CORRECTION_TITLE_FLAG":
+                status="정정/해지 검토 필수: "+status
             lines.append("| "+issuer["name"]+" | ["+f["date"]+" "+
                 f["title"].replace("|","/").replace("[","(").replace("]",")")[:40]+"]("+
-                f["url"]+") | "+f["filing_contents_status"]+" | 아니요 |")
+                f["url"]+") | "+display+" | "+status+" |")
     if not r.get("issuer_samples"):
         lines.append("| 회사 직접공시 미수집 | — | "+r["status"]+" | 아니요 |")
     lines+=["","*접수일만 확인한 공시는 기준일 당일 자료를 제외합니다. 정정·해지 공시는"
         " 원본 및 추가 변경사항을 확인하기 전까지 긍정적 수주로 분류하지 않습니다.",
-        "*계약금액, 매출액 대비 비율, 상대방, 실제 납품시점 및 이익 기여는"
-        " 정합성 검토가 끝나지 않았으므로 최종 85점의 호재 점수에 포함하지 않습니다.",
+        "*계약금액(억)은 공식 원문 표에서 읽힌 단위 있는 후보값일 뿐, 현재 유효한 계약인지"
+        " 또는 실제 납품·이익이 생기는지는 검증되지 않았습니다.",
+        "*계약액/최근매출액/공시 비율의 산술 일치 여부는 단일 공시 내부 검산이며"
+        " 다른 정보원으로 독립 확인한 사실이 아닙니다.",
+        "*원문 단위가 불분명하거나 공시 간 정정·해지 내용이 있으면"
+        " 실질 호재 점수에 포함하지 않습니다.",
         "*출처: 금융감독원 OpenDART 공식 list.json 및 document.xml API.",""]
     return "\n".join(lines)
 
