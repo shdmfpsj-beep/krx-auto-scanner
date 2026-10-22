@@ -121,6 +121,18 @@ class PreliminaryTests(unittest.TestCase):
         parsed=decode_document(zipped(html))
         self.assertEqual(parsed["status"],"PRELIMINARY_TABLE_ROWS_READ")
         self.assertEqual(assess(parsed,FILE,DAY)["operating_profit_yoy_pct"],20)
+    def test_dated_period_from_different_table_never_authorizes_numbers(self):
+        rows=ROWS[:2]+[["__TABLE_BOUNDARY__"]]+ROWS[2:]
+        r=assess(data(rows),FILE,DAY)
+        self.assertEqual(r["status"],"PRELIMINARY_SAME_ROW_YOY_VALUES_MISSING")
+        self.assertFalse(r["preliminary_figures_source_verified"])
+    def test_two_conflicting_complete_quarter_tables_are_not_picked_silently(self):
+        other=[*ROWS]
+        other[3]=["매출액","2,500,000","2,400,000","1,000,000","150%"]
+        rows=ROWS+[["__TABLE_BOUNDARY__"]]+other
+        r=assess(data(rows),FILE,DAY)
+        self.assertEqual(r["status"],"PRELIMINARY_MULTIPLE_QUARTER_TABLES_AMBIGUOUS")
+        self.assertIsNone(r["revenue_current_krw"])
     def test_negative_current_operating_is_earnings_warning(self):
         rows=[*ROWS]
         rows[4]=["영업이익","-20,000","1,000","100,000",""]
