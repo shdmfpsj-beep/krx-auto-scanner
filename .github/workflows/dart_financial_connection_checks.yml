@@ -70,7 +70,8 @@ jobs:
                      "fiscal_year":row.get("annual_fiscal_year"),
                      "statement":row.get("division"),
                      "missing_metric_keys":row.get("missing_metric_keys",[]),
-                     "statement_row_count":row.get("available_statement_rows")})
+                     "statement_row_count":row.get("available_statement_rows"),
+                     "attempts":row.get("statement_attempts",[])})
           # No token, company registry code, URLs with authentication, or
           # sensitive HTTP request details are printed.
           PY
