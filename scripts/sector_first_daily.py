@@ -124,7 +124,24 @@ def build(summary, sector_rows, stock_rows, today):
           final_verified_score=None,buy_approval="NO",
           reference_status="STRUCTURAL_LEVELS_UNVERIFIED" if stop else "NO_ELIGIBLE_ENTRY_REFERENCE"))
     stocks.sort(key=lambda x:(-x["proxy_index"],x["ticker"]))
-    stocks=stocks[:5]
+    # The absolute TOP5 is deliberately NOT force-diversified: artificial
+    # inclusion of a weak stock from every sector would overstate quality.
+    # Independently show one highest-ranked research WATCH per TOP3 sector.
+    leaders=[]
+    for ident in ids[:3]:
+        match=next((r for r in stocks if r["sector_id"]==ident),None)
+        if match:
+            leaders.append({**match,"leader_rank_type":"SECTOR_RESEARCH_WATCH_ONLY",
+                "not_in_global_top5":False})
+    global_top5=stocks[:5]
+    counts={ident:sum(x["sector_id"]==ident for x in global_top5)
+            for ident in ids[:3]}
+    for leader in leaders:
+        leader["not_in_global_top5"]=all(
+            s["ticker"]!=leader["ticker"] for s in global_top5)
+    concentration_warning=bool(global_top5 and
+        max(counts.values(),default=0)>=4 and len(ids)>=2)
+    stocks=global_top5
     if not stocks:
         blockers.append("NO_SECTOR_CONSTITUENT_WITH_VERIFIED_PRICE_FLOW")
     blockers += ["FRESH_CATALYST_EVIDENCE_MISSING",
@@ -134,6 +151,10 @@ def build(summary, sector_rows, stock_rows, today):
       report_date=str(today),status="PROVISIONAL_RESEARCH_ONLY" if sectors else "NO_VERIFIED_TOP3",
       decision="CASH",orders_enabled=False,trade_approved=False,
       sector_top3=sectors,stock_research_top5=stocks,
+      sector_leader_watch=leaders,
+      stock_top5_sector_counts=counts,
+      stock_top5_concentration_warning=concentration_warning,
+      sector_watch_is_buy_recommendation=False,
       daily_money_rank_applied=bool(summary.get("daily_money_rank_applied")),
       daily_money_gate=summary.get("daily_money_gate","UNAVAILABLE"),
       blockers=list(dict.fromkeys(blockers)),
@@ -174,6 +195,20 @@ def render(report):
                      f"{show(r['stop_reference'])} |")
     if not report["stock_research_top5"]:
         lines.append("| 해당 없음 | — | — | — | — | — |")
+    lines += ["","## ③ TOP3 섹터별 대표 연구후보 (TOP5 강제 분산 아님)","",
+              "| 섹터 | 대표 연구종목 | 전체 TOP5 포함 |",
+              "|---|---|---|"]
+    for sector in report["sector_top3"]:
+        leader=next((x for x in report["sector_leader_watch"]
+                     if x["sector_id"]==sector["sector_id"]),None)
+        lines.append("| "+sector["name"]+" | "+
+            (leader["name"]+" ("+leader["ticker"]+")" if leader else "데이터 부족")+
+            " | "+("아니요" if leader and leader["not_in_global_top5"]
+                  else "예" if leader else "—")+" |")
+    if report["stock_top5_concentration_warning"]:
+        lines.append("")
+        lines.append("**집중 경고:** 절대 TOP5의 4개 이상이 한 섹터입니다. 이는 연구 집중이지"
+                     " 분산투자 근거나 매수 신호가 아닙니다.")
     lines += ["","†0~100 상대 연구지수는 최종 85점 합격점수나 5거래일 상승확률이 아닙니다.",
               "표의 가격은 완료 일봉 기준 연구 참고값이며 실시간 매수 주문 가격이 아닙니다.",
               "","## 검증 미충족",", ".join(report["blockers"]),"",
