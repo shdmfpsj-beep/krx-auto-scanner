@@ -25,6 +25,18 @@ DOC="""<?xml version="1.0" encoding="utf-8"?>
 <TR><TH>매출액 대비</TH><TD>15%</TD></TR></TABLE></DOCUMENT>"""
 
 class DartContractTests(unittest.TestCase):
+    def test_contract_official_rm_withdrawal_and_amendment(self):
+        withdrawn=filing(receipt="20261021001235")
+        withdrawn["rm"]="유철"
+        amended=filing(receipt="20261021001236")
+        amended["rm"]="유정"
+        result,status=dated_filings(
+            {"status":"000","list":[withdrawn,amended]},
+            "00123456","010120",ASOF)
+        self.assertEqual(len(result),1)
+        self.assertEqual(result[0]["receipt_no"],"20261021001236")
+        self.assertEqual(result[0]["correction_risk"],
+                         "CORRECTION_OR_WITHDRAWAL")
     def test_preliminary_disclosure_withdrawal_and_later_amendment(self):
         withdrawn=filing(title="연결재무제표기준영업(잠정)실적",
                          receipt="20261021800152")
