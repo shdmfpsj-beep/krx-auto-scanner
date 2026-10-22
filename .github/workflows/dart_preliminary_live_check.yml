@@ -85,6 +85,9 @@ jobs:
                   "operating_profit_current_krw","operating_profit_yoy_pct")})
           print("PRELIMINARY_LS_SOURCE_ROW_COUNT",
               result.get("safe_table_row_count",0))
+          print("PRELIMINARY_LS_VALIDATED_QUARTER",
+                result.get("typed_result",{}).get("quarter_period"),
+                result.get("typed_result",{}).get("earnings_quality"))
           print("PRELIMINARY_LS_UNITS",result.get("unit_candidates",[]))
           for i,row in enumerate(result.get("safe_structural_rows",[])):
               print("PRELIMINARY_MASKED_STRUCTURE",i,row)
