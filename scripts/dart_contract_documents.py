@@ -341,7 +341,8 @@ def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
                         "extracted_candidate_cells",[])
                     filing["structured_contract_terms"]=parse_contract_terms(
                         filing["original_text_fields"],
-                        correction_risk=filing["correction_risk"])
+                        correction_risk=filing["correction_risk"],
+                        issuer_name=name)
                     filing["document_labeled_amount_research_only"]=bool(
                         filing["structured_contract_terms"].get("amount_krw"))
                 item["filings"].append(filing)
@@ -379,6 +380,8 @@ def render(r):
             status=terms.get("status") or f["filing_contents_status"]
             if f.get("correction_risk")!="NO_CORRECTION_TITLE_FLAG":
                 status="정정/해지 검토 필수: "+status
+            if terms.get("potential_intragroup_revenue_recognition_risk"):
+                status+=" / 계열사 거래·연결 내부거래 제거 검토"
             lines.append("| "+issuer["name"]+" | ["+f["date"]+" "+
                 f["title"].replace("|","/").replace("[","(").replace("]",")")[:40]+"]("+
                 f["url"]+") | "+display+" | "+status+" |")
@@ -409,6 +412,9 @@ def render(r):
         " 또는 실제 납품·이익이 생기는지는 검증되지 않았습니다.",
         "*계약액/최근매출액/공시 비율의 산술 일치 여부는 단일 공시 내부 검산이며"
         " 다른 정보원으로 독립 확인한 사실이 아닙니다.",
+        "*계약상대가 그룹 자회사·계열사로 보이는 경우 연결재무 내부거래 제거 및"
+        " 외부 최종고객 납품 전 매출 인식 위험을 검토합니다. 이름 유사성만으로"
+        " 실제 계열관계나 제거금액을 확정하지 않습니다.",
         "*원문 단위가 불분명하거나 공시 간 정정·해지 내용이 있으면"
         " 실질 호재 점수에 포함하지 않습니다.",
         "*잠정실적은 비감사 분기 성적표입니다. 검증된 같은 분기 실적과"
