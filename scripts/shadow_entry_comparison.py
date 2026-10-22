@@ -174,12 +174,12 @@ def save(out,rows):
        "당일 저점이 손절을 침범했는지 순서를 알 수 없으면 손절을 먼저 가정했습니다.",
        "체결 가정된 거래의 승률만 비교하지 말고 미체결까지 포함한 신호당 수익을 함께 보십시오.",
        "적은 표본과 결측 데이터로 우월한 매매법을 선언하지 않습니다.",""]
-    (out/"entry_ab_mobile.md").write_text("\\n".join(lines),encoding="utf-8")
+    (out/"entry_ab_mobile.md").write_text("\n".join(lines),encoding="utf-8")
     # Compact phone report: one short experiment section, not another giant table.
     compact=out/"sector_first_compact_mobile.md"
     if compact.is_file():
         marker="## ⑤ 진입방식 A/B 실험 (실제 체결 아님)"
-        old_text=compact.read_text(encoding="utf-8").split("\\n"+marker)[0].rstrip()
+        old_text=compact.read_text(encoding="utf-8").split("\n"+marker)[0].rstrip()
         def result(mode):
             s=stats[mode]
             avg=s["mean_net_pct_per_decided_signal"]
@@ -190,7 +190,7 @@ def save(out,rows):
             "- 시초가: "+result("next_open"),
             "- 2일 눌림 지정가: "+result("pullback_limit"),
             "- 두 방식 모두 모의가정, 실제 수익 우위 미입증. 최종 신규매수: CASH.",""]
-        compact.write_text(old_text+"\\n"+"\\n".join(addition),encoding="utf-8")
+        compact.write_text(old_text+"\n"+"\n".join(addition),encoding="utf-8")
     return stats
 
 def main():
