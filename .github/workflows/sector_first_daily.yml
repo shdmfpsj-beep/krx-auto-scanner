@@ -43,6 +43,8 @@ jobs:
             /scripts/sector_dynamic_structure.py
             /scripts/test_sector_dynamic_structure.py
             /scripts/sector_first_compact_report.py
+            /scripts/dart_interim_periods.py
+            /scripts/test_dart_interim_periods.py
             /scripts/dart_financial_screen.py
             /scripts/test_dart_financial_screen.py
             /scripts/sector_financial_join.py
@@ -74,6 +76,7 @@ jobs:
           python scripts/test_global_sector_join.py
           python scripts/test_sector_dynamic_structure.py
           python scripts/test_sector_first_compact_report.py
+          python scripts/test_dart_interim_periods.py
           python scripts/test_dart_financial_screen.py
           python scripts/test_sector_financial_join.py
           python scripts/test_shadow_trade_audit.py
