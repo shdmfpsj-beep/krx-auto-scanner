@@ -42,7 +42,8 @@ def assess_limit(signal,bars,market_sessions,cost_pct=ROUNDTRIP_COST_PCT):
             return {"status":"MISSING_LIMIT_WINDOW_SESSION_PRICE"}
         if bar["open"]<=stop:
             return {"status":"SKIP_BROKEN_SUPPORT_AT_OPEN"}
-        if bar["open"]<=limit:
+        at_open=bar["open"]<=limit
+        if at_open:
             # Limit order opens in-the-money; conservative opening fill.
             entry=bar["open"]
         elif bar["low"]<=limit:
@@ -72,6 +73,11 @@ def assess_limit(signal,bars,market_sessions,cost_pct=ROUNDTRIP_COST_PCT):
             elif day_bar["low"]<=stop:
                 sell=stop;reason="STOP_FIRST_AMBIGUOUS_INTRABAR"
             elif day_bar["high"]>=target:
+                if held==1 and not at_open:
+                    # Intraday limit touch may have occurred AFTER the high;
+                    # OHLC cannot prove that 2R was attainable after entry.
+                    # Never book same-bar target profits for a touch-only fill.
+                    continue
                 sell=target;reason="TARGET_2R"
             else:
                 continue
