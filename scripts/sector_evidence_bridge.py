@@ -123,6 +123,31 @@ def apply_daily_money_rank(ranked,summary,report):
         report.get("decision")=="CASH" and
         report.get("trade_approved") is False)
     source={str(r.get("sector_id")):r for r in rows}
+    # An empty list can be the correct, fully verified result on a weak
+    # breadth day. Distinguish NO_QUALIFYING_SECTOR from stale/corrupt data.
+    empty_provenance_valid=(
+        isinstance(chosen,list) and not chosen and
+        report.get("schema")=="sector_daily_money_v1" and
+        report.get("asof")==out.get("asof") and
+        out.get("core_data_verified") is True and
+        out.get("evidence_scan_dates_aligned") is True and
+        report.get("decision")=="CASH" and
+        report.get("trade_approved") is False and
+        report.get("complete_three") is False and
+        isinstance(report.get("sector_samples"),list) and
+        bool(report["sector_samples"]) and
+        all(isinstance(x,dict) and x.get("sector_id")
+            for x in report["sector_samples"]))
+    if empty_provenance_valid:
+        out["research_top3_sector_ids"]=[]
+        out["daily_money_rank_applied"]=True
+        out["daily_money_top3_count"]=0
+        out["daily_money_gate"]="VERIFIED_NO_QUALIFYING_SECTOR"
+        out["reason"]="KRX same-day data verified; no sector met positive net buying plus 60pct advancing-stock breadth"
+        out["final_sector_top3_verified"]=False
+        out["trade_approvals"]=0
+        out["decision"]="CASH"
+        return rows,out
     if valid:
         ids=[]
         for item in chosen[:3]:
