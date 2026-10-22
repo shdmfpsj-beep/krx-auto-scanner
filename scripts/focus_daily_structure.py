@@ -20,6 +20,19 @@ OUTPUT_FIELDS=("ticker","name","data_source","latest_complete_date",
     "no_chase_reference","prior_60d_high","prior_high_rr",
     "structure_state","trade_state","data_problems","next_action")
 
+STATE_KO={
+ "DATA_MISSING":"가격 이력 미수집",
+ "STALE_DAILY_CLOSE":"최신 확정 종가 누락",
+ "INVALID_DAILY_SERIES":"일봉 자료 검증 실패",
+ "NO_HELD_CONFIRMED_PIVOT":"확정·유지된 일봉 구조저점 부재",
+ "PIVOT_RISK_INVALID":"손절 구조가 기준 종가와 충돌",
+ "STOP_DISTANCE_UNSUITABLE":"현재가 대비 손절거리 과도 또는 지나치게 좁음",
+ "LOW_FORWARD_REWARD_RISK":"전고점까지 기대 손익비 부족",
+ "SECOND_SUPPORT_NOT_CONFIRMED":"2차 매수 지지 위치 미확인",
+ "RESEARCH_GEOMETRY_CANDIDATE":"일봉 가격 구조 연구 조건 충족, 종합 85점·당일 진입은 별도 검증"}
+def explain(code):
+    return STATE_KO.get(str(code),str(code))
+
 def numeric(v):
     try:
         x=float(v)
@@ -213,10 +226,10 @@ def save(records,out):
                " (확정 저점 "+str(r["pivot_date"])+", "+f"{r['pivot_low']:,}원; "
                +f"현재 종가 대비 {r['stop_distance_pct']}%)")
         else:
-            md.append("- 구조 손절 참고: 산정 불가 — "+str(r["structure_state"]))
+            md.append("- 구조 손절 참고: 산정 불가 — "+explain(r["structure_state"]))
         md.append("- 1차 진입 연구: "+str(r["entry1_research_range"] or "유효 진입 조건 없음")+
           " / 2차 지지 연구: "+str(r["entry2_support_research_range"] or "별도 지지 확인 전"))
-        md.append("- **판정:** "+str(r["structure_state"])+" / 조치: "+str(r["next_action"]))
+        md.append("- **판정:** "+explain(r["structure_state"])+" / 조치: "+str(r["next_action"]))
         if r["data_problems"]:
             md.append("- 데이터 수집 상태: "+str(r["data_problems"]))
         md.append("")
