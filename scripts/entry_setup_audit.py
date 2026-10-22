@@ -64,7 +64,10 @@ def check_row(stock,raw,asof,conflicted):
         first_entry_krw=None,second_entry_support_krw=None,stop_krw=None,
         resistance_krw=None,no_chase_krw=None,
         stop_distance_pct=None,forward_rr_at_first_ceiling=None,
-        target_2r_krw=None,
+        target_2r_krw=None,required_atr_to_2r=None,
+        required_atr_to_60d_resistance=None,
+        five_day_2r_stretch_warning=None,
+        five_day_research_timing_status="UNVERIFIED",
         technical_research_pass=False,real_buy_approved=False,
         final_85_score_verified=False,
         conditional_next_action="신규매수 CASH: 완전한 65봉 구조와 계좌·실적·재료 검증 대기")
@@ -125,7 +128,19 @@ def check_row(stock,raw,asof,conflicted):
         low=up_tick(e2[0]);upper=up_tick(e2[1])
         if low and upper and stopq<low<=upper<hi:
             e2q=[low,upper]
+    required_atr=(2*(hi-stopq))/atr
+    high_atr=(highq-hi)/atr
+    # Empirical forecasting is NOT implied: 4*ATR in 5 sessions is a
+    # deliberately conservative stretch flag awaiting out-of-sample calibration.
+    # A high 60-day resistance RR by itself never establishes 5D burstability.
+    stretched=required_atr>4.0
     return {**base,"code":"TECHNICAL_GEOMETRY_READY_STILL_NO_BUY",
+        "required_atr_to_2r":round(required_atr,2),
+        "required_atr_to_60d_resistance":round(high_atr,2),
+        "five_day_2r_stretch_warning":stretched,
+        "five_day_research_timing_status":(
+             "5D_2R_DISTANCE_STRETCHED_OVER_4_ATR_RESEARCH_FLAG"
+             if stretched else "5D_2R_WITHIN_4_ATR_RESEARCH_FLAG_NOT_PROBABILITY"),
         "first_entry_krw":[lo,hi],
         "second_entry_support_krw":e2q,
         "stop_krw":stopq,"resistance_krw":highq,"no_chase_krw":chaseq,
@@ -165,24 +180,30 @@ def rng(x):
 def render(report):
     lines=["","## 기술적 진입 타점 품질 (실제 일봉 기준)","",
         "**CASH — 유리한 가격 구조와 종합 매수 승인은 별개입니다.**","",
-        "| 종목 | 1차 연구 | 2차 지지 연구 | 구조 손절 | 60일 저항 | 기대 손익비 |",
-        "|---|---|---|---:|---:|---:|"]
+        "| 종목 | 1차 연구 | 2차 지지 연구 | 구조 손절 | 60일 저항 | 손익비 | 2R 필요 ATR |",
+        "|---|---|---|---:|---:|---:|---:|"]
     for x in report["candidates"]:
         lines.append("| "+x["name"].replace("|","/")[:20]+" | "+
           rng(x["first_entry_krw"])+" | "+rng(x["second_entry_support_krw"])+
           " | "+money(x["stop_krw"])+" | "+money(x["resistance_krw"])+
           " | "+(str(x["forward_rr_at_first_ceiling"])+"R"
-                 if x["forward_rr_at_first_ceiling"] is not None else "—")+" |")
+                 if x["forward_rr_at_first_ceiling"] is not None else "—")+
+          " | "+(str(x["required_atr_to_2r"])+"배"
+                  if x["required_atr_to_2r"] is not None else "—")+" |")
     if not report["candidates"]:
-        lines.append("| 검증된 TOP5 없음 | — | — | — | — | — |")
+        lines.append("| 검증된 TOP5 없음 | — | — | — | — | — | — |")
     lines+=["","### 종목별 매매 준비가 안 된 정확한 이유",""]
     for x in report["candidates"]:
         lines.append("- "+x["name"].replace("|","/")[:25]+": "+
                      x["code"]+
+            (" / 5거래일 2R 목표 4ATR 초과(상당한 가격 이동 필요)"
+             if x["five_day_2r_stretch_warning"] else "")+
             (f" / 구조손절 거리 {x['stop_distance_pct']}%"
                 if x["stop_distance_pct"] is not None else ""))
     lines+=["","*진입 참고가는 기존 확정 일봉의 ATR·피벗·최근 60일 고점에서 계산했고,"
             " KRX 일반 주식 호가단위로 보수적으로 조정했습니다.",
+      "*목표 2R까지 필요한 ATR 배수를 병기합니다. 4ATR 초과는 단기 목표가 도달을"
+       " 쉽게 가정하지 않도록 만든 연구 경고이며 통계적 확률이나 확정 탈락 기준이 아닙니다.",
       "*전고점까지 2R 이상이더라도 1~5거래일 내 도달 확률이 검증된 것은 아닙니다.",
       "*장중 갭·미체결·수수료·기업행위 및 현재 보유 여부는 별도로 확인해야 하므로 자동 주문하지 않습니다.",""]
     return "\n".join(lines)
