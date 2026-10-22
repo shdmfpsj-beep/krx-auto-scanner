@@ -18,7 +18,8 @@ OUTPUT_FIELDS=("ticker","name","data_source","latest_complete_date",
     "close","bar_count","atr14","pivot_date","pivot_low","historical_stop_reference",
     "stop_distance_pct","entry1_research_range","entry2_support_research_range",
     "no_chase_reference","prior_60d_high","prior_high_rr",
-    "structure_state","trade_state","data_problems","next_action")
+    "structure_state","trade_state","data_problems","next_action",
+    "candidate_source")
 
 STATE_KO={
  "DATA_MISSING":"가격 이력 미수집",
