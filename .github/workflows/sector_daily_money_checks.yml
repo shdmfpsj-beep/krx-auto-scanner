@@ -105,6 +105,27 @@ jobs:
           print("REAL_DAY_MONEY_INTEGRITY_GATE_PASSED")
           PY
 
+      - name: Verify Oct 22 corrupt KRX snapshot blocks false TOP3
+        run: |
+          gh api -X GET "repos/${{ github.repository }}/actions/artifacts/12419532560/zip" > inputs/dated_evidence_20261022.zip
+          python scripts/sector_daily_money.py \
+            --evidence inputs/dated_evidence_20261022.zip \
+            --asof 2026-10-22 --out output/quality-20261022
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("output/quality-20261022/sector_daily_money.json").read_text())
+          assert r["asof"]=="2026-10-22"
+          assert r["raw_tradable_ohlc_checked"]>=2000
+          assert r["raw_ohlc_conflict_pct"]>1.0
+          assert r["market_ohlc_quality_verified"] is False
+          assert r["market_source_status"]=="RAW_MARKET_OHLC_CONFLICT_HIGH"
+          assert r["selected_top3"]==[]
+          assert not r["trade_approved"] and r["decision"]=="CASH"
+          print("20261022_SOURCE_QUALITY_FAIL_CLOSED_PASSED",
+                r["raw_ohlc_conflict_count"],r["raw_ohlc_conflict_pct"])
+          PY
+
       - name: Replay actual 10-21 KRX stocks through full TOP3-to-TOP5 bridge
         if: steps.market_quality.outputs.valid == 'true'
         run: |
