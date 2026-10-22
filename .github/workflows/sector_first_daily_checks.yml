@@ -33,6 +33,8 @@ on:
       - 'scripts/test_sector_financial_join.py'
       - 'scripts/stock_evidence_matrix.py'
       - 'scripts/test_stock_evidence_matrix.py'
+      - 'scripts/entry_setup_audit.py'
+      - 'scripts/test_entry_setup_audit.py'
       - 'scripts/shadow_trade_audit.py'
       - 'scripts/test_shadow_trade_audit.py'
       - 'scripts/shadow_entry_comparison.py'
@@ -83,6 +85,8 @@ jobs:
             /scripts/test_sector_financial_join.py
             /scripts/stock_evidence_matrix.py
             /scripts/test_stock_evidence_matrix.py
+            /scripts/entry_setup_audit.py
+            /scripts/test_entry_setup_audit.py
             /scripts/shadow_trade_audit.py
             /scripts/test_shadow_trade_audit.py
             /scripts/shadow_entry_comparison.py
@@ -125,6 +129,8 @@ jobs:
           python -m unittest discover -s scripts -p 'test_sector_financial_join.py' -v
           python -m py_compile scripts/stock_evidence_matrix.py scripts/test_stock_evidence_matrix.py
           python -m unittest discover -s scripts -p 'test_stock_evidence_matrix.py' -v
+          python -m py_compile scripts/entry_setup_audit.py scripts/test_entry_setup_audit.py
+          python -m unittest discover -s scripts -p 'test_entry_setup_audit.py' -v
           python -m py_compile scripts/shadow_trade_audit.py scripts/test_shadow_trade_audit.py
           python -m unittest discover -s scripts -p 'test_shadow_trade_audit.py' -v
           python -m py_compile scripts/shadow_entry_comparison.py scripts/test_shadow_entry_comparison.py
@@ -144,6 +150,7 @@ jobs:
           python scripts/dart_financial_screen.py --input source_empty/unavailable.csv --out output
           python scripts/sector_financial_join.py --root output
           python scripts/stock_evidence_matrix.py --root output
+          python scripts/entry_setup_audit.py --root output
           python scripts/shadow_trade_audit.py --report output/sector_first_with_prices.json --dynamic source_empty/no_daily_rows.csv --history source_empty --out output
           python scripts/shadow_entry_comparison.py --signals output/shadow_signals.json --baseline-results output/shadow_results.json --evidence source_empty --out output
           python scripts/c3_one_slot_equity.py --signals output/shadow_signals.json --history source_empty --out output
@@ -183,6 +190,11 @@ jobs:
           assert matrix['candidate_count']==0
           assert not matrix['trade_approved']
           assert matrix['company_catalyst_verified_count']==0
+          geometry=json.loads(Path('output/entry_setup_audit.json').read_text())
+          assert geometry['decision']=='CASH'
+          assert geometry['stock_count']==0
+          assert geometry['technical_geometry_pass_count']==0
+          assert geometry['prospective_trades_created']==0
           shadow=json.loads(Path('output/shadow_scorecard.json').read_text())
           assert shadow['signal_count']==0
           assert shadow['realised_paper_win_rate_pct'] is None
@@ -216,6 +228,8 @@ jobs:
             output/sector_first_compact_mobile.md
             output/company_evidence_matrix.json
             output/company_evidence_matrix_mobile.md
+            output/entry_setup_audit.json
+            output/entry_setup_audit_mobile.md
             output/shadow_signals.json
             output/shadow_scorecard.json
             output/shadow_scorecard_mobile.md
