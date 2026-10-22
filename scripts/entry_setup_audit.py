@@ -4,7 +4,7 @@
 Use validated independent 65+ bars, held pivot + ATR, first entry range,
 support retest, and *conservative high-side* entry reward/risk vs 60d high.
 Only completed as-of candles. No next-day price or retrospective fills.
-Technical setup grade is NOT the user's independently verified 85/100 score.
+Technical setup grade is NOT the user's independently verified 80/100 score.
 """
 import argparse,json,math,re
 from datetime import date
@@ -69,7 +69,7 @@ def check_row(stock,raw,asof,conflicted):
         five_day_2r_stretch_warning=None,
         five_day_research_timing_status="UNVERIFIED",
         technical_research_pass=False,real_buy_approved=False,
-        final_85_score_verified=False,
+        final_80_score_verified=False,
         conditional_next_action="신규매수 CASH: 완전한 65봉 구조와 계좌·실적·재료 검증 대기")
     if not asof:return base
     status=str(stock.get("independent_stop_status") or "")
@@ -150,7 +150,7 @@ def check_row(stock,raw,asof,conflicted):
         "technical_research_pass":True,
         "conditional_next_action":("1차 매수가 상단 이하로 눌린 후 재확인; "
             "2차 매수는 실제 지지·계좌 여력이 별도로 확인되는 경우만 연구. "
-            "검증된 85점·실질 호재·당일 가격 없으므로 CASH.")}
+            "검증된 80점·실질 호재·당일 가격 없으므로 CASH.")}
 
 def build(report):
     asof=dated(report.get("asof"))
@@ -168,7 +168,7 @@ def build(report):
         forward_2r_is_guaranteed_5d_target=False,
         theoretical_prices_not_limit_orders=True,
         prospective_trades_created=0,trade_approved=False,
-        final_85_point_approval=False,decision="CASH")
+        final_80_point_approval=False,decision="CASH")
 
 def money(x):
     return f"{x:,.0f}" if isinstance(x,(int,float)) else "—"
