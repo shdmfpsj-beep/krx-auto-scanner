@@ -33,6 +33,22 @@ class EntryTests(unittest.TestCase):
         self.assertEqual(x["target_2r_krw"],264000)
         self.assertFalse(x["real_buy_approved"])
         self.assertEqual(r["decision"],"CASH")
+    def test_historical_3r_is_not_same_as_five_day_2r_reachability(self):
+        x=build(input_report())["candidates"][0]
+        self.assertAlmostEqual(x["forward_rr_at_first_ceiling"],3.18,places=2)
+        self.assertEqual(x["required_atr_to_2r"],11.0)
+        self.assertTrue(x["five_day_2r_stretch_warning"])
+        self.assertIn("STRETCHED",x["five_day_research_timing_status"])
+        self.assertTrue(x["technical_research_pass"])
+        self.assertFalse(x["real_buy_approved"])
+    def test_2r_needs_below_four_atr_is_only_watch_not_probability(self):
+        row={**ROW,"atr14":"15000"}
+        x=build(input_report(row=row))["candidates"][0]
+        self.assertTrue(x["technical_research_pass"])
+        self.assertAlmostEqual(x["required_atr_to_2r"],2.93)
+        self.assertFalse(x["five_day_2r_stretch_warning"])
+        self.assertIn("NOT_PROBABILITY",x["five_day_research_timing_status"])
+        self.assertFalse(x["real_buy_approved"])
     def test_very_close_stop_is_structural_quality_failure(self):
         row={**ROW,"historical_stop_reference":"217000",
              "pivot_low":"218000"}
