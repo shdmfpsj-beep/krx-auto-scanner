@@ -41,6 +41,24 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(status["research_top3_sector_ids"],[])
         self.assertFalse(status["daily_money_rank_applied"])
 
+    def test_actual_oct_22_same_day_no_breadth_is_not_stale_data(self):
+        summary=dict(asof="2026-10-22",core_data_verified=True,
+            evidence_scan_dates_aligned=True,research_top3_sector_ids=["IT"])
+        original=[dict(sector_id="CONSTRUCTION",research_eligible="NO",
+                       trade_approval="NO")]
+        money=dict(schema="sector_daily_money_v1",asof="2026-10-22",
+                   selected_top3=[],complete_three=False,
+                   sector_samples=[dict(sector_id="CONSTRUCTION",
+                           day_net_flow_krw=210000000000,day_breadth_pct=43.8)],
+                   decision="CASH",trade_approved=False)
+        _,result=apply_daily_money_rank(original,summary,money)
+        self.assertEqual(result["daily_money_gate"],"VERIFIED_NO_QUALIFYING_SECTOR")
+        self.assertEqual(result["research_top3_sector_ids"],[])
+        self.assertTrue(result["daily_money_rank_applied"])
+        self.assertEqual(result["daily_money_top3_count"],0)
+        self.assertFalse(result["final_sector_top3_verified"])
+        self.assertEqual(result["decision"],"CASH")
+
     def test_pullback_quality_requires_complete_forward_window(self):
         bars=[(str(i),(100+i,100000,99+i,100.5+i)) for i in range(70)]
         result=historical_pullback_quality_review(bars)
