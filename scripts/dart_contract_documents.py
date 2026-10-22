@@ -72,6 +72,36 @@ def dated_filings(response,corp,ticker,asof,max_per_ticker=2):
     return results[:max_per_ticker],("RECEIPT_CANDIDATES" if results else
                                      "NO_DIRECT_CONTRACT_TITLE_IN_WINDOW")
 
+def latest_preliminary_earnings(response,corp,ticker,asof):
+    """As-of source receipt for quicker preliminary profits, never Q3 numbers.
+
+    Only a matching official issuer and prior-day disclosure can be used
+    without intraday timestamp precision. Earnings announcement content
+    must be parsed separately before its financial metrics enter scoring.
+    """
+    if response.get("status")!="000":return []
+    found=[]
+    for r in response.get("list",[]):
+        title="".join(str(r.get("report_nm") or "").split())
+        day=iso_day(r.get("rcept_dt"))
+        receipt=str(r.get("rcept_no") or "")
+        if (r.get("stock_code")!=ticker or r.get("corp_code")!=corp or
+            not RECEIPT.fullmatch(receipt) or not day or day>=asof or
+            (asof-day).days>7):
+            continue
+        # Financial fair disclosure, NOT meeting invitation, forecast, or
+        # investor-relations calendar.
+        if not ("영업" in title and "잠정" in title and "실적" in title):
+            continue
+        found.append(dict(date=str(day),title=title[:110],
+            receipt_no=receipt,ticker=ticker,
+            url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+receipt,
+            financial_figures_verified=False,
+            source="OFFICIAL_PRELIMINARY_EARNINGS_DISCLOSURE_TITLE_ONLY",
+            correction_flag=any(k in title for k in ("정정","취소"))))
+    found.sort(key=lambda x:(x["date"],x["receipt_no"]),reverse=True)
+    return found[:2]
+
 def table_candidate_cells(rows,interpretation):
     fields=[]
     for cells in rows:
@@ -249,7 +279,7 @@ def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
         out["status"]="CORPCODE_LOOKUP_FAILED_"+type(err).__name__
         return out
     for ticker,name in stocks:
-        item=dict(ticker=ticker,name=name,filings=[],
+        item=dict(ticker=ticker,name=name,filings=[],latest_preliminary_earnings=[],
                   source="OPEN_DART_OFFICIAL_LIST_AND_DOCUMENT",
                   trade_approval="NO")
         cc=lookup.get(ticker)
@@ -263,6 +293,10 @@ def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
                 end_de=(asof-timedelta(days=1)).strftime("%Y%m%d"),
                 page_count=100),key)
             recent,state=dated_filings(result,cc,ticker,asof)
+            item["latest_preliminary_earnings"]=latest_preliminary_earnings(
+                result,cc,ticker,asof)
+            item["newer_preliminary_results_require_review"]=bool(
+                item["latest_preliminary_earnings"])
             item["status"]=state
             for filing in recent:
                 filing["contract_amount_verified"]=False
@@ -310,6 +344,16 @@ def render(r):
                 f["url"]+") | "+display+" | "+status+" |")
     if not r.get("issuer_samples"):
         lines.append("| 회사 직접공시 미수집 | — | "+r["status"]+" | 아니요 |")
+    lines+=["","### 최신 잠정실적 공시 발견 (수치 추출 전)",""]
+    earnings_count=0
+    for issuer in r.get("issuer_samples",[]):
+        for x in issuer.get("latest_preliminary_earnings",[]):
+            earnings_count+=1
+            lines.append("- "+issuer["name"]+": ["+x["date"]+" "+
+                x["title"]+"]("+x["url"]+") — 잠정실적 **발표 사실만 확인**."
+                " 최신 분기 수치·영업이익 증가율 검증 전")
+    if not earnings_count:
+        lines.append("- 최근 7일 적격 잠정실적 공시 없음/미수집")
     lines+=["","*접수일만 확인한 공시는 기준일 당일 자료를 제외합니다. 정정·해지 공시는"
         " 원본 및 추가 변경사항을 확인하기 전까지 긍정적 수주로 분류하지 않습니다.",
         "*계약금액(억)은 공식 원문 표에서 읽힌 단위 있는 후보값일 뿐, 현재 유효한 계약인지"
