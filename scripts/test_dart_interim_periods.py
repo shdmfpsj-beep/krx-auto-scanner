@@ -2,7 +2,7 @@
 """Interim YTD statement regression suite: forbid 3-month false growth."""
 import unittest
 from datetime import date
-from dart_interim_periods import identify_interim_filing,evaluate_interim,select
+from dart_interim_periods import identify_interim_filing,evaluate_interim,select,amount
 
 ASOF=date(2026,10,22)
 def filing(name="반기보고서 (2026.06)",day=date(2026,8,14)):
@@ -20,6 +20,12 @@ def payload(x=None):
 P=identify_interim_filing(filing(),ASOF)
 
 class InterimFinancialTests(unittest.TestCase):
+    def test_large_krw_integer_does_not_round_through_float(self):
+        self.assertEqual(amount("9,007,199,254,740,993"),9007199254740993)
+        self.assertEqual(amount("-9,007,199,254,740,993"),-9007199254740993)
+        self.assertIsNone(amount("123.45"))
+        self.assertIsNone(amount("NaN"))
+        self.assertIsNone(amount(True))
     def test_h1_dated_report_maps_to_11012(self):
         self.assertEqual(P["report_code"],"11012")
         self.assertEqual(P["period_end"],"2026-06-30")
