@@ -90,6 +90,7 @@ jobs:
             --recovery-structure inputs/recovery/free_structural_v52_status.json \
             --recovery-csv inputs/recovery/free_structural_v52_all.csv \
             --focus inputs/focus/focus_daily_structure_status.json \
+            --focus-fallback inputs/sector/focus_daily_structure_status.json \
             --sector inputs/sector/sector_first_daily_status.json \
             --money inputs/sector/sector_daily_money.json \
             --out output
