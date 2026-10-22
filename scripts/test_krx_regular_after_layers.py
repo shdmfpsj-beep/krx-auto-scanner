@@ -44,6 +44,26 @@ class TestRegularAfterIsolation(unittest.TestCase):
         self.assertIn("PROVIDER_REGULAR_SESSION_SCOPE_NOT_ATTESTED",out["blockers"])
         self.assertFalse(out["source_regular_strategy_ready"])
         self.assertEqual(out["final_buy_approvals"],0)
+    def test_compare_anomalous_but_separate_time_stamped_sources(self):
+        early=capture("regular",at(15,35),{"KOSPI":data()})
+        bad=data()
+        bad["000001"]["Close"]=110
+        late=capture("after",at(20,25),{"KOSPI":bad})
+        out=split(early,late)
+        self.assertTrue(out["comparison"]["eligible_for_observational_comparison"])
+        self.assertEqual(out["comparison"]["changed_snapshot_close_count"],1)
+        self.assertEqual(out["comparison"]["invalid_after_price_vs_high_low_count"],1)
+        self.assertFalse(out["source_regular_strategy_ready"])
+        self.assertFalse(out["regular_ohlcv_certified"])
+
+    def test_late_completed_aftermarket_snapshot_does_not_form_a_pair(self):
+        early=capture("regular",at(15,35),{"KOSPI":data()})
+        late=capture("after",at(20,25),{"KOSPI":data()},
+                     completed_at=at(22,1))
+        out=split(early,late)
+        self.assertIn("AFTER_CAPTURE_FINISHED_OUTSIDE_WINDOW",out["blockers"])
+        self.assertFalse(out["comparison"]["eligible_for_observational_comparison"])
+
     def test_cannot_relabel_unscoped_api_as_certified(self):
         with self.assertRaisesRegex(ValueError,"UNSCOPED_SOURCE"):
             capture("regular",at(15,35),{"KOSPI":data()},True)
