@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Sector-first dynamic OHLC research contract: no stale/no pharma/no BUY."""
-import unittest
+import unittest,csv,tempfile
+from pathlib import Path
 from datetime import date,timedelta
-from sector_dynamic_structure import select,generate
+from sector_dynamic_structure import select,generate,reuse_v18_daily_bars
 
 ASOF=date(2026,10,22)
 STATUS={"asof":str(ASOF),"scan_date":str(ASOF),"core_data_verified":True,
@@ -59,6 +60,57 @@ class DynamicSectorTests(unittest.TestCase):
         self.assertEqual(out,[])
         self.assertEqual(names,{})
         self.assertTrue(problems)
+    def test_existing_v18_daily_bars_reused_without_network_calls(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/"reports/sector_evidence_v18/market/daily_prices/KOSPI"
+            root.mkdir(parents=True)
+            # 80 as-of market observations fixture, confirmed low 12 bars back.
+            for i in range(80):
+                d=ASOF-timedelta(days=79-i)
+                with (root/(str(d)+".csv")).open("w",encoding="utf-8",newline="") as f:
+                    w=csv.DictWriter(f,fieldnames=[
+                      "ticker","Date","Open","High","Low","Close","Volume","TurnoverKRW"])
+                    w.writeheader()
+                    w.writerow(dict(ticker="005930",Date=str(d),Open="1000",
+                      High="1010",Low="920" if i==68 else "990",
+                      Close="1000",Volume="10000",TurnoverKRW="1000000"))
+            cached=reuse_v18_daily_bars(Path(folder),{"005930":"삼성전자"},ASOF)
+            self.assertEqual(cached["005930"][1],"V18_KRX_CACHED")
+            called=[]
+            def network(t,d):
+                called.append(t)
+                raise AssertionError("Network collection should not be needed")
+            results,names,issues=generate(
+                STATUS,[row("005930","SEMICON")],ASOF,
+                fetch=network,evidence_root=Path(folder))
+            self.assertEqual(called,[])
+            self.assertEqual(len(results),1)
+            self.assertGreater(results[0]["historical_stop_reference"],0)
+            self.assertEqual(results[0]["data_source"],"V18_KRX_CACHED")
+
+    def test_incomplete_v18_cache_requires_independent_free_source(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/"market/daily_prices/KOSPI"
+            root.mkdir(parents=True)
+            d=ASOF
+            with (root/(str(d)+".csv")).open("w",encoding="utf-8",newline="") as f:
+                w=csv.DictWriter(f,fieldnames=[
+                    "ticker","Date","Open","High","Low","Close","Volume","TurnoverKRW"])
+                w.writeheader()
+                w.writerow(dict(ticker="005930",Date=str(d),Open="1000",
+                     High="1010",Low="990",Close="1000",Volume="10",TurnoverKRW="1000"))
+            self.assertEqual(reuse_v18_daily_bars(Path(folder),
+                             {"005930":"삼성전자"},ASOF),{})
+            called=[]
+            def fallback(t,d):
+                called.append(t)
+                return [],"NONE",["FDR_EMPTY","PYKRX_EMPTY"]
+            results,_,_=generate(STATUS,[row("005930","SEMICON")],ASOF,
+                  fetch=fallback,evidence_root=Path(folder))
+            self.assertEqual(called,["005930"])
+            self.assertEqual(results[0]["historical_stop_reference"],"")
+            self.assertEqual(results[0]["structure_state"],"DATA_MISSING")
+
     def test_max_twenty(self):
         src=[row(f"{i:06d}","SEMICON",str(100-i)) for i in range(1,40)]
         names,_=select(STATUS,src,ASOF,max_total=20)
