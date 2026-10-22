@@ -9,6 +9,8 @@ on:
       - 'scripts/test_sector_first_daily.py'
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/test_sector_evidence_bridge.py'
+      - 'scripts/sector_daily_money.py'
+      - 'scripts/test_sector_daily_money.py'
       - 'scripts/global_sector_news.py'
       - 'scripts/test_global_sector_news.py'
       - 'scripts/global_sector_join.py'
@@ -49,6 +51,8 @@ jobs:
             /scripts/test_sector_first_daily.py
             /scripts/sector_evidence_bridge.py
             /scripts/test_sector_evidence_bridge.py
+            /scripts/sector_daily_money.py
+            /scripts/test_sector_daily_money.py
             /scripts/global_sector_news.py
             /scripts/test_global_sector_news.py
             /scripts/global_sector_join.py
@@ -85,6 +89,8 @@ jobs:
           python -m unittest discover -s scripts -p 'test_sector_first_daily.py' -v
           python -m unittest discover -s scripts -p 'test_sector_catalyst_enrich.py' -v
           python -m unittest discover -s scripts -p 'test_sector_evidence_bridge.py' -v
+          python -m py_compile scripts/sector_daily_money.py scripts/test_sector_daily_money.py
+          python -m unittest discover -s scripts -p 'test_sector_daily_money.py' -v
           python -m py_compile scripts/global_sector_news.py scripts/global_sector_join.py scripts/test_global_sector_news.py scripts/test_global_sector_join.py
           python -m unittest discover -s scripts -p 'test_global_sector_news.py' -v
           python -m unittest discover -s scripts -p 'test_global_sector_join.py' -v
