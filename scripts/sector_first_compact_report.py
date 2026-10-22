@@ -64,6 +64,11 @@ def format_summary(data):
            "이하 모든 가격은 해당일 완료된 일봉 연구 참고가격이며 실시간 주문호가가 아닙니다.",
            "데이터 판정: "+txt(sector_outcome)+" / 종목 판정: "+txt(stock_outcome),
            "최종 BUY 승인 0건 · 데이터 오류 때문에 후보가 공란인 것과 검증 후 후보 0개는 다릅니다.","",
+           ("**시장 OHLC 오류:** "+txt(data.get("raw_ohlc_conflict_count"))+"/"+
+            txt(data.get("raw_tradable_ohlc_checked"))+"개 ("+
+            txt(data.get("raw_ohlc_conflict_pct"))+"%) · 수집기 성공과 품질 보증은 별개입니다."
+            if data.get("raw_ohlc_conflict_count") is not None else
+            "**시장 OHLC 오류 수량:** 최종 자료에 미포함 — 정상 판정 불가"),"",
            c3_mobile_line(data.get("c3_position_state") or {}),"",
            "## ① 자금 선행 섹터 TOP3 (매수 미승인 관찰 순위)","",
            "| 섹터 | 중복 제거 1일 순매수(억)* | 5일 순매수(억)* | 거래대금(억)* | 상승확산 | 단계 |",
