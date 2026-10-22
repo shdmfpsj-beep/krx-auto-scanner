@@ -273,7 +273,7 @@ def collect(report,key,today=None,list_api=api_json,corps=corp_codes,
         status="UNVERIFIED",issuer_samples=[],document_attempts=0,
         confirmed_positive_company_contracts=0,
         contract_amounts_confirmed=0,
-        final_80_score_verified=False,final_85_score_verified=False,trade_approved=False,
+        final_80_score_verified=False,final_80_score_verified=False,final_85_score_verified=False,trade_approved=False,
         orders_enabled=False,decision="CASH")
     # Absolutely no historical replay against today's mutable endpoint.
     if not asof or now!=asof or not report.get("daily_money_rank_applied"):
