@@ -54,6 +54,31 @@ class DartAnnualTests(unittest.TestCase):
         rows=good_rows()+[row("IS","ifrs-full_Revenue",120,80)]
         r=evaluate_accounts(dict(status="000",list=rows),"CFS")
         self.assertEqual(r["status"],"ANNUAL_METRICS_INCOMPLETE")
+    def test_absent_account_detail_is_valid_for_normal_bs_is_rows(self):
+        # OpenDART full annual statements may omit account_detail entirely.
+        rows=[{k:v for k,v in x.items() if k!="account_detail"}
+              for x in good_rows()]
+        r=evaluate_accounts(dict(status="000",list=rows),"CFS")
+        self.assertEqual(r["status"],"DATED_ANNUAL_RESEARCH_ONLY")
+        self.assertEqual(r["missing_metric_keys"],[])
+        self.assertEqual(r["sales_yoy_pct"],25)
+    def test_cis_standard_revenue_fallback_when_is_row_unavailable(self):
+        rows=good_rows()
+        rows[0]["sj_div"]="CIS"
+        r=evaluate_accounts(dict(status="000",list=rows),"CFS")
+        self.assertEqual(r["status"],"DATED_ANNUAL_RESEARCH_ONLY")
+    def test_conflicting_is_values_do_not_fall_through_to_cis(self):
+        rows=good_rows()+[row("IS","ifrs-full_Revenue",125,80)]
+        rows.append({**row("CIS","ifrs-full_Revenue",100,80)})
+        r=evaluate_accounts(dict(status="000",list=rows),"CFS")
+        self.assertEqual(r["status"],"ANNUAL_METRICS_INCOMPLETE")
+        self.assertIn("revenue_krw",r["missing_metric_keys"])
+    def test_missing_metric_diagnostic_does_not_include_private_key(self):
+        rows=[row("BS","ifrs-full_Assets",250)]
+        r=evaluate_accounts(dict(status="000",list=rows),"CFS")
+        self.assertEqual(r["status"],"ANNUAL_METRICS_INCOMPLETE")
+        self.assertIn("revenue_krw",r["missing_metric_keys"])
+        self.assertEqual(r["available_statement_rows"],1)
     def test_missing_api_key_reports_unverified_and_keeps_cash(self):
         r=collect(ASOF,[TICKER],key=None,today=ASOF)
         self.assertEqual(r["status"],"MISSING_DART_KEY")
