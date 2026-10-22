@@ -126,6 +126,32 @@ class StockEvidenceTests(unittest.TestCase):
         self.assertEqual(len(build(b)["candidates"][0]["direct_company_filings"]),1)
     def test_naive_discovery_time_is_rejected(self):
         self.assertFalse(asof_seen("2026-10-21T12:00:00",__import__("datetime").date(2026,10,22)))
+    def test_official_subsidiary_counterparty_blocks_assumed_external_sales(self):
+        report=inputs()
+        contract=dict(schema="dart_contract_source_v1",asof=DAY,
+            issuer_samples=[dict(ticker="005930",filings=[dict(
+                date="2026-10-21",receipt_no="20261021000001",
+                title="단일판매 공급계약",
+                url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261021000001",
+                filing_contents_status="DART_DOCUMENT_SGML_TABLES_PARSED",
+                correction_risk="NO_CORRECTION_TITLE_FLAG",
+                structured_contract_terms=dict(
+                    amount_krw=168_871_711_050,
+                    disclosed_sales_ratio_pct=3.4,
+                    consistency="SINGLE_FILING_ARITHMETIC_MATCH",
+                    counterparty_affiliation_review=
+                        "ISSUER_BRANDED_COUNTERPARTY_POSSIBLE_AFFILIATE",
+                    potential_intragroup_revenue_recognition_risk=True))])])
+        r=build(report,contract)
+        row=r["candidates"][0]
+        self.assertTrue(row["potential_intragroup_revenue_recognition_risk"])
+        self.assertIn("AFFILIATE_COUNTERPARTY_CONSOLIDATED_REVENUE_RISK",
+                      row["unmet_evidence"])
+        self.assertTrue(row["document_labeled_contract_amounts"][0][
+            "potential_intragroup_revenue_recognition_risk"])
+        self.assertIn("연결재무 내부거래 제거 여부",render(r))
+        self.assertFalse(row["company_catalyst_impact_verified"])
+        self.assertEqual(r["decision"],"CASH")
     def test_matched_official_contract_xml_is_raw_evidence_not_positive_impact(self):
         report=inputs()
         original=dict(schema="dart_contract_source_v1",asof=DAY,
