@@ -294,7 +294,7 @@ def render(r):
     for issuer in r.get("issuer_samples",[]):
         filings=issuer["filings"]
         if not filings:
-            lines.append("| "+issuer["name"]+" | 없음/미확인 | "+issuer["status"]+" | 아니요 |")
+            lines.append("| "+issuer["name"]+" | 없음/미확인 | — | "+issuer["status"]+" |")
         for f in filings:
             terms=f.get("structured_contract_terms") or {}
             amount=terms.get("amount_krw")
