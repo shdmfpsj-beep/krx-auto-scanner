@@ -102,6 +102,25 @@ class DailyAsOfGateTests(unittest.TestCase):
         self.assertIn("세방전지(004490) 전량 매도",to_markdown(r))
         self.assertEqual(r["decision"],"CASH")
 
+    def test_embedded_focus_is_not_labeled_an_independent_crosscheck(self):
+        result=evaluate(self.today,self.recovery,self.focus,self.sector,
+                        {**self.money,"market_ohlc_quality_verified":True},
+                        focus_source="SECTOR_FIRST_EMBEDDED_FALLBACK")
+        self.assertTrue(result["all_source_dates_aligned"])
+        self.assertFalse(result["all_independent_sources_verified"])
+        self.assertEqual(result["focus_research_count"],8)
+        self.assertIn("FOCUS_SINGLE_PIPELINE_NOT_INDEPENDENT",
+                      result["data_integrity_blockers"])
+        self.assertNotIn("FOCUS_SOURCE_MISSING",result["data_integrity_blockers"])
+        self.assertIn("SECTOR_FIRST_EMBEDDED_FALLBACK",to_markdown(result))
+        self.assertEqual(result["decision"],"CASH")
+
+    def test_missing_focus_is_missing_not_claimed_unsafe(self):
+        result=evaluate(self.today,self.recovery,{},self.sector,self.money)
+        self.assertIn("FOCUS_SOURCE_MISSING",result["data_integrity_blockers"])
+        self.assertNotIn("FOCUS_RESEARCH_ORDER_FLAG_NOT_SAFE",
+                         result["data_integrity_blockers"])
+
     def test_dates_alone_never_trigger_buy(self):
         output = self.run_gate()
         self.assertTrue(output["all_source_dates_aligned"])
