@@ -38,11 +38,27 @@ jobs:
             fi
           done
           [[ -f input/regular_observation.json ]] || echo "REGULAR_OBSERVATION_UNAVAILABLE"
+      - name: Optionally load audited KRX minute prices from official source probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GH_REPO/actions/workflows/kis_regular_minute_audit.yml/runs?per_page=30" \
+            --jq '.workflow_runs[] | select(.conclusion == "success") | .id' |
+          while read -r id; do
+            [[ "$id" == "$GITHUB_RUN_ID" ]] && continue
+            if gh run download "$id" -R "$GH_REPO" -n kis-krx-regular-minute-audit -D input 2>/dev/null; then
+              echo "FOUND_OFFICIAL_MINUTE_PROBE_RUN $id"
+              break
+            fi
+          done
+          [[ -f input/kis_regular_minute_audit.json ]] || echo "OFFICIAL_MINUTE_PROBE_UNAVAILABLE"
+
       - name: Publish report only from date-matched regular archive
         shell: bash
         run: |
           python scripts/krx_regular_daily_report.py \
-            --regular input/regular_observation.json --out output
+            --regular input/regular_observation.json \
+            --kis-audit input/kis_regular_minute_audit.json --out output
           python - <<'PY'
           import json
           from pathlib import Path
@@ -50,6 +66,8 @@ jobs:
           assert s['after_market_excluded'] is True
           assert s['approved_buy_count']==0 and s['decision']=='CASH'
           assert s['mode']=='KRX_REGULAR_ONLY_0900_1530'
+          assert s['kis_krx_minute_price_probe']['market_wide_validated'] is False
+          assert s['kis_krx_minute_price_probe']['investor_flow_validated'] is False
           print('REGULAR_ONLY_SOURCE_RESULT',s['market_source_status'],s['blockers'])
           PY
       - uses: actions/upload-artifact@v4
