@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Offline regression tests for joining independent stop references."""
 import unittest
-from focus_structure_join import merge,render
+from focus_structure_join import merge,render,combine_price_sources
 
 BASE={"asof":"2026-10-22",
       "stock_research_top5":[{"ticker":"005930","name":"삼성전자"}],
@@ -38,6 +38,29 @@ class JoinTests(unittest.TestCase):
         self.assertEqual(o["focus_independent_stop_reference_count"],0)
         self.assertIsNone(o["stock_research_top5"][0]["independently_collected_daily_stop_reference"])
         self.assertIn("NO_HELD_CONFIRMED_PIVOT",render(o,"# report"))
+    def test_dynamic_top3_stock_stop_is_preferred_over_old_focus_data(self):
+        baseline=[row(when="2026-10-21",stop="899")]
+        dynamic=[row(when="2026-10-22",stop="905")]
+        collected=combine_price_sources(baseline,dynamic,"2026-10-22")
+        self.assertEqual(len(collected),1)
+        self.assertEqual(collected[0]["historical_stop_reference"],"905")
+        merged=merge(BASE,collected)
+        self.assertEqual(merged["stock_research_top5"][0]["independently_collected_daily_stop_reference"],"905")
+        self.assertEqual(merged["stock_research_top5"][0]["independent_first_entry_reference"],"990~1010")
+        self.assertIn("TOP5 실제 일봉가격",render(merged,"# report"))
+    def test_dynamic_collection_failure_cannot_override_valid_focus_stop(self):
+        baseline=[row(when="2026-10-22",stop="905")]
+        dynamic=[{**row(when="2026-10-22",stop=""),"structure_state":"DATA_MISSING",
+                  "data_source":"NONE"}]
+        collected=combine_price_sources(baseline,dynamic,"2026-10-22")
+        self.assertEqual(collected[0]["historical_stop_reference"],"905")
+    def test_stale_dynamic_and_stale_core_do_not_create_fresh_stop(self):
+        baseline=[row(when="2026-10-20",stop="905")]
+        dynamic=[row(when="2026-10-21",stop="940")]
+        collected=combine_price_sources(baseline,dynamic,"2026-10-22")
+        merged=merge(BASE,collected)
+        self.assertEqual(merged["focus_independent_stop_reference_count"],0)
+        self.assertEqual(merged["decision"],"CASH")
     def test_focus_price_does_not_create_85_score(self):
         o=merge(BASE,[row()])
         self.assertFalse(o["focus_price_is_independent_trade_approval"])
