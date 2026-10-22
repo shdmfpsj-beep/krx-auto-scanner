@@ -105,6 +105,27 @@ def metrics_from_rows(rows,unit):
            for k in REQUIRED}
     return found,conflicts
 
+def source_table_groups(rows):
+    """Preserve table boundaries: a period from table A must not authorize B."""
+    groups=[];current=[]
+    for row in rows:
+        if row==["__TABLE_BOUNDARY__"]:
+            if current:groups.append(current)
+            current=[]
+        else:current.append(row)
+    if current:groups.append(current)
+    return groups
+
+class LegacyPreliminaryTables(LegacyTables):
+    def handle_starttag(self,tag,attrs):
+        if tag=="table":
+            self.finish_row()
+            self.rows.append(["__TABLE_BOUNDARY__"])
+        super().handle_starttag(tag,attrs)
+    def handle_endtag(self,tag):
+        super().handle_endtag(tag)
+        if tag=="table":self.rows.append(["__TABLE_BOUNDARY__"])
+
 def decode_document(data):
     """Extract bounded tables, typed units and per-period evidence only."""
     if len(data)>MAX_ZIP_BYTES or not zipfile.is_zipfile(io.BytesIO(data)):
@@ -126,14 +147,19 @@ def decode_document(data):
             try:
                 root=ElementTree.fromstring(raw)
                 parsed=[]
-                for tr in root.iter():
-                    if not isinstance(tr.tag,str) or tr.tag.split("}")[-1].upper()!="TR":
-                        continue
-                    cells=[c for c in tr if isinstance(c.tag,str) and
-                        c.tag.split("}")[-1].upper() in ("TD","TH")]
-                    if 2<=len(cells)<=14:
-                        parsed.append([" ".join("".join(c.itertext()).split())[:160]
-                            for c in cells])
+                for table in root.iter():
+                    if not isinstance(table.tag,str) or (
+                        table.tag.split("}")[-1].upper()!="TABLE"):continue
+                    parsed.append(["__TABLE_BOUNDARY__"])
+                    for tr in table.iter():
+                        if not isinstance(tr.tag,str) or tr.tag.split("}")[-1].upper()!="TR":
+                            continue
+                        cells=[c for c in tr if isinstance(c.tag,str) and
+                            c.tag.split("}")[-1].upper() in ("TD","TH")]
+                        if 2<=len(cells)<=14:
+                            parsed.append([" ".join("".join(c.itertext()).split())[:160]
+                                for c in cells])
+                    parsed.append(["__TABLE_BOUNDARY__"])
                 rows.extend(parsed[:2500])
             except (ElementTree.ParseError,ValueError,UnicodeError):
                 # Legacy DART SGML has no universal well-formed XML guarantee.
@@ -151,7 +177,7 @@ def decode_document(data):
                         if len(piece)<=100000:fragments.append(piece)
                     if not fragments:continue
                     doc="\n".join(fragments)[:MAX_SGML_FRAGMENT]
-                parser=LegacyTables()
+                parser=LegacyPreliminaryTables()
                 try:parser.feed(doc)
                 except (ValueError,AssertionError):continue
                 rows.extend([[" ".join(str(c).split())[:160] for c in r[:14]]
@@ -188,19 +214,31 @@ def assess(data,filing,asof):
         result["status"]="PRELIMINARY_UNIT_MISSING_OR_AMBIGUOUS";return result
     unit=units[0]
     result["unit"]=unit
-    rows=data.get("rows",[])
-    period=parse_date_pairs(rows)
-    if period is None:
+    groups=source_table_groups(data.get("rows",[]))
+    dated=[]
+    complete=[]
+    conflicts_found=False
+    for rows in groups:
+        period=parse_date_pairs(rows)
+        if period is None:continue
+        dated.append(period)
+        vals,conflicts=metrics_from_rows(rows,unit)
+        if conflicts:conflicts_found=True
+        if all(vals.get(k) is not None for k in REQUIRED) and not conflicts:
+            complete.append((period,vals))
+    if conflicts_found:
+        result["status"]="PRELIMINARY_DUPLICATE_METRIC_CONFLICT";return result
+    if not dated:
         result["status"]="PRELIMINARY_QUARTER_COMPARISON_PERIOD_NOT_VERIFIED"
         return result
+    if not complete:
+        result["status"]="PRELIMINARY_SAME_ROW_YOY_VALUES_MISSING";return result
+    if len(complete)!=1:
+        result["status"]="PRELIMINARY_MULTIPLE_QUARTER_TABLES_AMBIGUOUS";return result
+    period,vals=complete[0]
     if date.fromisoformat(period["current_end"])>day:
         result["status"]="PRELIMINARY_RESULTS_AFTER_RECEIPT_DATE";return result
     result["quarter_period"]=period
-    vals,conflicts=metrics_from_rows(rows,unit)
-    if conflicts:
-        result["status"]="PRELIMINARY_DUPLICATE_METRIC_CONFLICT";return result
-    if any(vals.get(k) is None for k in REQUIRED):
-        result["status"]="PRELIMINARY_SAME_ROW_YOY_VALUES_MISSING";return result
     rev,prior_rev=vals["revenue"]
     op,prior_op=vals["operating_profit"]
     result.update(revenue_current_krw=rev,revenue_previous_krw=prior_rev,
