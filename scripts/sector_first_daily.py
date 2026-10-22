@@ -209,6 +209,8 @@ def render(report):
            "**신규매수: CASH** (최종 종목 점수·호재·실행 타점 미검증)","",
            f"섹터 데이터 기준일: {show(report['asof'])} / 보고일: {report['report_date']}",
            f"섹터 상태: {report['status']}","",
+           "원본 자료 확보: "+str((report.get("source_acquisition") or {}).get("status","확인되지 않음")),
+           "원본 확보 제한사유: "+", ".join((report.get("source_acquisition") or {}).get("errors",[])),"",
            f"섹터 선정판정: {report['sector_selection_outcome']} / 종목 선정판정: {report['stock_selection_outcome']}",
            "실제 BUY 승인: 0건 (80점·진입구조·실행자료 별도 미검증)","",
            "KRX 원본 OHLC 검증: "+
@@ -287,6 +289,21 @@ def main():
     sectors=read_rows(a.input/"sector_research_ranking.csv")
     stocks=read_rows(a.input/"sector_stock_research_ranking.csv")
     report=build(summary,sectors,stocks,date.fromisoformat(a.today),load_c3_position(a.c3_state))
+    source_status=a.input/"source_selection_status.json"
+    try:
+        acquisition=json.loads(source_status.read_text(encoding="utf-8")) if source_status.is_file() else {}
+    except (OSError,ValueError):
+        acquisition={}
+    report["source_acquisition"]=acquisition
+    if acquisition.get("ready") is False:
+        report["sector_selection_outcome"]="PENDING_DATA_VALIDATION"
+        report["stock_selection_outcome"]="PENDING_DATA_VALIDATION"
+        report["verified_sector_count"]=None
+        report["verified_stock_research_count"]=None
+        report["status"]="DATA_VALIDATION_PENDING"
+        report["blockers"]=list(dict.fromkeys(
+            report["blockers"]+["SOURCE_ACQUISITION_INCOMPLETE"]+
+            ["SOURCE:"+str(x) for x in acquisition.get("errors",[])]))
     a.out.mkdir(parents=True,exist_ok=True)
     (a.out/"sector_first_daily_status.json").write_text(
          json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
