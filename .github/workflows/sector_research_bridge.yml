@@ -150,6 +150,7 @@ jobs:
           assert (b["selected"],b["top10_hits"])==(2,0)
           PY
       - name: Download latest matching artifacts
+        id: source_inputs
         shell: bash
         run: |
           set -euo pipefail
@@ -158,6 +159,8 @@ jobs:
           import json,os,subprocess,zipfile,io
           from pathlib import Path
           repo=os.environ["GH_REPO"]
+          source_errors=[]
+          selected_sources={}
           for wf,name,dest in [
             ("krx_recovery_scan.yml","krx-recovery-scan","inputs/scan"),
             ("sector_evidence_v18.yml","sector-evidence-v18-report","inputs/evidence")]:
@@ -170,7 +173,9 @@ jobs:
                 # but the full ZIP provenance/completeness checks below still apply.
                 candidates=[r for r in candidates
                             if r.get("event") in ("schedule","workflow_dispatch")]
-              if not candidates: raise SystemExit(f"NO_SUCCESSFUL_RUN:{wf}")
+              if not candidates:
+                source_errors.append(f"NO_SUCCESSFUL_RUN:{wf}")
+                continue
               found=False
               for run in candidates:
                 a=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/runs/{run['id']}/artifacts"],
@@ -206,11 +211,24 @@ jobs:
                       raise SystemExit("UNSAFE_ARTIFACT_PATH")
                   archive.extractall(dest)
                 print(f"SELECTED_ARTIFACT workflow={wf} run_id={run['id']} created_at={run.get('created_at')} artifact_id={match['id']}")
+                selected_sources[wf]={"run_id":run["id"],"artifact_id":match["id"]}
                 found=True
                 break
-              if not found: raise SystemExit(f"ARTIFACT_UNAVAILABLE:{name}")
+              if not found:
+                source_errors.append(f"ARTIFACT_UNAVAILABLE:{name}")
+          ready=(not source_errors and len(selected_sources)==2)
+          payload={"schema":"sector_source_acquisition_v1",
+                   "ready":ready,"status":"VERIFIED_SOURCE_SELECTED" if ready else "PENDING_DATA_VALIDATION",
+                   "errors":source_errors,"sources":selected_sources,
+                   "research_only":True,"trade_approved":False,"decision":"CASH"}
+          Path("output/source_selection_status.json").write_text(
+              json.dumps(payload,ensure_ascii=False,indent=2),encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as f:
+              f.write("ready="+("true" if ready else "false")+chr(10))
+          print("SOURCE_ACQUISITION",json.dumps(payload,ensure_ascii=False))
           PY
       - name: Produce research-only sector ranking
+        if: steps.source_inputs.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import subprocess,sys
@@ -229,6 +247,7 @@ jobs:
         run: python scripts/sector_first_daily.py --input output --out output
 
       - name: Audit historical watchlist setups from real dated OHLC
+        if: steps.source_inputs.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import json,subprocess,sys
@@ -252,6 +271,7 @@ jobs:
                           "--watchlist",str(watch),"--asof",asof,"--out","output"],check=True)
           PY
       - name: Compare staged entries on identical historical watchlist signals
+        if: steps.source_inputs.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import json,subprocess,sys
@@ -268,12 +288,15 @@ jobs:
                           "--watchlist",str(watch),"--asof",asof,"--out","output"],check=True)
           PY
       - name: Evaluate paired-entry robustness by month and second fill
+        if: steps.source_inputs.outputs.ready == 'true'
         run: |
           python scripts/staged_robustness.py --paired output/staged_entry_paired.csv --out output/staged_robustness.json
       - name: Evaluate fixed-rule temporal holdout
+        if: steps.source_inputs.outputs.ready == 'true'
         run: |
           python scripts/staged_temporal_holdout.py --paired output/staged_entry_paired.csv --out output/staged_temporal_holdout.json
       - name: Compare structural second-entry supports
+        if: steps.source_inputs.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import json,subprocess,sys
@@ -290,6 +313,7 @@ jobs:
                           "--watchlist",str(watch),"--asof",asof,"--out","output"],check=True)
           PY
       - name: Verify structural research outputs and research-only status
+        if: steps.source_inputs.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import csv,json
