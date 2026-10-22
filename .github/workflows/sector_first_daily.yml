@@ -66,6 +66,8 @@ jobs:
             /scripts/test_shadow_entry_comparison.py
             /scripts/c3_one_slot_equity.py
             /scripts/test_c3_one_slot_equity.py
+            /scripts/profit_proof_gate.py
+            /scripts/test_profit_proof_gate.py
             /requirements.txt
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -97,6 +99,7 @@ jobs:
           python scripts/test_shadow_trade_audit.py
           python scripts/test_shadow_entry_comparison.py
           python scripts/test_c3_one_slot_equity.py
+          python scripts/test_profit_proof_gate.py
 
       - name: Collect global industry and macro news from GDELT (free, read only)
         if: always()
@@ -355,6 +358,10 @@ jobs:
             --risk-budget-pct 2.0 \
             --out output
 
+      - name: Independently audit the evidence for profitable C3 execution
+        if: always()
+        run: python scripts/profit_proof_gate.py --root output
+
       - name: Upload simple mobile summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -395,6 +402,8 @@ jobs:
             output/entry_ab_mobile.md
             output/c3_one_slot_equity.json
             output/c3_one_slot_mobile.md
+            output/profit_proof_gate.json
+            output/profit_proof_mobile.md
             output/sector_research_ranking.csv
             output/sector_stock_research_ranking.csv
             output/sector_bridge_status.json
