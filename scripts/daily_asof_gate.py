@@ -9,27 +9,14 @@ import argparse
 import json
 import csv
 from decimal import Decimal, InvalidOperation, ROUND_FLOOR
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from trade_approval_policy import BUY_REVIEW_SCORE_MIN, SCORE_MAX, evaluate_review
 from c3_account_state import load_c3_position, c3_mobile_line
+from krx_session_clock import nominal_last_completed_krx_session
 
-
-
-def nominal_last_completed_krx_session(now_kst: datetime) -> str:
-    """Conservative weekday/cutoff candidate, NOT an exchange holiday calendar.
-
-    At 05:00 Friday the last completed session is Thursday. Even at 16:00
-    today's date requires source-date/price-quality verification downstream.
-    """
-    d=now_kst.date()
-    if d.weekday() >= 5 or (d.weekday() < 5 and now_kst.hour < 16):
-        d-=timedelta(days=1)
-    while d.weekday()>=5:
-        d-=timedelta(days=1)
-    return d.isoformat()
 
 
 def load_json(path: Path) -> dict:

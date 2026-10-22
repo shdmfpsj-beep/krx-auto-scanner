@@ -12,6 +12,7 @@ from datetime import datetime, date
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from c3_account_state import load_c3_position, c3_mobile_line
+from krx_session_clock import nominal_last_completed_krx_session
 
 def read_rows(path):
     if not path.is_file():
@@ -278,7 +279,7 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--input",type=Path,default=Path("output"))
     p.add_argument("--out",type=Path,default=Path("output"))
-    p.add_argument("--today",default=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat())
+    p.add_argument("--today",default=nominal_last_completed_krx_session(datetime.now(ZoneInfo("Asia/Seoul"))))
     p.add_argument("--c3-state",type=Path,default=Path("config/c3_position_state.json"))
     a=p.parse_args()
     status=a.input/"sector_bridge_status.json"

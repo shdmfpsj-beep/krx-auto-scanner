@@ -2,6 +2,13 @@ name: C3 K100 Sector First simple daily report
 
 on:
   workflow_dispatch:
+  # Late v18 completed-source jobs may finish after the fixed 22:00 scan.
+  # Re-run report when the verified source collector finishes, so the
+  # completed prior-day data is not stranded in an artifact overnight.
+  workflow_run:
+    workflows: ["Sector Evidence v18 (standalone)"]
+    types: [completed]
+    branches: [main]
   # Only edits to this workflow launch an extra live integration run.
   # Ordinary strategy/script commits use fast offline CI to save API quota.
   push:
@@ -22,6 +29,7 @@ concurrency:
 
 jobs:
   report:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -37,6 +45,7 @@ jobs:
             /scripts/sector_daily_money.py
             /scripts/test_sector_daily_money.py
             /scripts/sector_first_daily.py
+            /scripts/krx_session_clock.py
             /scripts/c3_account_state.py
             /config/c3_position_state.json
             /scripts/test_sector_first_daily.py

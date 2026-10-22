@@ -30,13 +30,20 @@ class DailyAsOfGateTests(unittest.TestCase):
         cases=[
           ("2026-10-23T04:54:00","2026-10-22"),
           ("2026-10-23T15:59:00","2026-10-22"),
-          ("2026-10-23T16:00:00","2026-10-23"),
+          ("2026-10-23T16:00:00","2026-10-22"),
+          ("2026-10-23T19:59:00","2026-10-22"),
+          ("2026-10-23T20:09:00","2026-10-22"),
+          ("2026-10-23T20:10:00","2026-10-23"),
           ("2026-10-24T10:00:00","2026-10-23"),
           ("2026-10-25T23:00:00","2026-10-23"),
           ("2026-10-26T08:35:00","2026-10-23"),
-          ("2026-10-26T16:00:00","2026-10-26")]
+          ("2026-10-26T16:00:00","2026-10-23"),
+          ("2026-10-26T20:09:00","2026-10-23"),
+          ("2026-10-26T20:10:00","2026-10-26")]
         for local,expected in cases:
             self.assertEqual(nominal_last_completed_krx_session(dt(local)),expected,local)
+        with self.assertRaisesRegex(ValueError,"KST_TZ_AWARE"):
+            nominal_last_completed_krx_session(datetime(2026,10,23,20,30))
         result=self.run_gate()
         self.assertEqual(result["target_session_semantics"],
                          "MOST_RECENT_NOMINAL_COMPLETED_KRX_WEEKDAY_NOT_HOLIDAY_VERIFIED")
