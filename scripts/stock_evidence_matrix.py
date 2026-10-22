@@ -112,6 +112,13 @@ def build(report,contracts=None):
                 original_source_status=notice.get("original_financial_status",
                                              "NOT_DOWNLOADED"),
                 recent_quarter_catalyst_verified=False))
+        # Make the newest as-of notice authoritative even if API rows are
+        # unordered. Do not let an older parsed statement override a newer
+        # unparsed correction or withdrawn statement.
+        prelim.sort(key=lambda x:(x["date"],x["url"]),reverse=True)
+        newest_prelim=prelim[0] if prelim else None
+        latest_prelim_unverified=bool(
+            newest_prelim and not newest_prelim["financial_figures_verified"])
         originals=[]
         for filing in issuer.get("filings",[])[:3]:
             filed=iso(filing.get("date"))
@@ -169,12 +176,14 @@ def build(report,contracts=None):
             t in dual and dual[t].get("annual_plus_interim_growth_pass") is True)
         historical_weakness=bool(price.get("recent_financial_weakening_veto") or
                       finances.get("recent_financial_weakening_veto"))
-        preliminary_weakness=any(
-            x["financial_figures_verified"] and
-            x["preliminary_earnings_quality"]=="RECENT_PRELIMINARY_WEAKENING"
-            for x in prelim)
+        preliminary_weakness=bool(
+            newest_prelim and newest_prelim["financial_figures_verified"] and
+            newest_prelim["preliminary_earnings_quality"]=="RECENT_PRELIMINARY_WEAKENING")
         weakness=historical_weakness or preliminary_weakness
-        if weakness:dual_growth=False
+        # Annual+interim growth was historically observed, but it cannot
+        # stand as a *current* combined growth signal once a newer
+        # unverified Q3/Q4 preliminary result exists.
+        if weakness or latest_prelim_unverified:dual_growth=False
         conflict=t in (report.get("focus_close_conflict_tickers") or []) or (
             price.get("independent_stop_status")=="CROSS_SOURCE_CLOSE_CONFLICT")
         stop=finite_number(price.get("independently_collected_daily_stop_reference"))
@@ -199,8 +208,9 @@ def build(report,contracts=None):
         if not has_money:reasons.append("DAY_MONEY_EVIDENCE_MISSING")
         if not annual_verified:reasons.append("ANNUAL_FINANCIALS_UNVERIFIED")
         if not verified_interim:reasons.append("CURRENT_INTERIM_YTD_UNVERIFIED")
-        if prelim and not any(x["financial_figures_verified"] for x in prelim):
+        if latest_prelim_unverified:
             reasons.append("FRESH_PRELIMINARY_EARNINGS_NUMBERS_NOT_PARSED")
+            reasons.append("PRIOR_GROWTH_NOT_CURRENT_WHEN_NEWER_FILING_UNVERIFIED")
         if preliminary_weakness:reasons.append("RECENT_PRELIMINARY_QUARTER_WEAKENING")
         if historical_weakness:reasons.append("RECENT_YTD_WEAKENING")
         if conflict:reasons.append("CROSS_SOURCE_CLOSE_CONFLICT")
@@ -219,10 +229,9 @@ def build(report,contracts=None):
                 "completed_daily_structure_reference")),
             direct_company_filings=direct,
             official_contract_originals=originals,
-            newer_preliminary_earnings_not_parsed=bool(
-                prelim and not any(x["financial_figures_verified"] for x in prelim)),
-            recent_preliminary_quarter_source_verified=any(
-                x["financial_figures_verified"] for x in prelim),
+            newer_preliminary_earnings_not_parsed=latest_prelim_unverified,
+            recent_preliminary_quarter_source_verified=bool(
+                newest_prelim and newest_prelim["financial_figures_verified"]),
             recent_preliminary_quarter_weakening=preliminary_weakness,
             recent_preliminary_earnings_disclosures=prelim,
             original_contract_text_observed=any(
@@ -277,6 +286,8 @@ def render(data):
         if x["cohort"]!="ABSOLUTE_TOP5":continue
         c=x["checks"]
         financial=("약화" if c["any_recent_earnings_weakening"]
+            else "신규 잠정실적 수치 확인 전·성장판정 보류"
+                 if x["newer_preliminary_earnings_not_parsed"]
             else "성장 확인" if c["annual_and_interim_growth"]
             else "누적 확인" if c["current_interim_ytd_verified"]
             else "미검증")
