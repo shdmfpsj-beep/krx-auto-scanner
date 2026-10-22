@@ -104,6 +104,28 @@ def latest_periodic_filing(payload,asof):
         out.append((when,receipt,name))
     return max(out,key=lambda x:(x[0],x[1])) if out else None
 
+def latest_interim_filing(payload,asof):
+    """Select newest *fiscal period*, not newest receipt of an older filing.
+
+    An old annual report corrected in October must never hide this year's
+    already-filed half-year/Q3 interim results. Amendment to the SAME interim
+    period may use its latest as-of receipt; no future or pre-period filing.
+    """
+    if payload.get("status")!="000":return None
+    eligible=[]
+    for row in payload.get("list",[]):
+        received=iso_day(row.get("rcept_dt"))
+        receipt=str(row.get("rcept_no",""))
+        name=str(row.get("report_nm",""))
+        if not received or received>asof:continue
+        candidate=identify_interim_filing((received,receipt,name),asof)
+        if not candidate:continue
+        period_end=iso_day(candidate["period_end"])
+        if not period_end or received<=period_end:continue
+        if candidate["fiscal_year"]<asof.year-1:continue
+        eligible.append((period_end,received,receipt,candidate))
+    return max(eligible,key=lambda x:(x[0],x[1],x[2]))[3] if eligible else None
+
 def extract_metric(rows,ids,statement,period):
     """Use unique standard XBRL codes; account_detail absent is ordinary.
 
@@ -285,8 +307,18 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
                     "https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+latest_receipt)
                 item["days_since_latest_periodic_report"]=(asof-latest_date).days
             item["latest_periodic_financials_analyzed"]=False
-            interim=identify_interim_filing(latest,asof)
-            item["interim_research"]={"status":"NO_ELIGIBLE_INTERIM_FILING"}
+            interim=latest_interim_filing(filings,asof)
+            # Do not relabel an old interim as current after its fiscal-year
+            # annual accounts have already been filed and verified by date.
+            latest_annual_year=max(
+                (year for year in possible_years
+                 if annual_receipt(filings,year,asof)),default=None)
+            superseded=bool(interim and latest_annual_year is not None and
+                            interim["fiscal_year"]<=latest_annual_year)
+            if superseded:interim=None
+            item["interim_research"]={
+                "status":("INTERIM_SUPERSEDED_BY_SAME_OR_NEWER_ANNUAL"
+                          if superseded else "NO_ELIGIBLE_INTERIM_FILING")}
             if interim:
                 item["interim_research"]={"status":"INTERIM_NOT_VERIFIED","filing":interim}
                 try:
