@@ -36,6 +36,9 @@ def metric(label):
 
 def column_kind(label):
     s=clean(label)
+    # DART date TABLE lists quarter and 9-month cumulative periods. Never
+    # mistake 당기누계실적 / 전년동기누적실적 for 3-month quarters.
+    if "누계" in s or "누적" in s:return None
     if any(k in s for k in EXCLUDED):return None
     if any(k in s for k in PREVIOUS):return "previous_same_period"
     if any(k in s for k in CURRENT):return "current"
@@ -87,10 +90,10 @@ def parse_date_pairs(rows):
                 previous_start=b[0].isoformat(),previous_end=b[1].isoformat(),
                 frequency="SINGLE_QUARTER_NON_CUMULATIVE")
 
-def metrics_from_rows(rows,unit,period=None):
+def metrics_from_rows(rows,unit,period=None,only_staggered=False):
     """Require exact current+prior column headers and consistent metric values."""
     values={}
-    for i,head in enumerate(rows):
+    for i,head in enumerate(rows if not only_staggered else []):
         labels=[column_kind(h) for h in head]
         if labels.count("current")!=1 or labels.count("previous_same_period")!=1:
             continue
@@ -266,7 +269,8 @@ def assess(data,filing,asof):
         # immediately following TABLE 2 has a quarter-coded merged header.
         # Never use nonadjacent tables or unmarked quarter cells.
         elif i+1<len(groups):
-            adjacent,adj_conflicts=metrics_from_rows(groups[i+1],unit,period)
+            adjacent,adj_conflicts=metrics_from_rows(groups[i+1],unit,period,
+                                                   only_staggered=True)
             if adj_conflicts:conflicts_found=True
             if all(adjacent.get(k) is not None for k in REQUIRED) and not adj_conflicts:
                 complete.append((period,adjacent))
