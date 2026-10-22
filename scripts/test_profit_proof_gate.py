@@ -114,6 +114,27 @@ class ProfitProofTests(unittest.TestCase):
         x=audit(s,r,a)
         self.assertIn("ACCOUNT_REALISED_PNL_ARITHMETIC_MISMATCH",x["blockers"])
         self.assertIn("ACCOUNT_CASH_CHAIN_BROKEN",x["blockers"])
+    def test_forged_equity_exit_mark_not_accepted_even_if_mdd_self_consistent(self):
+        s,r,a=synthetic()
+        a["equity_marks"][1]["equity_krw"]-=25000
+        x=audit(s,r,a)
+        self.assertIn("ACCOUNT_EXIT_EQUITY_MARK_NOT_IN_CASH_LEDGER",x["blockers"])
+        self.assertFalse(x["integrity_pass"])
+    def test_overlapping_positions_cannot_be_treated_as_one_stock(self):
+        s,r,a=synthetic()
+        a["trades"][1]["entry_date"]=a["trades"][0]["exit_date"]
+        x=audit(s,r,a)
+        self.assertIn("ACCOUNT_OVERLAPPING_POSITIONS",x["blockers"])
+    def test_winning_trade_count_cannot_be_inflated(self):
+        s,r,a=synthetic()
+        a["winning_positions"]=33
+        x=audit(s,r,a)
+        self.assertIn("ACCOUNT_WIN_COUNT_MISMATCH",x["blockers"])
+    def test_reported_account_profit_pct_not_accepted_without_cash_reconcile(self):
+        s,r,a=synthetic()
+        a["realised_return_pct"]=120
+        x=audit(s,r,a)
+        self.assertIn("ACCOUNT_REALIZED_PERCENT_ARITHMETIC_MISMATCH",x["blockers"])
     def test_account_overleveraged_trade_blocks_edge_claim(self):
         s,r,a=synthetic()
         a["trades"][0]["shares"]=200000
