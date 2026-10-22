@@ -10,7 +10,8 @@ def table(rows):
     s=io.StringIO();w=csv.DictWriter(s,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
     return s.getvalue()
 
-def make_archive(root,wrong_date=False,drop_flow=None,stale_holdings=False,weak_breadth=False):
+def make_archive(root,wrong_date=False,drop_flow=None,stale_holdings=False,
+                 weak_breadth=False,bad_ohlc_tickers=None):
     sectors=[("SEMICON","반도체","091160",[f"{i:06d}" for i in range(1,6)]),
              ("IT","IT","091180",[f"{i:06d}" for i in range(1,11)]),
              ("POWER","전력설비","091170",[f"{i:06d}" for i in range(11,16)]),
@@ -31,7 +32,10 @@ def make_archive(root,wrong_date=False,drop_flow=None,stale_holdings=False,weak_
         return 5
     for i in range(1,21):
         t=f"{i:06d}"
-        market.append(dict(ticker=t,Date=ASOF,Open=90,High=110,Low=70 if weak_breadth else 88,Close=80 if weak_breadth else 100,
+        market.append(dict(ticker=t,Date=ASOF,Open=90,
+                           High=75 if t in (bad_ohlc_tickers or []) else 110,
+                           Low=70 if weak_breadth else 88,
+                           Close=80 if weak_breadth else 100,
                            Volume=10000,TurnoverKRW=10000000))
         if t!=drop_flow:
             foreign.append(dict(ticker=t,net_buy_krw=money(t)*1e9))
@@ -93,6 +97,19 @@ class SectorDailyMoneyTests(unittest.TestCase):
             self.assertIn("DIVERGENT_ALL_DOWN",render(data))
             self.assertIn("매수 승인이 아닙니다",render(data))
             self.assertEqual(data["decision"],"CASH")
+
+    def test_contradictory_completed_bars_reject_all_research_sectors(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bad={"000001","000006","000011","000016"}
+            ev=Evidence(make_archive(tmp,bad_ohlc_tickers=bad))
+            try:out=daily_evidence(ev,ASOF)
+            finally:ev.close()
+            self.assertEqual(out["raw_ohlc_conflict_count"],4)
+            self.assertFalse(out["market_ohlc_quality_verified"])
+            self.assertEqual(out["market_source_status"],"RAW_MARKET_OHLC_CONFLICT_HIGH")
+            self.assertEqual(out["selected_top3"],[])
+            self.assertIn("섹터 선정 보류",render(out))
+            self.assertEqual(out["decision"],"CASH")
 
     def test_asof_mismatch_cannot_trick_report(self):
         with tempfile.TemporaryDirectory() as tmp:
