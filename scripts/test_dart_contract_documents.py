@@ -59,6 +59,24 @@ class DartContractTests(unittest.TestCase):
         text="<?xml version='1.0'?><DOCUMENT><P>계약금액 500억원</P></DOCUMENT>"
         r=zip_document(archive(text))
         self.assertEqual(r["extracted_candidate_cells"],[])
+    def test_real_style_non_well_formed_sgml_table_is_read_as_candidates(self):
+        html="""<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+        <HTML><BODY><TABLE><TR><TH>계약금액<TD>1,300,000,000 원
+        <TR><TH>계약상대<TD>해외 고객사
+        </TABLE></BODY></HTML>"""
+        r=zip_document(archive(html))
+        self.assertEqual(r["status"],"DART_DOCUMENT_SGML_TABLES_PARSED")
+        self.assertFalse(r["amount_verified"])
+    def test_original_cp949_sgml_does_not_drop_korean_table_labels(self):
+        html='<HTML><META charset="euc-kr"><TABLE><TR><TH>계약금액</TH><TD>500억원</TD></TR></TABLE></HTML>'
+        raw=html.encode("euc-kr")
+        archive_=io.BytesIO()
+        with zipfile.ZipFile(archive_,"w") as zip_:
+            zip_.writestr("document.xml",raw)
+        r=zip_document(archive_.getvalue())
+        self.assertEqual(r["status"],"DART_DOCUMENT_SGML_TABLES_PARSED")
+        self.assertTrue(any("계약금액" in x["label"] for x in r["extracted_candidate_cells"]))
+        self.assertFalse(r["contract_effect_verified"])
     def test_bad_zip_and_excessive_decompressed_data_fail_closed(self):
         self.assertEqual(zip_document(b"garbage")["status"],
                          "INVALID_OR_OVERSIZE_DART_DOCUMENT")
