@@ -269,7 +269,7 @@ def build(report,contracts=None):
             entry1_research=price.get("independent_first_entry_reference")
                  if price_ready else None,
             company_catalyst_impact_verified=False,news_positive_verified=False,
-            final_80_score_verified=False,final_80_score_verified=False,final_85_score_verified=False,trade_approved=False)
+            final_80_score_verified=False,final_85_score_verified=False,trade_approved=False)
         matrix.append(row)
     return dict(schema=VERSION,asof=str(asof) if asof else None,
          sector_money_asof_aligned=market_gate and asof is not None,
