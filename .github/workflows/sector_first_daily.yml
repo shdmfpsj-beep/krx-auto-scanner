@@ -44,6 +44,8 @@ jobs:
             /scripts/test_sector_first_compact_report.py
             /scripts/shadow_trade_audit.py
             /scripts/test_shadow_trade_audit.py
+            /scripts/shadow_entry_comparison.py
+            /scripts/test_shadow_entry_comparison.py
             /requirements.txt
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -64,6 +66,7 @@ jobs:
           python scripts/test_sector_dynamic_structure.py
           python scripts/test_sector_first_compact_report.py
           python scripts/test_shadow_trade_audit.py
+          python scripts/test_shadow_entry_comparison.py
 
       - name: Collect global industry and macro news from GDELT (free, read only)
         if: always()
@@ -260,6 +263,15 @@ jobs:
             --previous-results output/previous_shadow_results.json \
             --out output
 
+      - name: Compare next-open and first-two-day pullback limit entry experiments
+        if: always()
+        run: |
+          python scripts/shadow_entry_comparison.py \
+            --signals output/shadow_signals.json \
+            --baseline-results output/shadow_results.json \
+            --evidence inputs/evidence \
+            --out output
+
       - name: Upload simple mobile summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -286,6 +298,9 @@ jobs:
             output/shadow_results.json
             output/shadow_scorecard.json
             output/shadow_scorecard_mobile.md
+            output/entry_ab_results.json
+            output/entry_ab_scorecard.json
+            output/entry_ab_mobile.md
             output/sector_research_ranking.csv
             output/sector_stock_research_ranking.csv
             output/sector_bridge_status.json
