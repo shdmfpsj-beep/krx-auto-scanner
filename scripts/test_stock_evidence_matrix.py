@@ -209,7 +209,9 @@ class StockEvidenceTests(unittest.TestCase):
         stock=result["candidates"][0]
         self.assertTrue(stock["recent_preliminary_quarter_source_verified"])
         self.assertTrue(stock["recent_preliminary_quarter_weakening"])
-        self.assertTrue(stock["checks"]["recent_ytd_weakening"])
+        self.assertFalse(stock["checks"]["recent_ytd_weakening"])
+        self.assertTrue(stock["checks"]["recent_preliminary_quarter_weakening"])
+        self.assertTrue(stock["checks"]["any_recent_earnings_weakening"])
         self.assertFalse(stock["checks"]["annual_and_interim_growth"])
         self.assertFalse(stock["newer_preliminary_earnings_not_parsed"])
         self.assertIn("RECENT_PRELIMINARY_QUARTER_WEAKENING",
