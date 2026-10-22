@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline annual DART statement and PIT safety regression tests."""
-import io,zipfile,unittest
+import io,zipfile,unittest,csv,tempfile
+from pathlib import Path
 from datetime import date
 from dart_financial_screen import (
     annual_receipt,parse_corps,extract_metric,evaluate_accounts,collect,render,
@@ -79,6 +80,41 @@ class DartAnnualTests(unittest.TestCase):
         self.assertEqual(r["status"],"ANNUAL_METRICS_INCOMPLETE")
         self.assertIn("revenue_krw",r["missing_metric_keys"])
         self.assertEqual(r["available_statement_rows"],1)
+    def test_research_financial_calls_balanced_across_three_sectors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/"candidate.csv"
+            fields=["ticker","name","sector_id","asof","research_proxy_index"]
+            rows=[]
+            for i in range(20):
+                rows.append(dict(ticker=f"{i+1:06d}",name=f"Semiconductor{i}",
+                    sector_id="SEMICON",asof=str(ASOF),
+                    research_proxy_index=str(100-i)))
+            for sid,prefix in (("POWER",200),("CONSTRUCTION",300)):
+                for i in range(10):
+                    rows.append(dict(ticker=f"{prefix+i:06d}",name=f"{sid}{i}",
+                        sector_id=sid,asof=str(ASOF),research_proxy_index=str(50-i)))
+            with path.open("w",encoding="utf-8",newline="") as fp:
+                w=csv.DictWriter(fp,fieldnames=fields)
+                w.writeheader();w.writerows(rows)
+            chosen=read_stocks(path,str(ASOF),limit=20,
+                     sector_ids=["SEMICON","POWER","CONSTRUCTION"])
+            counts={sid:sum(r["sector_id"]==sid for r in chosen)
+                for sid in ("SEMICON","POWER","CONSTRUCTION")}
+            self.assertEqual(len(chosen),20)
+            self.assertEqual(counts,{"SEMICON":7,"POWER":7,"CONSTRUCTION":6})
+            self.assertEqual(chosen[0]["sector_id"],"SEMICON")
+    def test_financial_screen_ignores_pharma_and_outside_top3(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/"candidate.csv"
+            with path.open("w",encoding="utf-8",newline="") as fp:
+                w=csv.DictWriter(fp,fieldnames=["ticker","name","sector_id","asof"])
+                w.writeheader()
+                w.writerows([
+                    dict(ticker="005930",name="삼성전자",sector_id="SEMICON",asof=str(ASOF)),
+                    dict(ticker="000660",name="바이오주",sector_id="SEMICON",asof=str(ASOF)),
+                    dict(ticker="010120",name="엘에스",sector_id="OTHER",asof=str(ASOF))])
+            result=read_stocks(path,str(ASOF),sector_ids=["SEMICON"])
+            self.assertEqual([x["ticker"] for x in result],["005930"])
     def test_missing_api_key_reports_unverified_and_keeps_cash(self):
         r=collect(ASOF,[TICKER],key=None,today=ASOF)
         self.assertEqual(r["status"],"MISSING_DART_KEY")
