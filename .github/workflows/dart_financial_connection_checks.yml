@@ -1,0 +1,78 @@
+name: Free OpenDART financial data connection and PIT audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dart_financial_connection_checks.yml'
+      - 'scripts/dart_financial_screen.py'
+      - 'scripts/test_dart_financial_screen.py'
+permissions:
+  contents: read
+jobs:
+  financial-connectivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout OpenDART minimal read-only code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/dart_financial_screen.py
+            /scripts/test_dart_financial_screen.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Offline as-of financial safety tests
+        run: |
+          python -m py_compile scripts/dart_financial_screen.py scripts/test_dart_financial_screen.py
+          python -m unittest discover -s scripts -p test_dart_financial_screen.py -v
+
+      - name: Check actual official OpenDART API with one Korean listed test company
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p inputs output
+          python - <<'PY'
+          import csv,datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          asof=datetime.datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+          path=Path("inputs/connectivity_fixture.csv")
+          with path.open("w",encoding="utf-8",newline="") as f:
+              fields=["ticker","name","sector_id","asof","research_proxy_index"]
+              w=csv.DictWriter(f,fieldnames=fields)
+              w.writeheader()
+              w.writerow(dict(ticker="005930",name="삼성전자",sector_id="SEMICON",
+                              asof=asof,research_proxy_index=""))
+          PY
+          python scripts/dart_financial_screen.py \
+            --input inputs/connectivity_fixture.csv --out output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("output/financial_research.json").read_text())
+          assert data["decision"]=="CASH" and not data["trade_approved"]
+          assert not data["final_85_score_verified"]
+          # No secrets or sensitive query parameter values are printed.
+          print("OPEN_DART_CONNECTIVITY_STATUS",data["status"])
+          print("ELIGIBLE_ANNUAL_FINANCIAL_RECORDS",
+                sum(x.get("status")=="DATED_ANNUAL_RESEARCH_ONLY"
+                    for x in data.get("researched",[])))
+          PY
+
+      - name: Preserve connection audit without credentials
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opendart-financial-connection
+          path: |
+            output/financial_research.json
+            output/financial_research_mobile.md
+          if-no-files-found: warn
+          retention-days: 7
