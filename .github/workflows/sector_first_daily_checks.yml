@@ -15,6 +15,10 @@ on:
       - 'scripts/test_global_sector_join.py'
       - 'scripts/global_preopen_brief.py'
       - 'scripts/test_global_preopen_brief.py'
+      - 'scripts/focus_daily_structure.py'
+      - 'scripts/test_focus_daily_structure.py'
+      - 'scripts/focus_structure_join.py'
+      - 'scripts/test_focus_structure_join.py'
       - 'scripts/sector_catalyst_enrich.py'
       - 'scripts/test_sector_catalyst_enrich.py'
       - '.github/workflows/sector_first_daily_checks.yml'
@@ -41,6 +45,10 @@ jobs:
             /scripts/test_global_sector_join.py
             /scripts/global_preopen_brief.py
             /scripts/test_global_preopen_brief.py
+            /scripts/focus_daily_structure.py
+            /scripts/test_focus_daily_structure.py
+            /scripts/focus_structure_join.py
+            /scripts/test_focus_structure_join.py
             /scripts/sector_catalyst_enrich.py
             /scripts/test_sector_catalyst_enrich.py
           sparse-checkout-cone-mode: false
@@ -62,6 +70,9 @@ jobs:
           python -m unittest discover -s scripts -p 'test_global_sector_join.py' -v
           python -m py_compile scripts/global_preopen_brief.py scripts/test_global_preopen_brief.py
           python -m unittest discover -s scripts -p 'test_global_preopen_brief.py' -v
+          python -m py_compile scripts/focus_daily_structure.py scripts/test_focus_daily_structure.py scripts/focus_structure_join.py scripts/test_focus_structure_join.py
+          python -m unittest discover -s scripts -p 'test_focus_daily_structure.py' -v
+          python -m unittest discover -s scripts -p 'test_focus_structure_join.py' -v
 
       - name: Simulate missing evidence safely
         run: |
@@ -70,6 +81,7 @@ jobs:
           python scripts/sector_catalyst_enrich.py --report-root output --evidence-root source_empty
           python scripts/global_sector_join.py --report-root output --news-root source_empty
           python scripts/global_preopen_brief.py --root source_empty
+          python scripts/focus_structure_join.py --root output
           python - <<'PY'
           import json
           from pathlib import Path
@@ -89,6 +101,9 @@ jobs:
           preopen=json.loads(Path('source_empty/global_preopen_brief.json').read_text())
           assert preopen['decision']=='CASH'
           assert preopen['global_early_watch']==[]
+          combined=json.loads(Path('output/sector_first_with_prices.json').read_text())
+          assert combined['decision']=='CASH'
+          assert combined['focus_daily_structure_research']==[]
           print('CASH_FALLBACK_TEST_PASSED')
           PY
 
@@ -105,4 +120,6 @@ jobs:
             output/sector_first_global.json
             source_empty/global_preopen_brief.json
             source_empty/global_preopen_brief_mobile.md
+            output/sector_first_with_prices.json
+            output/sector_first_with_prices_mobile.md
           retention-days: 7
