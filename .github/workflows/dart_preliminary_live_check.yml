@@ -1,9 +1,8 @@
 name: OpenDART preliminary earnings original one-off validation
+# One-time live validation completed on 2026-10-22.
+# Routine commits run offline CI; keep live DART requests opt-in only.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/dart_preliminary_live_check.yml']
 permissions:
   contents: read
 jobs:
