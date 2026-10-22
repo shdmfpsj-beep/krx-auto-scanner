@@ -19,6 +19,22 @@ def val(x):
         v=float(x)
         return v if math.isfinite(v) else 0.
     except (ValueError,TypeError):return 0.
+def quote_step(value):
+    """KRX-listed ordinary share price bands, excludes ETF/ETN special rules."""
+    v=val(value)
+    if v<2000:return 1
+    if v<5000:return 5
+    if v<20000:return 10
+    if v<50000:return 50
+    if v<200000:return 100
+    if v<500000:return 500
+    return 1000
+
+def floor_quote(value):
+    if value is None:return None
+    step=quote_step(value)
+    return int(math.floor(val(value)/step)*step)
+
 def study(seq,asof):
     seq=[x for x in seq if x.get("Date","")<=asof]
     if len(seq)<65 or seq[-1].get("Date")!=asof:
@@ -149,11 +165,16 @@ def render(data):
        "| 종목 | 수집 종가 | 피벗 손절 참고 | 1차 가격 연구 | 2차 지지 연구 |",
        "|---|---:|---:|---|---|"]
     for x in data["focus"]:
-        t=x["technical"];zone=lambda a:("~".join(fmt(v) for v in a) if a else "—")
-        lines.append("| "+x["name"]+("†" if x["cross_source_conflict"] else "")+
-          " | "+fmt(x["close_archive"])+" | "+fmt(t.get("stop_reference"))+
-          " | "+zone(t.get("entry1_study"))+" | "+zone(t.get("entry2_retest"))+" |")
-    lines+=["","*진입 연구가격은 실제 지정가 주문이 아니라 과거 일봉 기반 검토가격입니다.",
+        t=x["technical"];zone=lambda a:("~".join(fmt(floor_quote(v)) for v in a) if a else "—")
+        if x["cross_source_conflict"]:
+            lines.append("| "+x["name"]+"† | "+fmt(x["close_archive"])+
+                " / 외부 "+fmt(x.get("external_close"))+" | 주문 사용 금지 |"+
+                " 출처 불일치 | 출처 불일치 |")
+        else:
+            lines.append("| "+x["name"]+" | "+fmt(x["close_archive"])+" | "+
+               fmt(floor_quote(t.get("stop_reference")))+" | "+
+               zone(t.get("entry1_study"))+" | "+zone(t.get("entry2_retest"))+" |")
+    lines+=["","*표시한 가격대는 한국거래소 일반주식 가격대별 호가단위로 내림한 **연구 참고값**이며 실제 지정가 주문 승인이 아닙니다.",
       "*IT·로봇 ETF에는 반도체 대표주가 중복되므로 중복 제외 순매수가 음수면 TOP3에서 배제합니다.",
       "*뉴스·DART 수집이 누락돼 85점 최종 투자평가는 수행하지 않았습니다.",
       "*† 외부 확인 종가와 수집본 불일치: 해당 종목의 매매가격 사용 금지.",""]
