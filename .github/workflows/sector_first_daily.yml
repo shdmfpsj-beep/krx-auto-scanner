@@ -37,6 +37,10 @@ jobs:
             /scripts/global_sector_join.py
             /scripts/test_global_sector_join.py
             /scripts/focus_structure_join.py
+            /scripts/focus_daily_structure.py
+            /scripts/sector_dynamic_structure.py
+            /scripts/test_sector_dynamic_structure.py
+            /requirements.txt
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -53,6 +57,7 @@ jobs:
           python scripts/test_sector_catalyst_enrich.py
           python scripts/test_global_sector_news.py
           python scripts/test_global_sector_join.py
+          python scripts/test_sector_dynamic_structure.py
 
       - name: Collect global industry and macro news from GDELT (free, read only)
         if: always()
@@ -128,6 +133,21 @@ jobs:
                           "--evidence",str(matches[0].parent.parent),
                           "--scan-status",str(scan[0]),"--out","output"],check=True)
           PY
+      - name: Install no-cost OHLCV collectors for dynamically chosen TOP3 stocks
+        if: success()
+        run: pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Compute independent daily stops for freshly selected TOP3-sector stocks
+        if: always()
+        run: |
+          mkdir -p output/dynamic
+          python scripts/sector_dynamic_structure.py \
+            --status output/sector_bridge_status.json \
+            --watchlist output/sector_stock_research_ranking.csv \
+            --out output/dynamic \
+            --max-total 12 --per-sector 4 \
+            --asof "$(TZ=Asia/Seoul date +%F)"
+
       - name: Render mobile report (CASH on missing or stale evidence)
         if: always()
         run: python scripts/sector_first_daily.py --input output --out output
@@ -195,6 +215,9 @@ jobs:
             output/sector_first_global.json
             output/focus_daily_structure_prices.csv
             output/focus_daily_structure_status.json
+            output/dynamic/focus_daily_structure_prices.csv
+            output/dynamic/focus_daily_structure_status.json
+            output/dynamic/focus_daily_structure_mobile.md
             output/sector_first_with_prices.json
             output/sector_first_with_prices_mobile.md
             output/sector_research_ranking.csv
