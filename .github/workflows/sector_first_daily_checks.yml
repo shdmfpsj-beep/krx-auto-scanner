@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/sector_first_daily.py'
+      - 'scripts/sector_first_compact_report.py'
+      - 'scripts/test_sector_first_compact_report.py'
       - 'scripts/daily_asof_gate.py'
       - 'scripts/test_daily_asof_gate.py'
       - 'scripts/c3_account_state.py'

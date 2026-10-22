@@ -63,6 +63,10 @@ def format_summary(data):
            "",f"일봉·섹터 기준일: {txt(data.get('asof'),'미확보')}",
            "이하 모든 가격은 해당일 완료된 일봉 연구 참고가격이며 실시간 주문호가가 아닙니다.",
            "데이터 판정: "+txt(sector_outcome)+" / 종목 판정: "+txt(stock_outcome),
+           ("원본 확보 실패: "+", ".join(str(x) for x in
+            (data.get("source_acquisition") or {}).get("errors",[]))
+            if (data.get("source_acquisition") or {}).get("ready") is False
+            else "원본 출처: 최신 가격 근거 별도 확인"),
            "최종 BUY 승인 0건 · 데이터 오류 때문에 후보가 공란인 것과 검증 후 후보 0개는 다릅니다.","",
            ("**시장 OHLC 오류:** "+txt(data.get("raw_ohlc_conflict_count"))+"/"+
             txt(data.get("raw_tradable_ohlc_checked"))+"개 ("+
@@ -178,15 +182,40 @@ def main():
     p.add_argument("--root",type=Path,default=Path("output"))
     a=p.parse_args()
     source=a.root/"sector_first_with_prices.json"
-    if not source.is_file():
-        raise SystemExit("MISSING_FINAL_SECTOR_PRICE_REPORT")
-    data=json.loads(source.read_text(encoding="utf-8"))
+    if source.is_file():
+        data=json.loads(source.read_text(encoding="utf-8"))
+        mode="PRICE_RESEARCH_AVAILABLE"
+    else:
+        # Fail closed: a missing price report is acceptable ONLY when upstream
+        # source acquisition explicitly reported a blocked market and the
+        # research-only daily report independently confirms zero BUY approvals.
+        meta=a.root/"source_selection_status.json"
+        fallback=a.root/"sector_first_daily_status.json"
+        try:
+            acq=json.loads(meta.read_text(encoding="utf-8"))
+            data=json.loads(fallback.read_text(encoding="utf-8"))
+        except (OSError,TypeError,ValueError):
+            raise SystemExit("MISSING_FINAL_SECTOR_PRICE_REPORT")
+        if (acq.get("schema")!="sector_source_acquisition_v1"
+            or acq.get("ready") is not False
+            or acq.get("status")!="PENDING_DATA_VALIDATION"
+            or acq.get("trade_approved") is not False
+            or data.get("sector_selection_outcome")!="PENDING_DATA_VALIDATION"
+            or data.get("stock_selection_outcome")!="PENDING_DATA_VALIDATION"
+            or data.get("decision")!="CASH"
+            or data.get("trade_approved") is not False
+            or data.get("approved_buy_count")!=0
+            or data.get("sector_top3")
+            or data.get("stock_research_top5")):
+            raise SystemExit("MISSING_FINAL_SECTOR_PRICE_REPORT")
+        data["source_acquisition"]=acq
+        mode="SOURCE_QUALITY_PENDING_NO_PRICE_REPORT"
     a.root.mkdir(parents=True,exist_ok=True)
     (a.root/"sector_first_compact_mobile.md").write_text(
         format_summary(data),encoding="utf-8")
     print(json.dumps({"sector_research_count":len(data.get("sector_top3",[])),
        "stock_research_count":len(data.get("stock_research_top5",[])),
-       "trade_approved":False,"decision":"CASH"},ensure_ascii=False))
+       "trade_approved":False,"decision":"CASH","report_mode":mode},ensure_ascii=False))
 
 if __name__=="__main__":
     main()
