@@ -23,6 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          sparse-checkout: |
+            /.github/workflows/sector_evidence_v18.yml
+            /.github/workflows/sector_evidence_v18_backfill.yml
+            /.github/workflows/sector_v18_source_checks.yml
+          sparse-checkout-cone-mode: false
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
