@@ -36,6 +36,7 @@ jobs:
             /scripts/test_global_sector_news.py
             /scripts/global_sector_join.py
             /scripts/test_global_sector_join.py
+            /scripts/focus_structure_join.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -139,6 +140,45 @@ jobs:
         if: always()
         run: python scripts/global_sector_join.py --report-root output --news-root output
 
+      - name: Fetch latest independently computed daily price evidence
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p output
+          python - <<'PY'
+          import io,json,os,subprocess,zipfile
+          from pathlib import Path
+          repo=os.environ["GH_REPO"]
+          def api(url):
+              return subprocess.run(["gh","api","-X","GET",url],
+                                    capture_output=True,check=True).stdout
+          try:
+              runs=json.loads(api(f"repos/{repo}/actions/workflows/focus_daily_structure.yml/runs?per_page=12")).get("workflow_runs",[])
+              candidates=[r for r in runs if r.get("conclusion")=="success"]
+              found=False
+              for run in candidates:
+                  artifacts=json.loads(api(f"repos/{repo}/actions/runs/{run['id']}/artifacts")).get("artifacts",[])
+                  target=next((a for a in artifacts if a.get("name")=="focus-daily-structure" and not a.get("expired")),None)
+                  if not target:continue
+                  with zipfile.ZipFile(io.BytesIO(api(f"repos/{repo}/actions/artifacts/{target['id']}/zip"))) as archive:
+                      allowed={"focus_daily_structure_prices.csv","focus_daily_structure_status.json",
+                               "focus_daily_structure_mobile.md"}
+                      selected=[i for i in archive.infolist() if i.filename in allowed and not i.is_dir()]
+                      for item in selected:
+                          (Path("output")/item.filename).write_bytes(archive.read(item))
+                      found=bool(selected)
+                  if found:
+                      print(f"FOCUS_REFERENCE_DOWNLOADED run_id={run['id']}")
+                      break
+              if not found:print("FOCUS_PRICE_ARTIFACT_MISSING")
+          except Exception as e:
+              print("FOCUS_PRICE_ARTIFACT_UNAVAILABLE",type(e).__name__)
+          PY
+
+      - name: Join independently computed support references into final phone report
+        if: always()
+        run: python scripts/focus_structure_join.py --root output
+
       - name: Upload simple mobile summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -153,6 +193,10 @@ jobs:
             output/global_sector_news_status.json
             output/sector_first_global_mobile.md
             output/sector_first_global.json
+            output/focus_daily_structure_prices.csv
+            output/focus_daily_structure_status.json
+            output/sector_first_with_prices.json
+            output/sector_first_with_prices_mobile.md
             output/sector_research_ranking.csv
             output/sector_stock_research_ranking.csv
             output/sector_bridge_status.json
