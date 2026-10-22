@@ -43,6 +43,10 @@ jobs:
             /scripts/sector_dynamic_structure.py
             /scripts/test_sector_dynamic_structure.py
             /scripts/sector_first_compact_report.py
+            /scripts/dart_financial_screen.py
+            /scripts/test_dart_financial_screen.py
+            /scripts/sector_financial_join.py
+            /scripts/test_sector_financial_join.py
             /scripts/test_sector_first_compact_report.py
             /scripts/shadow_trade_audit.py
             /scripts/test_shadow_trade_audit.py
@@ -70,6 +74,8 @@ jobs:
           python scripts/test_global_sector_join.py
           python scripts/test_sector_dynamic_structure.py
           python scripts/test_sector_first_compact_report.py
+          python scripts/test_dart_financial_screen.py
+          python scripts/test_sector_financial_join.py
           python scripts/test_shadow_trade_audit.py
           python scripts/test_shadow_entry_comparison.py
           python scripts/test_c3_one_slot_equity.py
@@ -233,6 +239,20 @@ jobs:
         if: always()
         run: python scripts/sector_first_compact_report.py --root output
 
+      - name: Collect as-of official OpenDART annual figures for up to 20 sector stocks
+        if: always()
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: |
+          python scripts/dart_financial_screen.py \
+            --input output/sector_stock_research_ranking.csv \
+            --asof "$(TZ=Asia/Seoul date +%F)" \
+            --out output
+
+      - name: Add dated annual fundamentals to mobile report (never final score)
+        if: always()
+        run: python scripts/sector_financial_join.py --root output
+
       - name: Recover the last prospective shadow-trade signal ledger (if any)
         if: always()
         shell: bash
@@ -325,6 +345,9 @@ jobs:
             output/sector_first_with_prices.json
             output/sector_first_with_prices_mobile.md
             output/sector_first_compact_mobile.md
+            output/financial_research.json
+            output/financial_research_mobile.md
+            output/sector_first_with_financials.json
             output/shadow_signals.json
             output/shadow_results.json
             output/shadow_scorecard.json
