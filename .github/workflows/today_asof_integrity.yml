@@ -1,0 +1,89 @@
+name: C3 K100 same-day source integrity gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/today_asof_integrity.yml'
+  schedule:
+    # 22:12 Korea time on weekdays (UTC 13:12).
+    - cron: '12 13 * * 1-5'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: c3-k100-today-asof-gate
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Safe sparse checkout of audit scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/daily_asof_gate.py
+            /scripts/test_daily_asof_gate.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Unit tests of actual October 22 source-date mismatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s scripts -p 'test_daily_asof_gate.py' -v
+
+      - name: Download latest successful independent workflow artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/recovery inputs/focus inputs/sector
+          fetch_one () {
+            local path="$1" name="$2" dest="$3"
+            local run_id
+            run_id="$(gh api "repos/$GH_REPO/actions/runs?per_page=100" \
+              --jq ".workflow_runs[] | select(.path == \"$path\" and .conclusion == \"success\") | .id" \
+              | head -n 1 || true)"
+            if [[ -n "$run_id" ]]; then
+              if gh run download "$run_id" -R "$GH_REPO" -n "$name" -D "$dest"; then
+                echo "ARTIFACT_OK $name run=$run_id"
+              else
+                echo "ARTIFACT_UNAVAILABLE $name run=$run_id"
+              fi
+            else
+              echo "NO_SUCCESSFUL_RUN $path"
+            fi
+          }
+          fetch_one '.github/workflows/krx_recovery_scan.yml' krx-recovery-scan inputs/recovery
+          fetch_one '.github/workflows/focus_daily_structure.yml' focus-daily-structure inputs/focus
+          fetch_one '.github/workflows/sector_first_daily.yml' sector-first-daily inputs/sector
+
+      - name: Generate independent date-alignment and CASH safety report
+        shell: bash
+        run: |
+          python scripts/daily_asof_gate.py \
+            --recovery inputs/recovery/status.json \
+            --focus inputs/focus/focus_daily_structure_status.json \
+            --sector inputs/sector/sector_first_daily_status.json \
+            --money inputs/sector/sector_daily_money.json \
+            --out output
+          cat output/today_asof_mobile.md
+
+      - name: Save evidence and mobile report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: today-asof-integrity
+          path: |
+            output/today_asof_gate.json
+            output/today_asof_mobile.md
+          if-no-files-found: warn
+          retention-days: 30
