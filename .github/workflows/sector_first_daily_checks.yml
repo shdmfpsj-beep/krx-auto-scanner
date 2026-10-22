@@ -25,6 +25,8 @@ on:
       - 'scripts/test_sector_dynamic_structure.py'
       - 'scripts/sector_first_compact_report.py'
       - 'scripts/test_sector_first_compact_report.py'
+      - 'scripts/dart_interim_periods.py'
+      - 'scripts/test_dart_interim_periods.py'
       - 'scripts/dart_financial_screen.py'
       - 'scripts/test_dart_financial_screen.py'
       - 'scripts/sector_financial_join.py'
@@ -71,6 +73,8 @@ jobs:
             /scripts/test_sector_dynamic_structure.py
             /scripts/sector_first_compact_report.py
             /scripts/test_sector_first_compact_report.py
+            /scripts/dart_interim_periods.py
+            /scripts/test_dart_interim_periods.py
             /scripts/dart_financial_screen.py
             /scripts/test_dart_financial_screen.py
             /scripts/sector_financial_join.py
@@ -111,7 +115,8 @@ jobs:
           python -m unittest discover -s scripts -p 'test_sector_dynamic_structure.py' -v
           python -m py_compile scripts/sector_first_compact_report.py scripts/test_sector_first_compact_report.py
           python -m unittest discover -s scripts -p 'test_sector_first_compact_report.py' -v
-          python -m py_compile scripts/dart_financial_screen.py scripts/test_dart_financial_screen.py scripts/sector_financial_join.py scripts/test_sector_financial_join.py
+          python -m py_compile scripts/dart_interim_periods.py scripts/test_dart_interim_periods.py scripts/dart_financial_screen.py scripts/test_dart_financial_screen.py scripts/sector_financial_join.py scripts/test_sector_financial_join.py
+          python -m unittest discover -s scripts -p 'test_dart_interim_periods.py' -v
           python -m unittest discover -s scripts -p 'test_dart_financial_screen.py' -v
           python -m unittest discover -s scripts -p 'test_sector_financial_join.py' -v
           python -m py_compile scripts/shadow_trade_audit.py scripts/test_shadow_trade_audit.py
