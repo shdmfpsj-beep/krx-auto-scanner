@@ -27,6 +27,9 @@ def report(snapshot,day):
     if snap.get("regular_strategy_eligible") is not True:blockers.append("REGULAR_ONLY_SOURCE_NOT_CERTIFIED")
     if snap.get("trade_approved") is not False:blockers.append("READ_ONLY_ORDER_SAFETY_UNKNOWN")
     if snap.get("orders_enabled") is not False:blockers.append("READ_ONLY_ORDER_SAFETY_UNKNOWN")
+    # Price-source integrity and session investor-flow integrity are distinct.
+    # The current PyKRX date-only source does not certify regular-only flow.
+    blockers.append("REGULAR_ONLY_FOREIGN_INSTITUTION_FLOW_NOT_VERIFIED")
     blockers=list(dict.fromkeys(blockers))
     return dict(schema="krx_regular_only_daily_v1",target_asof=day,
         regular_snapshot_asof=snap.get("asof"),
@@ -41,7 +44,7 @@ def report(snapshot,day):
         sector_selection_outcome="PENDING_DATA_VALIDATION",
         stock_selection_outcome="PENDING_DATA_VALIDATION",
         verified_sector_count=None,verified_stock_count=None,
-        blockers=blockers+["REGULAR_ONLY_FOREIGN_INSTITUTION_FLOW_NOT_VERIFIED"],
+        blockers=blockers,
         approved_buy_count=0,trade_approved=False,
         decision="CASH")
 def markdown(r):
