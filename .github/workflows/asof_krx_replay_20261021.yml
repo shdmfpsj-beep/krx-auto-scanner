@@ -1,0 +1,91 @@
+name: Historical KRX 2026-10-21 source replay
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/asof_krx_replay_20261021.yml'
+      - 'scripts/asof_krx_replay.py'
+      - 'scripts/test_asof_krx_replay.py'
+      - 'config/krx_close_crosscheck_20261021.json'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  replay-oct21:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout only dated replay code and known quote conflict
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/asof_krx_replay.py
+            /scripts/test_asof_krx_replay.py
+            /config/krx_close_crosscheck_20261021.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check historical as-of replay anti-lookahead tests
+        run: |
+          python -m py_compile scripts/asof_krx_replay.py scripts/test_asof_krx_replay.py
+          python -m unittest discover -s scripts -p 'test_asof_krx_replay.py' -v
+
+      - name: Download exact 2026-10-21 completed KRX v18 artifact
+        run: |
+          mkdir -p inputs output
+          gh api -X GET "repos/${{ github.repository }}/actions/artifacts/12340585342/zip" > inputs/evidence.zip
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+          path=Path("inputs/evidence.zip")
+          with zipfile.ZipFile(path) as z:
+              names=z.namelist()
+              assert "diagnostics/collection_status.json" in names
+              assert "research/sector_evidence_latest.csv" in names
+          print("DATED_KRX_ARTIFACT_VERIFIED",path.stat().st_size)
+          PY
+
+      - name: Recalculate 2026-10-21 sector inflows and structure references
+        run: |
+          python scripts/asof_krx_replay.py \
+            --evidence-zip inputs/evidence.zip \
+            --asof 2026-10-21 \
+            --references config/krx_close_crosscheck_20261021.json \
+            --out output
+
+      - name: Require correct sectors, quote-conflict warning and no retroactive buys
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("output/asof_krx_replay.json").read_text(encoding="utf-8"))
+          assert data["asof"]=="2026-10-21"
+          assert data["decision"]=="CASH" and not data["trade_approved"]
+          assert data["forward_paper_trades_created"]==0
+          assert [s["sector_id"] for s in data["top3"]]==["SEMICON","POWER","CONSTRUCTION"]
+          quote=next(x for x in data["focus"] if x["ticker"]=="010120")
+          assert quote["cross_source_conflict"] and not quote["execution_prices_allowed"]
+          assert quote["external_close"]==166100 and quote["close_archive"]==164800
+          print("ASOF_REPLAY_REAL_EVIDENCE_GATES_PASSED")
+          PY
+
+      - name: Publish one dated mobile report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: krx-asof-20261021-replay
+          path: |
+            output/asof_krx_replay.json
+            output/asof_krx_replay_mobile.md
+          if-no-files-found: warn
+          retention-days: 90
