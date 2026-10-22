@@ -44,6 +44,11 @@ def join(base,finance):
         r["financial_screen_pass"]=bool(financial and financial.get("financial_screen_pass"))
         r["financial_receipt_url"]=financial.get("receipt_url") if financial else None
         r["financial_report_year"]=financial.get("annual_fiscal_year") if financial else None
+        r["latest_periodic_receipt_date"]=(financial.get("latest_periodic_receipt_date")
+            if financial else None)
+        r["latest_periodic_report_name"]=(financial.get("latest_periodic_report_name")
+            if financial else None)
+        r["latest_periodic_financials_verified"]=False
         r["final_verified_score"]=None
         r["buy_approval"]="NO"
         top.append(r)
@@ -56,6 +61,9 @@ def join(base,finance):
                     audited_financial_statement_division=x.get("division"),
                     annual_fiscal_year=x.get("annual_fiscal_year"),
                     annual_receipt_url=x.get("receipt_url"),
+                    latest_periodic_report_name=x.get("latest_periodic_report_name"),
+                    latest_periodic_receipt_date=x.get("latest_periodic_receipt_date"),
+                    latest_periodic_financials_verified=False,
                     quality_kind="DATED_ANNUAL_PRICE_FLOW_RESEARCH_ONLY",
                     trade_approval="NO")
         for x in available.values() if x.get("financial_screen_pass")]
@@ -76,15 +84,17 @@ def render(report,original=""):
         "출처: OpenDART 공시 접수일이 분석일 이전인 사업보고서만 사용합니다. "
         "최종 실적·미래 전망 검증 전 매수 승인은 없습니다.",
         "재무 수집 상태: "+str(report.get("financial_evidence_status","UNKNOWN")),"",
-        "| 종목 | 매출 성장률 | 영업이익률 | 연결/별도 |",
+        "| 종목 | 연간 매출 성장률 | 연간 영업이익률 | 최신 공시일 |",
         "|---|---:|---:|---|"]
     for x in report.get("financial_quality_watch_top5",[]):
         lines.append("| "+str(x.get("name"))+" | "+
           str(x.get("sales_yoy_pct"))+"% | "+str(x.get("operating_margin_pct"))+
-          "% | "+str(x.get("audited_financial_statement_division"))+" |")
+          "% | "+str(x.get("latest_periodic_receipt_date") or "미확인")+" |")
     if not report.get("financial_quality_watch_top5"):
         lines.append("| 연간 실적 검증된 성장 후보 없음 | — | — | — |")
-    lines+=["","*상기 재무 적격 후보는 원래 기술적 TOP5에 강제로 편입하지 않은 **별도 연구 목록**입니다.",
+    lines+=["","*최신 분기·반기보고서의 접수일을 확인하더라도, 그 보고서 수치를 검증한 것은 아닙니다. "
+              "위 성장률·영업이익률은 마지막 사업보고서의 **연간 수치**입니다.",
+            "*상기 재무 적격 후보는 원래 기술적 TOP5에 강제로 편입하지 않은 **별도 연구 목록**입니다.",
             "*업종별 적정 부채비율·현금흐름, 최신 분기 실적, 수주잔고, 컨센서스 및 상승 타점은 별도 검증 대상입니다.",
             "*공식 공시가 없거나 OpenDART 키가 누락된 경우 실적을 추정하거나 15점을 임의로 채우지 않습니다.",""]
     return original.rstrip()+"\n"+"\n".join(lines)
