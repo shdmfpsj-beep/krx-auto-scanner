@@ -11,7 +11,8 @@ def table(rows):
     return s.getvalue()
 
 def make_archive(root,wrong_date=False,drop_flow=None,stale_holdings=False,
-                 weak_breadth=False,bad_ohlc_tickers=None):
+                 weak_breadth=False,bad_ohlc_tickers=None,
+                 source_price_quality="OK"):
     sectors=[("SEMICON","반도체","091160",[f"{i:06d}" for i in range(1,6)]),
              ("IT","IT","091180",[f"{i:06d}" for i in range(1,11)]),
              ("POWER","전력설비","091170",[f"{i:06d}" for i in range(11,16)]),
@@ -43,8 +44,12 @@ def make_archive(root,wrong_date=False,drop_flow=None,stale_holdings=False,
     contents={
         "diagnostics/collection_status.json":json.dumps({
             "asof":d,
-            "datasets":{k:{"status":"OK"} for k in (
-                "prices","flows","holdings","normalization")}}),
+            "datasets":{**{k:{"status":"OK"} for k in (
+                "prices","flows","holdings","normalization")},
+                **({"price_ohlc_integrity":{"status":source_price_quality,
+                                           "checked":20,
+                                           "invalid":0 if source_price_quality=="OK" else 4}}
+                   if source_price_quality is not None else {})}}),
         "research/sector_evidence_latest.csv":table(features),
         "market/daily_prices/KOSPI/"+ASOF+".csv":table(market),
         "market/daily_flows/KOSPI/"+ASOF+"_foreign.csv":table(foreign),
@@ -116,6 +121,30 @@ class SectorDailyMoneyTests(unittest.TestCase):
             self.assertEqual(out["selected_top3"],[])
             self.assertIn("섹터 선정 보류",render(out))
             self.assertIn("OHLC 품질 보증이 아닙니다",render(out))
+            self.assertEqual(out["decision"],"CASH")
+
+    def test_upstream_market_quality_failure_blocks_sector_research_when_local_bars_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ev=Evidence(make_archive(tmp,source_price_quality="DATA_PENDING"))
+            try:out=daily_evidence(ev,ASOF)
+            finally:ev.close()
+            self.assertEqual(out["raw_ohlc_conflict_count"],0)
+            self.assertEqual(out["upstream_price_integrity_status"],"DATA_PENDING")
+            self.assertFalse(out["market_ohlc_quality_verified"])
+            self.assertEqual(out["market_source_status"],"SOURCE_OHLC_INTEGRITY_UNVERIFIED")
+            self.assertEqual(out["selected_top3"],[])
+            self.assertEqual(out["decision"],"CASH")
+
+    def test_old_v18_evidence_without_source_integrity_must_not_promote_research(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ev=Evidence(make_archive(tmp,source_price_quality=None))
+            try:out=daily_evidence(ev,ASOF)
+            finally:ev.close()
+            self.assertEqual(out["raw_ohlc_conflict_count"],0)
+            self.assertEqual(out["upstream_price_integrity_status"],"MISSING")
+            self.assertEqual(out["selected_top3"],[])
+            self.assertEqual(out["market_source_status"],"SOURCE_OHLC_INTEGRITY_UNVERIFIED")
+            self.assertIn("연구순위 보류",render(out))
             self.assertEqual(out["decision"],"CASH")
 
     def test_asof_mismatch_cannot_trick_report(self):
