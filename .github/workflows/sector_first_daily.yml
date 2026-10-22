@@ -40,6 +40,8 @@ jobs:
             /scripts/focus_daily_structure.py
             /scripts/sector_dynamic_structure.py
             /scripts/test_sector_dynamic_structure.py
+            /scripts/sector_first_compact_report.py
+            /scripts/test_sector_first_compact_report.py
             /requirements.txt
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -58,6 +60,7 @@ jobs:
           python scripts/test_global_sector_news.py
           python scripts/test_global_sector_join.py
           python scripts/test_sector_dynamic_structure.py
+          python scripts/test_sector_first_compact_report.py
 
       - name: Collect global industry and macro news from GDELT (free, read only)
         if: always()
@@ -199,6 +202,10 @@ jobs:
         if: always()
         run: python scripts/focus_structure_join.py --root output
 
+      - name: Produce short phone-first TOP3 sector and TOP5 price report
+        if: always()
+        run: python scripts/sector_first_compact_report.py --root output
+
       - name: Upload simple mobile summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -220,6 +227,7 @@ jobs:
             output/dynamic/focus_daily_structure_mobile.md
             output/sector_first_with_prices.json
             output/sector_first_with_prices_mobile.md
+            output/sector_first_compact_mobile.md
             output/sector_research_ranking.csv
             output/sector_stock_research_ranking.csv
             output/sector_bridge_status.json
