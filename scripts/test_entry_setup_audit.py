@@ -34,8 +34,8 @@ class EntryTests(unittest.TestCase):
         self.assertFalse(x["real_buy_approved"])
         self.assertEqual(r["decision"],"CASH")
     def test_very_close_stop_is_structural_quality_failure(self):
-        row={**ROW,"historical_stop_reference":"218500",
-             "pivot_low":"219000"}
+        row={**ROW,"historical_stop_reference":"217000",
+             "pivot_low":"218000"}
         x=build(input_report(row=row))["candidates"][0]
         self.assertEqual(x["code"],"STOP_DISTANCE_OUTSIDE_2_TO_12_PCT")
         self.assertFalse(x["technical_research_pass"])
