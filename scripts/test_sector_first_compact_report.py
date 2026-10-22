@@ -44,6 +44,8 @@ class CompactTests(unittest.TestCase):
     def test_verified_no_positive_flow_reports_cash_without_false_data_gap(self):
         md=format_summary({"asof":"2026-10-22",
              "daily_money_gate":"VERIFIED_NO_QUALIFYING_SECTOR",
+             "sector_selection_outcome":"VERIFIED_NO_QUALIFYING_SECTOR",
+             "stock_selection_outcome":"NO_RESEARCH_STOCKS_QUALIFIED",
              "sector_top3":[],"stock_research_top5":[]})
         self.assertIn("당일 KRX 자료가 검증됐으나",md)
         self.assertIn("플러스 순매수인 섹터가 없어",md)
