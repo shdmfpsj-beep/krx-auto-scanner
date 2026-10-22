@@ -86,7 +86,8 @@ class InterimFinancialTests(unittest.TestCase):
         x=[row("ifrs-full_Revenue",120,100),row("dart_OperatingIncomeLoss",3,-5)]
         r=evaluate_interim(payload(x),"CFS",P)
         self.assertIsNone(r["yoy_operating_profit_pct"])
-        self.assertEqual(r["quality"],"INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED")
+        # A turnaround is not a verifiable positive percentage growth rate.
+        self.assertEqual(r["quality"],"INTERIM_MIXED")
     def test_no_api_data_stays_unverified(self):
         r=evaluate_interim({"status":"013"},"CFS",P)
         self.assertEqual(r["status"],"INTERIM_API_UNAVAILABLE")
