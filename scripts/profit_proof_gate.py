@@ -267,7 +267,7 @@ def audit(signals,results,account,ab=None):
       win_rate_is_not_profit_guarantee=True,
       statistical_profit_guarantee=False,
       real_account_profit_verified=False,
-      final_80_trade_score_verified=False,final_85_trade_score_verified=False,
+      final_80_trade_score_verified=False,final_80_trade_score_verified=False,final_85_trade_score_verified=False,
       orders_enabled=False,trade_approved=False,decision="CASH")
 
 def markdown(r):
