@@ -17,12 +17,22 @@ class DynamicSectorTests(unittest.TestCase):
         samples=[row(f"{i:06d}","SEMICON",str(100-i)) for i in range(1,9)]
         samples += [row("010120","POWER","75"),row("267260","POWER","74"),
                     row("012450","SHIP","73"),row("999999","OTHER","999")]
-        selected,issues=select(STATUS,samples,ASOF,max_total=6,per_sector=2)
-        self.assertEqual(len(selected),6)
+        selected,issues=select(STATUS,samples,ASOF,max_total=9,per_sector=2)
+        self.assertEqual(len(selected),9)
         self.assertIn("010120",selected)
         self.assertIn("012450",selected)
         self.assertNotIn("999999",selected)
         self.assertEqual(issues,[])
+    def test_all_global_research_top5_have_independent_history_slot(self):
+        rows=[row(f"{i:06d}","SEMICON",str(100-i)) for i in range(1,11)]
+        rows += [row(f"{i:06d}","POWER",str(80-i)) for i in range(20,30)]
+        rows += [row(f"{i:06d}","SHIP",str(70-i)) for i in range(30,40)]
+        names,issues=select(STATUS,rows,ASOF,max_total=12,per_sector=4)
+        self.assertEqual(len(names),12)
+        for i in range(1,6):
+            self.assertIn(f"{i:06d}",names)
+        self.assertEqual(issues,[])
+
     def test_stale_run_has_zero_dynamic_prices(self):
         samples=[row("005930","SEMICON")]
         chosen,errors=select(STATUS,samples,ASOF+timedelta(days=1))
