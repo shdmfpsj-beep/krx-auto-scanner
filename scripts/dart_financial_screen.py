@@ -90,15 +90,32 @@ def annual_receipt(payload,year,asof):
     return max(candidates) if candidates else None
 
 def extract_metric(rows,ids,statement,period):
-    possibilities=[]
-    for r in rows:
-        if r.get("sj_div")!=statement or r.get("account_id") not in ids:
-            continue
-        if r.get("account_detail") not in ("","-"):
-            continue
-        amount=integer(r.get(period))
-        if amount is not None:possibilities.append(amount)
-    return possibilities[0] if len(set(possibilities))==1 and possibilities else None
+    """Use unique standard XBRL codes; account_detail absent is ordinary.
+
+    DART may omit account_detail for BS/IS rows. That does not make the row
+    ineligible. Exclude detailed SCE roll-forward rows explicitly instead.
+    Prefer IS before CIS when both report the same standard account.
+    """
+    options=[statement] if statement!="IS" else ["IS","CIS"]
+    for section in options:
+        possibilities=[]
+        for r in rows:
+            if r.get("sj_div")!=section or r.get("account_id") not in ids:
+                continue
+            if str(r.get("account_detail") or "").strip() not in ("","-"):
+                continue
+            amount=integer(r.get(period))
+            if amount is not None:possibilities.append(amount)
+        if possibilities:
+            return possibilities[0] if len(set(possibilities))==1 else None
+    return None
+
+def missing_annual_metric_keys(values):
+    """Safe diagnostics: report metric names only, never raw API credentials."""
+    required=("revenue_krw","previous_revenue_krw",
+        "operating_profit_krw","previous_operating_profit_krw",
+        "assets_krw","liabilities_krw","equity_krw")
+    return [name for name in required if values.get(name) is None]
 
 def evaluate_accounts(payload,division):
     if payload.get("status")!="000" or not isinstance(payload.get("list"),list):
@@ -118,6 +135,8 @@ def evaluate_accounts(payload,division):
         assets_krw=assets,liabilities_krw=liabilities,equity_krw=equity,
         sales_yoy_pct=None,operating_margin_pct=None,
         accounting_identity_gap_pct=None,financial_quality="UNVERIFIED")
+    result["missing_metric_keys"]=missing_annual_metric_keys(result)
+    result["available_statement_rows"]=len(rows)
     if (revenue is None or previous is None or profit is None or
         previous_profit is None or revenue<=0 or previous<=0 or
         assets is None or liabilities is None or equity is None or
