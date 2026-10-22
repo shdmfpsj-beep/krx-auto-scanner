@@ -86,6 +86,16 @@ def build(report,contracts=None):
         price=stock_top.get(t,{})
         finances=annual.get(t,{})
         issuer=issuer_docs.get(t,{})
+        prelim=[]
+        for notice in issuer.get("latest_preliminary_earnings",[])[:2]:
+            date_=iso(notice.get("date"))
+            url=official_url(notice.get("url"))
+            if not(asof and date_ and date_<asof and
+                   (asof-date_).days<=7 and url):continue
+            prelim.append(dict(date=str(date_),url=url,
+                title=str(notice.get("title",""))[:120],
+                financial_figures_verified=False,
+                recent_quarter_catalyst_verified=False))
         originals=[]
         for filing in issuer.get("filings",[])[:3]:
             filed=iso(filing.get("date"))
@@ -166,6 +176,7 @@ def build(report,contracts=None):
         if not has_money:reasons.append("DAY_MONEY_EVIDENCE_MISSING")
         if not annual_verified:reasons.append("ANNUAL_FINANCIALS_UNVERIFIED")
         if not verified_interim:reasons.append("CURRENT_INTERIM_YTD_UNVERIFIED")
+        if prelim:reasons.append("FRESH_PRELIMINARY_EARNINGS_NUMBERS_NOT_PARSED")
         if weakness:reasons.append("RECENT_YTD_WEAKENING")
         if conflict:reasons.append("CROSS_SOURCE_CLOSE_CONFLICT")
         if not price_ready:reasons.append("COMPLETED_DAILY_ENTRY_STOP_NOT_VERIFIED")
@@ -183,6 +194,8 @@ def build(report,contracts=None):
                 "completed_daily_structure_reference")),
             direct_company_filings=direct,
             official_contract_originals=originals,
+            newer_preliminary_earnings_not_parsed=bool(prelim),
+            recent_preliminary_earnings_disclosures=prelim,
             original_contract_text_observed=any(
                 x["original_status"] in (
                     "DART_DOCUMENT_XML_TABLES_PARSED",
@@ -240,7 +253,10 @@ def render(data):
             else "미검증")
         lines.append("| "+x["name"].replace("|","/")[:26]+" | "+
           cell(c["positive_daily_sector_flow"])+
-          " | "+financial+" | "+
+          " | "+financial+
+          ("·"+x["recent_preliminary_earnings_disclosures"][0]["date"]+
+           " 잠정공시 수치 미검증" if x["newer_preliminary_earnings_not_parsed"]
+           else "")+" | "+
           (("원문 계약액 "+format(x["document_labeled_contract_amounts"][0]["amount_krw"]/100_000_000,",.2f")+
             "억·실질효과 미검증") if x["document_labeled_contract_amounts"]
            else "원문 표 확인·실질효과 미검증" if x["original_contract_text_observed"]
