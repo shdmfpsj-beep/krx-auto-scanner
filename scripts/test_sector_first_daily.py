@@ -30,6 +30,34 @@ class SectorFirstTests(unittest.TestCase):
         self.assertFalse(out["trade_approved"])
         self.assertIsNone(out["stock_research_top5"][0]["final_verified_score"])
         self.assertEqual(out["stock_research_top5"][0]["stop_reference"],98.0)
+    def test_concentrated_absolute_top5_keeps_best_and_watches_all_three_sectors(self):
+        summary,sectors,rows=inputs()
+        # Seven valid constituent stocks, five leading one sector.
+        rows=[dict(rows[0],ticker=f"{i+100:06d}",
+                   name=f"LeadStock{i}",research_proxy_index=str(99-i))
+              for i in range(5)]
+        rows.extend([{**inputs()[2][1],"research_proxy_index":"54"},
+                     {**inputs()[2][2],"research_proxy_index":"50"}])
+        result=build(summary,sectors,rows,D)
+        self.assertEqual(len(result["stock_research_top5"]),5)
+        self.assertEqual(set(x["sector_id"] for x in result["stock_research_top5"]),
+                         {"SEMIS"})
+        self.assertTrue(result["stock_top5_concentration_warning"])
+        self.assertEqual(len(result["sector_leader_watch"]),3)
+        self.assertEqual([x["sector_id"] for x in result["sector_leader_watch"]],
+                         ["SEMIS","POWER","SHIP"])
+        self.assertTrue(result["sector_leader_watch"][1]["not_in_global_top5"])
+        self.assertTrue(result["sector_leader_watch"][2]["not_in_global_top5"])
+        self.assertEqual(result["decision"],"CASH")
+        self.assertFalse(result["sector_watch_is_buy_recommendation"])
+        self.assertIn("집중 경고",render(result))
+    def test_research_watch_with_unavailable_sector_does_not_invent_company(self):
+        summary,sectors,rows=inputs()
+        rows=[r for r in rows if r["sector_id"]!="SHIP"]
+        result=build(summary,sectors,rows,D)
+        self.assertEqual(len(result["sector_leader_watch"]),2)
+        self.assertNotIn("SHIP",[r["sector_id"] for r in result["sector_leader_watch"]])
+        self.assertIn("데이터 부족",render(result))
     def test_stale_sector_data_never_becomes_current_top3(self):
         s,sectors,stocks=inputs()
         o=build(s,sectors,stocks,D+timedelta(days=1))
