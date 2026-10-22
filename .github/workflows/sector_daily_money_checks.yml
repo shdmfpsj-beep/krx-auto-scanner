@@ -101,7 +101,7 @@ jobs:
                     "sector ranking and downstream backtest not falsely certified")
               flag="false"
           with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as f:
-              f.write("valid="+flag+"\\n")
+              f.write("valid="+flag+chr(10))
           print("REAL_DAY_MONEY_INTEGRITY_GATE_PASSED")
           PY
 
