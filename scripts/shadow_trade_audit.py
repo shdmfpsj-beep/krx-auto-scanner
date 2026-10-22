@@ -9,7 +9,8 @@ This is a research ledger, not a brokerage order or proof of live performance.
 """
 import argparse,csv,json,math
 from collections import defaultdict
-from datetime import date
+from datetime import date,datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 VERSION="next_open_5d_v1"
@@ -30,9 +31,12 @@ def datestr(x):
     try:return date.fromisoformat(str(x)[:10]).isoformat()
     except (TypeError,ValueError):return None
 
-def new_signals(report,price_rows):
+def new_signals(report,price_rows,run_date=None):
     asof=datestr(report.get("asof"))
-    if not asof or report.get("status")!="PROVISIONAL_RESEARCH_ONLY":
+    run_date=run_date or datetime.now(ZoneInfo("Asia/Seoul")).date()
+    # An old report rerun tonight is NOT a signal received on the old date.
+    # Fail closed rather than retroactively create a profitable paper trade.
+    if not asof or asof!=run_date.isoformat() or report.get("status")!="PROVISIONAL_RESEARCH_ONLY":
         return []
     indices={str(r.get("ticker","")):r for r in price_rows}
     signals=[]
@@ -278,6 +282,7 @@ def main():
     p.add_argument("--previous",type=Path,default=Path("output/previous_shadow_signals.json"))
     p.add_argument("--previous-results",type=Path,default=Path("output/previous_shadow_results.json"))
     p.add_argument("--out",type=Path,default=Path("output"))
+    p.add_argument("--run-date",default=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat())
     a=p.parse_args()
     try:report=json.loads(a.report.read_text(encoding="utf-8")) if a.report.is_file() else {}
     except (ValueError,OSError):report={}
@@ -289,7 +294,7 @@ def main():
     except (ValueError,OSError):
         old_results=[]
     if not isinstance(old_results,list):old_results=[]
-    signals=merge_signals(old,new_signals(report,read_csv(a.dynamic)))
+    signals=merge_signals(old,new_signals(report,read_csv(a.dynamic),date.fromisoformat(a.run_date)))
     price=price_history(a.history,{x["ticker"] for x in signals})
     market_sessions=market_session_calendar(a.history)
     results,stats=summarise(signals,price,old_results,market_sessions)
