@@ -174,6 +174,30 @@ class StockEvidenceTests(unittest.TestCase):
         self.assertFalse(r["company_catalyst_impact_verified"])
         self.assertFalse(result["trade_approved"])
         self.assertIn("500.00억",render(result))
+    def test_fresh_preliminary_earnings_title_flags_stale_ytd_assessment(self):
+        source=dict(schema="dart_contract_source_v1",asof=DAY,
+            issuer_samples=[dict(ticker="005930",filings=[],
+                latest_preliminary_earnings=[
+                    dict(date="2026-10-21",title="연결재무제표기준영업(잠정)실적",
+                    receipt_no="20261021800151",financial_figures_verified=False,
+                    url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261021800151")])])
+        r=build(inputs(),source)
+        stock=r["candidates"][0]
+        self.assertTrue(stock["newer_preliminary_earnings_not_parsed"])
+        self.assertIn("FRESH_PRELIMINARY_EARNINGS_NUMBERS_NOT_PARSED",
+                      stock["unmet_evidence"])
+        self.assertIn("2026-10-21 잠정공시 수치 미검증",render(r))
+        self.assertFalse(stock["company_catalyst_impact_verified"])
+        self.assertEqual(r["decision"],"CASH")
+    def test_current_day_or_future_preliminary_notice_cannot_backfill(self):
+        source=dict(schema="dart_contract_source_v1",asof=DAY,
+            issuer_samples=[dict(ticker="005930",filings=[],
+                latest_preliminary_earnings=[
+                    dict(date=DAY,title="연결재무제표기준영업(잠정)실적",
+                    receipt_no="20261022800151",
+                    url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261022800151")])])
+        r=build(inputs(),source)
+        self.assertFalse(r["candidates"][0]["newer_preliminary_earnings_not_parsed"])
     def test_future_or_other_date_contract_cannot_enter_company_matrix(self):
         contract=dict(schema="dart_contract_source_v1",asof="2026-10-23",
               issuer_samples=[dict(ticker="005930",filings=[dict(
