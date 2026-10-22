@@ -7,9 +7,9 @@ on:
         type: choice
         options: [regular, after]
   schedule:
-    # GitHub cron times are UTC. 15:35 KST strict regular close snapshot.
-    # Github scheduling latency may cause capture rejection; never backdate.
-    - cron: '35 6 * * 1-5'
+    # 15:25 KST startup prewarms setup and PyKRX imports; query begins 15:33:15.
+    # Actual start/end must both remain before 15:40, else fail-closed.
+    - cron: '25 6 * * 1-5'
     # 20:25 KST after-market comparison, diagnostic only.
     - cron: '25 11 * * 1-5'
 
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   regular:
-    if: (github.event_name == 'schedule' && github.event.schedule == '35 6 * * 1-5') || (github.event_name == 'workflow_dispatch' && inputs.phase == 'regular')
+    if: (github.event_name == 'schedule' && github.event.schedule == '25 6 * * 1-5') || (github.event_name == 'workflow_dispatch' && inputs.phase == 'regular')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -29,13 +29,16 @@ jobs:
             /scripts/krx_session_probe.py
             /scripts/krx_regular_after_layers.py
             /scripts/krx_regular_after_layers_cli.py
+            /scripts/krx_regular_window_wait.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: python -m pip install --disable-pip-version-check 'pykrx==1.2.9'
-      - name: Record actual KST capture time; do not accept late 15:40 captures
+      - name: Wait for 15:33:15 KST if worker prewarmed early
+        run: python scripts/krx_regular_window_wait.py
+      - name: Record actual start/end capture time; reject after 15:40
         run: |
           python scripts/krx_regular_after_layers_cli.py --phase regular --output output/regular_observation.json
       - uses: actions/upload-artifact@v4
