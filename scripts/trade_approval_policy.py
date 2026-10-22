@@ -11,6 +11,7 @@ SCORE_MAX = 100
 BUY_REVIEW_SCORE_MIN = 80
 MIN_COST_ADJUSTED_RR = 2.0
 MANDATORY_EVIDENCE = (
+    "final_score_independently_verified",
     "same_session_data_verified",
     "market_regime_pass",
     "sector_money_flow_verified",
