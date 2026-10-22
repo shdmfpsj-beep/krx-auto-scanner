@@ -108,7 +108,7 @@ def apply_daily_money_rank(ranked,summary,report):
     """Prefer independently collected *one-day* KRX sector flows for research.
 
     A negative five-day flow does not erase a strongly positive completed
-    session. But the one-day figure never becomes a verified 85-point score.
+    session. But the one-day figure never becomes a verified 80-point score.
     Stale/incomplete daily source cannot silently fall back to a made-up TOP3.
     """
     out=dict(summary)
