@@ -33,6 +33,8 @@ on:
       - 'scripts/test_sector_financial_join.py'
       - 'scripts/stock_evidence_matrix.py'
       - 'scripts/test_stock_evidence_matrix.py'
+      - 'scripts/dart_contract_documents.py'
+      - 'scripts/test_dart_contract_documents.py'
       - 'scripts/entry_setup_audit.py'
       - 'scripts/test_entry_setup_audit.py'
       - 'scripts/shadow_trade_audit.py'
@@ -85,6 +87,8 @@ jobs:
             /scripts/test_sector_financial_join.py
             /scripts/stock_evidence_matrix.py
             /scripts/test_stock_evidence_matrix.py
+            /scripts/dart_contract_documents.py
+            /scripts/test_dart_contract_documents.py
             /scripts/entry_setup_audit.py
             /scripts/test_entry_setup_audit.py
             /scripts/shadow_trade_audit.py
@@ -129,6 +133,8 @@ jobs:
           python -m unittest discover -s scripts -p 'test_sector_financial_join.py' -v
           python -m py_compile scripts/stock_evidence_matrix.py scripts/test_stock_evidence_matrix.py
           python -m unittest discover -s scripts -p 'test_stock_evidence_matrix.py' -v
+          python -m py_compile scripts/dart_contract_documents.py scripts/test_dart_contract_documents.py
+          python -m unittest discover -s scripts -p 'test_dart_contract_documents.py' -v
           python -m py_compile scripts/entry_setup_audit.py scripts/test_entry_setup_audit.py
           python -m unittest discover -s scripts -p 'test_entry_setup_audit.py' -v
           python -m py_compile scripts/shadow_trade_audit.py scripts/test_shadow_trade_audit.py
@@ -150,6 +156,7 @@ jobs:
           python scripts/dart_financial_screen.py --input source_empty/unavailable.csv --out output
           python scripts/sector_financial_join.py --root output
           python scripts/stock_evidence_matrix.py --root output
+          python scripts/dart_contract_documents.py --root output
           python scripts/entry_setup_audit.py --root output
           python scripts/shadow_trade_audit.py --report output/sector_first_with_prices.json --dynamic source_empty/no_daily_rows.csv --history source_empty --out output
           python scripts/shadow_entry_comparison.py --signals output/shadow_signals.json --baseline-results output/shadow_results.json --evidence source_empty --out output
@@ -190,6 +197,10 @@ jobs:
           assert matrix['candidate_count']==0
           assert not matrix['trade_approved']
           assert matrix['company_catalyst_verified_count']==0
+          contract=json.loads(Path('output/direct_dart_contracts.json').read_text())
+          assert contract['decision']=='CASH'
+          assert contract['document_attempts']==0
+          assert contract['confirmed_positive_company_contracts']==0
           geometry=json.loads(Path('output/entry_setup_audit.json').read_text())
           assert geometry['decision']=='CASH'
           assert geometry['stock_count']==0
@@ -228,6 +239,8 @@ jobs:
             output/sector_first_compact_mobile.md
             output/company_evidence_matrix.json
             output/company_evidence_matrix_mobile.md
+            output/direct_dart_contracts.json
+            output/direct_dart_contracts_mobile.md
             output/entry_setup_audit.json
             output/entry_setup_audit_mobile.md
             output/shadow_signals.json
