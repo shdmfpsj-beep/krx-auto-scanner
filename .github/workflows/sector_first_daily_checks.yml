@@ -208,7 +208,11 @@ jobs:
           names=["sector_first_daily.yml","sector_research_bridge.yml"]
           required=('"prices","price_ohlc_integrity","flows","etf_prices","holdings","normalization"',
                     'state.get("orders_enabled") is not False',
-                    'state.get("overall_status")!="EVIDENCE_PARTIAL_CATALYST_PIT_PENDING"')
+                    'state.get("overall_status")!="EVIDENCE_PARTIAL_CATALYST_PIT_PENDING"',
+                    "id: source_inputs",
+                    "SOURCE_ACQUISITION",
+                    "output/source_selection_status.json",
+                    "steps.source_inputs.outputs.ready == 'true'")
           for filename in names:
               p=Path(".github/workflows")/filename
               source=p.read_text(encoding="utf-8")
