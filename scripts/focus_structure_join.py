@@ -21,7 +21,7 @@ def combine_price_sources(base_rows,dynamic_rows,sector_asof):
             continue
         def quality(x):
             valid_date=x.get("latest_complete_date")==sector_asof
-            verified_source=x.get("data_source") in ("pykrx","FinanceDataReader")
+            verified_source=x.get("data_source") in ("pykrx","FinanceDataReader","V18_KRX_CACHED")
             return (int(valid_date),int(verified_source),
                     int(bool(x.get("historical_stop_reference"))),
                     int(bool(x.get("entry1_research_range"))))
