@@ -179,7 +179,9 @@ def build(report,contracts=None):
             direct_company_filings=direct,
             official_contract_originals=originals,
             original_contract_text_observed=any(
-                x["original_status"]=="DART_DOCUMENT_XML_TABLES_PARSED"
+                x["original_status"] in (
+                    "DART_DOCUMENT_XML_TABLES_PARSED",
+                    "DART_DOCUMENT_SGML_TABLES_PARSED")
                 for x in originals),
             direct_contract_amount_confirmed=False,
             global_sector_context=global_items,
