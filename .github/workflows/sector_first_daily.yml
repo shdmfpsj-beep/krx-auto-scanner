@@ -46,6 +46,8 @@ jobs:
             /scripts/test_shadow_trade_audit.py
             /scripts/shadow_entry_comparison.py
             /scripts/test_shadow_entry_comparison.py
+            /scripts/c3_one_slot_equity.py
+            /scripts/test_c3_one_slot_equity.py
             /requirements.txt
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -67,6 +69,7 @@ jobs:
           python scripts/test_sector_first_compact_report.py
           python scripts/test_shadow_trade_audit.py
           python scripts/test_shadow_entry_comparison.py
+          python scripts/test_c3_one_slot_equity.py
 
       - name: Collect global industry and macro news from GDELT (free, read only)
         if: always()
@@ -272,6 +275,16 @@ jobs:
             --evidence inputs/evidence \
             --out output
 
+      - name: Run C3 one-position account-level paper risk and equity simulation
+        if: always()
+        run: |
+          python scripts/c3_one_slot_equity.py \
+            --signals output/shadow_signals.json \
+            --history inputs/evidence \
+            --initial-cash 1000000 \
+            --risk-budget-pct 2.0 \
+            --out output
+
       - name: Upload simple mobile summary
         if: always()
         uses: actions/upload-artifact@v4
@@ -301,6 +314,8 @@ jobs:
             output/entry_ab_results.json
             output/entry_ab_scorecard.json
             output/entry_ab_mobile.md
+            output/c3_one_slot_equity.json
+            output/c3_one_slot_mobile.md
             output/sector_research_ranking.csv
             output/sector_stock_research_ranking.csv
             output/sector_bridge_status.json
