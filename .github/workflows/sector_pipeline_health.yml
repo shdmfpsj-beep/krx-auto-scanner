@@ -2,8 +2,13 @@ name: KRX sector pipeline daily health audit
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Sector Evidence v18 (standalone)"]
+    types: [completed]
+    branches: [main]
   schedule:
-    # 21:40 KST weekdays, allowing v18 up to its 180-minute timeout.
+    # 21:40 KST: provisional status; source may be in progress.
+    # The completed v18 run triggers a second audit after it finishes.
     - cron: '40 12 * * 1-5'
 
 permissions:
@@ -17,6 +22,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      V18_TRIGGER_RUN_ID: ${{ github.event.workflow_run.id }}
+      V18_TRIGGER_CREATED_AT: ${{ github.event.workflow_run.created_at }}
     steps:
       - name: Secure sparse checkout of source integrity evaluator
         uses: actions/checkout@v4
@@ -24,6 +31,7 @@ jobs:
           sparse-checkout: |
             /scripts/sector_pipeline_health_gate.py
             /scripts/test_sector_pipeline_health_gate.py
+            /scripts/krx_session_clock.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Offline test source-quality verdicts
@@ -39,32 +47,58 @@ jobs:
           import json, os, subprocess
           from datetime import datetime, timezone, timedelta
           from pathlib import Path
+          import sys
+          sys.path.insert(0,str(Path("scripts").resolve()))
+          from krx_session_clock import nominal_last_completed_krx_session
           repo=os.environ["GH_REPO"]
-          today=datetime.now(timezone(timedelta(hours=9))).date().isoformat()
+          kst=timezone(timedelta(hours=9))
+          now_kst=datetime.now(kst)
+          today=now_kst.date().isoformat()
+          created=os.environ.get("V18_TRIGGER_CREATED_AT","").strip()
+          triggered_id=os.environ.get("V18_TRIGGER_RUN_ID","").strip()
+          target_at=datetime.fromisoformat(created.replace("Z","+00:00")) if created else now_kst
+          target=nominal_last_completed_krx_session(target_at.astimezone(kst))
           workflows={
               "krx_recovery_scan.yml":"krx_recovery",
-              "sector_evidence_v18_daily.yml":"sector_dispatch",
               "sector_evidence_v18.yml":"sector_collection",
           }
-          report={"date_kst":today,"checks":{},"pipeline_ready":False,
-                  "note":"Workflow success does not certify sector flow quality, evidence coverage, or trade approval."}
+          report={"date_kst":today,"target_session":target,
+                  "triggered_v18_run_id":triggered_id or None,
+                  "checks":{},"pipeline_ready":False,
+                  "note":"Manual-only helper is not a required daily run; workflow success never certifies OHLC quality or BUY."}
           for wf,label in workflows.items():
-              p=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/workflows/{wf}/runs",
-                 "-f","per_page=20"],capture_output=True,text=True)
-              if p.returncode:
-                  report["checks"][label]={"status":"API_ERROR","message":p.stderr[:300]}
-                  continue
-              try: runs=json.loads(p.stdout)["workflow_runs"]
-              except (ValueError,KeyError):
-                  report["checks"][label]={"status":"PARSE_ERROR"}
-                  continue
-              current=[r for r in runs if datetime.fromisoformat(r["created_at"].replace("Z","+00:00")).astimezone(timezone(timedelta(hours=9))).date().isoformat()==today]
-              if not current:
-                  report["checks"][label]={"status":"NOT_RUN_TODAY"}
-                  continue
-              run=current[0]
-              report["checks"][label]={"status":run["status"],"conclusion":run.get("conclusion"),
-                "run_id":run["id"],"url":run.get("html_url")}
+              if wf=="sector_evidence_v18.yml" and triggered_id.isdigit():
+                  p=subprocess.run(["gh","api","-X","GET",
+                       f"repos/{repo}/actions/runs/{triggered_id}"],
+                       capture_output=True,text=True)
+                  if p.returncode:
+                      report["checks"][label]={"status":"API_ERROR","message":p.stderr[:300]}
+                      continue
+                  try:
+                      run=json.loads(p.stdout)
+                      if not str(run.get("path","")).endswith("/sector_evidence_v18.yml"):
+                          raise ValueError("TRIGGER_RUN_IS_NOT_V18_SOURCE")
+                  except (ValueError,TypeError):
+                      report["checks"][label]={"status":"TRIGGER_SOURCE_ID_INVALID"}
+                      continue
+              else:
+                  p=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/workflows/{wf}/runs",
+                     "-f","per_page=30"],capture_output=True,text=True)
+                  if p.returncode:
+                      report["checks"][label]={"status":"API_ERROR","message":p.stderr[:300]}
+                      continue
+                  try: runs=json.loads(p.stdout)["workflow_runs"]
+                  except (ValueError,KeyError):
+                      report["checks"][label]={"status":"PARSE_ERROR"}
+                      continue
+                  current=[r for r in runs
+                           if datetime.fromisoformat(r["created_at"].replace("Z","+00:00")).astimezone(kst).date().isoformat()==target]
+                  if not current:
+                      report["checks"][label]={"status":"NO_RUN_FOR_TARGET_SESSION"}
+                      continue
+                  run=current[0]
+              report["checks"][label]={"status":run.get("status"),"conclusion":run.get("conclusion"),
+                "run_id":run.get("id"),"created_at":run.get("created_at"),"url":run.get("html_url")}
           report["workflow_execution_ready"]=all(
               report["checks"].get(k,{}).get("conclusion")=="success"
               for k in workflows.values())
@@ -88,7 +122,7 @@ jobs:
           health=Path("audit/sector_pipeline_health.json")
           report=json.loads(health.read_text())
           sector=report["checks"].get("sector_collection",{})
-          result=judge_collection({},report["date_kst"],sector.get("conclusion"))
+          result=judge_collection({},report["target_session"],sector.get("conclusion"))
           # Failed v18 runs may still upload their raw diagnostics. Read
           # these to diagnose source corruption without declaring success.
           if sector.get("run_id"):
@@ -110,7 +144,7 @@ jobs:
                                   names=[n for n in archive.namelist() if n.endswith("diagnostics/collection_status.json")]
                                   if names:
                                       status=json.loads(archive.read(names[0]))
-                                      result=judge_collection(status,report["date_kst"],
+                                      result=judge_collection(status,report["target_session"],
                                                               sector.get("conclusion"))
                           except (ValueError,zipfile.BadZipFile) as e:
                               result["reason"]=str(e)
