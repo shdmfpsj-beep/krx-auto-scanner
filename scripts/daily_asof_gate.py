@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from trade_approval_policy import BUY_REVIEW_SCORE_MIN, SCORE_MAX
+from trade_approval_policy import BUY_REVIEW_SCORE_MIN, SCORE_MAX, evaluate_review
 
 
 def load_json(path: Path) -> dict:
@@ -85,6 +85,7 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         "score_scale_max": SCORE_MAX,
         "final_score_threshold": BUY_REVIEW_SCORE_MIN,
         "final_score_verified": False,
+        "manual_review_gate": evaluate_review(None, {}, cost_adjusted_rr=None),
         "target_kst_date": day,
         "source_dates": dates,
         "recovery_universe": universe,
