@@ -89,6 +89,18 @@ class DailyProgressTests(unittest.TestCase):
         self.assertEqual(r["evidence_progress_pct"],100)
         self.assertFalse(r["final_80_trade_score_verified"])
         self.assertFalse(r["trade_approved"])
+    def test_invalid_market_ohlc_never_counts_as_complete_or_weak(self):
+        a=list(inputs())
+        a[0]["market_ohlc_quality_verified"]=False
+        a[0]["raw_ohlc_conflict_pct"]=24.7
+        a[1]["daily_money_gate"]="MARKET_OHLC_CONFLICT"
+        r=build(*a)
+        self.assertFalse(r["gates"][0]["passed"])
+        self.assertFalse(r["gates"][1]["passed"])
+        self.assertEqual(r["market_source_status"],"RAW_MARKET_OHLC_CONFLICT_HIGH")
+        self.assertFalse(r["success_on_cautious_cash_day"])
+        self.assertEqual(r["decision"],"CASH")
+
     def test_early_flow_three_sectors_pass_research_not_trade(self):
         a=list(inputs())
         a[0]["selected_top3"]=[dict(sector_id=s,day_breadth_pct=b,
