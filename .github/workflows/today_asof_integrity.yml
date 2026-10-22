@@ -9,6 +9,10 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/today_asof_integrity.yml'
+      - 'scripts/daily_asof_gate.py'
+      - 'scripts/test_daily_asof_gate.py'
+      - 'scripts/trade_approval_policy.py'
+      - 'scripts/test_trade_approval_policy.py'
   schedule:
     # 22:12 Korea time on weekdays (UTC 13:12).
     - cron: '12 13 * * 1-5'
