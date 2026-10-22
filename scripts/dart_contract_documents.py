@@ -93,12 +93,18 @@ def latest_preliminary_earnings(response,corp,ticker,asof):
         # investor-relations calendar.
         if not ("영업" in title and "잠정" in title and "실적" in title):
             continue
+        # 'rm' is the official list.json remark: '철' withdrawal,
+        # '정' subsequently amended. Neither is safe as a fresh result.
+        remarks=str(r.get("rm") or "")
+        if "철" in remarks:continue
         found.append(dict(date=str(day),title=title[:110],
             receipt_no=receipt,ticker=ticker,
             url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+receipt,
             financial_figures_verified=False,
             source="OFFICIAL_PRELIMINARY_EARNINGS_DISCLOSURE_TITLE_ONLY",
-            correction_flag=any(k in title for k in ("정정","취소"))))
+            correction_flag=(any(k in title for k in ("정정","취소")) or
+                             "정" in remarks),
+            superseded_or_corrected=("정" in remarks)))
     found.sort(key=lambda x:(x["date"],x["receipt_no"]),reverse=True)
     return found[:2]
 
