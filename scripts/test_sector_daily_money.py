@@ -10,7 +10,7 @@ def table(rows):
     s=io.StringIO();w=csv.DictWriter(s,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
     return s.getvalue()
 
-def make_archive(root,wrong_date=False,drop_flow=None,stale_holdings=False):
+def make_archive(root,wrong_date=False,drop_flow=None,stale_holdings=False,weak_breadth=False):
     sectors=[("SEMICON","반도체","091160",[f"{i:06d}" for i in range(1,6)]),
              ("IT","IT","091180",[f"{i:06d}" for i in range(1,11)]),
              ("POWER","전력설비","091170",[f"{i:06d}" for i in range(11,16)]),
@@ -31,7 +31,7 @@ def make_archive(root,wrong_date=False,drop_flow=None,stale_holdings=False):
         return 5
     for i in range(1,21):
         t=f"{i:06d}"
-        market.append(dict(ticker=t,Date=ASOF,Open=90,High=110,Low=88,Close=100,
+        market.append(dict(ticker=t,Date=ASOF,Open=90,High=110,Low=70 if weak_breadth else 88,Close=80 if weak_breadth else 100,
                            Volume=10000,TurnoverKRW=10000000))
         if t!=drop_flow:
             foreign.append(dict(ticker=t,net_buy_krw=money(t)*1e9))
@@ -50,7 +50,7 @@ def make_archive(root,wrong_date=False,drop_flow=None,stale_holdings=False):
         t=f"{i:06d}"
         contents[f"market/prices/{t}.csv"]=table([
             dict(Date="2026-10-20",Close=90,Open=88,High=100,Low=85),
-            dict(Date=ASOF,Close=100,Open=90,High=110,Low=88)])
+            dict(Date=ASOF,Close=80 if weak_breadth else 100,Open=90,High=110,Low=70 if weak_breadth else 88)])
     for sid,name,etf,tickers in sectors:
         contents[f"market/raw_holdings/{etf}/"+(
             "2026-10-01" if stale_holdings else "2026-10-19")+".csv"]=table(
@@ -76,6 +76,20 @@ class SectorDailyMoneyTests(unittest.TestCase):
             self.assertEqual(it["day_net_flow_krw"],30_000_000_000)
             self.assertIn("CASH",render(out))
             self.assertFalse(out["trade_approved"])
+    def test_positive_money_without_breadth_is_watch_only_no_buy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ev=Evidence(make_archive(tmp,weak_breadth=True))
+            try:data=daily_evidence(ev,ASOF)
+            finally:ev.close()
+            self.assertEqual(data["selected_top3"],[])
+            self.assertEqual(len(data["watch_only_positive_flow_top3"]),3)
+            self.assertTrue(all(x["day_breadth_pct"]==0
+                                for x in data["watch_only_positive_flow_top3"]))
+            self.assertTrue(all(x["trade_approval"]=="NO"
+                                for x in data["watch_only_positive_flow_top3"]))
+            self.assertIn("매수 제외된 수급 관찰 섹터",render(data))
+            self.assertEqual(data["decision"],"CASH")
+
     def test_asof_mismatch_cannot_trick_report(self):
         with tempfile.TemporaryDirectory() as tmp:
             ev=Evidence(make_archive(tmp,wrong_date=True))
