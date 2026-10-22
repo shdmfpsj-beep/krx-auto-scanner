@@ -2,6 +2,9 @@ name: C3 K100 same-day source integrity gate
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["C3 K100 Sector First simple daily report"]
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -20,6 +23,7 @@ concurrency:
 
 jobs:
   audit:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
