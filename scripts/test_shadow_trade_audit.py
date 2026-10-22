@@ -84,6 +84,21 @@ class ShadowTests(unittest.TestCase):
     def test_pre_open_signal_cannot_be_counted_as_filled_same_day(self):
         series=[bar("2026-10-22",high=111,low=94)]
         self.assertEqual(evaluate(SIG,series)["status"],"PENDING_NEXT_TRADING_DAY")
+    def test_completed_paper_trade_result_is_frozen_after_history_rolls_off(self):
+        earlier=evaluate(SIG,[bar(DATES[0],high=111,low=97)])
+        self.assertEqual(earlier["status"],"CLOSED")
+        frozen={**SIG,**earlier}
+        results,stats=summarise([SIG],{},[frozen])
+        self.assertEqual(results[0]["status"],"CLOSED")
+        self.assertEqual(results[0]["exit_reason"],"TARGET_2R")
+        self.assertEqual(stats["closed_count"],1)
+        self.assertAlmostEqual(stats["realised_paper_avg_net_pct"],9.6)
+    def test_pending_paper_result_recalculates_when_future_bar_arrives(self):
+        frozen={**SIG,"status":"PENDING_NEXT_TRADING_DAY"}
+        results,stats=summarise([SIG],{"005930":[bar(DATES[0],high=111,low=97)]},[frozen])
+        self.assertEqual(results[0]["status"],"CLOSED")
+        self.assertEqual(stats["closed_count"],1)
+
     def test_ledger_disallows_comparing_two_different_versions(self):
         bad={**SIG,"plan_version":"unknown"}
         self.assertEqual(merge_signals([bad],[]),[])
