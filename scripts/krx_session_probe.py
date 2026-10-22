@@ -46,7 +46,7 @@ def check_bars(stocks):
     return dict(checked=checked,invalid=invalid,invalid_pct=round(invalid*100/max(checked,1),2),
                 below_low=low,above_high=high)
 
-def new_snapshot(phase, now, markets):
+def new_snapshot(phase, now, markets, ended_at=None):
     stocks={}
     market_counts={}
     for market, rows in markets.items():
@@ -55,8 +55,13 @@ def new_snapshot(phase, now, markets):
             if ticker in stocks:
                 raise ValueError("DUPLICATE_TICKER_ACROSS_MARKETS")
             stocks[ticker]={"market":market,**{k:numeric(bar.get(k)) for k in FIELDS}}
+    end=ended_at or now
+    window=capture_window(phase,now)
+    if phase=="regular" and capture_window(phase,end)!="REGULAR_WINDOW":
+        window="REGULAR_CAPTURE_FINISHED_AFTER_1600"
     return dict(schema="krx_session_probe_v1",phase=phase,asof=now.date().isoformat(),
-                captured_at_kst=now.isoformat(),window=capture_window(phase,now),
+                started_at_kst=now.isoformat(),captured_at_kst=end.isoformat(),window=window,
+                provider_session_scope="DATE_ONLY_UNVERIFIED",
                 source=SOURCE,markets=market_counts,quality=check_bars(stocks),
                 stocks=stocks,orders_enabled=False,trade_approved=False)
 
@@ -157,12 +162,17 @@ def main():
                 window="NON_TRADING_DAY",source=SOURCE,quality={},stocks={},
                 orders_enabled=False,trade_approved=False)
         else:
-            try:output=new_snapshot(args.phase,now,fetch_market(now.date().isoformat()))
+            try:
+                markets=fetch_market(now.date().isoformat())
+                end=datetime.now(KST)
+                output=new_snapshot(args.phase,now,markets,ended_at=end)
             except Exception as exc:
                 # No traceback with external tokens; error codes only.
                 output=dict(schema="krx_session_probe_v1",phase=args.phase,
                     asof=now.date().isoformat(),captured_at_kst=now.isoformat(),
-                    window="SOURCE_UNAVAILABLE",source=SOURCE,quality={},stocks={},
+                    window="SOURCE_UNAVAILABLE",source=SOURCE,
+                    provider_session_scope="DATE_ONLY_UNVERIFIED",
+                    quality={},stocks={},
                     error="PUBLIC_MARKET_PROVIDER_UNAVAILABLE",
                     orders_enabled=False,trade_approved=False)
     write(args.out,output)
