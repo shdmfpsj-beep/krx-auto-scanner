@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import csv
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -20,7 +21,30 @@ def load_json(path: Path) -> dict:
         return {}
 
 
-def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict) -> dict:
+def research_candidate_from_csv(path: Path, tickers: list, day: str) -> dict:
+    """Only a dated technical observation, never an approved trade."""
+    try:
+        with path.open(encoding="utf-8-sig", newline="") as file:
+            rows = list(csv.DictReader(file))
+    except OSError:
+        return {}
+    for ticker in tickers[:5]:
+        for row in rows:
+            if (row.get("ticker") == ticker and row.get("snapshot_date") == day
+                and row.get("structure_status") == "RESEARCH_GEOMETRY_PASS"
+                and row.get("trade_approval") == "NO"):
+                return {key: row.get(key) for key in (
+                    "ticker", "name", "snapshot_date", "close_reference",
+                    "entry1_close_reference", "entry2_ma20_proxy",
+                    "structural_stop_reference", "no_chase_reference",
+                    "prior_60d_resistance", "rr_to_prior_resistance",
+                    "c3_preliminary_score", "k100_preliminary_score",
+                    "blocking_reasons")}
+    return {}
+
+
+def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
+             research_candidate: dict | None = None) -> dict:
     dates = {
         "recovery_krx_price": recovery.get("market_data_date"),
         "focus_price": focus.get("asof"),
@@ -63,6 +87,7 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict) -
         "recovery_coverage_ratio": ratio,
         "recovery_research_geometry_pass": recovery.get("geometry_pass_count"),
         "recovery_research_watch_tickers": recovery.get("c3_research_top5", [])[:5],
+        "today_research_candidate": research_candidate or {},
         "focus_research_count": focus.get("research_count"),
         "focus_stop_reference_count": focus.get("stop_reference_count"),
         "sector_research_top3_count": len(sector.get("sector_top3") or []),
@@ -85,6 +110,16 @@ def to_markdown(data: dict) -> str:
         return value if value is not None else "미확인"
     watch = ", ".join(data["recovery_research_watch_tickers"]) or "없음"
     reason_lines = "\n".join(f"- {x}" for x in data["data_integrity_blockers"])
+    candidate = data.get("today_research_candidate", {})
+    if candidate:
+        research_line = (f"**오늘 확인한 기술 연구후보:** {candidate['name']} ({candidate['ticker']}) · "
+            f"종가 {candidate['close_reference']}원 · 1차 {candidate['entry1_close_reference']}원 · "
+            f"2차 {candidate['entry2_ma20_proxy']}원 · 구조손절 {candidate['structural_stop_reference']}원 · "
+            f"추격금지 {candidate['no_chase_reference']}원 · 전고점 기준 R:R {candidate['rr_to_prior_resistance']} · "
+            f"C3 예비점수 {candidate['c3_preliminary_score']}점(최종85점 아님) · "
+            f"차단: {candidate['blocking_reasons']}. 가격은 호가단위 미보정 연구 참고치이며 매수승인이 아닙니다.")
+    else:
+        research_line = "**오늘 확인한 기술 연구후보:** 검증된 당일 연구 행 없음"
     return f"""# 📅 {data['target_kst_date']} C3·K100 실제 데이터 교차검증
 
 🚦 **신규매수: CASH (0건 승인)**
@@ -100,7 +135,7 @@ def to_markdown(data: dict) -> str:
 
 **KRX 데이터 커버리지:** {fmt(data['recovery_valid_ohlcv'])}/{fmt(data['recovery_universe'])} ({pct})
 **일봉 연구 구조 통과:** {fmt(data['recovery_research_geometry_pass'])}건 · 연구 티커 {watch}
-**최종 검증 85점·매수승인:** 0건 (독립 검증 미완료)
+{research_line}\n**최종 검증 85점·매수승인:** 0건 (독립 검증 미완료)
 
 ## 이번 실행의 매수 차단 사유
 {reason_lines}
@@ -114,15 +149,23 @@ def to_markdown(data: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--recovery", type=Path, required=True)
-    parser.add_argument("--focus", type=Path, required=True)
+    parser.add_argument("--recovery-structure", type=Path, required=False)\n    parser.add_argument("--recovery-csv", type=Path, required=False)\n    parser.add_argument("--focus", type=Path, required=True)
     parser.add_argument("--sector", type=Path, required=True)
     parser.add_argument("--money", type=Path, required=True)
     parser.add_argument("--date", default=None)
     parser.add_argument("--out", type=Path, default=Path("output"))
     args = parser.parse_args()
     target_day = args.date or datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
-    result = evaluate(target_day, load_json(args.recovery), load_json(args.focus),
-                      load_json(args.sector), load_json(args.money))
+    recovery = load_json(args.recovery)
+    structure = load_json(args.recovery_structure) if args.recovery_structure else {}
+    for field in ("geometry_pass_count", "c3_research_top5", "k100_research_top5"):
+        if field in structure:
+            recovery[field] = structure[field]
+    candidate = (research_candidate_from_csv(args.recovery_csv,
+                 recovery.get("c3_research_top5", []), target_day)
+                 if args.recovery_csv else {})
+    result = evaluate(target_day, recovery, load_json(args.focus),
+                      load_json(args.sector), load_json(args.money), candidate)
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "today_asof_gate.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
