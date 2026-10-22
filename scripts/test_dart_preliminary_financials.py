@@ -121,6 +121,63 @@ class PreliminaryTests(unittest.TestCase):
         parsed=decode_document(zipped(html))
         self.assertEqual(parsed["status"],"PRELIMINARY_TABLE_ROWS_READ")
         self.assertEqual(assess(parsed,FILE,DAY)["operating_profit_yoy_pct"],20)
+    def test_real_dart_sgml_split_period_and_merged_quarter_headers(self):
+        rows=[
+            ["__TABLE_BOUNDARY__"],
+            ["당기실적","2026-07-01","~","2026-09-30"],
+            ["전기실적","2026-04-01","~","2026-06-30"],
+            ["전년동기실적","2025-07-01","~","2025-09-30"],
+            ["당기누계실적","2026-01-01","~","2026-09-30"],
+            ["전년동기누적실적","2025-01-01","~","2025-09-30"],
+            ["__TABLE_BOUNDARY__"],
+            ["1. 연결실적내용","단위 : 백만원, %"],
+            ["구분","당기실적","전기실적","전기대비","전년동기실적","전년동기대비"],
+            ["('26.3Q)","('26.2Q)","증감율(%)","흑자적자전환여부",
+             "('25.3Q)","증감율(%)","흑자적자전환여부"],
+            ["매출액","당해실적","1,250,000","1,200,000",
+             "4.2","-","1,000,000","25.0","-"],
+            ["누계실적","3,560,000","-","-","-","3,000,000","18.7","-"],
+            ["영업이익","당해실적","120,000","140,000",
+             "-14.3","-","100,000","20.0","-"],
+            ["누계실적","360,000","-","-","-","200,000","80.0","-"],
+            ["__TABLE_BOUNDARY__"]]
+        r=assess(data(rows),FILE,DAY)
+        self.assertEqual(r["status"],"PRELIMINARY_SINGLE_QUARTER_SOURCE_RESEARCH_ONLY")
+        self.assertEqual(r["quarter_period"]["current_end"],"2026-09-30")
+        self.assertEqual(r["revenue_current_krw"],1_250_000_000_000)
+        self.assertEqual(r["operating_profit_current_krw"],120_000_000_000)
+        self.assertEqual(r["revenue_yoy_pct"],25)
+        self.assertEqual(r["operating_profit_yoy_pct"],20)
+        self.assertFalse(r["trade_approved"])
+    def test_merged_quarter_header_wrong_year_cannot_mix_values(self):
+        rows=[
+            ["당기실적","2026-07-01","~","2026-09-30"],
+            ["전년동기실적","2025-07-01","~","2025-09-30"],
+            ["__TABLE_BOUNDARY__"],
+            ["구분","당기실적","전기실적","전기대비","전년동기실적","전년동기대비"],
+            ["('26.3Q)","('26.2Q)","증감율(%)","-",
+             "('24.3Q)","증감율(%)","-"],
+            ["매출액","당해실적","1250","1200","4","-","1000","25","-"],
+            ["영업이익","당해실적","120","140","-14","-","100","20","-"]]
+        r=assess(data(rows),FILE,DAY)
+        self.assertEqual(r["status"],"PRELIMINARY_SAME_ROW_YOY_VALUES_MISSING")
+        self.assertFalse(r["preliminary_figures_source_verified"])
+    def test_quarterly_gain_must_not_be_replaced_with_ytd_values(self):
+        rows=[
+            ["당기실적","2026-07-01","~","2026-09-30"],
+            ["전년동기실적","2025-07-01","~","2025-09-30"],
+            ["__TABLE_BOUNDARY__"],
+            ["구분","당기실적","전기실적","전기대비","전년동기실적","전년동기대비"],
+            ["('26.3Q)","('26.2Q)","증감율(%)","-",
+             "('25.3Q)","증감율(%)","-"],
+            ["매출액","당해실적","1250","1200","4","-","1000","25","-"],
+            ["누계실적","9999","-","-","-","1111","800","-"],
+            ["영업이익","당해실적","120","140","-14","-","100","20","-"],
+            ["누계실적","9000","-","-","-","800","1100","-"]]
+        r=assess(data(rows),FILE,DAY)
+        self.assertEqual(r["revenue_current_krw"],1_250_000_000)
+        self.assertEqual(r["operating_profit_current_krw"],120_000_000)
+        self.assertEqual(r["revenue_yoy_pct"],25)
     def test_dated_period_from_different_table_never_authorizes_numbers(self):
         rows=ROWS[:2]+[["__TABLE_BOUNDARY__"]]+ROWS[2:]
         r=assess(data(rows),FILE,DAY)
