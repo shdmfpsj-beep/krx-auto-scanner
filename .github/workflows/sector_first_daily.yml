@@ -49,6 +49,8 @@ jobs:
             /scripts/test_dart_financial_screen.py
             /scripts/sector_financial_join.py
             /scripts/stock_evidence_matrix.py
+            /scripts/dart_contract_terms.py
+            /scripts/test_dart_contract_terms.py
             /scripts/dart_contract_documents.py
             /scripts/test_dart_contract_documents.py
             /scripts/entry_setup_audit.py
@@ -86,6 +88,7 @@ jobs:
           python scripts/test_dart_financial_screen.py
           python scripts/test_sector_financial_join.py
           python scripts/test_stock_evidence_matrix.py
+          python scripts/test_dart_contract_terms.py
           python scripts/test_dart_contract_documents.py
           python scripts/test_entry_setup_audit.py
           python scripts/test_shadow_trade_audit.py
