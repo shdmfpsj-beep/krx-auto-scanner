@@ -32,9 +32,19 @@ class CompactTests(unittest.TestCase):
              "daily_money_gate":"VERIFIED_NO_QUALIFYING_SECTOR",
              "sector_top3":[],"stock_research_top5":[]})
         self.assertIn("오늘 완료된 KRX 수급자료는 검증됐으나",md)
-        self.assertIn("상승확산 60%",md)
+        self.assertIn("플러스 순매수인 섹터가 없어",md)
         self.assertIn("신규매수: CASH",md)
         self.assertNotIn("해당일 완결되지 않아",md)
+
+    def test_pre_expansion_flow_visible_in_final_report_without_buy(self):
+        sector=dict(BASE["sector_top3"][0],name="건설",
+                    day_net_flow_1d_incremental_krw=210491705060,
+                    day_breadth_up_pct=43.75,flow_phase="NARROW_POSITIVE")
+        md=format_summary({**BASE,"sector_top3":[sector]})
+        self.assertIn("NARROW_POSITIVE",md)
+        self.assertIn("43.75%",md)
+        self.assertIn("상승확산 60% 미만도 연구 후보",md)
+        self.assertIn("CASH",md)
 
     def test_independent_stop_price_takes_precedence_over_research_plan(self):
         row={**BASE["stock_research_top5"][0],"stop_reference":"175000"}
