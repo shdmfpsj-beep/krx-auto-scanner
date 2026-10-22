@@ -89,6 +89,20 @@ def annual_receipt(payload,year,asof):
         candidates.append((filing_day,receipt))
     return max(candidates) if candidates else None
 
+def latest_periodic_filing(payload,asof):
+    """Dated newest public periodic filing; NOT verified quarterly financials."""
+    if payload.get("status")!="000":return None
+    out=[]
+    for filing in payload.get("list",[]):
+        name=str(filing.get("report_nm","")).strip()
+        when=iso_day(filing.get("rcept_dt"))
+        receipt=str(filing.get("rcept_no",""))
+        if (not when or when>asof or not re.fullmatch(r"\d{14}",receipt)
+            or not any(term in name for term in ("사업보고서","반기보고서","분기보고서"))):
+            continue
+        out.append((when,receipt,name))
+    return max(out,key=lambda x:(x[0],x[1])) if out else None
+
 def extract_metric(rows,ids,statement,period):
     """Use unique standard XBRL codes; account_detail absent is ordinary.
 
@@ -261,6 +275,15 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
                 "bgn_de":f"{asof.year-2}0101",
                 "end_de":asof.strftime("%Y%m%d"),
                 "page_count":100,"pblntf_ty":"A"},key)
+            latest=latest_periodic_filing(filings,asof)
+            if latest:
+                latest_date,latest_receipt,latest_name=latest
+                item["latest_periodic_receipt_date"]=str(latest_date)
+                item["latest_periodic_report_name"]=latest_name
+                item["latest_periodic_receipt_url"]=(
+                    "https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+latest_receipt)
+                item["days_since_latest_periodic_report"]=(asof-latest_date).days
+            item["latest_periodic_financials_analyzed"]=False
             matched=[(year,annual_receipt(filings,year,asof))
                      for year in possible_years]
             matched=[(year,receipt) for year,receipt in matched if receipt]
@@ -271,6 +294,8 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
             year,receipt=max(matched,key=lambda x:x[0])
             day_received,number=receipt
             item["annual_fiscal_year"]=year
+            item["annual_filing_age_days"]=(asof-day_received).days
+            item["recent_financial_results_fully_verified"]=False
             item["receipt_date"]=str(day_received)
             item["receipt_no"]=number
             item["receipt_url"]="https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+number
@@ -322,7 +347,8 @@ def render(result):
           " | "+str(x.get("operating_margin_pct") if x.get("operating_margin_pct") is not None else "—")+
           " | "+str(x.get("financial_quality") or x.get("status","UNKNOWN"))+" |")
     if not result.get("researched"):lines.append("| 미확인 | — | — | — | 실적점수 부여 금지 |")
-    lines+=["","*당해연도 분기 실적, 업종별 재무비율, 향후 컨센서스 및 뉴스의 실제 계약효과는 여기서 검증하지 않습니다.",
+    lines+=["","*최신 분기·반기 사업보고서의 날짜는 별도로 기록하지만, 분기 수치까지 검증한 것으로 표시하지 않습니다.",
+      "*당해연도 분기 실적, 업종별 재무비율, 향후 컨센서스 및 뉴스의 실제 계약효과는 여기서 검증하지 않습니다.",
       "*연결재무제표를 우선하되 없는 경우 별도재무제표를 명시하며 두 기준을 무분별하게 섞지 않습니다.",
       "*공시 제출일 이후 자료만 취급하며 과거 리플레이에 현재 재무API 내용을 소급 투입하지 않습니다.",
       "*매출 증가만으로 최종 85점이나 5거래일 상승확률을 만들어내지 않습니다.",""]
