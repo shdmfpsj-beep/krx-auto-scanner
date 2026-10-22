@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Concise mobile report tests: no fabricated approvals, stale links or prices."""
-import unittest
-from sector_first_compact_report import format_summary,krw,safe_link
+import unittest,json,tempfile,sys
+from pathlib import Path
+from unittest.mock import patch
+from sector_first_compact_report import format_summary,krw,safe_link,main
 BASE={"asof":"2026-10-22","sector_top3":[dict(name="반도체",
        research_priority_index=83.2,flow_proxy_5d_krw=200000000,
        member_turnover_krw=30000000000,
@@ -14,6 +16,46 @@ BASE={"asof":"2026-10-22","sector_top3":[dict(name="반도체",
           "independent_stop_status":"HISTORICAL_DAILY_REFERENCE_ONLY"}]}
 
 class CompactTests(unittest.TestCase):
+    def test_source_blocked_day_creates_compact_cash_summary_without_price_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            acq=dict(schema="sector_source_acquisition_v1",ready=False,
+                status="PENDING_DATA_VALIDATION",
+                errors=["ARTIFACT_UNAVAILABLE:sector-evidence-v18-report"],
+                trade_approved=False)
+            daily=dict(sector_selection_outcome="PENDING_DATA_VALIDATION",
+                stock_selection_outcome="PENDING_DATA_VALIDATION",
+                decision="CASH",trade_approved=False,approved_buy_count=0,
+                sector_top3=[],stock_research_top5=[],asof=None,
+                c3_position_state=dict(user_reported=True,closed_ticker="004490",
+                                       closed_shares_remaining=0))
+            (root/"source_selection_status.json").write_text(json.dumps(acq),encoding="utf-8")
+            (root/"sector_first_daily_status.json").write_text(json.dumps(daily),encoding="utf-8")
+            with patch.object(sys,"argv",["prog","--root",str(root)]):
+                main()
+            text=(root/"sector_first_compact_mobile.md").read_text(encoding="utf-8")
+            self.assertIn("TOP5 최종 산출 보류",text)
+            self.assertIn("최종 판정 보류",text)
+            self.assertIn("ARTIFACT_UNAVAILABLE:sector-evidence-v18-report",text)
+            self.assertIn("세방전지(004490) 전량 매도",text)
+            self.assertIn("CASH",text)
+            self.assertNotIn("검증 완료: 적격 섹터 0개",text)
+
+    def test_missing_price_file_is_error_if_source_claims_ready(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            (root/"source_selection_status.json").write_text(json.dumps(dict(
+                schema="sector_source_acquisition_v1",ready=True,
+                status="VERIFIED_SOURCE_SELECTED",trade_approved=False)),encoding="utf-8")
+            (root/"sector_first_daily_status.json").write_text(json.dumps(dict(
+                sector_selection_outcome="PENDING_DATA_VALIDATION",
+                stock_selection_outcome="PENDING_DATA_VALIDATION",
+                decision="CASH",trade_approved=False,approved_buy_count=0,
+                sector_top3=[],stock_research_top5=[])),encoding="utf-8")
+            with patch.object(sys,"argv",["prog","--root",str(root)]):
+                with self.assertRaisesRegex(SystemExit,"MISSING_FINAL_SECTOR_PRICE_REPORT"):
+                    main()
+
     def test_mobile_top3_and_explicit_price_without_buy(self):
         md=format_summary(BASE)
         self.assertIn("반도체",md)
