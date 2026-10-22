@@ -12,6 +12,7 @@ from datetime import date,datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from xml.etree import ElementTree
+from dart_interim_periods import identify_interim_filing,evaluate_interim
 
 API="https://opendart.fss.or.kr/api/"
 VERSION="opendart_annual_research_v1"
@@ -284,6 +285,27 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
                     "https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+latest_receipt)
                 item["days_since_latest_periodic_report"]=(asof-latest_date).days
             item["latest_periodic_financials_analyzed"]=False
+            interim=identify_interim_filing(latest,asof)
+            item["interim_research"]={"status":"NO_ELIGIBLE_INTERIM_FILING"}
+            if interim:
+                item["interim_research"]={"status":"INTERIM_NOT_VERIFIED","filing":interim}
+                try:
+                    for division in ("CFS","OFS"):
+                        response=request_json("fnlttSinglAcntAll.json",
+                            {"corp_code":company,
+                             "bsns_year":str(interim["fiscal_year"]),
+                             "reprt_code":interim["report_code"],
+                             "fs_div":division},key)
+                        checked=evaluate_interim(response,division,interim)
+                        if checked["status"]=="DATED_INTERIM_YTD_RESEARCH_ONLY":
+                            break
+                    item["interim_research"]=checked
+                    item["latest_periodic_financials_analyzed"]=bool(
+                        checked["latest_periodic_financials_verified"])
+                except Exception as e:
+                    item["interim_research"]={
+                        "status":"INTERIM_REQUEST_FAILED_"+type(e).__name__,
+                        "filing":interim}
             matched=[(year,annual_receipt(filings,year,asof))
                      for year in possible_years]
             matched=[(year,receipt) for year,receipt in matched if receipt]
@@ -316,12 +338,28 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
             item.update(financial)
             item["financial_screen_pass"]=financial.get(
                 "financial_quality")=="ANNUAL_GROWTH_AND_MARGIN_OBSERVED"
+            recent=item.get("interim_research",{})
+            interim_verified=recent.get("status")=="DATED_INTERIM_YTD_RESEARCH_ONLY"
+            item["latest_periodic_division_comparable"]=(interim_verified and
+                  recent.get("division")==item.get("division"))
+            item["recent_financial_results_fully_verified"]=interim_verified
+            # A weak verified current-year interim period must veto a purely
+            # annual positive screen. Incomplete interim data never creates
+            # an 85-point approval or a presumed uptrend.
+            item["recent_financial_weakening_veto"]=bool(
+                interim_verified and
+                recent.get("quality")=="INTERIM_PROFIT_OR_SALES_WEAKENING")
+            item["annual_plus_interim_growth_pass"]=bool(
+                item["financial_screen_pass"] and
+                item["latest_periodic_division_comparable"] and
+                recent.get("quality")=="INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED")
             # Banks, insurers and brokerages have industry-specific
             # balance sheet definitions and must not pass a generic 5% margin
             # or liabilities test designed for non-financial companies.
             if s["sector_id"] in ("BANK","INSURANCE","SECURITIES"):
                 item["financial_screen_pass"]=False
                 item["financial_quality"]="FINANCIAL_SECTOR_SPECIAL_MODEL_REQUIRED"
+                item["annual_plus_interim_growth_pass"]=False
             item["trade_approval"]="NO"
         except Exception as e:
             item["status"]="DART_REQUEST_FAILED_"+type(e).__name__
@@ -332,6 +370,15 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
         r.get("status")!="DATED_ANNUAL_RESEARCH_ONLY" for r in summary["researched"]) else "ANNUAL_RESEARCH_READ"
     summary["screen_pass_count"]=sum(
         bool(x.get("financial_screen_pass")) for x in summary["researched"])
+    summary["verified_interim_count"]=sum(
+        x.get("interim_research",{}).get("status")=="DATED_INTERIM_YTD_RESEARCH_ONLY"
+        for x in summary["researched"])
+    summary["annual_plus_interim_growth_count"]=sum(
+        bool(x.get("annual_plus_interim_growth_pass"))
+        for x in summary["researched"])
+    summary["interim_weakening_count"]=sum(
+        bool(x.get("recent_financial_weakening_veto"))
+        for x in summary["researched"])
     return summary
 
 def render(result):
