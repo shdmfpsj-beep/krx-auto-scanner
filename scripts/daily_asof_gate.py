@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import csv
+from decimal import Decimal, InvalidOperation, ROUND_FLOOR
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -23,6 +24,30 @@ def load_json(path: Path) -> dict:
         return {}
 
 
+def krx_common_tick_floor(value) -> int | None:
+    """Research-only tick floor for ordinary KOSPI/KOSDAQ shares.
+
+    Excludes ETFs/ETNs and securities with a different tick convention.
+    This does not validate an executable limit order.
+    """
+    try:
+        price = Decimal(str(value))
+    except (ValueError, InvalidOperation):
+        return None
+    if not price.is_finite() or price <= 0:
+        return None
+    tick = 1
+    for lower, size in (
+        (2000, 5), (5000, 10), (20000, 50), (50000, 100),
+        (200000, 500), (500000, 1000)
+    ):
+        if price >= lower:
+            tick = size
+        else:
+            break
+    return int((price / tick).to_integral_value(rounding=ROUND_FLOOR) * tick)
+
+
 def research_candidate_from_csv(path: Path, tickers: list, day: str) -> dict:
     """Only a dated technical observation, never an approved trade."""
     try:
@@ -35,13 +60,31 @@ def research_candidate_from_csv(path: Path, tickers: list, day: str) -> dict:
             if (row.get("ticker") == ticker and row.get("snapshot_date") == day
                 and row.get("structure_status") == "RESEARCH_GEOMETRY_PASS"
                 and row.get("trade_approval") == "NO"):
-                return {key: row.get(key) for key in (
+                candidate = {key: row.get(key) for key in (
                     "ticker", "name", "snapshot_date", "close_reference",
                     "entry1_close_reference", "entry2_ma20_proxy",
                     "structural_stop_reference", "no_chase_reference",
                     "prior_60d_resistance", "rr_to_prior_resistance",
                     "c3_preliminary_score", "k100_preliminary_score",
                     "blocking_reasons")}
+                aligned = {
+                    key + "_tick_floor": krx_common_tick_floor(candidate[key])
+                    for key in ("close_reference", "entry1_close_reference",
+                                "entry2_ma20_proxy", "structural_stop_reference",
+                                "no_chase_reference")
+                }
+                # A malformed price must not become an apparently precise plan.
+                if any(v is None for v in aligned.values()):
+                    return {}
+                if not (aligned["structural_stop_reference_tick_floor"]
+                        < aligned["entry2_ma20_proxy_tick_floor"]
+                        <= aligned["entry1_close_reference_tick_floor"]
+                        <= aligned["no_chase_reference_tick_floor"]):
+                    return {}
+                candidate.update(aligned)
+                candidate["tick_aligned_research_only"] = True
+                candidate["rr_after_tick_and_costs_verified"] = False
+                return candidate
     return {}
 
 
@@ -119,11 +162,11 @@ def to_markdown(data: dict) -> str:
     candidate = data.get("today_research_candidate", {})
     if candidate:
         research_line = (f"**오늘 확인한 기술 연구후보:** {candidate['name']} ({candidate['ticker']}) · "
-            f"종가 {candidate['close_reference']}원 · 1차 {candidate['entry1_close_reference']}원 · "
-            f"2차 {candidate['entry2_ma20_proxy']}원 · 구조손절 {candidate['structural_stop_reference']}원 · "
-            f"추격금지 {candidate['no_chase_reference']}원 · 전고점 기준 R:R {candidate['rr_to_prior_resistance']} · "
+            f"종가 {candidate['close_reference_tick_floor']:,}원 · 1차 {candidate['entry1_close_reference_tick_floor']:,}원 · "
+            f"2차 {candidate['entry2_ma20_proxy_tick_floor']:,}원 · 구조손절 {candidate['structural_stop_reference_tick_floor']:,}원 · "
+            f"추격금지 {candidate['no_chase_reference_tick_floor']:,}원 · 원본 연구 R:R {candidate['rr_to_prior_resistance']} (호가·비용 후 재검증 필요) · "
             f"C3 예비점수 {candidate['c3_preliminary_score']}점(최종80점 승인 아님) · "
-            f"차단: {candidate['blocking_reasons']}. 가격은 호가단위 미보정 연구 참고치이며 매수승인이 아닙니다.")
+            f"차단: {candidate['blocking_reasons']}. 가격은 한국거래소 일반주식 호가단위로 내림한 연구 참고치(매수·손절 주문 미승인)입니다.")
     else:
         research_line = "**오늘 확인한 기술 연구후보:** 검증된 당일 연구 행 없음"
     return f"""# 📅 {data['target_kst_date']} C3·K100 실제 데이터 교차검증
