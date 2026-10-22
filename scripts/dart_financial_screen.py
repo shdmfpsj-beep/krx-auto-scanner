@@ -168,6 +168,9 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
     if asof!=today:
         summary["status"]="HISTORICAL_REPLAY_NO_RETROACTIVE_FINANCIALS"
         return summary
+    if not stocks:
+        summary["status"]="NO_VALID_ASOF_RESEARCH_STOCKS"
+        return summary
     if not key:
         summary["status"]="MISSING_DART_KEY"
         return summary
@@ -211,6 +214,12 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
             item.update(financial)
             item["financial_screen_pass"]=financial.get(
                 "financial_quality")=="ANNUAL_GROWTH_AND_MARGIN_OBSERVED"
+            # Banks, insurers and brokerages have industry-specific
+            # balance sheet definitions and must not pass a generic 5% margin
+            # or liabilities test designed for non-financial companies.
+            if s["sector_id"] in ("BANK","INSURANCE","SECURITIES"):
+                item["financial_screen_pass"]=False
+                item["financial_quality"]="FINANCIAL_SECTOR_SPECIAL_MODEL_REQUIRED"
             item["trade_approval"]="NO"
         except Exception as e:
             item["status"]="DART_REQUEST_FAILED_"+type(e).__name__
