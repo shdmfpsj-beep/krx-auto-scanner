@@ -85,6 +85,27 @@ class BridgeTests(unittest.TestCase):
         self.assertTrue(result["daily_money_rank_applied"])
         self.assertFalse(result["final_sector_top3_verified"])
 
+    def test_corrupt_same_day_ohlc_rejects_flow_rank_as_data_invalid(self):
+        summary=dict(asof="2026-10-22",core_data_verified=True,
+                     evidence_scan_dates_aligned=True,
+                     research_top3_sector_ids=["CONSTRUCTION"])
+        rows=[dict(sector_id="CONSTRUCTION",research_eligible="YES",
+                   trade_approval="NO")]
+        report=dict(schema="sector_daily_money_v1",asof="2026-10-22",
+                   market_ohlc_quality_verified=False,
+                   raw_ohlc_conflict_pct=24.7,
+                   selected_top3=[],complete_three=False,
+                   sector_samples=[dict(sector_id="CONSTRUCTION",
+                       base_eligible=False,day_net_flow_krw=210000000000)],
+                   decision="CASH",trade_approved=False)
+        ranked,result=apply_daily_money_rank(rows,summary,report)
+        self.assertEqual(result["daily_money_gate"],"MARKET_OHLC_CONFLICT")
+        self.assertEqual(result["research_top3_sector_ids"],[])
+        self.assertFalse(result["daily_money_rank_applied"])
+        self.assertFalse(result["final_sector_top3_verified"])
+        self.assertEqual(result["decision"],"CASH")
+        self.assertEqual(ranked[0]["sector_id"],"CONSTRUCTION")
+
     def test_pullback_quality_requires_complete_forward_window(self):
         bars=[(str(i),(100+i,100000,99+i,100.5+i)) for i in range(70)]
         result=historical_pullback_quality_review(bars)
