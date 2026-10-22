@@ -1,0 +1,64 @@
+name: KRX timestamped regular minute price source probe (optional)
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "KRX trading date YYYYMMDD, blank = latest completed regular session"
+        required: false
+        type: string
+      tickers:
+        description: "1-5 six-digit symbols, read-only source validation (not recommendations)"
+        required: false
+        default: "005930,000660,035420"
+        type: string
+  schedule:
+    # 17:15 KST weekdays, after the regular market but before 18:30 final.
+    - cron: '15 8 * * 1-5'
+permissions:
+  contents: read
+jobs:
+  optional-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+      KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+      DAY: ${{ inputs.date }}
+      SYMBOLS: ${{ inputs.tickers }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/kis_regular_minute.py
+            /scripts/kis_regular_minute_cli.py
+            /scripts/test_kis_regular_minute.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Run offline tests (never send orders)
+        run: python -m unittest discover -s scripts -p test_kis_regular_minute.py -v
+      - name: Fetch official KRX minute quotes if key+secret were already configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--out output/kis_regular_minute_audit.json)
+          if [[ -n "${DAY:-}" ]]; then args+=(--date "$DAY"); fi
+          if [[ -n "${SYMBOLS:-}" ]]; then args+=(--tickers "$SYMBOLS"); fi
+          python scripts/kis_regular_minute_cli.py "${args[@]}"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("output/kis_regular_minute_audit.json").read_text())
+          assert x["trade_approved"] is False
+          assert x["decision"]=="CASH"
+          assert x["investor_flows_verified"] is False
+          assert x["sector_universe_verified"] is False
+          print("READ_ONLY_MINUTE_SOURCE_PROBE",x["data_status"],
+                "verified_subset",x["ready_count"],
+                "audit_tickers",x["audited_tickers"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kis-krx-regular-minute-audit
+          path: output/kis_regular_minute_audit.json
+          retention-days: 14
