@@ -40,6 +40,8 @@ class DailyAsOfGateTests(unittest.TestCase):
         self.assertEqual(output["final_score_threshold"], 80)
         self.assertEqual(output["score_scale_max"], 100)
         self.assertFalse(output["final_score_verified"])
+        self.assertEqual(output["manual_review_gate"]["final_score_threshold"],80)
+        self.assertEqual(output["manual_review_gate"]["decision"],"CASH")
         self.assertFalse(output["trade_approved"])
         self.assertFalse(output["orders_enabled"])
         self.assertIn("FINAL_80_LIVE_ENTRY_CASH_HOLDINGS_NOT_VERIFIED", output["data_integrity_blockers"])
