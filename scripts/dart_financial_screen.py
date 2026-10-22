@@ -268,7 +268,9 @@ def main():
     today=datetime.now(ZoneInfo("Asia/Seoul")).date()
     asof=iso_day(args.asof)
     if not asof:raise SystemExit("INVALID_ASOF")
-    result=collect(asof,read_stocks(args.input,args.asof),os.environ.get("DART_API_KEY"),today=today)
+    key=(os.environ.get("DART_API_KEY") or os.environ.get("OPENDART_API_KEY")
+         or os.environ.get("OPEN_DART_API_KEY"))
+    result=collect(asof,read_stocks(args.input,args.asof),key,today=today)
     args.out.mkdir(parents=True,exist_ok=True)
     (args.out/"financial_research.json").write_text(
         json.dumps(result,ensure_ascii=False,indent=2),encoding="utf-8")
