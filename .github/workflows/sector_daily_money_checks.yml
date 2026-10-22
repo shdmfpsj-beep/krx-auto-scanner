@@ -6,6 +6,9 @@ on:
     paths:
       - 'scripts/sector_daily_money.py'
       - 'scripts/test_sector_daily_money.py'
+      - 'scripts/sector_evidence_bridge.py'
+      - 'scripts/test_sector_evidence_bridge.py'
+      - 'scripts/sector_first_daily.py'
       - '.github/workflows/sector_daily_money_checks.yml'
 
 permissions:
@@ -25,6 +28,9 @@ jobs:
           sparse-checkout: |
             /scripts/sector_daily_money.py
             /scripts/test_sector_daily_money.py
+            /scripts/sector_evidence_bridge.py
+            /scripts/test_sector_evidence_bridge.py
+            /scripts/sector_first_daily.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -62,6 +68,39 @@ jobs:
           print("REAL_DAY_MONEY_REPLAY_PASSED")
           PY
 
+      - name: Replay actual 10-21 KRX stocks through full TOP3-to-TOP5 bridge
+        run: |
+          unzip -q inputs/dated_evidence.zip -d inputs/asof_evidence
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          Path("inputs/dated_scan_fixture.json").write_text(
+              json.dumps({"market_data_date":"2026-10-21",
+                          "test_type":"HISTORICAL_ASOF_ALIGNMENT_ONLY"}))
+          PY
+          python scripts/sector_evidence_bridge.py \
+            --evidence inputs/asof_evidence \
+            --scan-status inputs/dated_scan_fixture.json \
+            --daily-money output/sector_daily_money.json \
+            --out output > output/bridge_debug_log.json
+          python scripts/sector_first_daily.py --input output --out output --today 2026-10-21
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          s=json.loads(Path("output/sector_bridge_status.json").read_text())
+          report=json.loads(Path("output/sector_first_daily_status.json").read_text())
+          assert s["daily_money_rank_applied"]
+          assert s["research_top3_sector_ids"]==["SEMICON","POWER","CONSTRUCTION"]
+          assert [s["sector_id"] for s in report["sector_top3"]]==[
+             "SEMICON","POWER","CONSTRUCTION"]
+          assert all(x["sector_id"] in s["research_top3_sector_ids"]
+                     for x in report["stock_research_top5"])
+          assert report["decision"]=="CASH"
+          assert not report["trade_approved"]
+          print("REAL_20261021_SECTOR_TO_STOCK_BRIDGE_PASSED",
+                "stock_research_count",len(report["stock_research_top5"]))
+          PY
+
       - name: Save independently calculated money-first TOP3 report
         if: always()
         uses: actions/upload-artifact@v4
@@ -70,5 +109,8 @@ jobs:
           path: |
             output/sector_daily_money.json
             output/sector_daily_money_mobile.md
+            output/sector_bridge_status.json
+            output/sector_first_daily_status.json
+            output/sector_first_daily_mobile.md
           if-no-files-found: warn
           retention-days: 30
