@@ -49,8 +49,13 @@ def finite_number(v):
         return x if x==x and abs(x)!=float("inf") else None
     except (TypeError,ValueError):return None
 
-def build(report):
+def build(report,contracts=None):
     asof=iso(report.get("asof"))
+    contracts=(contracts if isinstance(contracts,dict) and
+        contracts.get("schema")=="dart_contract_source_v1" and
+        contracts.get("asof")==str(asof) else {})
+    issuer_docs={str(x.get("ticker")):x for x in
+        contracts.get("issuer_samples",[]) if isinstance(x,dict)}
     stocks=report.get("stock_research_top5") or []
     sectors=report.get("sector_top3") or []
     leader=report.get("sector_leader_watch") or []
@@ -80,6 +85,23 @@ def build(report):
         sector=sector_map[sid]
         price=stock_top.get(t,{})
         finances=annual.get(t,{})
+        issuer=issuer_docs.get(t,{})
+        originals=[]
+        for filing in issuer.get("filings",[])[:3]:
+            filed=iso(filing.get("date"))
+            receipt=str(filing.get("receipt_no",""))
+            url=official_url(filing.get("url"))
+            if (not asof or not filed or filed>=asof or
+                (asof-filed).days>7 or
+                not re.fullmatch(r"\d{14}",receipt) or
+                not url or receipt not in url):
+                continue
+            originals.append(dict(receipt_no=receipt,date=str(filed),
+                title=str(filing.get("title",""))[:110],
+                url=url,original_status=filing.get("filing_contents_status"),
+                correction_risk=filing.get("correction_risk"),
+                raw_xml_cells_are_corroborated_contract_terms=False,
+                actual_revenue_effect_verified=False))
         direct=[]
         for filing in sector.get("prior_day_dart_observations",[]) or []:
             if str(filing.get("ticker",""))!=t:continue
@@ -155,6 +177,11 @@ def build(report):
                 "direct_dart_filing_title_observed",
                 "completed_daily_structure_reference")),
             direct_company_filings=direct,
+            official_contract_originals=originals,
+            original_contract_text_observed=any(
+                x["original_status"]=="DART_DOCUMENT_XML_TABLES_PARSED"
+                for x in originals),
+            direct_contract_amount_confirmed=False,
             global_sector_context=global_items,
             latest_annual_receipt_url=price.get("financial_receipt_url") or
                  finances.get("annual_receipt_url"),
@@ -174,6 +201,10 @@ def build(report):
          candidate_count=len(matrix),absolute_top5_count=sum(
             x["cohort"]=="ABSOLUTE_TOP5" for x in matrix),
          candidates=matrix,
+         dart_original_source_status=contracts.get("status","NOT_COLLECTED_OR_DATE_MISMATCH"),
+         contract_originals_read_count=sum(
+            bool(x["original_contract_text_observed"]) for x in matrix),
+         contract_amount_or_positive_impact_confirmed_count=0,
          company_catalyst_verified_count=0,
          relative_evidence_strength_is_investment_score=False,
          research_price_is_trade_approval=False,
@@ -198,7 +229,10 @@ def render(data):
         lines.append("| "+x["name"].replace("|","/")[:26]+" | "+
           cell(c["positive_daily_sector_flow"])+
           " | "+financial+" | "+
-          ("제목만 확인" if c["direct_dart_filing_title_observed"] else "없음/미수집")+
+          ("원문 표 확인·실질효과 미검증" if x["original_contract_text_observed"]
+           else "접수번호 확인·원문 미검증" if x["official_contract_originals"]
+           else "제목만 확인" if c["direct_dart_filing_title_observed"]
+           else "없음/미수집")+
           " | "+("참고가 확인" if c["completed_daily_structure_reference"] else
                 "출처 충돌" if c["price_conflict"] else "미검증")+" |")
     if not any(x["cohort"]=="ABSOLUTE_TOP5" for x in data.get("candidates",[])):
@@ -227,7 +261,11 @@ def main():
     target=a.root/"sector_first_with_financials.json"
     if not target.is_file():raise SystemExit("MISSING_FINANCIAL_SECTOR_REPORT")
     base=json.loads(target.read_text(encoding="utf-8"))
-    result=build(base)
+    contract_source=a.root/"direct_dart_contracts.json"
+    try:contracts=json.loads(contract_source.read_text(encoding="utf-8")) if (
+        contract_source.is_file()) else {}
+    except (ValueError,OSError):contracts={}
+    result=build(base,contracts)
     (a.root/"company_evidence_matrix.json").write_text(
          json.dumps(result,ensure_ascii=False,indent=2),encoding="utf-8")
     (a.root/"company_evidence_matrix_mobile.md").write_text(
