@@ -224,6 +224,26 @@ def run_cli():
     a.out.mkdir(parents=True,exist_ok=True)
     (a.out/"c3_one_slot_equity.json").write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding="utf-8")
     (a.out/"c3_one_slot_mobile.md").write_text(render(result),encoding="utf-8")
+    # Make the daily report useful on an Android screen: keep the research
+    # account paragraph below its sector TOP3 / TOP5 setup and A/B comparison.
+    compact=a.out/"sector_first_compact_mobile.md"
+    if compact.is_file():
+        marker="## ⑥ C3 1종목 집중 가상 계좌"
+        previous=compact.read_text(encoding="utf-8").split("\n"+marker)[0].rstrip()
+        stats=[
+            "",marker,"",
+            "- 가상 초기자금 1,000,000원 (실제 C3 잔고와 무관)",
+            "- 완료 거래 "+str(result.get("traded_positions",0))+"건 / 보유로 배제한 후보 "+
+              str(result.get("blocked_simultaneous_candidates",0))+"건",
+            "- 가상 실현 순수익 "+(
+                str(result["realised_pnl_krw"])+"원" if result.get("research_valid")
+                and result.get("traded_positions") else "미집계"),
+            "- 계좌 평가 최대낙폭(MDD) "+(
+                str(result["mark_to_market_mdd_pct"])+"%" if result.get("research_valid")
+                and result.get("traded_positions") else "미집계"),
+            "- 자료 검증: "+str(result.get("integrity","UNKNOWN")),
+            "- 실제 계좌 운용 성과 또는 신규매수 신호 아님 (CASH)",""]
+        compact.write_text(previous+"\n"+"\n".join(stats),encoding="utf-8")
     print(json.dumps({k:result.get(k) for k in ("integrity","traded_positions",
         "realised_pnl_krw","realised_return_pct","mark_to_market_mdd_pct")},ensure_ascii=False))
 
