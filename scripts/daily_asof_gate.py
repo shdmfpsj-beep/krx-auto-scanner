@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from trade_approval_policy import BUY_REVIEW_SCORE_MIN, SCORE_MAX
+
 
 def load_json(path: Path) -> dict:
     try:
@@ -71,15 +73,18 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
     if not sector.get("sector_top3") or not sector.get("stock_research_top5"):
         reasons.append("INDEPENDENT_SECTOR_OR_STOCK_EVIDENCE_INCOMPLETE")
     # Research-only evidence, even if every source's calendar date agrees.
-    # Final 85pt trade-score, live entry trigger, cash and existing holdings
+    # Final 80pt trade-score, live entry trigger, cash and existing holdings
     # are not independently verified by these free end-of-day files.
-    reasons.append("FINAL_85_LIVE_ENTRY_CASH_HOLDINGS_NOT_VERIFIED")
+    reasons.append("FINAL_80_LIVE_ENTRY_CASH_HOLDINGS_NOT_VERIFIED")
     names = {
         "NOT_TODAY": "자료 기준일 불일치",
-        "FINAL_85": "최종점수·실시간 타점·계좌 검증 누락",
+        "FINAL_80": "최종점수·실시간 타점·계좌 검증 누락",
     }
     return {
-        "schema": "c3_k100_today_asof_gate_v1",
+        "schema": "c3_k100_today_asof_gate_v2",
+        "score_scale_max": SCORE_MAX,
+        "final_score_threshold": BUY_REVIEW_SCORE_MIN,
+        "final_score_verified": False,
         "target_kst_date": day,
         "source_dates": dates,
         "recovery_universe": universe,
@@ -116,7 +121,7 @@ def to_markdown(data: dict) -> str:
             f"종가 {candidate['close_reference']}원 · 1차 {candidate['entry1_close_reference']}원 · "
             f"2차 {candidate['entry2_ma20_proxy']}원 · 구조손절 {candidate['structural_stop_reference']}원 · "
             f"추격금지 {candidate['no_chase_reference']}원 · 전고점 기준 R:R {candidate['rr_to_prior_resistance']} · "
-            f"C3 예비점수 {candidate['c3_preliminary_score']}점(최종85점 아님) · "
+            f"C3 예비점수 {candidate['c3_preliminary_score']}점(최종80점 승인 아님) · "
             f"차단: {candidate['blocking_reasons']}. 가격은 호가단위 미보정 연구 참고치이며 매수승인이 아닙니다.")
     else:
         research_line = "**오늘 확인한 기술 연구후보:** 검증된 당일 연구 행 없음"
@@ -124,7 +129,7 @@ def to_markdown(data: dict) -> str:
 
 🚦 **신규매수: CASH (0건 승인)**
 
-🎯 오늘 할 일: 종목 연구가격과 매수 승인 구분. 날짜 불일치가 해소되고 85점·실행가격·자금이 검증되기 전 신규 주문 보류.
+🎯 오늘 할 일: 종목 연구가격과 매수 승인 구분. 날짜 불일치가 해소되고 80점·실행가격·자금이 검증되기 전 신규 주문 보류.
 
 | 독립 자료 | 실제 자료 기준일 | 오늘 날짜 일치 |
 |---|---|---|
@@ -135,7 +140,7 @@ def to_markdown(data: dict) -> str:
 
 **KRX 데이터 커버리지:** {fmt(data['recovery_valid_ohlcv'])}/{fmt(data['recovery_universe'])} ({pct})
 **일봉 연구 구조 통과:** {fmt(data['recovery_research_geometry_pass'])}건 · 연구 티커 {watch}
-{research_line}\n**최종 검증 85점·매수승인:** 0건 (독립 검증 미완료)
+{research_line}\n**최종 검증 80점·매수승인:** 0건 (독립 검증 미완료)
 
 ## 이번 실행의 매수 차단 사유
 {reason_lines}
