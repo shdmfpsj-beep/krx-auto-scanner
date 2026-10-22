@@ -48,6 +48,8 @@ jobs:
             /scripts/dart_financial_screen.py
             /scripts/test_dart_financial_screen.py
             /scripts/sector_financial_join.py
+            /scripts/stock_evidence_matrix.py
+            /scripts/test_stock_evidence_matrix.py
             /scripts/test_sector_financial_join.py
             /scripts/test_sector_first_compact_report.py
             /scripts/shadow_trade_audit.py
@@ -79,6 +81,7 @@ jobs:
           python scripts/test_dart_interim_periods.py
           python scripts/test_dart_financial_screen.py
           python scripts/test_sector_financial_join.py
+          python scripts/test_stock_evidence_matrix.py
           python scripts/test_shadow_trade_audit.py
           python scripts/test_shadow_entry_comparison.py
           python scripts/test_c3_one_slot_equity.py
@@ -256,6 +259,10 @@ jobs:
         if: always()
         run: python scripts/sector_financial_join.py --root output
 
+      - name: Cross-check direct issuer DART, latest earnings, 1D money, global sector news and chart stops
+        if: always()
+        run: python scripts/stock_evidence_matrix.py --root output
+
       - name: Recover the last prospective shadow-trade signal ledger (if any)
         if: always()
         shell: bash
@@ -351,6 +358,8 @@ jobs:
             output/financial_research.json
             output/financial_research_mobile.md
             output/sector_first_with_financials.json
+            output/company_evidence_matrix.json
+            output/company_evidence_matrix_mobile.md
             output/shadow_signals.json
             output/shadow_results.json
             output/shadow_scorecard.json
