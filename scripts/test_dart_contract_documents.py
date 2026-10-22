@@ -112,6 +112,33 @@ class DartContractTests(unittest.TestCase):
                         "DART_DOCUMENT_XML_TABLES_PARSED")
         self.assertIn("계약",render(r))
         self.assertEqual(calls[0][1]["end_de"],"20261021")
+    def test_contract_typed_amount_and_ratio_are_only_source_observations(self):
+        def req(endpoint,params,key):
+            return {"status":"000","list":[filing()]}
+        r=collect(BASE,"a"*40,today=ASOF,list_api=req,
+            corps=lambda k:{"010120":"00123456"},
+            document_reader=lambda *x:zip_document(archive(DOC)))
+        row=r["issuer_samples"][0]["filings"][0]
+        terms=row["structured_contract_terms"]
+        self.assertEqual(terms["amount_krw"],50_000_000_000)
+        self.assertEqual(terms["disclosed_sales_ratio_pct"],15)
+        self.assertEqual(terms["consistency"],"NOT_TESTABLE")
+        self.assertTrue(row["document_labeled_amount_research_only"])
+        self.assertFalse(row["contract_amount_verified"])
+        self.assertFalse(row["positive_catalyst_verified"])
+        self.assertIn("500.00",render(r))
+        self.assertEqual(r["decision"],"CASH")
+    def test_correction_in_original_report_never_claims_positive_sales(self):
+        r=collect(BASE,"a"*40,today=ASOF,
+             list_api=lambda *a:{"status":"000","list":[
+                filing(title="[정정] 단일판매 공급계약 해지")]},
+             corps=lambda _:{"010120":"00123456"},
+             document_reader=lambda *a:zip_document(archive(DOC)))
+        x=r["issuer_samples"][0]["filings"][0]
+        self.assertEqual(x["structured_contract_terms"]["status"],
+                        "CORRECTION_OR_WITHDRAWAL_REVIEW")
+        self.assertEqual(r["confirmed_positive_company_contracts"],0)
+        self.assertIn("정정/해지",render(r))
     def test_missing_key_does_not_start_issuer_search(self):
         r=collect(BASE,None,today=ASOF)
         self.assertEqual(r["status"],"DART_SECRET_NOT_AVAILABLE")
