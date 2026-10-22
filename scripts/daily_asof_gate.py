@@ -185,6 +185,10 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         "sector_selection_outcome": sector.get("sector_selection_outcome","PENDING_DATA_VALIDATION"),
         "stock_selection_outcome": sector.get("stock_selection_outcome","PENDING_DATA_VALIDATION"),
         "c3_position_state": c3_state or {"status":"POSITION_UNVERIFIED","user_reported":False},
+        "market_ohlc_quality_verified": money.get("market_ohlc_quality_verified"),
+        "market_ohlc_checked": money.get("raw_tradable_ohlc_checked"),
+        "market_ohlc_invalid": money.get("raw_ohlc_conflict_count"),
+        "market_ohlc_invalid_pct": money.get("raw_ohlc_conflict_pct"),
         "all_source_dates_aligned": all(x == day for x in dates.values()),
         "data_integrity_blockers": reasons,
         "decision": "CASH",
@@ -228,6 +232,7 @@ def to_markdown(data: dict) -> str:
 | 섹터 구성종목 수급 | {fmt(src['sector_constituent_flow'])} | {'확인' if src['sector_constituent_flow']==data['target_kst_date'] else '불일치'} |
 
 **KRX 데이터 커버리지:** {fmt(data['recovery_valid_ohlcv'])}/{fmt(data['recovery_universe'])} ({pct})
+**OHLC 무결성:** {str(data.get('market_ohlc_invalid'))+' / '+str(data.get('market_ohlc_checked'))+'건 ('+str(data.get('market_ohlc_invalid_pct'))+'%)' if data.get('market_ohlc_invalid') is not None else '수치 미확보'} · {'검증 완료' if data.get('market_ohlc_quality_verified') is True else '검증 실패/미확인'}
 **독립 출처 교차확인:** {'완료' if data.get('all_independent_sources_verified') else '미완료 (동일 파이프라인 복사본은 별개 확인 아님)'}
 **중요:** 수집 워크플로 실행 성공 및 날짜 일치는 원본 OHLC·수급 신뢰성 검증의 충분조건이 아닙니다.
 **일봉 연구 구조 통과:** {fmt(data['recovery_research_geometry_pass'])}건 · 연구 티커 {watch}
