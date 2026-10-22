@@ -149,7 +149,9 @@ def to_markdown(data: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--recovery", type=Path, required=True)
-    parser.add_argument("--recovery-structure", type=Path, required=False)\n    parser.add_argument("--recovery-csv", type=Path, required=False)\n    parser.add_argument("--focus", type=Path, required=True)
+    parser.add_argument("--recovery-structure", type=Path, required=False)
+    parser.add_argument("--recovery-csv", type=Path, required=False)
+    parser.add_argument("--focus", type=Path, required=True)
     parser.add_argument("--sector", type=Path, required=True)
     parser.add_argument("--money", type=Path, required=True)
     parser.add_argument("--date", default=None)
