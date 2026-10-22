@@ -3,7 +3,7 @@
 import io,json,tempfile,unittest,zipfile
 from pathlib import Path
 from datetime import date,timedelta
-from asof_krx_replay import eligible_research,study,replay
+from asof_krx_replay import eligible_research,study,replay,floor_quote
 
 class DatedKRXTests(unittest.TestCase):
     def test_sector_money_and_independent_breadth_gate(self):
@@ -43,6 +43,13 @@ class DatedKRXTests(unittest.TestCase):
         bars.append(dict(Date="2026-10-22",Open=120,High=140,Low=110,Close=130))
         result=study(bars,"2026-10-21")
         self.assertEqual(result["status"],"MISSING_65_ASOF_BARS")
+    def test_krx_quote_increment_applied_to_price_reference(self):
+        self.assertEqual(floor_quote(201272),201000)
+        self.assertEqual(floor_quote(183059),183000)
+        self.assertEqual(floor_quote(45337),45300)
+        self.assertEqual(floor_quote(41052),41050)
+        self.assertEqual(floor_quote(None),None)
+
     def test_archive_asof_mismatch_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             file=Path(temp)/"evidence.zip"
