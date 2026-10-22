@@ -27,6 +27,15 @@ class CompactTests(unittest.TestCase):
         self.assertIn("최신 섹터 연구 종목 없음",md)
         self.assertIn("해외 원문 출처 없음",md)
         self.assertIn("CASH",md)
+    def test_complete_oct22_weak_breadth_reports_cash_without_false_data_gap(self):
+        md=format_summary({"asof":"2026-10-22",
+             "daily_money_gate":"VERIFIED_NO_QUALIFYING_SECTOR",
+             "sector_top3":[],"stock_research_top5":[]})
+        self.assertIn("오늘 완료된 KRX 수급자료는 검증됐으나",md)
+        self.assertIn("상승확산 60%",md)
+        self.assertIn("신규매수: CASH",md)
+        self.assertNotIn("해당일 완결되지 않아",md)
+
     def test_independent_stop_price_takes_precedence_over_research_plan(self):
         row={**BASE["stock_research_top5"][0],"stop_reference":"175000"}
         md=format_summary({**BASE,"stock_research_top5":[row]})
