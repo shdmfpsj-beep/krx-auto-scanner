@@ -80,9 +80,20 @@ def format_summary(data):
        "## ② 섹터 내 연구 종목 TOP5 — 산정 가능한 가격은 숫자로 표시","",
        "| 종목 | 1차 일봉 연구 | 2차 지지 연구 | 구조손절 참고 |",
        "|---|---|---|---|"]
+    conflicted=set(str(x) for x in data.get("focus_close_conflict_tickers") or [])
     for x in stocks[:5]:
-        lines.append("| "+txt(x.get("name"))+" | "+first_reference(x)+" | "+
-                     second_reference(x)+" | "+stop_reference(x)+" |")
+        status=str(x.get("independent_stop_status") or "")
+        if (str(x.get("ticker","")) in conflicted or
+            status in ("CROSS_SOURCE_CLOSE_CONFLICT","FOCUS_DATE_MISMATCH")):
+            # The old sector research may still carry numerically plausible
+            # prices. Never display them as usable after quote/date conflict.
+            first=second=stop="—"
+        else:
+            first=first_reference(x)
+            second=second_reference(x)
+            stop=stop_reference(x)
+        lines.append("| "+txt(x.get("name"))+" | "+first+" | "+
+                     second+" | "+stop+" |")
     if not stocks:
         lines.append("| 최신 섹터 연구 종목 없음 | — | — | — |")
     leaders=data.get("sector_leader_watch") or []
