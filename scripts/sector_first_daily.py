@@ -92,6 +92,7 @@ def build(summary, sector_rows, stock_rows, today):
              day_net_flow_1d_incremental_krw=numeric(r.get("day_net_1d_incremental_krw")),
              day_net_flow_1d_raw_krw=numeric(r.get("day_net_1d_raw_krw")),
              day_breadth_up_pct=numeric(r.get("day_breadth_up_pct")),
+             flow_phase=str(r.get("flow_phase") or "FIVE_DAY_RESEARCH_ONLY"),
              catalyst="NOT_VERIFIED",fundamentals="NOT_VERIFIED",
              rank_kind=str(r.get("rank_basis") or "V18_RESEARCH_PROXY_NOT_FINAL_100_SCORE"),
              buy_approval="NO"))
@@ -147,8 +148,15 @@ def build(summary, sector_rows, stock_rows, today):
     blockers += ["FRESH_CATALYST_EVIDENCE_MISSING",
                  "STOCK_FINANCIALS_AND_FINAL_80_POINT_SCORE_NOT_VERIFIED",
                  "STRUCTURAL_ENTRY_EXECUTION_NOT_VERIFIED"]
+    pre_expansion=sum(x["day_breadth_up_pct"] is not None and
+                      x["day_breadth_up_pct"]<60 for x in sectors)
+    research_status=("NO_VERIFIED_TOP3" if not sectors else
+                     "EARLY_FLOW_WATCH_ONLY" if pre_expansion else
+                     "PROVISIONAL_RESEARCH_ONLY")
     return dict(version="sector_first_mobile_v1",asof=str(asof) if asof else None,
-      report_date=str(today),status="PROVISIONAL_RESEARCH_ONLY" if sectors else "NO_VERIFIED_TOP3",
+      report_date=str(today),status=research_status,
+      pre_expansion_sector_count=pre_expansion,
+      expanding_sector_count=len(sectors)-pre_expansion,
       decision="CASH",orders_enabled=False,trade_approved=False,
       sector_top3=sectors,stock_research_top5=stocks,
       sector_leader_watch=leaders,
@@ -171,20 +179,22 @@ def render(report):
            "**신규매수: CASH** (최종 종목 점수·호재·실행 타점 미검증)","",
            f"섹터 데이터 기준일: {show(report['asof'])} / 보고일: {report['report_date']}",
            f"섹터 상태: {report['status']}","",
-           "## ① 주도 섹터 TOP3 (검증된 순위가 아닌 잠정 연구 후보)","",
-           "| 순위 | 섹터 | 1일 중복제거 순매수(억)* | 구성종목 거래대금(억)* | 5일 순매수(억)* | 당일 상승 확산 |",
-           "|---|---|---:|---:|---:|---:|"]
+           "## ① 자금 선행 섹터 TOP3 (매수 미승인 연구 후보)","",
+           "| 순위 | 섹터 | 1일 중복제거 순매수(억)* | 구성종목 거래대금(억)* | 5일 순매수(억)* | 당일 상승 확산 | 단계 |",
+           "|---|---|---:|---:|---:|---:|---|"]
     for r in report["sector_top3"]:
         lines.append(f"| {r['rank']} | {r['name']} | {hundred_million(r['day_net_flow_1d_incremental_krw'])} | "
                      f"{hundred_million(r['member_turnover_krw'])} | "
                      f"{hundred_million(r['flow_proxy_5d_krw'])} | "
-                     f"{show(r['day_breadth_up_pct'])} |")
+                     f"{show(r['day_breadth_up_pct'])}% | {r['flow_phase']} |")
     if not report["sector_top3"]:
-        lines.append("| — | 오늘 확정할 섹터 없음 | — | — | — | — |")
+        lines.append("| — | 확인 가능한 자금유입 섹터 없음 | — | — | — | — | — |")
     lines += ["","*당일 중복제거 순매수는 먼저 선정한 섹터와 겹치는 KRX 구성종목의 순매수를"
               " 다시 합산하지 않은 연구용 대리값입니다. 산업 전체 확정 유입액이 아닙니다.",
               "*5일 합산 수급은 당일 수급과 별도로 표시합니다."
               " 수급이 음수이면 당일 급반등을 중기 추세전환으로 단정하지 않습니다.",
+              "상승확산 60%는 관찰 단계 분류용입니다. 0%인 경우 순매수가 있어도 가격 하락이 이어져 위험합니다.",
+              "자금유입 관찰 TOP3가 곧 상승 확률 검증이나 매수 승인을 뜻하지 않습니다.",
               "호재와 실적·최종 80점은 별도 미검증입니다.","",
               "## ② 해당 섹터 내부 종목 TOP5 (매수 승인 아님)","",
               "| 종목 | 섹터 | 상대 연구지수† | 1차 참고 | 2차 참고 | 일봉손절 참고 |",
