@@ -112,10 +112,6 @@ jobs:
           python scripts/test_profit_proof_gate.py
           python -m unittest discover -s scripts -p 'test_daily_readiness_progress.py' -v
 
-      - name: Collect global industry and macro news from GDELT (free, read only)
-        if: always()
-        run: python scripts/global_sector_news.py --out output
-
       - name: Download latest matching artifacts
         id: source_inputs
         shell: bash
@@ -194,6 +190,10 @@ jobs:
               f.write("ready="+("true" if ready else "false")+chr(10))
           print("SOURCE_ACQUISITION",json.dumps(payload,ensure_ascii=False))
           PY
+      - name: Collect global industry and macro news from GDELT (free, read only)
+        if: steps.source_inputs.outputs.ready == 'true'
+        run: python scripts/global_sector_news.py --out output
+
       - name: Calculate completed 1-day KRX constituent money and remove ETF overlaps
         if: steps.source_inputs.outputs.ready == 'true'
         run: |
@@ -230,7 +230,7 @@ jobs:
         run: pip install --disable-pip-version-check -r requirements.txt
 
       - name: Compute independent daily stops for freshly selected TOP3-sector stocks
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: |
           mkdir -p output/dynamic
           python scripts/sector_dynamic_structure.py \
@@ -245,15 +245,15 @@ jobs:
         run: python scripts/sector_first_daily.py --input output --out output
 
       - name: Add dated source news and DART filings to sector-first report
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: python scripts/sector_catalyst_enrich.py --report-root output --evidence-root inputs/evidence
 
       - name: Combine worldwide early signals with Korean sector TOP3
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: python scripts/global_sector_join.py --report-root output --news-root output
 
       - name: Fetch latest independently computed daily price evidence
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         shell: bash
         run: |
           mkdir -p output
@@ -288,7 +288,7 @@ jobs:
           PY
 
       - name: Join independently computed support references into final phone report
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: python scripts/focus_structure_join.py --root output
 
       - name: Produce short phone-first TOP3 sector and TOP5 price report
@@ -296,7 +296,7 @@ jobs:
         run: python scripts/sector_first_compact_report.py --root output
 
       - name: Collect as-of official OpenDART annual figures for up to 20 sector stocks
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         env:
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
@@ -306,25 +306,25 @@ jobs:
             --out output
 
       - name: Add dated annual fundamentals to mobile report (never final score)
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: python scripts/sector_financial_join.py --root output
 
       - name: Check actual issuer contract filings against original official OpenDART XML
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         env:
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: python scripts/dart_contract_documents.py --root output
 
       - name: Cross-check direct issuer DART, latest earnings, 1D money, global sector news and chart stops
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: python scripts/stock_evidence_matrix.py --root output
 
       - name: Evaluate structure-first 1st and 2nd entry, KRX ticks and 2R for TOP5
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: python scripts/entry_setup_audit.py --root output
 
       - name: Recover the last prospective shadow-trade signal ledger (if any)
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         shell: bash
         run: |
           mkdir -p output
@@ -364,7 +364,7 @@ jobs:
           PY
 
       - name: Score next-day-open prospective 5-session trades with costs
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: |
           python scripts/shadow_trade_audit.py \
             --report output/sector_first_with_prices.json \
@@ -375,7 +375,7 @@ jobs:
             --out output
 
       - name: Compare next-open and first-two-day pullback limit entry experiments
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: |
           python scripts/shadow_entry_comparison.py \
             --signals output/shadow_signals.json \
@@ -384,7 +384,7 @@ jobs:
             --out output
 
       - name: Run C3 one-position account-level paper risk and equity simulation
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: |
           python scripts/c3_one_slot_equity.py \
             --signals output/shadow_signals.json \
@@ -394,7 +394,7 @@ jobs:
             --out output
 
       - name: Independently audit the evidence for profitable C3 execution
-        if: always()
+        if: ${{ always() && steps.source_inputs.outputs.ready == 'true' }}
         run: python scripts/profit_proof_gate.py --root output
 
       - name: Calculate factual 7-stage daily readiness and weak-market CASH reasons
