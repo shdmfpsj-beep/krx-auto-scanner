@@ -185,6 +185,20 @@ class DartContractTests(unittest.TestCase):
                         "CORRECTION_OR_WITHDRAWAL_REVIEW")
         self.assertEqual(r["confirmed_positive_company_contracts"],0)
         self.assertIn("정정/해지",render(r))
+    def test_issuer_branded_subsidiary_contract_is_not_verified_external_sale(self):
+        xml="""<DOCUMENT><TABLE>
+            <TR><TH>계약금액</TH><TD>500억원</TD></TR>
+            <TR><TH>계약상대</TH><TD>LS ELECTRIC America Inc.</TD></TR>
+            </TABLE></DOCUMENT>"""
+        r=collect(BASE,"a"*40,today=ASOF,
+            list_api=lambda *x:{"status":"000","list":[filing()]},
+            corps=lambda _:{"010120":"00123456"},
+            document_reader=lambda *x:zip_document(archive(xml)))
+        terms=r["issuer_samples"][0]["filings"][0]["structured_contract_terms"]
+        self.assertTrue(terms["potential_intragroup_revenue_recognition_risk"])
+        self.assertFalse(terms["consolidated_revenue_from_contract_verified"])
+        self.assertIn("연결 내부거래 제거 검토",render(r))
+        self.assertEqual(r["decision"],"CASH")
     def test_missing_key_does_not_start_issuer_search(self):
         r=collect(BASE,None,today=ASOF)
         self.assertEqual(r["status"],"DART_SECRET_NOT_AVAILABLE")
