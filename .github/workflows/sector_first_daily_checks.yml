@@ -21,8 +21,6 @@ on:
       - 'scripts/sector_source_pair.py'
       - 'scripts/krx_source_price_parity.py'
       - 'scripts/test_krx_source_price_parity.py'
-      - 'scripts/krx_source_price_parity.py'
-      - 'scripts/test_krx_source_price_parity.py'
       - 'scripts/test_sector_source_pair.py'
       - 'scripts/sector_source_pair.py'
       - 'scripts/test_sector_source_pair.py'
@@ -34,6 +32,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/sector_first_daily.py'
+      - 'scripts/krx_source_price_parity.py'
+      - 'scripts/test_krx_source_price_parity.py'
       - 'scripts/test_sector_first_daily.py'
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/test_sector_evidence_bridge.py'
