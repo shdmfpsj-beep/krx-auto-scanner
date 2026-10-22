@@ -193,7 +193,12 @@ jobs:
           print("REAL_ASOF_20261021_ENTRY_GEOMETRY_RISK_AUDIT_PASSED",
                 "total=",s["stock_count"],
                 "ready=",s["technical_geometry_pass_count"],
-                "outcomes=",[(x["ticker"],x["code"],x["forward_rr_at_first_ceiling"])
+                "outcomes=",[(x["ticker"],x["name"],x["code"],
+                             x["first_entry_krw"],x["second_entry_support_krw"],
+                             x["stop_krw"],x["resistance_krw"],
+                             x["forward_rr_at_first_ceiling"],
+                             x["required_atr_to_2r"],
+                             x["five_day_2r_stretch_warning"])
                             for x in s["candidates"]])
           PY
 
