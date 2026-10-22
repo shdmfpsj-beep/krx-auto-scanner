@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Offline sector-first contract tests; no network credentials or trade orders."""
 import unittest
+import tempfile,json,sys
 from datetime import date,timedelta
-from sector_first_daily import build,render,price_reference
+from pathlib import Path
+from unittest.mock import patch
+from sector_first_daily import build,render,price_reference,main
 
 D=date(2026,10,22)
 def inputs():
@@ -21,6 +24,30 @@ def inputs():
     return status,sectors,stocks
 
 class SectorFirstTests(unittest.TestCase):
+    def test_no_verified_upstream_archive_yields_explicit_pending_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            (root/"source_selection_status.json").write_text(json.dumps({
+                "schema":"sector_source_acquisition_v1","ready":False,
+                "status":"PENDING_DATA_VALIDATION",
+                "errors":["ARTIFACT_UNAVAILABLE:sector-evidence-v18-report"],
+                "sources":{},"decision":"CASH","trade_approved":False}),encoding="utf-8")
+            argv=["sector_first_daily.py","--input",str(root),"--out",str(root),
+                  "--today","2026-10-22","--c3-state",str(root/"missing.json")]
+            with patch.object(sys,"argv",argv):
+                main()
+            result=json.loads((root/"sector_first_daily_status.json").read_text(encoding="utf-8"))
+            mobile=(root/"sector_first_daily_mobile.md").read_text(encoding="utf-8")
+            self.assertEqual(result["sector_selection_outcome"],"PENDING_DATA_VALIDATION")
+            self.assertEqual(result["stock_selection_outcome"],"PENDING_DATA_VALIDATION")
+            self.assertIsNone(result["verified_sector_count"])
+            self.assertEqual(result["decision"],"CASH")
+            self.assertFalse(result["trade_approved"])
+            self.assertIn("SOURCE_ACQUISITION_INCOMPLETE",result["blockers"])
+            self.assertIn("ARTIFACT_UNAVAILABLE:sector-evidence-v18-report",mobile)
+            self.assertIn("판정 보류",mobile)
+            self.assertNotIn("검증 완료: 조건 충족 섹터 0개",mobile)
+
     def test_three_research_sectors_and_stocks_still_cash(self):
         s,sectors,stocks=inputs()
         out=build(s,sectors,stocks,D)
