@@ -6,6 +6,10 @@ on:
     branches: [main]
     paths:
       - 'scripts/sector_first_daily.py'
+      - 'scripts/daily_asof_gate.py'
+      - 'scripts/test_daily_asof_gate.py'
+      - 'scripts/c3_account_state.py'
+      - 'config/c3_position_state.json'
       - 'scripts/test_sector_first_daily.py'
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/test_sector_evidence_bridge.py'
@@ -83,6 +87,10 @@ jobs:
         with:
           sparse-checkout: |
             /scripts/sector_first_daily.py
+            /scripts/daily_asof_gate.py
+            /scripts/test_daily_asof_gate.py
+            /scripts/c3_account_state.py
+            /config/c3_position_state.json
             /scripts/test_sector_first_daily.py
             /scripts/sector_evidence_bridge.py
             /scripts/test_sector_evidence_bridge.py
@@ -183,6 +191,8 @@ jobs:
           python -m py_compile scripts/profit_proof_gate.py scripts/test_profit_proof_gate.py
           python -m unittest discover -s scripts -p 'test_profit_proof_gate.py' -v
           python -m unittest discover -s scripts -p 'test_daily_readiness_progress.py' -v
+          python -m py_compile scripts/c3_account_state.py scripts/daily_asof_gate.py scripts/test_daily_asof_gate.py
+          python -m unittest discover -s scripts -p 'test_daily_asof_gate.py' -v
 
       - name: Simulate missing evidence safely
         run: |

@@ -11,6 +11,7 @@ import math
 from datetime import datetime, date
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from c3_account_state import load_c3_position, c3_mobile_line
 
 def read_rows(path):
     if not path.is_file():
@@ -53,12 +54,14 @@ def price_reference(row):
         return ("","","","")
     return tuple(round(x,2) for x in (first,second,stop,rr))
 
-def build(summary, sector_rows, stock_rows, today):
+def build(summary, sector_rows, stock_rows, today, c3_state=None):
     asof=iso_day(summary.get("asof"))
     scan=iso_day(summary.get("scan_date"))
     blockers=[]
     if summary.get("daily_money_gate")=="MARKET_OHLC_CONFLICT":
         blockers.append("TODAYS_MARKET_OHLC_INVALID")
+    if summary.get("daily_money_gate")=="INVALID_STALE_OR_INCOMPLETE":
+        blockers.append("DAILY_SECTOR_FLOW_SOURCE_INVALID")
     if asof is None or scan is None or asof!=scan:
         blockers.append("SECTOR_SCAN_DATE_MISMATCH")
     if asof is None or asof!=today:
@@ -101,7 +104,8 @@ def build(summary, sector_rows, stock_rows, today):
     # A missing member or stale input means there is no *current* TOP3.
     if blockers:
         sectors=[]
-    if len(sectors)<3:
+    source_pending=bool(blockers)
+    if len(sectors)<3 and not source_pending:
         blockers.append("LESS_THAN_3_PROVISIONAL_SECTORS")
     sector_ids={r["sector_id"] for r in sectors}
     stocks=[]
@@ -145,18 +149,38 @@ def build(summary, sector_rows, stock_rows, today):
     concentration_warning=bool(global_top5 and
         max(counts.values(),default=0)>=4 and len(ids)>=2)
     stocks=global_top5
-    if not stocks:
+    if not stocks and not source_pending:
         blockers.append("NO_SECTOR_CONSTITUENT_WITH_VERIFIED_PRICE_FLOW")
     blockers += ["FRESH_CATALYST_EVIDENCE_MISSING",
                  "STOCK_FINANCIALS_AND_FINAL_80_POINT_SCORE_NOT_VERIFIED",
                  "STRUCTURAL_ENTRY_EXECUTION_NOT_VERIFIED"]
     pre_expansion=sum(x["day_breadth_up_pct"] is not None and
                       x["day_breadth_up_pct"]<60 for x in sectors)
-    research_status=("NO_VERIFIED_TOP3" if not sectors else
-                     "EARLY_FLOW_WATCH_ONLY" if pre_expansion else
-                     "PROVISIONAL_RESEARCH_ONLY")
+    gate=summary.get("daily_money_gate","UNAVAILABLE")
+    # Distinguish missing/corrupt evidence from a fully-verified zero-result scan.
+    if source_pending or (not sectors and gate!="VERIFIED_NO_QUALIFYING_SECTOR"):
+        selection_outcome="PENDING_DATA_VALIDATION"
+    elif not sectors and gate=="VERIFIED_NO_QUALIFYING_SECTOR":
+        selection_outcome="VERIFIED_NO_QUALIFYING_SECTOR"
+    elif len(sectors)<3:
+        selection_outcome="PARTIAL_RESEARCH_CANDIDATES"
+    else:
+        selection_outcome="RESEARCH_CANDIDATES_AVAILABLE"
+    stock_outcome=("PENDING_DATA_VALIDATION" if selection_outcome=="PENDING_DATA_VALIDATION"
+                   else "NO_RESEARCH_STOCKS_QUALIFIED" if not stocks
+                   else "RESEARCH_CANDIDATES_AVAILABLE")
+    research_status=("DATA_VALIDATION_PENDING" if selection_outcome=="PENDING_DATA_VALIDATION"
+                     else "VERIFIED_NO_QUALIFYING_SECTOR" if not sectors
+                     else "EARLY_FLOW_WATCH_ONLY" if pre_expansion
+                     else "PROVISIONAL_RESEARCH_ONLY")
     return dict(version="sector_first_mobile_v1",asof=str(asof) if asof else None,
       report_date=str(today),status=research_status,
+      sector_selection_outcome=selection_outcome,
+      stock_selection_outcome=stock_outcome,
+      verified_sector_count=(len(sectors) if selection_outcome!="PENDING_DATA_VALIDATION" else None),
+      verified_stock_research_count=(len(stocks) if stock_outcome!="PENDING_DATA_VALIDATION" else None),
+      approved_buy_count=0,
+      c3_position_state=c3_state or {"status":"POSITION_UNVERIFIED","user_reported":False},
       pre_expansion_sector_count=pre_expansion,
       expanding_sector_count=len(sectors)-pre_expansion,
       decision="CASH",orders_enabled=False,trade_approved=False,
@@ -181,6 +205,9 @@ def render(report):
            "**신규매수: CASH** (최종 종목 점수·호재·실행 타점 미검증)","",
            f"섹터 데이터 기준일: {show(report['asof'])} / 보고일: {report['report_date']}",
            f"섹터 상태: {report['status']}","",
+           f"섹터 선정판정: {report['sector_selection_outcome']} / 종목 선정판정: {report['stock_selection_outcome']}",
+           "실제 BUY 승인: 0건 (80점·진입구조·실행자료 별도 미검증)","",
+           c3_mobile_line(report.get("c3_position_state") or {}),"",
            "## ① 자금 선행 섹터 TOP3 (매수 미승인 연구 후보)","",
            "| 순위 | 섹터 | 1일 중복제거 순매수(억)* | 구성종목 거래대금(억)* | 5일 순매수(억)* | 당일 상승 확산 | 단계 |",
            "|---|---|---:|---:|---:|---:|---|"]
@@ -190,7 +217,11 @@ def render(report):
                      f"{hundred_million(r['flow_proxy_5d_krw'])} | "
                      f"{show(r['day_breadth_up_pct'])}% | {r['flow_phase']} |")
     if not report["sector_top3"]:
-        lines.append("| — | 확인 가능한 자금유입 섹터 없음 | — | — | — | — | — |")
+        label=("판정 보류 (자료 정합성 미충족)"
+               if report["sector_selection_outcome"]=="PENDING_DATA_VALIDATION"
+               else "검증 완료: 조건 충족 섹터 0개" if report["sector_selection_outcome"]=="VERIFIED_NO_QUALIFYING_SECTOR"
+               else "연구후보 확인 불가")
+        lines.append(f"| — | {label} | — | — | — | — | — |")
     lines += ["","*당일 중복제거 순매수는 먼저 선정한 섹터와 겹치는 KRX 구성종목의 순매수를"
               " 다시 합산하지 않은 연구용 대리값입니다. 산업 전체 확정 유입액이 아닙니다.",
               "*5일 합산 수급은 당일 수급과 별도로 표시합니다."
@@ -206,7 +237,10 @@ def render(report):
                      f"{show(r['first_reference'])} | {show(r['second_reference'])} | "
                      f"{show(r['stop_reference'])} |")
     if not report["stock_research_top5"]:
-        lines.append("| 해당 없음 | — | — | — | — | — |")
+        stock_label=("최종 산출 보류 (자료 정합성 미충족)"
+                     if report["stock_selection_outcome"]=="PENDING_DATA_VALIDATION"
+                     else "연구 조건 충족 종목 없음")
+        lines.append(f"| {stock_label} | — | — | — | — | — |")
     lines += ["","## ③ TOP3 섹터별 대표 연구후보 (TOP5 강제 분산 아님)","",
               "| 섹터 | 대표 연구종목 | 전체 TOP5 포함 |",
               "|---|---|---|"]
@@ -233,6 +267,7 @@ def main():
     p.add_argument("--input",type=Path,default=Path("output"))
     p.add_argument("--out",type=Path,default=Path("output"))
     p.add_argument("--today",default=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat())
+    p.add_argument("--c3-state",type=Path,default=Path("config/c3_position_state.json"))
     a=p.parse_args()
     status=a.input/"sector_bridge_status.json"
     try:
@@ -241,7 +276,7 @@ def main():
         summary={}
     sectors=read_rows(a.input/"sector_research_ranking.csv")
     stocks=read_rows(a.input/"sector_stock_research_ranking.csv")
-    report=build(summary,sectors,stocks,date.fromisoformat(a.today))
+    report=build(summary,sectors,stocks,date.fromisoformat(a.today),load_c3_position(a.c3_state))
     a.out.mkdir(parents=True,exist_ok=True)
     (a.out/"sector_first_daily_status.json").write_text(
          json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")

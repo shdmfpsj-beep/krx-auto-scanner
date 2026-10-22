@@ -10,6 +10,8 @@ on:
     paths:
       - '.github/workflows/today_asof_integrity.yml'
       - 'scripts/daily_asof_gate.py'
+      - 'scripts/c3_account_state.py'
+      - 'config/c3_position_state.json'
       - 'scripts/test_daily_asof_gate.py'
       - 'scripts/trade_approval_policy.py'
       - 'scripts/test_trade_approval_policy.py'
@@ -41,6 +43,8 @@ jobs:
             /scripts/trade_approval_policy.py
             /scripts/test_trade_approval_policy.py
             /scripts/daily_asof_gate.py
+            /scripts/c3_account_state.py
+            /config/c3_position_state.json
             /scripts/test_daily_asof_gate.py
           sparse-checkout-cone-mode: false
           persist-credentials: false

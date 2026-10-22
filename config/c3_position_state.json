@@ -1,0 +1,21 @@
+{
+  "schema": "c3_user_reported_position_v1",
+  "reported_date": "2026-10-22",
+  "source": "USER_EXPLICIT_REPORT",
+  "account": "C3",
+  "reported_current_positions": [],
+  "reported_account_status": "CASH_USER_REPORTED_NOT_BROKER_VERIFIED",
+  "closed_position": {
+    "ticker": "004490",
+    "name": "세방전지",
+    "action": "SELL_ALL",
+    "remaining_shares": 0,
+    "prior_thesis": "RETIRED",
+    "previous_bullish_view": "VOID",
+    "sale_price_krw": null,
+    "realized_profit_krw": null
+  },
+  "screening_rule": "Do not treat closed ticker as held, privileged or watched based on previous user thesis. Reconsider it only if an independent future screen earns a fresh signal.",
+  "orderable_cash_krw": null,
+  "trade_approved": false
+}

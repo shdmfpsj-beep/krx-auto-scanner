@@ -24,12 +24,28 @@ class CompactTests(unittest.TestCase):
         self.assertIn("https://example.com/industry",md)
     def test_missing_evidence_does_not_make_up_prices(self):
         md=format_summary({"asof":"2026-10-22","sector_top3":[],"stock_research_top5":[]})
-        self.assertIn("최신 섹터 연구 종목 없음",md)
+        self.assertIn("TOP5 최종 산출 보류",md)
         self.assertIn("해외 원문 출처 없음",md)
         self.assertIn("CASH",md)
+    def test_final_mobile_report_never_labels_missing_data_as_verified_zero(self):
+        data={"asof":"2026-10-22","sector_selection_outcome":"PENDING_DATA_VALIDATION",
+              "stock_selection_outcome":"PENDING_DATA_VALIDATION",
+              "daily_money_gate":"MARKET_OHLC_CONFLICT",
+              "sector_top3":[],"stock_research_top5":[],
+              "c3_position_state":{"user_reported":True,
+                   "closed_ticker":"004490","closed_shares_remaining":0}}
+        md=format_summary(data)
+        self.assertIn("최종 판정 보류 (데이터 정합성 미충족)",md)
+        self.assertIn("TOP5 최종 산출 보류",md)
+        self.assertIn("세방전지(004490) 전량 매도",md)
+        self.assertIn("BUY 승인만 0건",md)
+        self.assertNotIn("적격 섹터 0개",md)
+
     def test_verified_no_positive_flow_reports_cash_without_false_data_gap(self):
         md=format_summary({"asof":"2026-10-22",
              "daily_money_gate":"VERIFIED_NO_QUALIFYING_SECTOR",
+             "sector_selection_outcome":"VERIFIED_NO_QUALIFYING_SECTOR",
+             "stock_selection_outcome":"NO_RESEARCH_STOCKS_QUALIFIED",
              "sector_top3":[],"stock_research_top5":[]})
         self.assertIn("당일 KRX 자료가 검증됐으나",md)
         self.assertIn("플러스 순매수인 섹터가 없어",md)

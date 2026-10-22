@@ -14,6 +14,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from trade_approval_policy import BUY_REVIEW_SCORE_MIN, SCORE_MAX, evaluate_review
+from c3_account_state import load_c3_position, c3_mobile_line
 
 
 def load_json(path: Path) -> dict:
@@ -113,7 +114,8 @@ def research_candidate_from_csv(path: Path, tickers: list, day: str) -> dict:
 
 
 def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
-             research_candidate: dict | None = None) -> dict:
+             research_candidate: dict | None = None,
+             c3_state: dict | None = None) -> dict:
     dates = {
         "recovery_krx_price": recovery.get("market_data_date"),
         "focus_price": focus.get("asof"),
@@ -137,8 +139,13 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         reasons.append("FOCUS_RESEARCH_ORDER_FLAG_NOT_SAFE")
     if sector.get("orders_enabled") is not False or sector.get("trade_approved") is not False:
         reasons.append("SECTOR_RESEARCH_ORDER_FLAG_NOT_SAFE")
-    if not sector.get("sector_top3") or not sector.get("stock_research_top5"):
+    if (sector.get("sector_selection_outcome")=="PENDING_DATA_VALIDATION" or
+        sector.get("stock_selection_outcome")=="PENDING_DATA_VALIDATION"):
+        reasons.append("SECTOR_STOCK_FINAL_SELECTION_PENDING_DATA")
+    elif not sector.get("sector_top3") or not sector.get("stock_research_top5"):
         reasons.append("INDEPENDENT_SECTOR_OR_STOCK_EVIDENCE_INCOMPLETE")
+    if money.get("market_ohlc_quality_verified") is False:
+        reasons.append("MARKET_OHLC_SOURCE_CONFLICT")
     # Research-only evidence, even if every source's calendar date agrees.
     # Final 80pt trade-score, live entry trigger, cash and existing holdings
     # are not independently verified by these free end-of-day files.
@@ -165,6 +172,9 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         "focus_stop_reference_count": focus.get("stop_reference_count"),
         "sector_research_top3_count": len(sector.get("sector_top3") or []),
         "sector_research_top5_count": len(sector.get("stock_research_top5") or []),
+        "sector_selection_outcome": sector.get("sector_selection_outcome","PENDING_DATA_VALIDATION"),
+        "stock_selection_outcome": sector.get("stock_selection_outcome","PENDING_DATA_VALIDATION"),
+        "c3_position_state": c3_state or {"status":"POSITION_UNVERIFIED","user_reported":False},
         "all_source_dates_aligned": all(x == day for x in dates.values()),
         "data_integrity_blockers": reasons,
         "decision": "CASH",
@@ -209,7 +219,10 @@ def to_markdown(data: dict) -> str:
 
 **KRX 데이터 커버리지:** {fmt(data['recovery_valid_ohlcv'])}/{fmt(data['recovery_universe'])} ({pct})
 **일봉 연구 구조 통과:** {fmt(data['recovery_research_geometry_pass'])}건 · 연구 티커 {watch}
-{research_line}\n**최종 검증 80점·매수승인:** 0건 (독립 검증 미완료)
+{research_line}
+**TOP3 판정:** {data.get('sector_selection_outcome','PENDING_DATA_VALIDATION')} · **TOP5 판정:** {data.get('stock_selection_outcome','PENDING_DATA_VALIDATION')} (보류와 검증 후 0개를 구분)
+{c3_mobile_line(data.get('c3_position_state') or {})}
+**최종 검증 80점·매수승인:** 0건 (독립 검증 미완료)
 
 ## 이번 실행의 매수 차단 사유
 {reason_lines}
@@ -230,6 +243,7 @@ def main() -> None:
     parser.add_argument("--money", type=Path, required=True)
     parser.add_argument("--date", default=None)
     parser.add_argument("--out", type=Path, default=Path("output"))
+    parser.add_argument("--c3-state", type=Path, default=Path("config/c3_position_state.json"))
     args = parser.parse_args()
     target_day = args.date or datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
     recovery = load_json(args.recovery)
@@ -241,7 +255,8 @@ def main() -> None:
                  recovery.get("c3_research_top5", []), target_day)
                  if args.recovery_csv else {})
     result = evaluate(target_day, recovery, load_json(args.focus),
-                      load_json(args.sector), load_json(args.money), candidate)
+                      load_json(args.sector), load_json(args.money), candidate,
+                      load_c3_position(args.c3_state))
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "today_asof_gate.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

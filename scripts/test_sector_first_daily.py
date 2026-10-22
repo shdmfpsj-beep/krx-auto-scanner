@@ -120,9 +120,43 @@ class SectorFirstTests(unittest.TestCase):
         o=build({},[],[],D)
         md=render(o)
         self.assertIn("CASH",md)
-        self.assertIn("확인 가능한 자금유입 섹터 없음",md)
+        self.assertIn("판정 보류 (자료 정합성 미충족)",md)
         self.assertEqual(o["sector_top3"],[])
         self.assertFalse(o["orders_enabled"])
+    def test_missing_or_mismatched_asof_is_pending_not_verified_zero(self):
+        s,sectors,stocks=inputs()
+        s["scan_date"]="2026-10-21"
+        result=build(s,sectors,stocks,D)
+        self.assertEqual(result["sector_selection_outcome"],"PENDING_DATA_VALIDATION")
+        self.assertEqual(result["stock_selection_outcome"],"PENDING_DATA_VALIDATION")
+        self.assertIsNone(result["verified_sector_count"])
+        self.assertIsNone(result["verified_stock_research_count"])
+        self.assertEqual(result["approved_buy_count"],0)
+        md=render(result)
+        self.assertIn("판정 보류",md)
+        self.assertIn("최종 산출 보류",md)
+        self.assertNotIn("검증 완료: 조건 충족 섹터 0개",md)
+
+    def test_verified_no_positive_money_reports_real_zero(self):
+        s,sectors,stocks=inputs()
+        s["research_top3_sector_ids"]=[]
+        s["daily_money_gate"]="VERIFIED_NO_QUALIFYING_SECTOR"
+        result=build(s,sectors,stocks,D)
+        self.assertEqual(result["sector_selection_outcome"],"VERIFIED_NO_QUALIFYING_SECTOR")
+        self.assertEqual(result["verified_sector_count"],0)
+        self.assertIn("검증 완료: 조건 충족 섹터 0개",render(result))
+        self.assertEqual(result["decision"],"CASH")
+
+    def test_explicit_c3_full_exit_is_not_treated_as_active_position(self):
+        from c3_account_state import load_c3_position
+        state=load_c3_position()
+        s,sectors,stocks=inputs()
+        result=build(s,sectors,stocks,D,state)
+        self.assertEqual(result["c3_position_state"]["closed_shares_remaining"],0)
+        self.assertFalse(result["c3_position_state"]["prior_thesis_active"])
+        self.assertIn("세방전지(004490) 전량 매도",render(result))
+        self.assertNotIn("4주 보유",render(result))
+
     def test_source_stock_not_approved(self):
         s,sectors,stocks=inputs()
         stocks[0]["trade_approval"]="YES"
