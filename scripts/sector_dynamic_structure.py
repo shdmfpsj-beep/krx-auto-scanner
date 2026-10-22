@@ -64,12 +64,20 @@ def select(status,rows,asof,max_total=12,per_sector=4):
     for arr in by_sector.values():
         arr.sort(key=lambda r:(-priority(r),r["ticker"]))
     picked={}
-    for sid in sectors:
-        for r in by_sector[sid][:per_sector]:
-            if len(picked)<max_total:
-                picked[r["ticker"]]=r["name"] or r["ticker"]
-    # Fill remaining slots with ranked members of verified TOP3 sectors.
     additional=sorted(eligible.values(),key=lambda r:(-priority(r),r["ticker"]))
+    # Mandatory: all actual daily research TOP5 get independent stop analysis,
+    # even if all five happen to come from one leading sector.
+    for r in additional[:min(5,max_total)]:
+        picked[r["ticker"]]=r["name"] or r["ticker"]
+    # Use spare slots for diversification across the other TOP3 sectors.
+    for sid in sectors:
+        present=sum(eligible[t]["sector_id"]==sid for t in picked)
+        for r in by_sector[sid]:
+            if len(picked)>=max_total or present>=per_sector:break
+            if r["ticker"] in picked:continue
+            picked[r["ticker"]]=r["name"] or r["ticker"]
+            present+=1
+    # Fill any remaining slots by absolute research rank across eligible TOP3.
     for r in additional:
         if len(picked)>=max_total:break
         picked.setdefault(r["ticker"],r["name"] or r["ticker"])
