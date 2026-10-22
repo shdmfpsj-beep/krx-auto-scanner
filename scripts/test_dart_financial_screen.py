@@ -4,7 +4,7 @@ import io,zipfile,unittest,csv,tempfile
 from pathlib import Path
 from datetime import date
 from dart_financial_screen import (
-    annual_receipt,latest_periodic_filing,parse_corps,extract_metric,evaluate_accounts,collect,render,
+    annual_receipt,latest_periodic_filing,latest_interim_filing,parse_corps,extract_metric,evaluate_accounts,collect,render,
     read_stocks)
 
 ASOF=date(2026,10,22)
@@ -31,6 +31,45 @@ class DartAnnualTests(unittest.TestCase):
         stream=io.BytesIO()
         with zipfile.ZipFile(stream,"w") as f:f.writestr("CORPCODE.xml",xml)
         self.assertEqual(parse_corps(stream.getvalue()),{"005930":"00126380"})
+    def test_latest_interim_period_survives_later_old_annual_correction(self):
+        old_corrected=dict(report_nm="[기재정정] 사업보고서 (2025.12)",
+            rcept_dt="20261020",rcept_no="20261020000001")
+        half=dict(report_nm="반기보고서 (2026.06)",
+            rcept_dt="20260818",rcept_no="20260818000002")
+        annual=dict(report_nm="사업보고서 (2025.12)",
+            rcept_dt="20260318",rcept_no="20260318000001")
+        payload=dict(status="000",list=[old_corrected,half,annual])
+        # Existing audit says old annual receipt is newest, but finance
+        # must select 2026 H1 (fiscal period) instead.
+        self.assertIn("사업보고서",latest_periodic_filing(payload,ASOF)[2])
+        selected=latest_interim_filing(payload,ASOF)
+        self.assertEqual(selected["period_end"],"2026-06-30")
+        self.assertEqual(selected["report_code"],"11012")
+        self.assertEqual(selected["receipt_no"],"20260818000002")
+    def test_newest_q3_over_h1_even_if_h1_correction_arrives_later(self):
+        filings=dict(status="000",list=[
+            dict(report_nm="분기보고서 (2026.09)",
+                 rcept_dt="20261116",rcept_no="20261116000002"),
+            dict(report_nm="[기재정정] 반기보고서 (2026.06)",
+                 rcept_dt="20261120",rcept_no="20261120000003")])
+        picked=latest_interim_filing(filings,date(2026,11,25))
+        self.assertEqual(picked["period_end"],"2026-09-30")
+        self.assertEqual(picked["receipt_no"],"20261116000002")
+    def test_future_and_pre_period_interim_receipts_are_rejected(self):
+        filings=dict(status="000",list=[
+            dict(report_nm="분기보고서 (2026.09)",
+                 rcept_dt="20260820",rcept_no="20260820000002"),
+            dict(report_nm="반기보고서 (2026.06)",
+                 rcept_dt="20261023",rcept_no="20261023000003")])
+        self.assertIsNone(latest_interim_filing(filings,ASOF))
+    def test_same_fiscal_interim_correction_prefers_latest_released_receipt(self):
+        filings=dict(status="000",list=[
+            dict(report_nm="반기보고서 (2026.06)",
+                 rcept_dt="20260818",rcept_no="20260818000002"),
+            dict(report_nm="[기재정정] 반기보고서 (2026.06)",
+                 rcept_dt="20261020",rcept_no="20261020000003")])
+        selected=latest_interim_filing(filings,ASOF)
+        self.assertEqual(selected["receipt_no"],"20261020000003")
     def test_annual_filing_must_be_published_before_asof(self):
         self.assertIsNotNone(annual_receipt(filing(),"2025",ASOF))
         self.assertIsNone(annual_receipt(filing(received="20261023"),"2025",ASOF))
