@@ -30,6 +30,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
+            /scripts/trade_approval_policy.py
+            /scripts/test_trade_approval_policy.py
             /scripts/daily_asof_gate.py
             /scripts/test_daily_asof_gate.py
           sparse-checkout-cone-mode: false
@@ -39,7 +41,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile scripts/daily_asof_gate.py scripts/test_daily_asof_gate.py
+          python -m py_compile scripts/trade_approval_policy.py scripts/test_trade_approval_policy.py scripts/daily_asof_gate.py scripts/test_daily_asof_gate.py
+          python -m unittest discover -s scripts -p 'test_trade_approval_policy.py' -v
           python -m unittest discover -s scripts -p 'test_daily_asof_gate.py' -v
 
       - name: Download latest successful independent workflow artifacts
