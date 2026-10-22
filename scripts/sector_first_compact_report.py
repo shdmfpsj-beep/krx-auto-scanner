@@ -85,6 +85,24 @@ def format_summary(data):
                      second_reference(x)+" | "+stop_reference(x)+" |")
     if not stocks:
         lines.append("| 최신 섹터 연구 종목 없음 | — | — | — |")
+    leaders=data.get("sector_leader_watch") or []
+    lines+=["","### 섹터별 대표 연구 관찰 (절대 TOP5와 별도)",""]
+    for sector in sectors[:3]:
+        item=next((x for x in leaders if x.get("sector_id")==sector.get("sector_id")),None)
+        if item:
+            lines.append("- "+txt(sector.get("name"))+": "+txt(item.get("name"))+
+                " ("+txt(item.get("ticker"))+")"+
+                (" — TOP5 밖 연구 후보" if item.get("not_in_global_top5") else " — TOP5 포함"))
+        else:
+            lines.append("- "+txt(sector.get("name"))+": 유효 종목 데이터 부족")
+    if data.get("stock_top5_concentration_warning"):
+        lines+=["","**섹터 편중 주의:** 전체 TOP5의 4개 이상이 한 섹터입니다."
+                 " 다른 섹터의 약한 종목을 억지로 매수 후보로 승격하지 않습니다."]
+    if data.get("focus_close_conflict_tickers"):
+        lines+=["","**시세 출처 충돌:** "+", ".join(
+            str(x) for x in data["focus_close_conflict_tickers"])+
+            " — 손절·매수 참고가격 및 신규 모의매매 생성 차단."]
+
     lines+=["","### 왜 실제 신규매수를 승인하지 않았는가?",""]
     for x in stocks[:5]:
         reason=x.get("independent_stop_status") or x.get("reference_status") or "FINAL_SCORE_UNVERIFIED"
