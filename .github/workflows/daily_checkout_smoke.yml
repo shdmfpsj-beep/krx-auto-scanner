@@ -1,0 +1,49 @@
+name: KRX scheduled checkout regression smoke test
+
+# Validate the same sparse-checkout pattern used by daily.yml without
+# initiating a live market scan or any trading.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/daily.yml'
+      - '.github/workflows/daily_checkout_smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  checkout-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Reproduce scheduled scanner sparse checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.csv
+            /reports/**
+            /requirements.txt
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Verify scheduled job inputs without network data collection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s requirements.txt
+          test -s scripts/run.py
+          test -s scripts/rank_candidates.py
+          python - <<'PY'
+          from pathlib import Path
+          import py_compile
+
+          for name in ('scripts/run.py', 'scripts/rank_candidates.py'):
+              py_compile.compile(name, doraise=True)
+          py_files = list(Path('scripts').glob('*.py'))
+          if len(py_files) < 10:
+              raise SystemExit(f'Insufficient Python files after sparse checkout: {len(py_files)}')
+          print(f'CHECKOUT_SMOKE_PASS: {len(py_files)} ordinary scripts; valid source compilation')
+          PY
