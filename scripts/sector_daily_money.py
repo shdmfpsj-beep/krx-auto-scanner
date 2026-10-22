@@ -55,6 +55,10 @@ def daily_evidence(evidence,asof,expected_sectors=None):
     raw_tradable_count=0
     raw_ohlc_conflicts=0
     raw_nontrading_count=0
+    raw_ohlc_below_low=0
+    raw_ohlc_above_high=0
+    raw_ohlc_other_invalid=0
+    raw_ohlc_issue_examples=[]
     for market in ("KOSPI","KOSDAQ"):
         for r in evidence.csv("market/daily_prices/"+market+"/"+asof+".csv"):
             t=r.get("ticker")
@@ -72,6 +76,17 @@ def daily_evidence(evidence,asof,expected_sectors=None):
             if (op is None or hi is None or lo is None or
                 not (0<lo<=min(op,close)<=max(op,close)<=hi)):
                 raw_ohlc_conflicts+=1
+                kind=("CLOSE_BELOW_LOW" if lo is not None and close<lo else
+                      "CLOSE_ABOVE_HIGH" if hi is not None and close>hi else
+                      "OTHER_INVALID_OHLC")
+                if kind=="CLOSE_BELOW_LOW":raw_ohlc_below_low+=1
+                elif kind=="CLOSE_ABOVE_HIGH":raw_ohlc_above_high+=1
+                else:raw_ohlc_other_invalid+=1
+                if len(raw_ohlc_issue_examples)<12:
+                    raw_ohlc_issue_examples.append(dict(
+                        ticker=t,market=market,issue=kind,
+                        open=op,high=hi,low=lo,close=close,
+                        source="RAW_PYKRX_UNVERIFIED"))
                 continue
             if t in prices:raise ValueError("DUPLICATE_TICKER_MARKET")
             prices[t]=r
@@ -246,7 +261,13 @@ def daily_evidence(evidence,asof,expected_sectors=None):
       market_price_stock_count=len(prices),
       raw_tradable_ohlc_checked=raw_tradable_count,
       raw_ohlc_conflict_count=raw_ohlc_conflicts,
+      raw_ohlc_below_low_count=raw_ohlc_below_low,
+      raw_ohlc_above_high_count=raw_ohlc_above_high,
+      raw_ohlc_other_invalid_count=raw_ohlc_other_invalid,
+      raw_ohlc_issue_examples=raw_ohlc_issue_examples,
       raw_nontrading_count=raw_nontrading_count,
+      upstream_collection_prices_status=status.get("datasets",{}).get("prices",{}).get("status"),
+      upstream_request_success_is_ohlc_integrity_proof=False,
       raw_ohlc_conflict_pct=round(100*conflict_rate,2),
       market_ohlc_quality_verified=market_ohlc_quality_verified,
       market_source_status=("OK" if market_ohlc_quality_verified else
@@ -270,7 +291,11 @@ def render(data):
       "데이터 기준일: "+data["asof"],"",
       "시장 OHLC 품질: "+data["market_source_status"]+
       " / 거래일봉 모순 "+str(data["raw_ohlc_conflict_count"])+
-      "건 ("+str(data["raw_ohlc_conflict_pct"])+"%)","",
+      "건 ("+str(data["raw_ohlc_conflict_pct"])+"%)",
+      "오류 분해: 종가<당일 저가 "+str(data["raw_ohlc_below_low_count"])+
+      "건 / 종가>당일 고가 "+str(data["raw_ohlc_above_high_count"])+
+      "건 / 기타 "+str(data["raw_ohlc_other_invalid_count"])+"건","",
+      "수집기 prices=OK는 HTTP 응답·요청 완료만 뜻하며 OHLC 품질 보증이 아닙니다.","",
       "| 연구 순위 | 섹터 | 중복제거 순매수(억) | 전체 구성종목 순매수(억) | 거래대금(억) | 상승확산 | 단계 | 5일 합산 순매수(억) |",
       "|---|---|---:|---:|---:|---:|---|---:|"]
     def eok(x):return f"{x/1e8:,.0f}"
@@ -291,7 +316,9 @@ def render(data):
                   f"{row['day_breadth_pct']}% | {row['exclusion_reason']} |")
             lines.append("이 목록은 ETF 구성종목 수급의 잠정 관찰순위로 BUY 추천이 아닙니다.")
     if not data["market_ohlc_quality_verified"]:
-        lines+=["","**가격·고가·저가가 서로 모순되는 당일 일봉이 많아 섹터 선정 보류(CASH).**"]
+        lines+=["","**가격·고가·저가가 서로 모순되는 당일 일봉이 많아 섹터 선정 보류(CASH).**",
+                "출처를 다시 검증하기 전 오류 종가를 고가·저가 안으로 조정해 통과시키지 않습니다.",
+                "해당 수집본은 독립적 KRX 원본 교차확인 또는 데이터 재수집 대상입니다."]
     lines+=["","*상승확산 60%는 관찰 단계 분류 기준입니다. 매수 승인이 아닙니다.",
         "*상승 종목 0% 상태의 순매수는 하락 종목 흡수/집중 매수 가능성도 있으므로 추세 확정 금지.",
         "*ETF 현금성 항목 제외·가격/매매주체 정보 누락 종목 점검 완료.",
