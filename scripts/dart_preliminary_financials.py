@@ -81,10 +81,16 @@ def parse_date_pairs(rows):
     if any(len(periods.get(k,set()))!=1 for k in
            ("current","previous_same_period")):return None
     a,b=(next(iter(periods[k])) for k in ("current","previous_same_period"))
+    # Only full calendar quarters may be called quarter-on-quarter YoY;
+    # a rolling or partial quarter can distort investment interpretation.
+    canonical=((1,1,3,31),(4,1,6,30),(7,1,9,30),(10,1,12,31))
     if ((a[1]-a[0]).days not in range(75,105) or
         (b[1]-b[0]).days not in range(75,105) or
         a[0].month!=b[0].month or a[1].month!=b[1].month or
-        a[0].year!=b[0].year+1 or a[1].year!=b[1].year+1):
+        a[0].day!=b[0].day or a[1].day!=b[1].day or
+        a[0].year!=b[0].year+1 or a[1].year!=b[1].year+1 or
+        (a[0].month,a[0].day,a[1].month,a[1].day) not in canonical or
+        (b[0].month,b[0].day,b[1].month,b[1].day) not in canonical):
         return None
     return dict(current_start=a[0].isoformat(),current_end=a[1].isoformat(),
                 previous_start=b[0].isoformat(),previous_end=b[1].isoformat(),
@@ -231,7 +237,7 @@ def assess(data,filing,asof):
        ticker=filing.get("ticker"),statement_scope=(
          "CFS" if "연결" in str(filing.get("title","")) else
          "OFS" if "별도" in str(filing.get("title","")) else "UNKNOWN"),
-       quarter_period=None,currency="KRW",
+       quarter_period=None,filing_lag_calendar_days=None,currency="KRW",
        unit=None,revenue_current_krw=None,revenue_previous_krw=None,
        operating_profit_current_krw=None,operating_profit_previous_krw=None,
        revenue_yoy_pct=None,operating_profit_yoy_pct=None,
@@ -284,8 +290,17 @@ def assess(data,filing,asof):
     if len(complete)!=1:
         result["status"]="PRELIMINARY_MULTIPLE_QUARTER_TABLES_AMBIGUOUS";return result
     period,vals=complete[0]
-    if date.fromisoformat(period["current_end"])>day:
+    period_end=date.fromisoformat(period["current_end"])
+    if period_end>day:
         result["status"]="PRELIMINARY_RESULTS_AFTER_RECEIPT_DATE";return result
+    # A newly amended/republished old result is not a *new* quarter.
+    # A full-quarter disclosure normally arrives within about four months;
+    # reject any older earnings under the fast-event gate.
+    lag_days=(day-period_end).days
+    result["filing_lag_calendar_days"]=lag_days
+    if lag_days>120:
+        result["status"]="PRELIMINARY_QUARTER_TOO_OLD_FOR_LATEST_EARNINGS"
+        return result
     result["quarter_period"]=period
     rev,prior_rev=vals["revenue"]
     op,prior_op=vals["operating_profit"]
