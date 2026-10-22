@@ -1,4 +1,4 @@
-name: KRX 15:45 vs 20:25 session price provenance (read only)
+name: KRX 15:45 regular-only price snapshot
 on:
   pull_request:
     branches: [main]
@@ -13,15 +13,10 @@ on:
       - 'scripts/test_krx_session_probe.py'
       - '.github/workflows/krx_session_probe.yml'
   workflow_dispatch:
-    inputs:
-      phase:
-        required: true
-        type: choice
-        options: [regular, after]
   schedule:
-    # 15:45 and 20:25 KST weekdays; actual capture times may be delayed.
+    # Capture KRX regular-session data after 15:30 but strictly before 16:00.
+    # Delayed starts/finishes are explicitly rejected for final ranking.
     - cron: '45 6 * * 1-5'
-    - cron: '25 11 * * 1-5'
 
 permissions:
   actions: read
@@ -46,7 +41,7 @@ jobs:
           python -m unittest discover -s scripts -p test_krx_session_probe.py -v
 
   regular:
-    if: (github.event_name == 'schedule' && github.event.schedule == '45 6 * * 1-5') || (github.event_name == 'workflow_dispatch' && inputs.phase == 'regular')
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -72,7 +67,8 @@ jobs:
           retention-days: 7
 
   after:
-    if: (github.event_name == 'schedule' && github.event.schedule == '25 11 * * 1-5') || (github.event_name == 'workflow_dispatch' && inputs.phase == 'after')
+    # Disabled: 16:00-20:00 aftermarket data are excluded from C3/K100.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
