@@ -34,7 +34,7 @@ jobs:
 
       - name: Check actual official OpenDART API with one Korean listed test company
         env:
-          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p inputs output
