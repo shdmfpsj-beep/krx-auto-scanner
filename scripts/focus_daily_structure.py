@@ -30,7 +30,7 @@ STATE_KO={
  "STOP_DISTANCE_UNSUITABLE":"현재가 대비 손절거리 과도 또는 지나치게 좁음",
  "LOW_FORWARD_REWARD_RISK":"전고점까지 기대 손익비 부족",
  "SECOND_SUPPORT_NOT_CONFIRMED":"2차 매수 지지 위치 미확인",
- "RESEARCH_GEOMETRY_CANDIDATE":"일봉 가격 구조 연구 조건 충족, 종합 85점·당일 진입은 별도 검증"}
+ "RESEARCH_GEOMETRY_CANDIDATE":"일봉 가격 구조 연구 조건 충족, 종합 80점·당일 진입은 별도 검증"}
 def explain(code):
     return STATE_KO.get(str(code),str(code))
 
@@ -194,7 +194,7 @@ def calculate(ticker,name,bars,source,errors,through):
                    next_action="1차는 참고만, 2차는 지지 형성 이후 검토")
     else:
         out.update(structure_state="RESEARCH_GEOMETRY_CANDIDATE",
-                   next_action="섹터·실적·수급·당일 가격 확인 후 85점 검증; 자동매수 불가")
+                   next_action="섹터·실적·수급·당일 가격 확인 후 80점 검증; 자동매수 불가")
     return out
 
 def run(asof,fetch=fetch_history,names=FOCUS):
