@@ -45,6 +45,22 @@ class DailyProgressTests(unittest.TestCase):
         self.assertEqual(r["passed_gates"],0)
         self.assertEqual(r["evidence_progress_pct"],0)
         self.assertEqual(r["decision"],"CASH")
+    def test_missing_source_and_true_date_mismatch_have_different_codes(self):
+        nofiles=build(*({} for _ in range(6)))
+        self.assertEqual(nofiles["market_source_status"],"SOURCE_MARKET_DATA_MISSING")
+        acq=dict(schema="sector_source_acquisition_v1",
+            ready=False,status="PENDING_DATA_VALIDATION",
+            target_asof=DAY,errors=["ARTIFACT_UNAVAILABLE:sector-evidence-v18-report",
+                "V18_GATE_UNVERIFIED_PRICE_OHLC_INTEGRITY"])
+        pending=build(*({} for _ in range(6)),acq)
+        self.assertEqual(pending["market_source_status"],"SOURCE_ACQUISITION_PENDING")
+        self.assertEqual(pending["source_acquisition_target_asof"],DAY)
+        self.assertIn("V18_GATE_UNVERIFIED_PRICE_OHLC_INTEGRITY",markdown(pending))
+        self.assertFalse(pending["trade_approved"])
+        real=list(inputs())
+        real[1]["asof"]="2026-10-21"
+        self.assertEqual(build(*real)["market_source_status"],"SOURCE_ASOF_MISMATCH")
+
     def test_unknown_stock_breadth_blocks_market_completeness(self):
         a=list(inputs())
         a[0]["sector_samples"][2]["breadth_coverage"]=0.4
