@@ -266,7 +266,7 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
     summary=dict(schema=VERSION,asof=str(asof),requested_stocks=len(stocks),
          researched=[],data_source="OPENDART_OFFICIAL_PERIODIC_REPORT",
          historical_replay_forbidden=True,trade_approved=False,decision="CASH",
-         final_80_score_verified=False,final_80_score_verified=False,final_85_score_verified=False)
+         final_80_score_verified=False,final_85_score_verified=False)
     if asof!=today:
         summary["status"]="HISTORICAL_REPLAY_NO_RETROACTIVE_FINANCIALS"
         return summary
