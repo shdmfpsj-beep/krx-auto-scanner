@@ -41,23 +41,49 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(status["research_top3_sector_ids"],[])
         self.assertFalse(status["daily_money_rank_applied"])
 
-    def test_actual_oct_22_same_day_no_breadth_is_not_stale_data(self):
+    def test_actual_oct_22_pre_expansion_top3_is_promoted_for_research_only(self):
         summary=dict(asof="2026-10-22",core_data_verified=True,
-            evidence_scan_dates_aligned=True,research_top3_sector_ids=["IT"])
+            evidence_scan_dates_aligned=True,research_top3_sector_ids=[])
+        specs=[("CONSTRUCTION",43.75,210491705060),
+               ("POWER",16.67,31592252630),("DEFENSE",0,28478390000)]
+        original=[dict(sector_id=s,sector_name=s,asof="2026-10-22",
+                       research_eligible="NO",trade_approval="NO",
+                       warnings="PRICE_FLOW_PROXY_UNREADY")
+                  for s,_,_ in specs]
+        chosen=[dict(rank=i,sector_id=s,flow_coverage=1.0,
+                     day_breadth_pct=b,incremental_day_net_flow_krw=n,
+                     raw_day_net_flow_krw=n,day_turnover_krw=1000000000,
+                     trade_approval="NO") for i,(s,b,n) in enumerate(specs,1)]
+        money=dict(schema="sector_daily_money_v1",asof="2026-10-22",
+                   selected_top3=chosen,complete_three=True,
+                   decision="CASH",trade_approved=False)
+        ranked,result=apply_daily_money_rank(original,summary,money)
+        self.assertEqual(result["daily_money_gate"],
+                         "VERIFIED_1D_EARLY_FLOW_RESEARCH_ONLY")
+        self.assertEqual(result["research_top3_sector_ids"],
+                         ["CONSTRUCTION","POWER","DEFENSE"])
+        self.assertTrue(result["daily_money_rank_applied"])
+        self.assertEqual(result["pre_expansion_sector_count"],3)
+        self.assertFalse(result["final_sector_top3_verified"])
+        self.assertFalse(any(x["trade_approval"]!="NO" for x in ranked))
+        self.assertEqual(next(x for x in ranked if x["sector_id"]=="DEFENSE")
+                         ["flow_phase"],"DIVERGENT_ALL_DOWN")
+
+    def test_truly_no_positive_flow_does_not_invent_research_top3(self):
+        summary=dict(asof="2026-10-22",core_data_verified=True,
+            evidence_scan_dates_aligned=True,research_top3_sector_ids=[])
         original=[dict(sector_id="CONSTRUCTION",research_eligible="NO",
                        trade_approval="NO")]
         money=dict(schema="sector_daily_money_v1",asof="2026-10-22",
                    selected_top3=[],complete_three=False,
                    sector_samples=[dict(sector_id="CONSTRUCTION",
-                           day_net_flow_krw=210000000000,day_breadth_pct=43.8)],
+                       base_eligible=True,day_net_flow_krw=-1000000000)],
                    decision="CASH",trade_approved=False)
         _,result=apply_daily_money_rank(original,summary,money)
         self.assertEqual(result["daily_money_gate"],"VERIFIED_NO_QUALIFYING_SECTOR")
         self.assertEqual(result["research_top3_sector_ids"],[])
         self.assertTrue(result["daily_money_rank_applied"])
-        self.assertEqual(result["daily_money_top3_count"],0)
         self.assertFalse(result["final_sector_top3_verified"])
-        self.assertEqual(result["decision"],"CASH")
 
     def test_pullback_quality_requires_complete_forward_window(self):
         bars=[(str(i),(100+i,100000,99+i,100.5+i)) for i in range(70)]
