@@ -137,13 +137,16 @@ def apply_daily_money_rank(ranked,summary,report):
         isinstance(report.get("sector_samples"),list) and
         bool(report["sector_samples"]) and
         all(isinstance(x,dict) and x.get("sector_id")
-            for x in report["sector_samples"]))
+            for x in report["sector_samples"]) and
+        not any(x.get("base_eligible") is True and
+                (number(x,"day_net_flow_krw") or 0)>0
+                for x in report["sector_samples"]))
     if empty_provenance_valid:
         out["research_top3_sector_ids"]=[]
         out["daily_money_rank_applied"]=True
         out["daily_money_top3_count"]=0
         out["daily_money_gate"]="VERIFIED_NO_QUALIFYING_SECTOR"
-        out["reason"]="KRX same-day data verified; no sector met positive net buying plus 60pct advancing-stock breadth"
+        out["reason"]="KRX same-day data verified; no sufficiently covered sector had positive 1-day net buying"
         out["final_sector_top3_verified"]=False
         out["trade_approvals"]=0
         out["decision"]="CASH"
@@ -156,7 +159,7 @@ def apply_daily_money_rank(ranked,summary,report):
             breadth=number(item,"day_breadth_pct")
             net=number(item,"incremental_day_net_flow_krw")
             if (code not in source or code in ids or code in EXCLUDE or
-                coverage is None or coverage<.95 or breadth is None or breadth<60 or
+                coverage is None or coverage<.95 or breadth is None or not 0<=breadth<=100 or
                 net is None or net<=0 or item.get("trade_approval")!="NO"):
                 valid=False
                 break
@@ -176,14 +179,21 @@ def apply_daily_money_rank(ranked,summary,report):
         row["day_net_1d_incremental_krw"]=item["incremental_day_net_flow_krw"]
         row["day_net_1d_raw_krw"]=item["raw_day_net_flow_krw"]
         row["day_breadth_up_pct"]=item["day_breadth_pct"]
+        row["flow_phase"]=("EXPANDING" if item["day_breadth_pct"]>=60 else
+                           "NARROW_POSITIVE" if item["day_breadth_pct"]>0 else
+                           "DIVERGENT_ALL_DOWN")
         row["member_turnover_krw"]=item["day_turnover_krw"]
         row["warnings"]=str(row.get("warnings",""))+"|DAILY_FLOW_CAN_DIVERGE_FROM_5D"
         row["trade_approval"]="NO"
     out["research_top3_sector_ids"]=[item["sector_id"] for item in chosen[:3]]
-    out["research_sector_priority_formula"]="ASOF_KRX_1D_NONOVERLAP_NET_BUY_WITH_BREADTH_GT60"
-    out["daily_money_gate"]="VERIFIED_1D_CONSTITUENT_PROXY_RESEARCH_ONLY"
+    out["research_sector_priority_formula"]="ASOF_KRX_1D_NONOVERLAP_NET_BUY_PRE_EXPANSION_RESEARCH"
+    out["daily_money_gate"]="VERIFIED_1D_EARLY_FLOW_RESEARCH_ONLY"
     out["daily_money_rank_applied"]=True
     out["daily_money_top3_count"]=len(chosen[:3])
+    out["pre_expansion_sector_count"]=sum(x["day_breadth_pct"]<60
+                                           for x in chosen[:3])
+    out["expanding_sector_count"]=sum(x["day_breadth_pct"]>=60
+                                      for x in chosen[:3])
     out["daily_money_rolling_5d_not_ignored"]=True
     out["final_sector_top3_verified"]=False
     out["trade_approvals"]=0
@@ -1009,7 +1019,7 @@ def main():
             "research_net_flow_5d_krw","member_turnover_krw","stock_members",
             "research_priority_index","research_eligible","warnings",
             "daily_money_rank","day_net_1d_incremental_krw",
-            "day_net_1d_raw_krw","day_breadth_up_pct","rank_basis",
+            "day_net_1d_raw_krw","day_breadth_up_pct","flow_phase","rank_basis",
             "final_sector_score","trade_approval"]
     with (out/"sector_research_ranking.csv").open("w",encoding="utf-8-sig",newline="") as f:
         w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(ranked)
