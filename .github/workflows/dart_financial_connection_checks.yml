@@ -68,6 +68,9 @@ jobs:
           print("ELIGIBLE_ANNUAL_FINANCIAL_RECORDS",
                 sum(x.get("status")=="DATED_ANNUAL_RESEARCH_ONLY"
                     for x in data.get("researched",[])))
+          print("INTERIM_YTD_FINANCIAL_RECORDS",data.get("verified_interim_count",0))
+          print("ANNUAL_PLUS_INTERIM_GROWTH_RECORDS",data.get("annual_plus_interim_growth_count",0))
+          assert data.get("verified_interim_count",0)<=len(data.get("researched",[]))
           for row in data.get("researched",[]):
               print("ANNUAL_RESEARCH_DIAGNOSTICS",
                     {"ticker":row.get("ticker"),"status":row.get("status"),
@@ -76,6 +79,18 @@ jobs:
                      "missing_metric_keys":row.get("missing_metric_keys",[]),
                      "statement_row_count":row.get("available_statement_rows"),
                      "attempts":row.get("statement_attempts",[])})
+              interim=row.get("interim_research",{})
+              print("INTERIM_YTD_AUDIT",
+                    {"ticker":row.get("ticker"),
+                     "status":interim.get("status"),
+                     "filing_date":interim.get("filing",{}).get("receipt_date"),
+                     "period_end":interim.get("filing",{}).get("period_end"),
+                     "division":interim.get("division"),
+                     "ytd_revenue_yoy_pct":interim.get("yoy_revenue_pct"),
+                     "ytd_op_profit_yoy_pct":interim.get("yoy_operating_profit_pct"),
+                     "ytd_margin_pct":interim.get("ytd_operating_margin_pct"),
+                     "annual_plus_interim_growth_pass":
+                         row.get("annual_plus_interim_growth_pass",False)})
           # No token, company registry code, URLs with authentication, or
           # sensitive HTTP request details are printed.
           PY
