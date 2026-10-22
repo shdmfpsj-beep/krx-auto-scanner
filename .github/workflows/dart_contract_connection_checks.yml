@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - 'scripts/dart_contract_terms.py'
+      - 'scripts/test_dart_contract_terms.py'
       - 'scripts/dart_contract_documents.py'
       - 'scripts/test_dart_contract_documents.py'
       - '.github/workflows/dart_contract_connection_checks.yml'
@@ -22,6 +24,8 @@ jobs:
           sparse-checkout: |
             /scripts/dart_interim_periods.py
             /scripts/dart_financial_screen.py
+            /scripts/dart_contract_terms.py
+            /scripts/test_dart_contract_terms.py
             /scripts/dart_contract_documents.py
             /scripts/test_dart_contract_documents.py
           sparse-checkout-cone-mode: false
@@ -33,7 +37,8 @@ jobs:
 
       - name: Validate DART issuer and original-document safety tests
         run: |
-          python -m py_compile scripts/dart_contract_documents.py scripts/dart_financial_screen.py
+          python -m py_compile scripts/dart_contract_terms.py scripts/dart_contract_documents.py scripts/dart_financial_screen.py
+          python -m unittest discover -s scripts -p 'test_dart_contract_terms.py' -v
           python -m unittest discover -s scripts -p 'test_dart_contract_documents.py' -v
 
       - name: Probe real DART list and one original ZIP for known firms - connectivity only
