@@ -82,9 +82,13 @@ jobs:
                 x["incremental_day_net_flow_krw"]) for x in r["selected_top3"]])
           assert r["asof"]=="2026-10-21"
           assert [s["sector_id"] for s in r["selected_top3"]]==[
-              "SEMICON","POWER","CONSTRUCTION"]
+              "SEMICON","DEFENSE","POWER"]
           assert not r["trade_approved"] and r["decision"]=="CASH"
           assert r["selected_top3"][0]["cash_lines_excluded"]>=1
+          assert all(x["incremental_day_net_flow_krw"]>0 for x in r["selected_top3"])
+          assert all(x["trade_approval"]=="NO" for x in r["selected_top3"])
+          assert any(x["day_breadth_pct"]<60 for x in r["selected_top3"])
+          assert r["pre_expansion_sector_count"]>=1
           print("REAL_DAY_MONEY_REPLAY_PASSED")
           PY
 
@@ -110,9 +114,9 @@ jobs:
           s=json.loads(Path("output/sector_bridge_status.json").read_text())
           report=json.loads(Path("output/sector_first_daily_status.json").read_text())
           assert s["daily_money_rank_applied"]
-          assert s["research_top3_sector_ids"]==["SEMICON","POWER","CONSTRUCTION"]
+          assert s["research_top3_sector_ids"]==["SEMICON","DEFENSE","POWER"]
           assert [s["sector_id"] for s in report["sector_top3"]]==[
-             "SEMICON","POWER","CONSTRUCTION"]
+             "SEMICON","DEFENSE","POWER"]
           assert all(x["sector_id"] in s["research_top3_sector_ids"]
                      for x in report["stock_research_top5"])
           assert report["decision"]=="CASH"
