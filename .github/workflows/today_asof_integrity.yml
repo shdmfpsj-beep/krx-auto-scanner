@@ -37,7 +37,7 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
-      - name: Unit tests of actual October 22 source-date mismatch
+      - name: Verify active 80-point final-score policy and source-date mismatch
         shell: bash
         run: |
           set -euo pipefail
