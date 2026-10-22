@@ -15,8 +15,8 @@ No new paid server, Kiwoom token requirement or trading order API in the baselin
 ## World-first leading-news intake (free GitHub Actions)
 - **08:05 KST weekdays**: `.github/workflows/global_sector_morning.yml` collects GDELT foreign industry/macro *search samples* and writes `global_preopen_brief_mobile.md`. Label independent-headline early-watch sectors as foreign **research only**. Count different source domains AND distinct headline signatures, discounting exact syndicated duplicates.
 - **08:35 KST alarm**: read that morning artifact; explain overseas event → likely industry exposure → possible Korean beneficiaries/losers → **KRX verification still required**. Use dated original articles and company disclosures where independently verifiable; do not conflate GDELT seen timestamp with original publication.
-- **18:20 KST weekdays**: Sector Evidence v18 scheduled full backfill (read-only) attempts updated KRX completed bar/foreign-institution constituent flow, memberships and domestic Naver/OpenDART observation files.
-- **22:00 KST weekdays**: sector-first daily mobile job reads latest valid `schedule` or `workflow_dispatch` v18 ZIP and latest KRX scan after provenance/coverage check, and joins worldwide headlines. 22:15 alarm analyzes the result after checking collection completeness.
+- **20:15 KST weekdays**: Sector Evidence v18 starts its scheduled post-20:00 KRX after-market read-only collection. Same-day full-session evidence is not eligible as completed until **20:10 KST**, and it must then pass independent source-date, constituent-flow and OHLC integrity checks. Collection is not guaranteed to finish before 22:00.
+- **22:00 KST weekdays**: sector-first mobile job makes a first verified-source attempt. If v18 collection is still running or the price source fails, produce CASH with PENDING_DATA_VALIDATION, never a false 0 qualifying sectors. Once the v18 standalone collection succeeds **after** 22:00, a GitHub workflow_run triggers a new Sector First attempt; this is not automatic brokerage execution or a guarantee of fresh data. The 22:15 alarm reports only evidence actually available at its runtime.
 - Global `early_watch` is NOT the confirmed sector TOP3 and must not automatically raise sector points or authorize an order. No evidence of Korean net buying, real fundamental uplift, dated catalyst substance and completed-daily support => CASH.
 - GitHub cron scheduling can be delayed, and public news/market APIs may fail or rate-limit; reports must state the actual capture timestamp and missing/partial status.
 
@@ -29,7 +29,8 @@ No new paid server, Kiwoom token requirement or trading order API in the baselin
 
 ## Timing and trust
 - 08:35 KST: US macro/overnight *preview*; no invented Korea close, no blind buy.
-- After verified KRX close (~16:00 onward): collect sector evidence and publish final report **when collection and checks have actually completed**. Do not claim results exist at 16:00 if the GitHub job is still running.
+- **16:00 KST**: the 15:30 *regular-session* close may be analyzed separately and labeled REGULAR_SESSION_CLOSE_PRELIMINARY; this is **not** the completed full KRX extended-session price/flow tape. The KRX after-market is open until 20:00. Keep OHLC data's session basis explicit; regular close and last after-market trade are not interchangeable.
+- **20:10 KST onwards**: a same-day *full-session* source is eligible for validation. Full-session as-of defaults in `scripts/krx_session_clock.py`, `scripts/daily_asof_gate.py`, `scripts/sector_first_daily.py` and both v18 source collectors must agree; the weekday heuristic does not certify exchange holidays or actual provider completion.
 - GitHub is not a trading terminal; all outputs research-only, user executes orders manually.
 - Block approvals for stale, mismatched, thin-coverage, estimated-as-verified, survivorship-biased, or otherwise incomplete market/sector evidence.
 - Backtests, ATR refinements, statistical studies and new indicators are supporting tasks, never replace the top-down sector-first deliverable.
@@ -53,6 +54,13 @@ The daily *provisional research* TOP3 has been changed to a flow-first relative 
 - **Verified zero:** only a validated, sufficiently covered session with no qualifying positive sector net flow may use `VERIFIED_NO_QUALIFYING_SECTOR` and sector count 0. Missing final 80-point company/entry validation still implies **BUY approvals = 0**, not that research candidates do not exist.
 - Keep workflow execution SUCCESS/FAILURE, market-data integrity, research selections, and trade authorization in distinct fields. Failed workflows never imply the exchange had no investable companies.
 - All active mobile reports and reminders must apply this 80/100 *final verified score* minimum in addition to market, structural daily stop, 2R cost-adjusted and actual-account gates. Do not present relative research index as final score.
+
+## 2026-10-23 KRX after-market source integrity amendment
+- KRX's 16:00–20:00 after-market began 2026-09-14; an **18:20 market source snapshot was mid-session**, contrary to the earlier completion assumption. Previous OHLC violations cannot be conclusively attributed to session mixing without paired real-source verification.
+- v18 standalone weekday cron is now **20:15 KST**, post-close cutoff **20:10 KST**; the explicit v18 backfill has the same full-session timestamp guard. Never silently normalize closes to fit highs/lows.
+- A nominal 20:10 cutoff means only *eligible for validation*. OHLC inequality anomalies, request-vs-data quality, stale ETF-member files, non-matching as-of dates, unknown trading holiday or unverified investor flows all keep TOP3/TOP5 as PENDING_DATA_VALIDATION and BUY count 0.
+- KRX regular-vs-after-market comparison is read-only and stores exact capture timestamps; samples outside the requested capture windows are not evidence of what happened at 15:30 or 20:00.
+- Report workflow success, price/flow source validation, number of research candidates and actual BUY approvals separately. Do not imply a 22:15 alarm has the completed archive if GitHub's delayed 20:15 v18 job remains in progress.
 
 ## Implementation priority
 P0. Validate and complete today's free sector evidence (membership + turnover + breadth + verified net flow + fresh catalysts).
