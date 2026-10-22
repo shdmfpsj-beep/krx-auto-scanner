@@ -1,4 +1,4 @@
-name: Sector evidence research bridge
+name: Legacy all-session sector research bridge (manual or CI only)
 
 on:
   push:
@@ -37,8 +37,6 @@ on:
       - 'scripts/test_structural_support_comparison.py'
       - '.github/workflows/sector_research_bridge.yml'
   workflow_dispatch:
-  schedule:
-    - cron: '5 13 * * 1-5'
 
 permissions:
   actions: read
