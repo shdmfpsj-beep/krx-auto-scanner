@@ -1,0 +1,57 @@
+name: Free daily C3 K100 focus-stock price verification
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 17:10 Asia/Seoul on Korean weekdays, after regular market close.
+    - cron: '10 8 * * 1-5'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: focus-daily-structure
+  cancel-in-progress: false
+
+jobs:
+  focus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout only free price verification sources
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/focus_daily_structure.py
+            /scripts/test_focus_daily_structure.py
+            /requirements.txt
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Use Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Test support, stop and price validity offline
+        run: |
+          python -m py_compile scripts/focus_daily_structure.py scripts/test_focus_daily_structure.py
+          python -m unittest discover -s scripts -p 'test_focus_daily_structure.py' -v
+
+      - name: Install free data collectors
+        run: pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Fetch completed KRX daily OHLCV and compute research prices
+        run: python scripts/focus_daily_structure.py --out output
+
+      - name: Save phone-ready prices and precise missing-data reasons
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: focus-daily-structure
+          path: |
+            output/focus_daily_structure_prices.csv
+            output/focus_daily_structure_status.json
+            output/focus_daily_structure_mobile.md
+          if-no-files-found: warn
+          retention-days: 14
