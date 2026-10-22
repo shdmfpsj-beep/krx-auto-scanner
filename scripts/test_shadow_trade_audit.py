@@ -22,7 +22,7 @@ DATES=["2026-10-23","2026-10-26","2026-10-27","2026-10-28","2026-10-29"]
 
 class ShadowTests(unittest.TestCase):
     def test_new_signal_uses_verified_completed_asof_sector_ticker(self):
-        rows=new_signals(REPORT,[REF])
+        rows=new_signals(REPORT,[REF],run_date=date(2026,10,22))
         self.assertEqual(len(rows),1)
         self.assertEqual(rows[0]["stop_reference"],95.0)
         self.assertEqual(rows[0]["signal_date"],"2026-10-22")
@@ -31,9 +31,9 @@ class ShadowTests(unittest.TestCase):
         self.assertEqual(new_signals(REPORT,[REF],run_date=date(2026,10,21)),[])
         self.assertEqual(len(new_signals(REPORT,[REF],run_date=date(2026,10,22))),1)
     def test_stale_source_never_creates_new_entry(self):
-        self.assertEqual(new_signals(REPORT,[{**REF,"latest_complete_date":"2026-10-21"}]),[])
-        self.assertEqual(new_signals({**REPORT,"asof":"2026-10-21"},[REF]),[])
-        self.assertEqual(new_signals({**REPORT,"status":"NO_VERIFIED_TOP3"},[REF]),[])
+        self.assertEqual(new_signals(REPORT,[{**REF,"latest_complete_date":"2026-10-21"}],run_date=date(2026,10,22)),[])
+        self.assertEqual(new_signals({**REPORT,"asof":"2026-10-21"},[REF],run_date=date(2026,10,22)),[])
+        self.assertEqual(new_signals({**REPORT,"status":"NO_VERIFIED_TOP3"},[REF],run_date=date(2026,10,22)),[])
     def test_conservative_stop_first_when_same_daily_candle_touches_both(self):
         bars=[bar(DATES[0],high=111,low=94)]
         outcome=evaluate(SIG,bars)
