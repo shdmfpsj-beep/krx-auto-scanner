@@ -18,6 +18,10 @@ on:
       - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/sector_daily_money.py'
       - 'scripts/test_sector_daily_money.py'
+      - 'scripts/sector_source_pair.py'
+      - 'scripts/test_sector_source_pair.py'
+      - 'scripts/sector_source_pair.py'
+      - 'scripts/test_sector_source_pair.py'
       - '.github/workflows/sector_research_bridge.yml'
       - '.github/workflows/sector_first_daily.yml'
       - 'scripts/daily_readiness_progress.py'
@@ -104,6 +108,8 @@ jobs:
             /scripts/test_sector_evidence_bridge.py
             /scripts/sector_daily_money.py
             /scripts/test_sector_daily_money.py
+            /scripts/sector_source_pair.py
+            /scripts/test_sector_source_pair.py
             /.github/workflows/sector_research_bridge.yml
             /.github/workflows/sector_first_daily.yml
             /scripts/global_sector_news.py
@@ -166,6 +172,8 @@ jobs:
           python -m unittest discover -s scripts -p 'test_sector_evidence_bridge.py' -v
           python -m py_compile scripts/sector_daily_money.py scripts/test_sector_daily_money.py
           python -m unittest discover -s scripts -p 'test_sector_daily_money.py' -v
+          python -m py_compile scripts/sector_source_pair.py scripts/test_sector_source_pair.py
+          python -m unittest discover -s scripts -p 'test_sector_source_pair.py' -v
           python -m py_compile scripts/global_sector_news.py scripts/global_sector_join.py scripts/test_global_sector_news.py scripts/test_global_sector_join.py
           python -m unittest discover -s scripts -p 'test_global_sector_news.py' -v
           python -m unittest discover -s scripts -p 'test_global_sector_join.py' -v
@@ -216,7 +224,10 @@ jobs:
                     "id: source_inputs",
                     "SOURCE_ACQUISITION",
                     "output/source_selection_status.json",
-                    "steps.source_inputs.outputs.ready == 'true'")
+                    "steps.source_inputs.outputs.ready == 'true'",
+                    "validate(kind,source_status,target_asof)",
+                    "pair=assess(selected_status.get(",
+                    "target_asof=nominal_last_completed_krx_session(now)")
           for filename in names:
               p=Path(".github/workflows")/filename
               source=p.read_text(encoding="utf-8")

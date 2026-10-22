@@ -35,6 +35,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      V18_TRIGGER_CREATED_AT: ${{ github.event.workflow_run.created_at }}
     steps:
       - name: Sparse checkout only sector-first scripts
         uses: actions/checkout@v4
@@ -46,6 +47,7 @@ jobs:
             /scripts/test_sector_daily_money.py
             /scripts/sector_first_daily.py
             /scripts/krx_session_clock.py
+            /scripts/sector_source_pair.py
             /scripts/c3_account_state.py
             /config/c3_position_state.json
             /scripts/test_sector_first_daily.py
@@ -129,10 +131,24 @@ jobs:
           mkdir -p inputs/scan inputs/evidence output
           python - <<'PY'
           import json,os,subprocess,zipfile,io
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
           from pathlib import Path
+          import sys
+          sys.path.insert(0,"scripts")
+          from krx_session_clock import nominal_last_completed_krx_session
+          from sector_source_pair import read_status,validate,assess
           repo=os.environ["GH_REPO"]
           source_errors=[]
           selected_sources={}
+          selected_status={}
+          source_rejections={}
+          now=datetime.now(ZoneInfo("Asia/Seoul"))
+          triggered=os.environ.get("V18_TRIGGER_CREATED_AT","")
+          if triggered:
+              now=datetime.fromisoformat(triggered.replace("Z","+00:00"))
+          target_asof=nominal_last_completed_krx_session(now)
+          print("EXPECTED_COMPLETED_KRX_SESSION",target_asof)
           for wf,name,dest in [
             ("krx_recovery_scan.yml","krx-recovery-scan","inputs/scan"),
             ("sector_evidence_v18.yml","sector-evidence-v18-report","inputs/evidence")]:
@@ -158,6 +174,14 @@ jobs:
                 z=subprocess.run(["gh","api","-X","GET",f"repos/{repo}/actions/artifacts/{match['id']}/zip"],
                                  capture_output=True,check=True)
                 with zipfile.ZipFile(io.BytesIO(z.stdout)) as archive:
+                  kind="v18" if wf=="sector_evidence_v18.yml" else "recovery"
+                  source_status=read_status(archive,kind)
+                  quality_errors=validate(kind,source_status,target_asof)
+                  if quality_errors:
+                    source_rejections.setdefault(wf,[]).append(
+                        dict(run_id=run["id"],errors=quality_errors))
+                    print(f"SKIP_SOURCE_DATE_OR_QUALITY workflow={wf} run_id={run['id']} reasons={quality_errors}")
+                    continue
                   names=archive.namelist()
                   if wf=="sector_evidence_v18.yml":
                     # Baseline-only runs can succeed but have no current
@@ -183,13 +207,20 @@ jobs:
                       raise SystemExit("UNSAFE_ARTIFACT_PATH")
                   archive.extractall(dest)
                 print(f"SELECTED_ARTIFACT workflow={wf} run_id={run['id']} created_at={run.get('created_at')} artifact_id={match['id']}")
-                selected_sources[wf]={"run_id":run["id"],"artifact_id":match["id"]}
+                selected_sources[wf]={"run_id":run["id"],"artifact_id":match["id"],
+                                      "asof":target_asof}
+                selected_status[kind]=source_status
                 found=True
                 break
               if not found:
                 source_errors.append(f"ARTIFACT_UNAVAILABLE:{name}")
-          ready=(not source_errors and len(selected_sources)==2)
+                if source_rejections.get(wf):
+                  source_errors.extend(source_rejections[wf][0]["errors"])
+          pair=assess(selected_status.get("recovery"),selected_status.get("v18"),target_asof)
+          source_errors.extend(e for e in pair["errors"] if e not in source_errors)
+          ready=(not source_errors and len(selected_sources)==2 and pair["ready"])
           payload={"schema":"sector_source_acquisition_v1",
+                   "target_asof":target_asof,"source_pair":pair,
                    "ready":ready,"status":"VERIFIED_SOURCE_SELECTED" if ready else "PENDING_DATA_VALIDATION",
                    "errors":source_errors,"sources":selected_sources,
                    "research_only":True,"trade_approved":False,"decision":"CASH"}
