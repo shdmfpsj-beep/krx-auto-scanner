@@ -394,7 +394,29 @@ def render(result):
           " | "+str(x.get("operating_margin_pct") if x.get("operating_margin_pct") is not None else "—")+
           " | "+str(x.get("financial_quality") or x.get("status","UNKNOWN"))+" |")
     if not result.get("researched"):lines.append("| 미확인 | — | — | — | 실적점수 부여 금지 |")
-    lines+=["","*최신 분기·반기 사업보고서의 날짜는 별도로 기록하지만, 분기 수치까지 검증한 것으로 표시하지 않습니다.",
+    lines+=["","## 최신 확인된 2026년 누적 분기·반기 실적 (별도 연구)","",
+       "| 종목 | 공시 대상 기간 | 매출 누적 YoY | 영업이익 누적 YoY | 최근 실적 판정 |",
+       "|---|---|---:|---:|---|"]
+    rows=0
+    for company in result.get("researched",[]):
+        interim=company.get("interim_research",{})
+        if interim.get("status")!="DATED_INTERIM_YTD_RESEARCH_ONLY":
+            continue
+        filing=interim.get("filing",{})
+        yoy_op=interim.get("yoy_operating_profit_pct")
+        lines.append("| "+str(company.get("name",company["ticker"]))+
+          " | "+str(filing.get("period_end","—"))+
+          " | "+str(interim.get("yoy_revenue_pct","—"))+
+          "% | "+(str(yoy_op)+"%" if yoy_op is not None else "기준 손익 변동")+
+          " | "+str(interim.get("quality","UNVERIFIED"))+" |")
+        rows+=1
+    if not rows:
+        lines.append("| 누적 분기 실적 미검증 | — | — | — | 실적 승격 금지 |")
+    lines+=["","*누적(YTD) 기준으로만 전년 동기와 비교하며 단일 3개월 수치를 섞지 않습니다.",
+      "*연간 성장기업이 최근 누적 실적에서 감속한 경우 별도 위험 표시합니다.",
+      "*검증된 최신 반기·분기 수치가 없으면 연간 성장률을 현시점 성장확인으로 승격하지 않습니다.",
+      "*OpenDART 사업보고서 자료는 매매 승인이나 향후 수익률을 보장하지 않습니다.",
+      "*최신 분기·반기 사업보고서의 날짜는 별도로 기록하지만, 그 보고서의 누적 수치가 미검증이면 표시하지 않습니다.",
       "*당해연도 분기 실적, 업종별 재무비율, 향후 컨센서스 및 뉴스의 실제 계약효과는 여기서 검증하지 않습니다.",
       "*연결재무제표를 우선하되 없는 경우 별도재무제표를 명시하며 두 기준을 무분별하게 섞지 않습니다.",
       "*공시 제출일 이후 자료만 취급하며 과거 리플레이에 현재 재무API 내용을 소급 투입하지 않습니다.",
