@@ -15,7 +15,7 @@ def dated(v):
     try:return date.fromisoformat(str(v)[:10]).isoformat()
     except (ValueError,TypeError):return None
 
-def build(source,sector,summary,entry,shadow,proof):
+def build(source,sector,summary,entry,shadow,proof,acquisition=None):
     asof=dated(source.get("asof"))
     aligned=(asof is not None and all(dated(r.get("asof"))==asof for r in
              (sector,summary,entry)))
@@ -81,7 +81,14 @@ def build(source,sector,summary,entry,shadow,proof):
     weak=bool(cover and not ranked and
               all(s.get("base_eligible") is True for s in samples) and
               not any(s.get("day_net_flow_krw",0)>0 for s in samples))
-    if not aligned:
+    pending_source=bool(isinstance(acquisition,dict) and
+                        acquisition.get("ready") is False and
+                        acquisition.get("status")=="PENDING_DATA_VALIDATION")
+    if pending_source:
+        market_status="SOURCE_ACQUISITION_PENDING"
+    elif asof is None:
+        market_status="SOURCE_MARKET_DATA_MISSING"
+    elif not aligned:
         market_status="SOURCE_ASOF_MISMATCH"
     elif not price_and_flow or not cover:
         market_status=("RAW_MARKET_OHLC_CONFLICT_HIGH" if
@@ -101,6 +108,9 @@ def build(source,sector,summary,entry,shadow,proof):
        metric_definition="PASSED_OBSERVABLE_RESEARCH_GATES_NOT_PROGRAM_PERCENT",
        gates=[dict(id=a,passed=b,label=c) for a,b,c in gate_rows],
        market_source_status=market_status,
+       source_acquisition_target_asof=(acquisition or {}).get("target_asof"),
+       source_acquisition_errors=(acquisition or {}).get("errors",[])
+            if pending_source else [],
        verified_price_stock_count=stock_count if price_and_flow else None,
        sector_samples_checked=len(samples) if cover else 0,
        selected_sectors=len(ranked) if qualified else 0,
@@ -130,6 +140,9 @@ def markdown(r):
         lines.append("| "+g["label"]+" | "+
                      ("자료확인" if g["passed"] else "미충족/추후 검증")+" |")
     lines+=["","시장 판정: **"+r["market_source_status"]+"**",
+        ("검증 원본 미확보 사유: "+", ".join(r.get("source_acquisition_errors",[]))
+         if r.get("market_source_status")=="SOURCE_ACQUISITION_PENDING" else
+         "실제 확인된 기준일 충돌 또는 가격자료 품질상태를 별도로 점검하세요."),
         "가격 데이터 종목 수: "+str(r["verified_price_stock_count"] or "미검증"),
         "사전 기록 신호: "+str(r["prospective_signals"])+
          "건 / 5거래일 종료: "+str(r["completed_paper_trades"])+"건",
@@ -153,7 +166,8 @@ def main():
                    read("sector_first_daily_status.json"),
                    read("entry_setup_audit.json"),
                    read("shadow_scorecard.json"),
-                   read("profit_proof_gate.json"))
+                   read("profit_proof_gate.json"),
+                   read("source_selection_status.json"))
     a.root.mkdir(parents=True,exist_ok=True)
     (a.root/"daily_readiness_progress.json").write_text(
         json.dumps(progress,ensure_ascii=False,indent=2),encoding="utf-8")
