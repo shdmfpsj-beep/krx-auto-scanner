@@ -154,6 +154,26 @@ class StockEvidenceTests(unittest.TestCase):
         self.assertFalse(actual["candidates"][0]["direct_contract_amount_confirmed"])
         self.assertEqual(actual["company_catalyst_verified_count"],0)
         self.assertFalse(actual["trade_approved"])
+    def test_issuer_contract_amount_visible_but_not_approved_if_single_filing_only(self):
+        b=inputs()
+        source=dict(schema="dart_contract_source_v1",asof=DAY,
+            issuer_samples=[dict(ticker="005930",filings=[dict(
+                date="2026-10-21",receipt_no="20261021000001",
+                url="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261021000001",
+                filing_contents_status="DART_DOCUMENT_SGML_TABLES_PARSED",
+                correction_risk="NO_CORRECTION_TITLE_FLAG",
+                structured_contract_terms=dict(
+                    status="LABELED_AMOUNT_READ_FROM_OFFICIAL_SOURCE",
+                    amount_krw=50_000_000_000,
+                    disclosed_sales_ratio_pct=10.0,
+                    consistency="SINGLE_FILING_ARITHMETIC_MATCH"))])])
+        result=build(b,source)
+        r=result["candidates"][0]
+        self.assertEqual(r["document_labeled_contract_amounts"][0]["amount_krw"],50000000000)
+        self.assertFalse(r["direct_contract_amount_confirmed"])
+        self.assertFalse(r["company_catalyst_impact_verified"])
+        self.assertFalse(result["trade_approved"])
+        self.assertIn("500.00억",render(result))
     def test_future_or_other_date_contract_cannot_enter_company_matrix(self):
         contract=dict(schema="dart_contract_source_v1",asof="2026-10-23",
               issuer_samples=[dict(ticker="005930",filings=[dict(
