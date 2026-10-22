@@ -1,0 +1,74 @@
+name: Daily money-flow sector replay integrity checks
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/sector_daily_money.py'
+      - 'scripts/test_sector_daily_money.py'
+      - '.github/workflows/sector_daily_money_checks.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  evidence-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout source only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/sector_daily_money.py
+            /scripts/test_sector_daily_money.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Offline safety tests
+        run: |
+          python -m py_compile scripts/sector_daily_money.py scripts/test_sector_daily_money.py
+          python -m unittest discover -s scripts -p test_sector_daily_money.py -v
+
+      - name: Download real 2026-10-21 completed v18 source ZIP
+        run: |
+          mkdir -p inputs output
+          gh api -X GET "repos/${{ github.repository }}/actions/artifacts/12340585342/zip" > inputs/dated_evidence.zip
+
+      - name: Repeat original KRX money calculation, no broker trading
+        run: |
+          python scripts/sector_daily_money.py \
+            --evidence inputs/dated_evidence.zip \
+            --asof 2026-10-21 \
+            --out output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("output/sector_daily_money.json").read_text())
+          print("ASOF_KRX_DAILY_FLOW_TOP3",[(x["sector_id"],x["raw_day_net_flow_krw"],
+                x["incremental_day_net_flow_krw"]) for x in r["selected_top3"]])
+          assert r["asof"]=="2026-10-21"
+          assert [s["sector_id"] for s in r["selected_top3"]]==[
+              "SEMICON","POWER","CONSTRUCTION"]
+          assert not r["trade_approved"] and r["decision"]=="CASH"
+          assert r["selected_top3"][0]["cash_lines_excluded"]>=1
+          print("REAL_DAY_MONEY_REPLAY_PASSED")
+          PY
+
+      - name: Save independently calculated money-first TOP3 report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-money-real-20261021
+          path: |
+            output/sector_daily_money.json
+            output/sector_daily_money_mobile.md
+          if-no-files-found: warn
+          retention-days: 30
