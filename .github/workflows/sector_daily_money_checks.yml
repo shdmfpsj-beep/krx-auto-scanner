@@ -9,6 +9,8 @@ on:
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/sector_first_daily.py'
+      - 'scripts/stock_evidence_matrix.py'
+      - 'scripts/test_stock_evidence_matrix.py'
       - '.github/workflows/sector_daily_money_checks.yml'
 
 permissions:
@@ -31,6 +33,8 @@ jobs:
             /scripts/sector_evidence_bridge.py
             /scripts/test_sector_evidence_bridge.py
             /scripts/sector_first_daily.py
+            /scripts/stock_evidence_matrix.py
+            /scripts/test_stock_evidence_matrix.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -111,6 +115,35 @@ jobs:
                 "stock_research_count",len(report["stock_research_top5"]))
           PY
 
+      - name: Replay actual KRX TOP5 company evidence safely without retroactive earnings
+        run: |
+          python -m unittest discover -s scripts -p test_stock_evidence_matrix.py -v
+          python - <<'PY'
+          import json,sys
+          from pathlib import Path
+          sys.path.insert(0,"scripts")
+          from stock_evidence_matrix import build,render
+          actual=json.loads(Path("output/sector_first_daily_status.json").read_text())
+          result=build(actual)
+          assert result["asof"]=="2026-10-21"
+          assert result["candidate_count"]>=5
+          assert result["sector_money_asof_aligned"]
+          assert result["decision"]=="CASH" and not result["trade_approved"]
+          assert result["company_catalyst_verified_count"]==0
+          assert all(not x["checks"]["annual_filing_verified"]
+                     and not x["final_85_score_verified"]
+                     for x in result["candidates"])
+          assert all(x["cohort"]!="ABSOLUTE_TOP5" or x["ticker"] in
+                     [v["ticker"] for v in actual["stock_research_top5"]]
+                     for x in result["candidates"])
+          Path("output/company_evidence_matrix.json").write_text(
+               json.dumps(result,ensure_ascii=False,indent=2),encoding="utf-8")
+          Path("output/company_evidence_matrix_mobile.md").write_text(
+               render(result),encoding="utf-8")
+          print("REAL_KRX_20261021_COMPANY_EVIDENCE_CHECK_PASSED",
+                [(x["ticker"],x["cohort"]) for x in result["candidates"]])
+          PY
+
       - name: Save independently calculated money-first TOP3 report
         if: always()
         uses: actions/upload-artifact@v4
@@ -122,5 +155,7 @@ jobs:
             output/sector_bridge_status.json
             output/sector_first_daily_status.json
             output/sector_first_daily_mobile.md
+            output/company_evidence_matrix.json
+            output/company_evidence_matrix_mobile.md
           if-no-files-found: warn
           retention-days: 30
