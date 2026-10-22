@@ -23,7 +23,8 @@ def build(source,sector,summary,entry,shadow,proof):
     samples=samples if isinstance(samples,list) else []
     stock_count=source.get("market_price_stock_count")
     price_and_flow=bool(aligned and isinstance(stock_count,int) and
-        stock_count>=100 and samples and source.get("overlaps_removed") is True)
+        stock_count>=100 and samples and source.get("overlaps_removed") is True
+        and source.get("market_ohlc_quality_verified") is not False)
     cover=bool(price_and_flow and len(samples)>=3 and
         all(isinstance(s,dict) and
             s.get("price_flow_coverage",0)>=0.95 and
@@ -83,7 +84,9 @@ def build(source,sector,summary,entry,shadow,proof):
     if not aligned:
         market_status="SOURCE_ASOF_MISMATCH"
     elif not price_and_flow or not cover:
-        market_status="DATA_MISSING_OR_LOW_COVERAGE"
+        market_status=("RAW_MARKET_OHLC_CONFLICT_HIGH" if
+            source.get("market_ohlc_quality_verified") is False else
+            "DATA_MISSING_OR_LOW_COVERAGE")
     elif weak:
         market_status="VERIFIED_NO_POSITIVE_FLOW_SECTOR"
     elif not qualified:
