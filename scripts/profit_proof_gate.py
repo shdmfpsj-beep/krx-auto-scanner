@@ -170,6 +170,17 @@ def check_account(account,signals,closed=()):
     if not marks:
         issues.append("ACCOUNT_MARK_TO_MARKET_PATH_UNVERIFIABLE")
     else:
+        # An exit equity mark must match the cash ledger immediately after
+        # that trade, not just reproduce a self-reported MDD percentage.
+        for t in completed:
+            matching=[m for m in marks if m.get("phase")=="EXIT" and
+                       m.get("date")==t.get("exit_date") and
+                       m.get("ticker")==t.get("ticker")]
+            expected=t["entry_cash_before_krw"]+t["realized_pnl_krw"]
+            if (len(matching)!=1 or
+                    numeric(matching[0].get("equity_krw")) is None or
+                    abs(numeric(matching[0]["equity_krw"])-expected)>2):
+                issues.append("ACCOUNT_EXIT_EQUITY_MARK_NOT_IN_CASH_LEDGER")
         peak=float(account["starting_capital_krw"])
         mdd=0.
         previous_day=None
