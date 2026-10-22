@@ -1,14 +1,14 @@
 name: Free OpenDART financial data connection and PIT audit
+# Routine code changes are verified by offline sector_first_daily_checks.yml.
+# Do not consume free OpenDART calls on every source-code push.
+# The nightly sector_first_daily.yml is the operational live collection.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/dart_financial_connection_checks.yml'
-      - 'scripts/dart_interim_periods.py'
-      - 'scripts/test_dart_interim_periods.py'
-      - 'scripts/dart_financial_screen.py'
-      - 'scripts/test_dart_financial_screen.py'
+
+concurrency:
+  group: manual-financial-dart-connectivity
+  cancel-in-progress: true
+
 permissions:
   contents: read
 jobs:
