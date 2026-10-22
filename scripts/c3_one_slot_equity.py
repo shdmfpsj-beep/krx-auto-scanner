@@ -59,6 +59,11 @@ def simulate(signals, prices, sessions, initial_cash=DEFAULT_CAPITAL,
         return dict(schema=SCHEMA,decision="CASH",research_valid=False,
             integrity="NO_VALID_COMPLETE_KRX_SESSION_CALENDAR",
             starting_capital_krw=initial_cash,ending_realised_equity_krw=None,
+            realised_pnl_krw=None,realised_return_pct=None,
+            mark_to_market_mdd_pct=None,traded_positions=0,
+            winning_positions=0,blocked_simultaneous_candidates=0,
+            risk_budget_per_trade_pct=risk_budget_pct,
+            cost_each_side_pct=fee_side_pct,
             trades=[],skips=[],equity_marks=[],blocked_signals=0)
     cash=float(initial_cash)
     cash_at_last_exit=float(initial_cash)
