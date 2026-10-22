@@ -47,6 +47,8 @@ on:
       - 'scripts/test_shadow_entry_comparison.py'
       - 'scripts/c3_one_slot_equity.py'
       - 'scripts/test_c3_one_slot_equity.py'
+      - 'scripts/profit_proof_gate.py'
+      - 'scripts/test_profit_proof_gate.py'
       - 'scripts/sector_catalyst_enrich.py'
       - 'scripts/test_sector_catalyst_enrich.py'
       - '.github/workflows/sector_first_daily_checks.yml'
@@ -105,6 +107,8 @@ jobs:
             /scripts/test_shadow_entry_comparison.py
             /scripts/c3_one_slot_equity.py
             /scripts/test_c3_one_slot_equity.py
+            /scripts/profit_proof_gate.py
+            /scripts/test_profit_proof_gate.py
             /scripts/sector_catalyst_enrich.py
             /scripts/test_sector_catalyst_enrich.py
           sparse-checkout-cone-mode: false
@@ -153,6 +157,8 @@ jobs:
           python -m unittest discover -s scripts -p 'test_shadow_entry_comparison.py' -v
           python -m py_compile scripts/c3_one_slot_equity.py scripts/test_c3_one_slot_equity.py
           python -m unittest discover -s scripts -p 'test_c3_one_slot_equity.py' -v
+          python -m py_compile scripts/profit_proof_gate.py scripts/test_profit_proof_gate.py
+          python -m unittest discover -s scripts -p 'test_profit_proof_gate.py' -v
 
       - name: Simulate missing evidence safely
         run: |
@@ -171,6 +177,7 @@ jobs:
           python scripts/shadow_trade_audit.py --report output/sector_first_with_prices.json --dynamic source_empty/no_daily_rows.csv --history source_empty --out output
           python scripts/shadow_entry_comparison.py --signals output/shadow_signals.json --baseline-results output/shadow_results.json --evidence source_empty --out output
           python scripts/c3_one_slot_equity.py --signals output/shadow_signals.json --history source_empty --out output
+          python scripts/profit_proof_gate.py --root output
           python - <<'PY'
           import json
           from pathlib import Path
@@ -261,4 +268,6 @@ jobs:
             output/entry_ab_mobile.md
             output/c3_one_slot_equity.json
             output/c3_one_slot_mobile.md
+            output/profit_proof_gate.json
+            output/profit_proof_mobile.md
           retention-days: 7
