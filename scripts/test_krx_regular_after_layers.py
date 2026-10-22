@@ -25,6 +25,13 @@ class TestRegularAfterIsolation(unittest.TestCase):
     def test_late_capture_must_not_be_accepted_as_regular(self):
         snap=capture("regular",at(15,45),{"KOSPI":data()})
         self.assertIn("CAPTURE_WINDOW_NOT_VERIFIED",snap["separation_blockers"])
+    def test_regular_query_starts_in_time_but_finishes_after_1540(self):
+        snap=capture("regular",at(15,35),{"KOSPI":data()},
+                     completed_at=at(15,42))
+        self.assertEqual(snap["capture_window"],"POST_REGULAR_PRE_OFFHOURS")
+        self.assertIn("CAPTURE_FINISHED_OUTSIDE_SESSION_WINDOW",snap["separation_blockers"])
+        self.assertFalse(snap["regular_strategy_eligible"])
+
     def test_after_snapshot_cannot_overwrite_regular_stops(self):
         early=capture("regular",at(15,35),{"KOSPI":data()})
         d=data()
