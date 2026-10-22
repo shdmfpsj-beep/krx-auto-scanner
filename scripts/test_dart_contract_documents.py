@@ -3,7 +3,8 @@
 import io,json,unittest,zipfile
 from datetime import date
 from dart_contract_documents import (collect,contract_looking,dated_filings,
-    zip_document,download_original,discovery_stocks,render)
+    zip_document,download_original,discovery_stocks,render,
+    latest_preliminary_earnings)
 
 ASOF=date(2026,10,22)
 BASE=dict(asof=str(ASOF),daily_money_rank_applied=True,
@@ -24,6 +25,36 @@ DOC="""<?xml version="1.0" encoding="utf-8"?>
 <TR><TH>매출액 대비</TH><TD>15%</TD></TR></TABLE></DOCUMENT>"""
 
 class DartContractTests(unittest.TestCase):
+    def test_preliminary_profit_fair_disclosure_is_detected_before_asof(self):
+        sources=dict(status="000",list=[
+            filing(title="연결재무제표기준영업(잠정)실적(공정공시)",
+                   day="20261021",receipt="20261021800151"),
+            filing(title="기업설명회(IR)개최(안내공시)",
+                   day="20261021",receipt="20261021800160"),
+            filing(title="결산실적공시 예고",day="20261020"),
+            filing(ticker="005930",title="영업(잠정)실적",
+                   day="20261020"),
+            filing(title="연결재무제표기준영업(잠정)실적",
+                   day="20261022")])
+        earnings=latest_preliminary_earnings(
+            sources,"00123456","010120",ASOF)
+        self.assertEqual(len(earnings),1)
+        self.assertEqual(earnings[0]["receipt_no"],"20261021800151")
+        self.assertFalse(earnings[0]["financial_figures_verified"])
+    def test_preliminary_earnings_integration_does_not_upgrade_profit(self):
+        r=collect(BASE,"a"*40,today=ASOF,
+           list_api=lambda *a:dict(status="000",list=[
+               filing(title="연결재무제표기준영업(잠정)실적",
+                      day="20261021",receipt="20261021800151")]),
+           corps=lambda _:{"010120":"00123456"},
+           document_reader=lambda *a:{"status":"NOT_USED"})
+        issuer=r["issuer_samples"][0]
+        self.assertEqual(issuer["filings"],[])
+        self.assertTrue(issuer["newer_preliminary_results_require_review"])
+        self.assertFalse(issuer["latest_preliminary_earnings"][0][
+            "financial_figures_verified"])
+        self.assertEqual(r["confirmed_positive_company_contracts"],0)
+        self.assertIn("잠정실적",render(r))
     def test_title_search_is_not_automatically_positive(self):
         self.assertTrue(contract_looking("단일판매ㆍ공급계약체결"))
         self.assertTrue(contract_looking("단일판매 공급계약 해지"))
