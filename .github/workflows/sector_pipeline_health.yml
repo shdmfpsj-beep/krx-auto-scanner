@@ -18,6 +18,18 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
+      - name: Secure sparse checkout of source integrity evaluator
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/sector_pipeline_health_gate.py
+            /scripts/test_sector_pipeline_health_gate.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Offline test source-quality verdicts
+        run: |
+          python -m py_compile scripts/sector_pipeline_health_gate.py scripts/test_sector_pipeline_health_gate.py
+          python -m unittest discover -s scripts -p 'test_sector_pipeline_health_gate.py' -v
       - name: Check today scan and sector evidence results
         shell: bash
         run: |
@@ -70,11 +82,16 @@ jobs:
           import json,os,subprocess,zipfile
           from datetime import datetime,timezone,timedelta
           from pathlib import Path
+          import sys
+          sys.path.insert(0,str(Path("scripts").resolve()))
+          from sector_pipeline_health_gate import judge_collection
           health=Path("audit/sector_pipeline_health.json")
           report=json.loads(health.read_text())
           sector=report["checks"].get("sector_collection",{})
-          result={"status":"NOT_VERIFIED","reason":"No successful sector collection run today","asof":None}
-          if sector.get("conclusion")=="success" and sector.get("run_id"):
+          result=judge_collection({},report["date_kst"],sector.get("conclusion"))
+          # Failed v18 runs may still upload their raw diagnostics. Read
+          # these to diagnose source corruption without declaring success.
+          if sector.get("run_id"):
               run_id=str(sector["run_id"])
               p=subprocess.run(["gh","api","-X","GET",
                 f"repos/{os.environ['GH_REPO']}/actions/runs/{run_id}/artifacts"],
@@ -93,24 +110,20 @@ jobs:
                                   names=[n for n in archive.namelist() if n.endswith("diagnostics/collection_status.json")]
                                   if names:
                                       status=json.loads(archive.read(names[0]))
-                                      asof=status.get("asof")
-                                      datasets=status.get("datasets",{})
-                                      result={"status":status.get("overall_status","UNKNOWN"),"asof":asof,
-                                        "datasets":{k:v.get("status") for k,v in datasets.items()},
-                                        "orders_enabled":status.get("orders_enabled",False)}
-                                      today=datetime.now(timezone(timedelta(hours=9))).date().isoformat()
-                                      result["fresh_for_today"]=asof==today
+                                      result=judge_collection(status,report["date_kst"],
+                                                              sector.get("conclusion"))
                           except (ValueError,zipfile.BadZipFile) as e:
                               result["reason"]=str(e)
                       z.unlink(missing_ok=True)
           report["sector_data_quality"]=result
-          required=("prices","flows","etf_prices","holdings","normalization")
+          required=("prices","price_ohlc_integrity","flows","etf_prices","holdings","normalization")
           dataset_ok=all(result.get("datasets",{}).get(k)=="OK" for k in required)
-          report["sector_evidence_verified"]=bool(result.get("fresh_for_today")) and dataset_ok and result.get("status") not in ("NOT_VERIFIED","UNKNOWN","DATA_PENDING","BASELINE_VERIFIED")
+          report["sector_evidence_verified"]=result.get("source_verified") is True
           report["sector_required_datasets_ok"]=dataset_ok
           report["pipeline_ready"]=bool(report.get("workflow_execution_ready")) and report["sector_evidence_verified"]
           report["sector_trade_ready"]=False
           report["decision_gate"]="CASH" if not report["pipeline_ready"] else "RESEARCH_ONLY_PENDING_STOCK_VALIDATION"
+          report["diagnostic_note"]="A failed workflow can publish valid source-error evidence. It cannot certify a tradable market."
           health.write_text(json.dumps(report,ensure_ascii=False,indent=2))
           print(json.dumps(result,ensure_ascii=False,indent=2))
           PY
