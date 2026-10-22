@@ -49,14 +49,28 @@ class EntryABTests(unittest.TestCase):
         r=assess_limit(SIG,[bar(DAYS[0],lo=96,hi=100)],[DAYS[0]])
         self.assertEqual(r["status"],"OPEN_NEEDS_FUTURE_DAILY_BARS")
     def test_cost_applied_to_target_trade(self):
-        r=assess_limit(SIG,[bar(DAYS[0],lo=96,hi=115)],DAYS)
+        # Day 1's high might precede an intraday low/limit fill.
+        # Count 2R on a later candle, not an ambiguous entry candle.
+        r=assess_limit(SIG,[bar(DAYS[0],lo=96,hi=115),
+                            bar(DAYS[1],lo=97,hi=115)],DAYS)
         self.assertEqual(r["status"],"CLOSED")
+        self.assertEqual(r["hold_sessions"],2)
         self.assertAlmostEqual(r["net_return_pct"],
                                100*((96.5+2*6.5)/96.5-1)-ROUNDTRIP_COST_PCT,places=3)
+    def test_intraday_touch_high_before_entry_cannot_claim_same_day_profit(self):
+        only=[bar(DAYS[0],op=100,hi=115,lo=96)]
+        out=assess_limit(SIG,only,[DAYS[0]])
+        self.assertEqual(out["status"],"OPEN_NEEDS_FUTURE_DAILY_BARS")
+    def test_limit_filled_at_open_can_reach_target_same_day(self):
+        bar_at_open=bar(DAYS[0],op=96,hi=114,lo=94)
+        result=assess_limit(SIG,[bar_at_open],[DAYS[0]])
+        self.assertEqual(result["status"],"CLOSED")
+        self.assertEqual(result["exit_reason"],"TARGET_2R")
+
     def test_missing_calendar_is_unknown_not_skip(self):
         self.assertEqual(assess_limit(SIG,[],[])["status"],"NO_MARKET_CALENDAR")
     def test_comparison_keeps_original_signal_ticker_and_no_auto_buy(self):
-        prices={"005930":[bar(DAYS[0],lo=96,hi=115)]}
+        prices={"005930":[bar(DAYS[0],lo=96,hi=115),bar(DAYS[1],lo=97,hi=115)]}
         rows=compare([SIG],prices,DAYS)
         self.assertEqual(len(rows),1)
         self.assertEqual(rows[0]["ticker"],"005930")
