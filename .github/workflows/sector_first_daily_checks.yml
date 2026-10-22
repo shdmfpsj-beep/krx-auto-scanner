@@ -50,7 +50,11 @@ on:
       - 'scripts/c3_one_slot_equity.py'
       - 'scripts/test_c3_one_slot_equity.py'
       - 'scripts/profit_proof_gate.py'
+      - 'scripts/daily_readiness_progress.py'
+      - 'scripts/test_daily_readiness_progress.py'
       - 'scripts/test_profit_proof_gate.py'
+      - 'scripts/daily_readiness_progress.py'
+      - 'scripts/test_daily_readiness_progress.py'
       - 'scripts/sector_catalyst_enrich.py'
       - 'scripts/test_sector_catalyst_enrich.py'
       - '.github/workflows/sector_first_daily_checks.yml'
@@ -112,6 +116,8 @@ jobs:
             /scripts/c3_one_slot_equity.py
             /scripts/test_c3_one_slot_equity.py
             /scripts/profit_proof_gate.py
+            /scripts/daily_readiness_progress.py
+            /scripts/test_daily_readiness_progress.py
             /scripts/test_profit_proof_gate.py
             /scripts/sector_catalyst_enrich.py
             /scripts/test_sector_catalyst_enrich.py
@@ -165,6 +171,7 @@ jobs:
           python -m unittest discover -s scripts -p 'test_c3_one_slot_equity.py' -v
           python -m py_compile scripts/profit_proof_gate.py scripts/test_profit_proof_gate.py
           python -m unittest discover -s scripts -p 'test_profit_proof_gate.py' -v
+          python -m unittest discover -s scripts -p 'test_daily_readiness_progress.py' -v
 
       - name: Simulate missing evidence safely
         run: |
@@ -184,6 +191,7 @@ jobs:
           python scripts/shadow_entry_comparison.py --signals output/shadow_signals.json --baseline-results output/shadow_results.json --evidence source_empty --out output
           python scripts/c3_one_slot_equity.py --signals output/shadow_signals.json --history source_empty --out output
           python scripts/profit_proof_gate.py --root output
+          python scripts/daily_readiness_progress.py --root output
           python - <<'PY'
           import json
           from pathlib import Path
@@ -276,4 +284,6 @@ jobs:
             output/c3_one_slot_mobile.md
             output/profit_proof_gate.json
             output/profit_proof_mobile.md
+            output/daily_readiness_progress.json
+            output/daily_readiness_progress_mobile.md
           retention-days: 7
