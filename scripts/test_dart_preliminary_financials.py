@@ -64,6 +64,38 @@ class PreliminaryTests(unittest.TestCase):
         self.assertEqual(r["quarter_period"]["current_start"],"2026-07-01")
         self.assertEqual(r["filing_lag_calendar_days"],21)
         self.assertTrue(r["preliminary_figures_source_verified"])
+    def test_published_yoy_rate_must_match_verified_quarter_amounts(self):
+        rows=[
+            ["당기실적","2026-07-01","~","2026-09-30"],
+            ["전년동기실적","2025-07-01","~","2025-09-30"],
+            ["__TABLE_BOUNDARY__"],
+            ["구분","당기실적","전기실적","전기대비",
+             "전년동기실적","전년동기대비"],
+            ["('26.3Q)","('26.2Q)","증감율(%)","-",
+             "('25.3Q)","증감율(%)","-"],
+            ["매출액","당해실적","1250","1100","5","-","1000","99.99","-"],
+            ["영업이익","당해실적","120","110","4","-","100","20.0","-"]]
+        result=assess(data(rows),FILE,DAY)
+        self.assertEqual(result["status"],
+                         "PRELIMINARY_DISCLOSED_YOY_RATE_MISMATCH")
+        self.assertFalse(result["preliminary_figures_source_verified"])
+        self.assertIsNone(result["revenue_yoy_pct"])
+    def test_matched_disclosed_yoy_rate_allows_quarter_research_only(self):
+        rows=[
+            ["당기실적","2026-07-01","~","2026-09-30"],
+            ["전년동기실적","2025-07-01","~","2025-09-30"],
+            ["__TABLE_BOUNDARY__"],
+            ["구분","당기실적","전기실적","전기대비",
+             "전년동기실적","전년동기대비"],
+            ["('26.3Q)","('26.2Q)","증감율(%)","-",
+             "('25.3Q)","증감율(%)","-"],
+            ["매출액","당해실적","1250","1100","5","-","1000","25.00","-"],
+            ["영업이익","당해실적","120","110","4","-","100","20.00","-"]]
+        result=assess(data(rows),FILE,DAY)
+        self.assertEqual(result["revenue_yoy_pct"],25.0)
+        self.assertEqual(result["operating_profit_yoy_pct"],20.0)
+        self.assertTrue(result["preliminary_figures_source_verified"])
+        self.assertFalse(result["trade_approved"])
     def test_no_disclosed_unit_blocks_amount_as_known(self):
         r=assess(data(units=[]),FILE,DAY)
         self.assertEqual(r["status"],"PRELIMINARY_UNIT_MISSING_OR_AMBIGUOUS")
