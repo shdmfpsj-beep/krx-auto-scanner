@@ -1,6 +1,9 @@
 """Regression tests for same-day independent evidence integrity."""
 import unittest
-from daily_asof_gate import evaluate, to_markdown
+import csv
+from tempfile import TemporaryDirectory
+from pathlib import Path
+from daily_asof_gate import evaluate, to_markdown, krx_common_tick_floor, research_candidate_from_csv
 
 
 class DailyAsOfGateTests(unittest.TestCase):
@@ -19,6 +22,49 @@ class DailyAsOfGateTests(unittest.TestCase):
 
     def run_gate(self):
         return evaluate(self.today, self.recovery, self.focus, self.sector, self.money)
+
+    def test_korean_common_stock_tick_floor_boundaries(self):
+        pairs = {
+            "1999.9": 1999, "2004.9": 2000, "3995.0": 3995,
+            "3981.25": 3980, "3784.73": 3780, "4114.85": 4110,
+            "4999.9": 4995, "5009.99": 5000, "20099": 20050,
+            "50099": 50000, "200499": 200000, "500999": 500000,
+        }
+        for raw, expected in pairs.items():
+            self.assertEqual(krx_common_tick_floor(raw), expected, raw)
+        for invalid in (None, "NaN", "Infinity", -1, 0, "invalid"):
+            self.assertIsNone(krx_common_tick_floor(invalid))
+
+    def test_oct_22_real_research_candidate_prices_are_tick_aligned(self):
+        row = {
+            "ticker": "005160", "name": "동국산업",
+            "snapshot_date": "2026-10-22", "structure_status": "RESEARCH_GEOMETRY_PASS",
+            "trade_approval": "NO", "close_reference": "3995.0",
+            "entry1_close_reference": "3995.0", "entry2_ma20_proxy": "3981.25",
+            "structural_stop_reference": "3784.73", "no_chase_reference": "4114.85",
+            "prior_60d_resistance": "5060.0", "rr_to_prior_resistance": "2.86",
+            "c3_preliminary_score": "56", "k100_preliminary_score": "56",
+            "blocking_reasons": "COMMON_STOCK_NOT_VERIFIED|TURNOVER_IS_ESTIMATED",
+        }
+        with TemporaryDirectory() as td:
+            p = Path(td) / "today.csv"
+            with p.open("w", encoding="utf-8", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=list(row))
+                w.writeheader()
+                w.writerow(row)
+            candidate = research_candidate_from_csv(p, ["005160"], "2026-10-22")
+            self.assertEqual(candidate["entry2_ma20_proxy_tick_floor"], 3980)
+            self.assertEqual(candidate["structural_stop_reference_tick_floor"], 3780)
+            self.assertEqual(candidate["no_chase_reference_tick_floor"], 4110)
+            self.assertTrue(candidate["tick_aligned_research_only"])
+            self.assertFalse(candidate["rr_after_tick_and_costs_verified"])
+            self.assertEqual(research_candidate_from_csv(p, ["005160"], "2026-10-21"), {})
+            row["trade_approval"] = "YES"
+            with p.open("w", encoding="utf-8", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=list(row))
+                w.writeheader()
+                w.writerow(row)
+            self.assertEqual(research_candidate_from_csv(p, ["005160"], "2026-10-22"), {})
 
     def test_20261022_real_artifact_mismatch_stays_cash(self):
         self.sector["asof"] = "2026-10-21"
