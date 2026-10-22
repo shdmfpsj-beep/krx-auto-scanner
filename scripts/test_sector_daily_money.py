@@ -105,10 +105,17 @@ class SectorDailyMoneyTests(unittest.TestCase):
             try:out=daily_evidence(ev,ASOF)
             finally:ev.close()
             self.assertEqual(out["raw_ohlc_conflict_count"],4)
+            self.assertEqual(out["raw_ohlc_below_low_count"],0)
+            self.assertEqual(out["raw_ohlc_above_high_count"],0)
+            self.assertEqual(out["raw_ohlc_other_invalid_count"],4)
+            self.assertEqual(len(out["raw_ohlc_issue_examples"]),4)
+            self.assertEqual(out["upstream_collection_prices_status"],"OK")
+            self.assertFalse(out["upstream_request_success_is_ohlc_integrity_proof"])
             self.assertFalse(out["market_ohlc_quality_verified"])
             self.assertEqual(out["market_source_status"],"RAW_MARKET_OHLC_CONFLICT_HIGH")
             self.assertEqual(out["selected_top3"],[])
             self.assertIn("섹터 선정 보류",render(out))
+            self.assertIn("OHLC 품질 보증이 아닙니다",render(out))
             self.assertEqual(out["decision"],"CASH")
 
     def test_asof_mismatch_cannot_trick_report(self):
