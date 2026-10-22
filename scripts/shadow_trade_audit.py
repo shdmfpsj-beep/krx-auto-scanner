@@ -159,11 +159,26 @@ def evaluate(signal,bars,horizon=HORIZON,cost_pct=ROUNDTRIP_COST_PCT):
          exit_price=round(exit_price,2),net_return_pct=round(net,3),
          net_r=round(net/(100*risk/buy),3))
 
-def summarise(signals,prices):
+def summarise(signals,prices,previous_results=()):
+    """Freeze completed/skip outcomes once first evaluated, avoiding later
+    archive roll-offs or revised historical OHLC rewriting observed results."""
+    frozen={}
+    for old in previous_results:
+        if not isinstance(old,dict):continue
+        if old.get("plan_version")!=VERSION:continue
+        if old.get("status")=="CLOSED" or str(old.get("status","")).startswith("SKIP_"):
+            key=(old.get("signal_date"),old.get("ticker"),old.get("plan_version"))
+            frozen.setdefault(key,old)
     results=[]
     for r in signals:
-        res=evaluate(r,prices.get(r["ticker"],[]))
-        results.append(dict(**r,**res))
+        key=(r["signal_date"],r["ticker"],VERSION)
+        old=frozen.get(key)
+        if old and all(str(old.get(field))==str(r.get(field))
+                       for field in ("signal_close","stop_reference","no_chase_reference","prior_high")):
+            results.append(old)
+        else:
+            res=evaluate(r,prices.get(r["ticker"],[]))
+            results.append(dict(**r,**res))
     closed=[x for x in results if x["status"]=="CLOSED"]
     outcomes=[x["net_return_pct"] for x in closed]
     winners=[x for x in closed if x["net_return_pct"]>0]
@@ -217,6 +232,7 @@ def main():
     p.add_argument("--dynamic",type=Path,default=Path("output/dynamic/focus_daily_structure_prices.csv"))
     p.add_argument("--history",type=Path,default=Path("inputs/evidence"))
     p.add_argument("--previous",type=Path,default=Path("output/previous_shadow_signals.json"))
+    p.add_argument("--previous-results",type=Path,default=Path("output/previous_shadow_results.json"))
     p.add_argument("--out",type=Path,default=Path("output"))
     a=p.parse_args()
     try:report=json.loads(a.report.read_text(encoding="utf-8")) if a.report.is_file() else {}
@@ -224,9 +240,19 @@ def main():
     try:old=json.loads(a.previous.read_text(encoding="utf-8")) if a.previous.is_file() else []
     except (ValueError,OSError):old=[]
     if not isinstance(old,list):old=[]
+    try:
+        old_results=json.loads(a.previous_results.read_text(encoding="utf-8")) if a.previous_results.is_file() else []
+    except (ValueError,OSError):
+        old_results=[]
+    if not isinstance(old_results,list):old_results=[]
     signals=merge_signals(old,new_signals(report,read_csv(a.dynamic)))
     price=price_history(a.history,{x["ticker"] for x in signals})
-    results,stats=summarise(signals,price)
+    results,stats=summarise(signals,price,old_results)
+    stats["prior_completed_outcomes_preserved"]=sum(
+        r["status"]=="CLOSED" for r in results if any(
+            old.get("signal_date")==r.get("signal_date") and
+            old.get("ticker")==r.get("ticker") and
+            old.get("status")=="CLOSED" for old in old_results if isinstance(old,dict)))
     save(a.out,signals,results,stats)
     print(json.dumps(stats,ensure_ascii=False))
 
