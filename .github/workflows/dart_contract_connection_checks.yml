@@ -1,0 +1,107 @@
+name: Read-only OpenDART Contract Original Connectivity
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/dart_contract_documents.py'
+      - 'scripts/test_dart_contract_documents.py'
+      - '.github/workflows/dart_contract_connection_checks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-contract-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout only read-only source parsers
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/dart_interim_periods.py
+            /scripts/dart_financial_screen.py
+            /scripts/dart_contract_documents.py
+            /scripts/test_dart_contract_documents.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate DART issuer and original-document safety tests
+        run: |
+          python -m py_compile scripts/dart_contract_documents.py scripts/dart_financial_screen.py
+          python -m unittest discover -s scripts -p 'test_dart_contract_documents.py' -v
+
+      - name: Probe real DART list and one original ZIP for known firms - connectivity only
+        env:
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          mkdir -p output
+          python - <<'PY'
+          import json,os,re,sys
+          from datetime import datetime,timedelta
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          sys.path.insert(0,"scripts")
+          from dart_financial_screen import corp_codes,api_json
+          from dart_contract_documents import dated_filings,download_original
+          asof=datetime.now(ZoneInfo("Asia/Seoul")).date()
+          result={"status":"NOT_CHECKED","asof":str(asof),
+              "mode":"CONNECTIVITY_FIXTURE_NOT_MARKET_DATA",
+              "trade_approved":False,"decision":"CASH",
+              "companies":[],"original_documents_requested":0}
+          key=os.getenv("DART_API_KEY")
+          if not key or not re.fullmatch(r"[A-Za-z0-9]{40}",key):
+              result["status"]="MISSING_OR_MALFORMED_SECRET"
+          else:
+              try:
+                  lookup=corp_codes(key)
+                  samples=[("010120","LS ELECTRIC"),("005930","삼성전자")]
+                  for ticker,name in samples:
+                      company={"ticker":ticker,"name":name,
+                               "list_status":"NOT_QUERIED",
+                               "contract_titles_seen":0,"original_document_status":"NOT_REQUESTED"}
+                      code=lookup.get(ticker)
+                      if code:
+                          payload=api_json("list.json",dict(
+                               corp_code=code,
+                               bgn_de=(asof-timedelta(days=7)).strftime("%Y%m%d"),
+                               end_de=(asof-timedelta(days=1)).strftime("%Y%m%d"),
+                               page_count=100),key)
+                          matches,status=dated_filings(payload,code,ticker,asof)
+                          company["list_status"]=status
+                          company["contract_titles_seen"]=len(matches)
+                          if matches and result["original_documents_requested"]<1:
+                              result["original_documents_requested"]+=1
+                              fetched=download_original(matches[0]["receipt_no"],key)
+                              company["original_document_status"]=fetched["status"]
+                              company["receipt_link"]=matches[0]["url"]
+                              company["structured_candidate_cells"]=len(
+                                 fetched.get("extracted_candidate_cells",[]))
+                      else:
+                          company["list_status"]="CORPCODE_MISSING"
+                      result["companies"].append(company)
+                  result["status"]="OFFICIAL_DART_REQUESTS_COMPLETED"
+              except Exception as exc:
+                  result["status"]="CONNECTIVITY_REQUEST_FAILED_"+type(exc).__name__
+          Path("output/direct_contract_connection_audit.json").write_text(
+               json.dumps(result,ensure_ascii=False,indent=2),encoding="utf-8")
+          print("DART_ORIGINAL_CONNECTIVITY",result["status"])
+          print("DART_SAMPLE_ISSUER_RESULTS",[(x["ticker"],x["list_status"],
+                x["contract_titles_seen"],x["original_document_status"])
+                  for x in result["companies"]])
+          assert result["decision"]=="CASH" and not result["trade_approved"]
+          PY
+
+      - name: Save sanitized read-only API connection result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: direct-contract-source-connection
+          path: output/direct_contract_connection_audit.json
+          retention-days: 7
+          if-no-files-found: warn
