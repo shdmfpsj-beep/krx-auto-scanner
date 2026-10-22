@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline no-future-return tests for prospective 5-session shadow ledger."""
 import csv,tempfile,unittest
+from datetime import date
 from pathlib import Path
 from shadow_trade_audit import (
     evaluate,new_signals,merge_signals,price_history,summarise,ROUNDTRIP_COST_PCT)
@@ -25,6 +26,10 @@ class ShadowTests(unittest.TestCase):
         self.assertEqual(len(rows),1)
         self.assertEqual(rows[0]["stop_reference"],95.0)
         self.assertEqual(rows[0]["signal_date"],"2026-10-22")
+    def test_retroactive_report_replay_is_not_prospective_trade(self):
+        self.assertEqual(new_signals(REPORT,[REF],run_date=date(2026,10,23)),[])
+        self.assertEqual(new_signals(REPORT,[REF],run_date=date(2026,10,21)),[])
+        self.assertEqual(len(new_signals(REPORT,[REF],run_date=date(2026,10,22))),1)
     def test_stale_source_never_creates_new_entry(self):
         self.assertEqual(new_signals(REPORT,[{**REF,"latest_complete_date":"2026-10-21"}]),[])
         self.assertEqual(new_signals({**REPORT,"asof":"2026-10-21"},[REF]),[])
