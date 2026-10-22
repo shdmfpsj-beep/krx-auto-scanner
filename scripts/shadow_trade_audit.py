@@ -104,7 +104,22 @@ def price_history(evidence_root,tickers):
     return {t:sorted((x for x in values.values() if x),
                key=lambda x:x["date"]) for t,values in found.items()}
 
-def evaluate(signal,bars,horizon=HORIZON,cost_pct=ROUNDTRIP_COST_PCT):
+def market_session_calendar(evidence_root):
+    """Use dated market-price file names as an observed trading-session calendar.
+    A missing stock candle on a market session must not disappear from PnL."""
+    roots=list(Path(evidence_root).rglob("market/daily_prices"))
+    if len(roots)!=1:return []
+    d=set()
+    for market in ("KOSPI","KOSDAQ"):
+        folder=roots[0]/market
+        if not folder.is_dir():continue
+        for p in folder.glob("*.csv"):
+            day=datestr(p.stem)
+            if day:d.add(day)
+    return sorted(d)
+
+def evaluate(signal,bars,horizon=HORIZON,cost_pct=ROUNDTRIP_COST_PCT,
+             market_sessions=None):
     """Next-open fill and 5-day conservative exit, net return in percent.
 
     Partial pending runs cannot be counted as losses or wins. Stops/targets
@@ -114,6 +129,9 @@ def evaluate(signal,bars,horizon=HORIZON,cost_pct=ROUNDTRIP_COST_PCT):
     if not t0:return dict(status="INVALID_SIGNAL")
     future=[r for r in bars if r["date"]>t0]
     if not future:return dict(status="PENDING_NEXT_TRADING_DAY")
+    calendar=[d for d in (market_sessions or []) if d>t0]
+    if calendar and future[0]["date"]!=calendar[0]:
+        return dict(status="MISSING_NEXT_SESSION_PRICE")
     first=future[0]
     if (date.fromisoformat(first["date"])-date.fromisoformat(t0)).days>10:
         return dict(status="MISSING_NEXT_SESSION_HISTORY")
@@ -134,6 +152,8 @@ def evaluate(signal,bars,horizon=HORIZON,cost_pct=ROUNDTRIP_COST_PCT):
         return dict(status="SKIP_PRIOR_RESISTANCE_BLOCKS_2R")
     observed=future[:horizon]
     for n,bar in enumerate(observed,1):
+        if calendar and n<=len(calendar) and bar["date"]!=calendar[n-1]:
+            return dict(status="MISSING_INTERMEDIATE_SESSION_PRICE")
         # A price gap through stop gets worse opening execution.
         if n>1 and bar["open"]<=stop:
             exit_price=bar["open"];reason="STOP_GAP_DOWN"
@@ -148,6 +168,8 @@ def evaluate(signal,bars,horizon=HORIZON,cost_pct=ROUNDTRIP_COST_PCT):
             next_open_entry=round(buy,2),target_2r=round(target,2),
             effective_stop=round(stop,2),exit_price=round(exit_price,2),
             net_return_pct=round(net,3),net_r=round(net/(100*risk/buy),3))
+    if calendar and len(observed)<min(horizon,len(calendar)):
+        return dict(status="MISSING_INTERMEDIATE_SESSION_PRICE")
     if len(observed)<horizon:
         return dict(status="OPEN_WAIT_MORE_BARS",bars_seen=len(observed),
                     entry_reference=round(buy,2),target_2r=round(target,2))
@@ -159,7 +181,7 @@ def evaluate(signal,bars,horizon=HORIZON,cost_pct=ROUNDTRIP_COST_PCT):
          exit_price=round(exit_price,2),net_return_pct=round(net,3),
          net_r=round(net/(100*risk/buy),3))
 
-def summarise(signals,prices,previous_results=()):
+def summarise(signals,prices,previous_results=(),market_sessions=None):
     """Freeze completed/skip outcomes once first evaluated, avoiding later
     archive roll-offs or revised historical OHLC rewriting observed results."""
     frozen={}
@@ -177,7 +199,8 @@ def summarise(signals,prices,previous_results=()):
                        for field in ("signal_close","stop_reference","no_chase_reference","prior_high")):
             results.append(old)
         else:
-            res=evaluate(r,prices.get(r["ticker"],[]))
+            res=evaluate(r,prices.get(r["ticker"],[]),
+                         market_sessions=market_sessions)
             results.append(dict(**r,**res))
     closed=[x for x in results if x["status"]=="CLOSED"]
     outcomes=[x["net_return_pct"] for x in closed]
@@ -247,7 +270,9 @@ def main():
     if not isinstance(old_results,list):old_results=[]
     signals=merge_signals(old,new_signals(report,read_csv(a.dynamic)))
     price=price_history(a.history,{x["ticker"] for x in signals})
-    results,stats=summarise(signals,price,old_results)
+    market_sessions=market_session_calendar(a.history)
+    results,stats=summarise(signals,price,old_results,market_sessions)
+    stats["observed_market_sessions"]=len(market_sessions)
     stats["prior_completed_outcomes_preserved"]=sum(
         r["status"]=="CLOSED" for r in results if any(
             old.get("signal_date")==r.get("signal_date") and
