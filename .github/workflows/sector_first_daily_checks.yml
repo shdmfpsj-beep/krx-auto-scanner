@@ -19,6 +19,8 @@ on:
       - 'scripts/sector_daily_money.py'
       - 'scripts/test_sector_daily_money.py'
       - 'scripts/sector_source_pair.py'
+      - 'scripts/krx_source_price_parity.py'
+      - 'scripts/test_krx_source_price_parity.py'
       - 'scripts/test_sector_source_pair.py'
       - 'scripts/sector_source_pair.py'
       - 'scripts/test_sector_source_pair.py'
@@ -30,6 +32,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/sector_first_daily.py'
+      - 'scripts/krx_source_price_parity.py'
+      - 'scripts/test_krx_source_price_parity.py'
       - 'scripts/test_sector_first_daily.py'
       - 'scripts/sector_evidence_bridge.py'
       - 'scripts/test_sector_evidence_bridge.py'
@@ -109,6 +113,8 @@ jobs:
             /scripts/sector_daily_money.py
             /scripts/test_sector_daily_money.py
             /scripts/sector_source_pair.py
+            /scripts/krx_source_price_parity.py
+            /scripts/test_krx_source_price_parity.py
             /scripts/test_sector_source_pair.py
             /.github/workflows/sector_research_bridge.yml
             /.github/workflows/sector_first_daily.yml
@@ -174,6 +180,8 @@ jobs:
           python -m unittest discover -s scripts -p 'test_sector_daily_money.py' -v
           python -m py_compile scripts/sector_source_pair.py scripts/test_sector_source_pair.py
           python -m unittest discover -s scripts -p 'test_sector_source_pair.py' -v
+          python -m py_compile scripts/krx_source_price_parity.py scripts/test_krx_source_price_parity.py
+          python -m unittest discover -s scripts -p 'test_krx_source_price_parity.py' -v
           python -m py_compile scripts/global_sector_news.py scripts/global_sector_join.py scripts/test_global_sector_news.py scripts/test_global_sector_join.py
           python -m unittest discover -s scripts -p 'test_global_sector_news.py' -v
           python -m unittest discover -s scripts -p 'test_global_sector_join.py' -v
