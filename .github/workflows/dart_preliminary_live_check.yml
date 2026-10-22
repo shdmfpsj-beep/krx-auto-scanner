@@ -30,7 +30,7 @@ jobs:
           python -m unittest discover -s scripts -p test_dart_preliminary_financials.py -v
       - name: Sample official LS ELECTRIC prior-day original without any trading actions
         env:
-          OPENDART_API_KEY: \${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
           mkdir -p output
           python - <<'PY'
