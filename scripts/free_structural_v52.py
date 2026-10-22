@@ -180,7 +180,7 @@ def write_output(out,rows,report):
     lines=['# C3 · K100 무료 일봉 구조 분석 v5.2','',
      '- 시장자료 기준일: '+str(report['market_data_date']),
      '- **최종 권고: CASH (신규매수 승인 없음)**',
-     '- 기술 예비점수는 최종 85점 점수나 상승확률이 아닙니다.',
+     '- 기술 예비점수는 최종 80점 점수나 상승확률이 아닙니다.',
      '- 구조 가격은 완료된 일봉 기준 참고치이며 실시간 주문 가격이 아닙니다.','']
     for title,key in [('C3 단기 연구 후보','c3_research_top5'),
                        ('K100 교체 연구 후보','k100_research_top5')]:
