@@ -219,6 +219,10 @@ def summarise(signals,prices,previous_results=(),market_sessions=None):
        realised_paper_avg_net_r=round(
           sum(x["net_r"] for x in closed)/len(closed),3) if closed else None,
        enough_samples_for_research=len(closed)>=30,
+       paper_edge_status=("NO_COMPLETED_TRADES" if not closed else
+           "LESS_THAN_30_COMPLETED" if len(closed)<30 else
+           "NON_POSITIVE_NET_EXPECTANCY" if sum(outcomes)<=0 else
+           "PAPER_POSITIVE_NOT_LIVE_VALIDATED"),
        statistically_valid_profit_claim=False,
        cash_if_unverified=True,orders_enabled=False)
     return results,stats
@@ -250,6 +254,21 @@ def save(out,signals,results,stats):
       "30건 미만 또는 표본 편향 검증 전 성과는 투자 우위가 입증됐다는 뜻이 아닙니다.",
       "**최종 신규매수: CASH — 별도의 종목 85점 검증·실제 타점 확인 필요.**",""]
     (out/"shadow_scorecard_mobile.md").write_text("\n".join(txt),encoding="utf-8")
+    # Keep the two-table sector-first report intact, with one short
+    # prospective performance paragraph at the end for phone readers.
+    compact=out/"sector_first_compact_mobile.md"
+    if compact.is_file():
+        marker="\n## ④ 전향적 모의매매 성적표"
+        base=compact.read_text(encoding="utf-8").split(marker)[0].rstrip()
+        status=stats["paper_edge_status"]
+        extra=[marker,"",
+            "- 기록 / 평가완료: "+str(stats["signal_count"])+" / "+str(stats["closed_count"]),
+            "- 순수익률 평균: "+(
+                 str(stats["realised_paper_avg_net_pct"])+"%" if stats["closed_count"] else "표본 없음"),
+            "- 연구 판정: "+status,
+            "- 30건 미만 및 체결/비용 모형만으로는 수익 우위를 입증하지 못합니다.",
+            "- 실제 매수 승인: 없음 (CASH)",""]
+        compact.write_text(base+"\n"+"\n".join(extra),encoding="utf-8")
 
 def main():
     p=argparse.ArgumentParser()
