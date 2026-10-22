@@ -39,7 +39,7 @@ class DailyAsOfGateTests(unittest.TestCase):
         row = {
             "ticker": "005160", "name": "동국산업",
             "snapshot_date": "2026-10-22", "structure_status": "RESEARCH_GEOMETRY_PASS",
-            "trade_approval": "NO", "close_reference": "3995.0",
+            "trade_approval": "NO", "close_reference": "3995.0", "atr14": "601.07",
             "entry1_close_reference": "3995.0", "entry2_ma20_proxy": "3981.25",
             "structural_stop_reference": "3784.73", "no_chase_reference": "4114.85",
             "prior_60d_resistance": "5060.0", "rr_to_prior_resistance": "2.86",
@@ -58,6 +58,12 @@ class DailyAsOfGateTests(unittest.TestCase):
             self.assertEqual(candidate["no_chase_reference_tick_floor"], 4110)
             self.assertTrue(candidate["tick_aligned_research_only"])
             self.assertFalse(candidate["rr_after_tick_and_costs_verified"])
+            self.assertFalse(candidate["second_entry_is_distinct_research"])
+            self.assertEqual(candidate["second_entry_quality_warning"],
+                             "SECOND_ENTRY_TOO_NEAR_FIRST_VS_ATR")
+            self.assertAlmostEqual(candidate["second_entry_spacing_atr"], 0.025, places=3)
+            self.assertEqual(candidate["swing_stop_atr_warning"], "SWING_STOP_WITHIN_ONE_DAILY_ATR")
+            self.assertAlmostEqual(candidate["structural_stop_distance_atr"], .358, places=3)
             self.assertEqual(research_candidate_from_csv(p, ["005160"], "2026-10-21"), {})
             row["trade_approval"] = "YES"
             with p.open("w", encoding="utf-8", newline="") as f:
