@@ -25,6 +25,8 @@ on:
       - 'scripts/test_sector_first_compact_report.py'
       - 'scripts/shadow_trade_audit.py'
       - 'scripts/test_shadow_trade_audit.py'
+      - 'scripts/shadow_entry_comparison.py'
+      - 'scripts/test_shadow_entry_comparison.py'
       - 'scripts/sector_catalyst_enrich.py'
       - 'scripts/test_sector_catalyst_enrich.py'
       - '.github/workflows/sector_first_daily_checks.yml'
@@ -61,6 +63,8 @@ jobs:
             /scripts/test_sector_first_compact_report.py
             /scripts/shadow_trade_audit.py
             /scripts/test_shadow_trade_audit.py
+            /scripts/shadow_entry_comparison.py
+            /scripts/test_shadow_entry_comparison.py
             /scripts/sector_catalyst_enrich.py
             /scripts/test_sector_catalyst_enrich.py
           sparse-checkout-cone-mode: false
@@ -91,6 +95,8 @@ jobs:
           python -m unittest discover -s scripts -p 'test_sector_first_compact_report.py' -v
           python -m py_compile scripts/shadow_trade_audit.py scripts/test_shadow_trade_audit.py
           python -m unittest discover -s scripts -p 'test_shadow_trade_audit.py' -v
+          python -m py_compile scripts/shadow_entry_comparison.py scripts/test_shadow_entry_comparison.py
+          python -m unittest discover -s scripts -p 'test_shadow_entry_comparison.py' -v
 
       - name: Simulate missing evidence safely
         run: |
@@ -102,6 +108,7 @@ jobs:
           python scripts/focus_structure_join.py --root output
           python scripts/sector_first_compact_report.py --root output
           python scripts/shadow_trade_audit.py --report output/sector_first_with_prices.json --dynamic source_empty/no_daily_rows.csv --history source_empty --out output
+          python scripts/shadow_entry_comparison.py --signals output/shadow_signals.json --baseline-results output/shadow_results.json --evidence source_empty --out output
           python - <<'PY'
           import json
           from pathlib import Path
@@ -131,6 +138,10 @@ jobs:
           assert shadow['signal_count']==0
           assert shadow['realised_paper_win_rate_pct'] is None
           assert not shadow['orders_enabled']
+          entry_ab=json.loads(Path('output/entry_ab_scorecard.json').read_text())
+          assert entry_ab['next_open']['closed']==0
+          assert entry_ab['pullback_limit']['closed']==0
+          assert not entry_ab['trade_approved']
           print('CASH_FALLBACK_TEST_PASSED')
           PY
 
@@ -153,4 +164,7 @@ jobs:
             output/shadow_signals.json
             output/shadow_scorecard.json
             output/shadow_scorecard_mobile.md
+            output/entry_ab_results.json
+            output/entry_ab_scorecard.json
+            output/entry_ab_mobile.md
           retention-days: 7
