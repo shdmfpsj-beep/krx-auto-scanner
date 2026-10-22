@@ -8,6 +8,8 @@ def synthetic(n=32,losing_last=0):
     signal=[];results=[];trades=[]
     cash=1_000_000.0
     start=datetime.date(2026,1,5)
+    marks=[dict(date=start.isoformat(),equity_krw=cash,phase="INITIAL_CASH")]
+    winners=0
     for i in range(n):
         d=start+datetime.timedelta(days=4*i)
         day=d.isoformat()
@@ -30,15 +32,25 @@ def synthetic(n=32,losing_last=0):
             entry_krw=100.,exit_krw=sell,
             shares=count,entry_cash_before_krw=round(cash,2),
             simulated_cost_each_side_pct=fee,
-            realized_pnl_krw=gain,planned_risk_krw=105))
+            realized_pnl_krw=gain,planned_risk_krw=105,
+            exit_reason="HORIZON_5D_CLOSE"))
+        winners+=gain>0
         cash=round(cash+gain,2)
+        marks.append(dict(date=entry_d,equity_krw=cash,phase="EXIT",ticker=ticker))
+    peak=1_000_000.
+    actual_mdd=0.
+    for mark in marks:
+        peak=max(peak,mark["equity_krw"])
+        actual_mdd=max(actual_mdd,100*(peak-mark["equity_krw"])/peak)
     account=dict(account_type="SYNTHETIC_PAPER_ACCOUNT_NOT_USER_BALANCE",
         integrity="OK",research_valid=True,
         starting_capital_krw=1_000_000.,
         ending_realised_equity_krw=cash,
-        mark_to_market_mdd_pct=5.2,
+        mark_to_market_mdd_pct=round(actual_mdd,3),
+        realised_return_pct=round(100*(cash/1_000_000.-1),3),
+        winning_positions=winners,
         risk_budget_per_trade_pct=2.0,
-        traded_positions=n,trades=trades)
+        traded_positions=n,trades=trades,equity_marks=marks)
     return signal,results,account
 
 class ProfitProofTests(unittest.TestCase):
@@ -113,12 +125,12 @@ class ProfitProofTests(unittest.TestCase):
         a["research_valid"]=False
         x=audit(s,r,a)
         self.assertIn("ACCOUNT_SESSION_OR_PRICE_INTEGRITY_UNVERIFIED",x["blockers"])
-    def test_high_mdd_fails_quality_gate_without_data_error(self):
+    def test_forged_low_mdd_is_detected_from_equity_path(self):
         s,r,a=synthetic()
         a["mark_to_market_mdd_pct"]=17
         x=audit(s,r,a)
-        self.assertTrue(x["integrity_pass"])
-        self.assertEqual(x["profit_proof_status"],"PAPER_EDGE_NOT_ROBUST")
+        self.assertFalse(x["integrity_pass"])
+        self.assertIn("ACCOUNT_MARK_TO_MARKET_MDD_MISMATCH",x["blockers"])
     def test_closed_missing_entry_is_not_a_profitable_trade(self):
         s,r,a=synthetic()
         r[0]["next_open_entry"]=None
