@@ -162,8 +162,21 @@ def evaluate_accounts(payload,division):
     result["status"]="DATED_ANNUAL_RESEARCH_ONLY"
     return result
 
-def read_stocks(path,asof,limit=20):
-    if not path.is_file():return []
+def research_rank(v):
+    try:
+        value=float(v)
+        return value if math.isfinite(value) else -1
+    except (ValueError,TypeError):
+        return -1
+
+def read_stocks(path,asof,limit=20,sector_ids=None):
+    """Distribute limited free DART calls across actual TOP3 sectors.
+
+    Does NOT boost weak stocks into price TOP5; it simply checks at least some
+    companies in every qualified sector instead of spending all API calls
+    on the single highest momentum sector.
+    """
+    if not path.is_file() or limit<1:return []
     with path.open(encoding="utf-8-sig",newline="") as f:
         rows=list(csv.DictReader(f))
     found={}
@@ -172,11 +185,29 @@ def read_stocks(path,asof,limit=20):
         name=str(r.get("name",""))
         sid=str(r.get("sector_id",""))
         if (r.get("asof")!=asof or not re.fullmatch(r"\d{6}",ticker) or
-            any(term in (name+" "+sid).upper() for term in EXCLUDE)):
+            any(term in (name+" "+sid).upper() for term in EXCLUDE) or
+            (sector_ids is not None and sid not in sector_ids)):
             continue
         found.setdefault(ticker,dict(ticker=ticker,name=name,sector_id=sid,
            research_proxy_index=r.get("research_proxy_index","")))
-    return list(found.values())[:limit]
+    ranked=sorted(found.values(),key=lambda x:(
+       -research_rank(x.get("research_proxy_index")),x["ticker"]))
+    sectors=list(dict.fromkeys(sector_ids or
+        [x["sector_id"] for x in ranked]))[:3]
+    if len(sectors)<2:return ranked[:limit]
+    chosen=[]
+    used=set()
+    for sector in sectors:
+        group=[x for x in ranked if x["sector_id"]==sector]
+        for item in group[:(limit//len(sectors)+(sectors.index(sector)<limit%len(sectors)))]:
+            chosen.append(item)
+            used.add(item["ticker"])
+    for item in ranked:
+        if len(chosen)>=limit:break
+        if item["ticker"] not in used:
+            chosen.append(item)
+            used.add(item["ticker"])
+    return chosen[:limit]
 
 def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,today=None):
     today=today or datetime.now(ZoneInfo("Asia/Seoul")).date()
@@ -283,13 +314,24 @@ def main():
     p.add_argument("--input",type=Path,default=Path("output/sector_stock_research_ranking.csv"))
     p.add_argument("--out",type=Path,default=Path("output"))
     p.add_argument("--asof",type=str,default=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat())
+    p.add_argument("--sector-status",type=Path,default=Path("output/sector_bridge_status.json"))
     args=p.parse_args()
     today=datetime.now(ZoneInfo("Asia/Seoul")).date()
     asof=iso_day(args.asof)
     if not asof:raise SystemExit("INVALID_ASOF")
+    sector_ids=None
+    if args.sector_status.is_file():
+        try:
+            status=json.loads(args.sector_status.read_text(encoding="utf-8"))
+            if status.get("asof")==args.asof and isinstance(
+                    status.get("research_top3_sector_ids"),list):
+                sector_ids=status["research_top3_sector_ids"][:3]
+        except (ValueError,OSError):
+            pass
     key=(os.environ.get("DART_API_KEY") or os.environ.get("OPENDART_API_KEY")
          or os.environ.get("OPEN_DART_API_KEY"))
-    result=collect(asof,read_stocks(args.input,args.asof),key,today=today)
+    result=collect(asof,read_stocks(args.input,args.asof,
+                           sector_ids=sector_ids),key,today=today)
     args.out.mkdir(parents=True,exist_ok=True)
     (args.out/"financial_research.json").write_text(
         json.dumps(result,ensure_ascii=False,indent=2),encoding="utf-8")
