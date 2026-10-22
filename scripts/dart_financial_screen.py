@@ -118,9 +118,20 @@ def missing_annual_metric_keys(values):
     return [name for name in required if values.get(name) is None]
 
 def evaluate_accounts(payload,division):
-    if payload.get("status")!="000" or not isinstance(payload.get("list"),list):
-        return {"status":"FINANCIAL_API_UNAVAILABLE","division":division}
-    rows=[r for r in payload["list"] if r.get("fs_div")==division]
+    api_status=str(payload.get("status") or "UNKNOWN")
+    if api_status!="000" or not isinstance(payload.get("list"),list):
+        return {"status":"FINANCIAL_API_UNAVAILABLE","division":division,
+                "source_api_status":api_status,"payload_row_count":0,
+                "available_statement_rows":0}
+    # fs_div is required in the QUERY, but may be absent from the API ROWS.
+    # Trust only rows with no fs_div field or an exact division match.
+    # Never mix explicitly CFS-marked accounts into an OFS request.
+    source_rows=payload["list"]
+    rows=[r for r in source_rows if r.get("fs_div") in (None,"",division)]
+    metadata=dict(source_api_status=api_status,
+        payload_row_count=len(source_rows),
+        division_unlabeled_row_count=sum(r.get("fs_div") in (None,"")
+                                         for r in source_rows))
     revenue=extract_metric(rows,REVENUE,"IS","thstrm_amount")
     previous=extract_metric(rows,REVENUE,"IS","frmtrm_amount")
     profit=extract_metric(rows,OPERATING,"IS","thstrm_amount")
@@ -135,6 +146,7 @@ def evaluate_accounts(payload,division):
         assets_krw=assets,liabilities_krw=liabilities,equity_krw=equity,
         sales_yoy_pct=None,operating_margin_pct=None,
         accounting_identity_gap_pct=None,financial_quality="UNVERIFIED")
+    result.update(metadata)
     result["missing_metric_keys"]=missing_annual_metric_keys(result)
     result["available_statement_rows"]=len(rows)
     if (revenue is None or previous is None or profit is None or
@@ -262,11 +274,18 @@ def collect(asof,stocks,key=None,request_json=api_json,get_corps=corp_codes,toda
             item["receipt_date"]=str(day_received)
             item["receipt_no"]=number
             item["receipt_url"]="https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+number
+            item["statement_attempts"]=[]
             for div in ("CFS","OFS"):
                 response=request_json("fnlttSinglAcntAll.json",
                     {"corp_code":company,"bsns_year":str(year),
                      "reprt_code":"11011","fs_div":div},key)
                 financial=evaluate_accounts(response,div)
+                item["statement_attempts"].append({
+                    "division":div,"status":financial["status"],
+                    "source_api_status":financial.get("source_api_status","UNKNOWN"),
+                    "payload_row_count":financial.get("payload_row_count",0),
+                    "usable_row_count":financial.get("available_statement_rows",0),
+                    "missing_metric_keys":financial.get("missing_metric_keys",[])})
                 if financial["status"]=="DATED_ANNUAL_RESEARCH_ONLY":
                     break
             item.update(financial)
