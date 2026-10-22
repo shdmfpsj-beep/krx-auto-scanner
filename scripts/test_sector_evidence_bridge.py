@@ -4,9 +4,43 @@ import tempfile
 import unittest
 from pathlib import Path
 import csv
-from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics, historical_pattern_review, historical_pullback_quality_review, plan_research_entry, build, REQUIRED
+from sector_evidence_bridge import stock_watchlist, rank_stock_research, stock_market_metrics, historical_pattern_review, historical_pullback_quality_review, plan_research_entry, build, apply_daily_money_rank, REQUIRED
 
 class BridgeTests(unittest.TestCase):
+    def test_money_first_one_day_can_include_negative_5d_power(self):
+        summary=dict(asof="2026-10-21",core_data_verified=True,
+            evidence_scan_dates_aligned=True,research_top3_sector_ids=["IT"],
+            decision="CASH",trade_approvals=0)
+        original=[dict(sector_id=s,research_eligible="NO",
+            research_priority_index=11,warnings="NO_POSITIVE_NET_FLOW_PROXY",
+            trade_approval="NO",foreign_net_buy_5d_krw=-5,
+            institution_net_buy_5d_krw=-4) for s in ("SEMICON","POWER","CONSTRUCTION","IT")]
+        chosen=[]
+        for i,s in enumerate(("SEMICON","POWER","CONSTRUCTION"),1):
+            chosen.append(dict(rank=i,sector_id=s,flow_coverage=1,
+                day_breadth_pct=88,incremental_day_net_flow_krw=1000-i,
+                raw_day_net_flow_krw=1500-i,day_turnover_krw=1000000,
+                trade_approval="NO"))
+        market=dict(schema="sector_daily_money_v1",asof="2026-10-21",
+             decision="CASH",trade_approved=False,selected_top3=chosen)
+        ranked,res=apply_daily_money_rank(original,summary,market)
+        self.assertEqual(res["research_top3_sector_ids"],
+             ["SEMICON","POWER","CONSTRUCTION"])
+        self.assertTrue(res["daily_money_rank_applied"])
+        self.assertFalse(res["final_sector_top3_verified"])
+        self.assertEqual(res["decision"],"CASH")
+        self.assertEqual(next(x for x in ranked if x["sector_id"]=="POWER")["research_eligible"],"YES")
+        self.assertEqual(next(x for x in ranked if x["sector_id"]=="POWER")["research_priority_index"],"")
+    def test_stale_daily_money_does_not_invent_rank(self):
+        summary=dict(asof="2026-10-21",core_data_verified=True,
+            evidence_scan_dates_aligned=True,research_top3_sector_ids=["IT"])
+        original=[dict(sector_id="IT",research_eligible="YES")]
+        ranked,status=apply_daily_money_rank(original,summary,
+            {"schema":"sector_daily_money_v1","asof":"2026-10-20",
+             "selected_top3":[],"decision":"CASH","trade_approved":False})
+        self.assertEqual(status["research_top3_sector_ids"],[])
+        self.assertFalse(status["daily_money_rank_applied"])
+
     def test_pullback_quality_requires_complete_forward_window(self):
         bars=[(str(i),(100+i,100000,99+i,100.5+i)) for i in range(70)]
         result=historical_pullback_quality_review(bars)
