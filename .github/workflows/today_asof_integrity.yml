@@ -71,6 +71,8 @@ jobs:
         run: |
           python scripts/daily_asof_gate.py \
             --recovery inputs/recovery/status.json \
+            --recovery-structure inputs/recovery/free_structural_v52_status.json \
+            --recovery-csv inputs/recovery/free_structural_v52_all.csv \
             --focus inputs/focus/focus_daily_structure_status.json \
             --sector inputs/sector/sector_first_daily_status.json \
             --money inputs/sector/sector_daily_money.json \
