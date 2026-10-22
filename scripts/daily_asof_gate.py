@@ -61,7 +61,7 @@ def research_candidate_from_csv(path: Path, tickers: list, day: str) -> dict:
                 and row.get("structure_status") == "RESEARCH_GEOMETRY_PASS"
                 and row.get("trade_approval") == "NO"):
                 candidate = {key: row.get(key) for key in (
-                    "ticker", "name", "snapshot_date", "close_reference",
+                    "ticker", "name", "snapshot_date", "close_reference", "atr14",
                     "entry1_close_reference", "entry2_ma20_proxy",
                     "structural_stop_reference", "no_chase_reference",
                     "prior_60d_resistance", "rr_to_prior_resistance",
@@ -82,6 +82,30 @@ def research_candidate_from_csv(path: Path, tickers: list, day: str) -> dict:
                         <= aligned["no_chase_reference_tick_floor"]):
                     return {}
                 candidate.update(aligned)
+                try:
+                    atr = Decimal(str(candidate["atr14"]))
+                    first = Decimal(aligned["entry1_close_reference_tick_floor"])
+                    second = Decimal(aligned["entry2_ma20_proxy_tick_floor"])
+                    stop = Decimal(aligned["structural_stop_reference_tick_floor"])
+                    if not atr.is_finite() or atr <= 0 or stop >= first:
+                        return {}
+                    separation = (first - second) / atr
+                    stop_dist = (first - stop) / atr
+                except (InvalidOperation, ValueError, TypeError):
+                    return {}
+                candidate["second_entry_spacing_atr"] = round(float(separation), 3)
+                candidate["structural_stop_distance_atr"] = round(float(stop_dist), 3)
+                # Exploratory only: a 2nd level essentially equal to the 1st
+                # is not an independent pullback support. Do not pass it off
+                # as a second executable entry. 0.25 ATR is a *diagnostic*
+                # heuristic, never a validated profitable trading rule.
+                candidate["second_entry_is_distinct_research"] = separation >= Decimal("0.25")
+                candidate["second_entry_quality_warning"] = (
+                    "SECOND_ENTRY_TOO_NEAR_FIRST_VS_ATR"
+                    if separation < Decimal("0.25") else "")
+                candidate["swing_stop_atr_warning"] = (
+                    "SWING_STOP_WITHIN_ONE_DAILY_ATR"
+                    if stop_dist < 1 else "")
                 candidate["tick_aligned_research_only"] = True
                 candidate["rr_after_tick_and_costs_verified"] = False
                 return candidate
@@ -163,8 +187,9 @@ def to_markdown(data: dict) -> str:
     if candidate:
         research_line = (f"**오늘 확인한 기술 연구후보:** {candidate['name']} ({candidate['ticker']}) · "
             f"종가 {candidate['close_reference_tick_floor']:,}원 · 1차 {candidate['entry1_close_reference_tick_floor']:,}원 · "
-            f"2차 {candidate['entry2_ma20_proxy_tick_floor']:,}원 · 구조손절 {candidate['structural_stop_reference_tick_floor']:,}원 · "
-            f"추격금지 {candidate['no_chase_reference_tick_floor']:,}원 · 원본 연구 R:R {candidate['rr_to_prior_resistance']} (호가·비용 후 재검증 필요) · "
+            f"2차 {'연구 보류(간격 '+str(candidate['second_entry_spacing_atr'])+'ATR)' if not candidate['second_entry_is_distinct_research'] else format(candidate['entry2_ma20_proxy_tick_floor'], ',')+'원(연구)'} · "
+            f"구조손절 {candidate['structural_stop_reference_tick_floor']:,}원(진입 대비 {candidate['structural_stop_distance_atr']}ATR; 손절 안정성 미검증) · "
+            f"추격금지 {candidate['no_chase_reference_tick_floor']:,}원 · 추격상한 기준 원본 R:R {candidate['rr_to_prior_resistance']} (호가·비용 후 재검증 필요) · "
             f"C3 예비점수 {candidate['c3_preliminary_score']}점(최종80점 승인 아님) · "
             f"차단: {candidate['blocking_reasons']}. 가격은 한국거래소 일반주식 호가단위로 내림한 연구 참고치(매수·손절 주문 미승인)입니다.")
     else:
