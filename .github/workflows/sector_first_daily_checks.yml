@@ -15,6 +15,8 @@ on:
       - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/sector_daily_money.py'
       - 'scripts/test_sector_daily_money.py'
+      - '.github/workflows/sector_research_bridge.yml'
+      - '.github/workflows/sector_first_daily.yml'
       - 'scripts/daily_readiness_progress.py'
       - 'scripts/test_daily_readiness_progress.py'
   push:
@@ -26,6 +28,8 @@ on:
       - 'scripts/test_sector_evidence_bridge.py'
       - 'scripts/sector_daily_money.py'
       - 'scripts/test_sector_daily_money.py'
+      - '.github/workflows/sector_research_bridge.yml'
+      - '.github/workflows/sector_first_daily.yml'
       - 'scripts/global_sector_news.py'
       - 'scripts/test_global_sector_news.py'
       - 'scripts/global_sector_join.py'
@@ -96,6 +100,8 @@ jobs:
             /scripts/test_sector_evidence_bridge.py
             /scripts/sector_daily_money.py
             /scripts/test_sector_daily_money.py
+            /.github/workflows/sector_research_bridge.yml
+            /.github/workflows/sector_first_daily.yml
             /scripts/global_sector_news.py
             /scripts/test_global_sector_news.py
             /scripts/global_sector_join.py
@@ -194,6 +200,22 @@ jobs:
           python -m py_compile scripts/c3_account_state.py scripts/daily_asof_gate.py scripts/test_daily_asof_gate.py
           python -m unittest discover -s scripts -p 'test_daily_asof_gate.py' -v
 
+      - name: Audit both sector workflows for identical source-integrity admission
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          names=["sector_first_daily.yml","sector_research_bridge.yml"]
+          required=('"prices","price_ohlc_integrity","flows","etf_prices","holdings","normalization"',
+                    'state.get("orders_enabled") is not False',
+                    'state.get("overall_status")!="EVIDENCE_PARTIAL_CATALYST_PIT_PENDING"')
+          for filename in names:
+              p=Path(".github/workflows")/filename
+              source=p.read_text(encoding="utf-8")
+              for marker in required:
+                  assert marker in source,(filename,marker)
+              print("PROVENANCE_ADMISSION_PRESENT",filename)
+          PY
       - name: Simulate missing evidence safely
         run: |
           mkdir -p source_empty output
