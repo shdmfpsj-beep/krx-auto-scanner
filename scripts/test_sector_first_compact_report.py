@@ -32,6 +32,30 @@ class CompactTests(unittest.TestCase):
         md=format_summary({**BASE,"stock_research_top5":[row]})
         self.assertIn("203,500원",md)
         self.assertNotIn("175,000원",md)
+    def test_conflicted_market_close_blocks_all_stale_prices_in_main_table(self):
+        row={**BASE["stock_research_top5"][0],
+             "stop_reference":"175000",
+             "first_reference":"176000",
+             "second_reference":"172000",
+             "independent_stop_status":"CROSS_SOURCE_CLOSE_CONFLICT"}
+        md=format_summary({**BASE,"stock_research_top5":[row],
+             "focus_close_conflict_tickers":["005930"]})
+        table=md.split("## ②")[1].split("### 섹터별")[0]
+        self.assertIn("| 삼성전자 | — | — | — |",table)
+        self.assertNotIn("175,000원",table)
+        self.assertNotIn("203,500원",table)
+        self.assertNotIn("176000",table)
+    def test_date_mismatch_never_reuses_research_entry_references(self):
+        row={**BASE["stock_research_top5"][0],
+             "independent_stop_status":"FOCUS_DATE_MISMATCH",
+             "first_reference":"175000"}
+        md=format_summary({**BASE,"stock_research_top5":[row]})
+        table=md.split("## ②")[1].split("### 섹터별")[0]
+        self.assertIn("| 삼성전자 | — | — | — |",table)
+    def test_unconflicted_completed_daily_reference_still_rendered(self):
+        md=format_summary(BASE)
+        self.assertIn("203,500원",md)
+        self.assertIn("220,000~224,000",md)
     def test_markdown_urls_must_be_https_and_clean(self):
         self.assertIsNone(safe_link("javascript:alert(1)"))
         self.assertIsNone(safe_link("https://example.com/a)"))
