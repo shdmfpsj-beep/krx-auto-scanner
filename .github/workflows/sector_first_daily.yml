@@ -48,6 +48,8 @@ jobs:
             /scripts/sector_first_daily.py
             /scripts/krx_session_clock.py
             /scripts/sector_source_pair.py
+            /scripts/krx_source_price_parity.py
+            /scripts/test_krx_source_price_parity.py
             /scripts/c3_account_state.py
             /config/c3_position_state.json
             /scripts/test_sector_first_daily.py
@@ -229,6 +231,19 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as f:
               f.write("ready="+("true" if ready else "false")+chr(10))
           print("SOURCE_ACQUISITION",json.dumps(payload,ensure_ascii=False))
+          PY
+      - name: Audit Recovery versus v18 candidate closes without mixing sessions
+        if: steps.source_inputs.outputs.ready == 'true'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,subprocess
+          from pathlib import Path
+          selection=json.loads(Path("output/source_selection_status.json").read_text())
+          subprocess.run(["python","scripts/krx_source_price_parity.py",
+              "--recovery","inputs/scan","--v18","inputs/evidence",
+              "--asof",selection["target_asof"],
+              "--out","output/source_price_parity.json"],check=True)
           PY
       - name: Collect global industry and macro news from GDELT (free, read only)
         if: steps.source_inputs.outputs.ready == 'true'
@@ -450,6 +465,7 @@ jobs:
             output/sector_first_daily_mobile.md
             output/sector_first_daily_status.json
             output/source_selection_status.json
+            output/source_price_parity.json
             output/sector_first_with_catalysts_mobile.md
             output/sector_first_with_catalysts.json
             output/global_sector_articles.csv
