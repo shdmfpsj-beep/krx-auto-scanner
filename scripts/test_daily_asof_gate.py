@@ -1,9 +1,11 @@
 """Regression tests for same-day independent evidence integrity."""
 import unittest
 import csv
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from tempfile import TemporaryDirectory
 from pathlib import Path
-from daily_asof_gate import evaluate, to_markdown, krx_common_tick_floor, research_candidate_from_csv
+from daily_asof_gate import evaluate, to_markdown, krx_common_tick_floor, research_candidate_from_csv, nominal_last_completed_krx_session
 
 
 class DailyAsOfGateTests(unittest.TestCase):
@@ -22,6 +24,23 @@ class DailyAsOfGateTests(unittest.TestCase):
 
     def run_gate(self):
         return evaluate(self.today, self.recovery, self.focus, self.sector, self.money)
+
+    def test_preopen_20261023_targets_20261022_close_not_future_session(self):
+        dt=lambda iso:datetime.fromisoformat(iso).replace(tzinfo=ZoneInfo("Asia/Seoul"))
+        cases=[
+          ("2026-10-23T04:54:00","2026-10-22"),
+          ("2026-10-23T15:59:00","2026-10-22"),
+          ("2026-10-23T16:00:00","2026-10-23"),
+          ("2026-10-24T10:00:00","2026-10-23"),
+          ("2026-10-25T23:00:00","2026-10-23"),
+          ("2026-10-26T08:35:00","2026-10-23"),
+          ("2026-10-26T16:00:00","2026-10-26")]
+        for local,expected in cases:
+            self.assertEqual(nominal_last_completed_krx_session(dt(local)),expected,local)
+        result=self.run_gate()
+        self.assertEqual(result["target_session_semantics"],
+                         "MOST_RECENT_NOMINAL_COMPLETED_KRX_WEEKDAY_NOT_HOLIDAY_VERIFIED")
+        self.assertIn("직전 완료 거래일",to_markdown(result))
 
     def test_korean_common_stock_tick_floor_boundaries(self):
         pairs = {
