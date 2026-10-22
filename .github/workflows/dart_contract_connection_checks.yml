@@ -1,14 +1,12 @@
 name: Read-only OpenDART Contract Original Connectivity
+# Push commits use local safety CI; official OpenDART API is read-only
+# sampled on demand and in the independently scheduled nightly scanner.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/dart_contract_terms.py'
-      - 'scripts/test_dart_contract_terms.py'
-      - 'scripts/dart_contract_documents.py'
-      - 'scripts/test_dart_contract_documents.py'
-      - '.github/workflows/dart_contract_connection_checks.yml'
+
+concurrency:
+  group: open-dart-contract-live-diagnostic
+  cancel-in-progress: true
 
 permissions:
   contents: read
