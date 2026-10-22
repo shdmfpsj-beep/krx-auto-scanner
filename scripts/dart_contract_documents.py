@@ -10,6 +10,7 @@ import argparse,io,json,os,re,zipfile,urllib.parse,urllib.request
 from datetime import date,datetime,timedelta
 from pathlib import Path
 from xml.etree import ElementTree
+from html.parser import HTMLParser
 from zoneinfo import ZoneInfo
 
 from dart_financial_screen import corp_codes,api_json,iso_day
@@ -68,11 +69,56 @@ def dated_filings(response,corp,ticker,asof,max_per_ticker=2):
     return results[:max_per_ticker],("RECEIPT_CANDIDATES" if results else
                                      "NO_DIRECT_CONTRACT_TITLE_IN_WINDOW")
 
+def table_candidate_cells(rows,interpretation):
+    fields=[]
+    for cells in rows:
+        texts=[" ".join(str(x or "").split())[:160] for x in cells]
+        for idx,val in enumerate(texts[:-1]):
+            label=val.replace(" ","")
+            if not any(k.replace(" ","") in label for k in TARGET_LABELS):
+                continue
+            neighbor=texts[idx+1]
+            if not neighbor or len(neighbor)>150:continue
+            fields.append(dict(label=val[:65],neighboring_text=neighbor[:125],
+                interpretation=interpretation))
+    return fields
+
+class LegacyTables(HTMLParser):
+    """DART original ZIP often contains SGML/HTML tables, not strict XML."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.rows=[]
+        self.row=None
+        self.cell=None
+    def handle_starttag(self,tag,attrs):
+        if tag=="tr" and self.row is None:self.row=[]
+        elif tag in ("td","th") and self.row is not None and self.cell is None:
+            self.cell=[]
+    def handle_data(self,data):
+        if self.cell is not None:self.cell.append(data)
+    def handle_endtag(self,tag):
+        if tag in ("td","th") and self.cell is not None and self.row is not None:
+            self.row.append("".join(self.cell))
+            self.cell=None
+        elif tag=="tr" and self.row is not None:
+            if len(self.row)>=2:self.rows.append(self.row[:30])
+            self.row=None;self.cell=None
+
+def text_decode(raw):
+    head=raw[:500].decode("ascii","ignore")
+    found=re.search(r'(?:encoding|charset)\s*=\s*["\x27]?([A-Za-z0-9_-]+)',head,re.I)
+    options=([found.group(1)] if found else [])+["utf-8-sig","cp949","euc-kr"]
+    for enc in dict.fromkeys(options):
+        try:return raw.decode(enc)
+        except (UnicodeError,LookupError,ValueError):continue
+    return raw.decode("utf-8","replace")
+
 def zip_document(raw):
-    """Bounded XML from official ZIP only; prevents path traversal and bombs."""
+    """Bounded strict XML or SGML table inspection from official ZIP only."""
     if len(raw)>MAX_ZIP_BYTES or not zipfile.is_zipfile(io.BytesIO(raw)):
         return {"status":"INVALID_OR_OVERSIZE_DART_DOCUMENT"}
     chunks=[]
+    fallback=False
     with zipfile.ZipFile(io.BytesIO(raw)) as z:
         items=[x for x in z.infolist() if x.filename.lower().endswith((".xml",".xhtml"))]
         if len(items)>15 or not items:
@@ -81,32 +127,37 @@ def zip_document(raw):
             x.flag_bits & 0x1 or x.file_size>MAX_UNCOMPRESSED for x in items):
             return {"status":"DART_DOCUMENT_TOO_LARGE"}
         for item in items:
+            data=z.read(item)
             try:
-                root=ElementTree.fromstring(z.read(item))
-            except (ElementTree.ParseError,UnicodeError,ValueError):
-                return {"status":"DART_DOCUMENT_XML_NOT_PARSEABLE"}
-            # Evidence only: find paired labels within the same table row.
-            # Never extract free-floating numbers from another table/contract.
-            for tr in root.iter():
-                if tr.tag.split("}")[-1].upper()!="TR":continue
-                cells=[node for node in tr if node.tag.split("}")[-1].upper()
-                       in ("TD","TH")]
-                texts=[" ".join("".join(c.itertext()).split())[:160] for c in cells]
-                if len(texts)<2:continue
-                for idx,val in enumerate(texts[:-1]):
-                    label=val.replace(" ","")
-                    if not any(k.replace(" ","") in label for k in TARGET_LABELS):
+                root=ElementTree.fromstring(data)
+                rows=[]
+                for tr in root.iter():
+                    if not isinstance(tr.tag,str) or tr.tag.split("}")[-1].upper()!="TR":
                         continue
-                    neighbor=texts[idx+1]
-                    if not neighbor or len(neighbor)>150:continue
-                    # Amount remains a candidate until issuer/currency and
-                    # correction/relative sales context are independently checked.
-                    chunks.append(dict(label=val[:65],
-                        neighboring_text=neighbor[:125],
-                        interpretation="XML_ADJACENT_CELL_UNVERIFIED"))
+                    cells=[node for node in tr if isinstance(node.tag,str) and
+                        node.tag.split("}")[-1].upper() in ("TD","TH")]
+                    if len(cells)>=2:
+                        rows.append(["".join(c.itertext()) for c in cells[:30]])
+                chunks.extend(table_candidate_cells(
+                    rows,"XML_ADJACENT_CELL_UNVERIFIED"))
+            except (ElementTree.ParseError,UnicodeError,ValueError):
+                html=text_decode(data)
+                if not re.search(r"<\s*table\b",html,re.I) or not re.search(
+                        r"<\s*tr\b",html,re.I):
+                    return {"status":"DART_DOCUMENT_XML_NOT_PARSEABLE"}
+                parser=LegacyTables()
+                try:parser.feed(html)
+                except (ValueError,AssertionError):
+                    return {"status":"DART_DOCUMENT_SGML_TABLES_NOT_PARSEABLE"}
+                if not parser.rows:
+                    return {"status":"DART_DOCUMENT_SGML_TABLES_NOT_PARSEABLE"}
+                fallback=True
+                chunks.extend(table_candidate_cells(
+                    parser.rows,"SGML_ADJACENT_CELL_UNVERIFIED"))
     unique={}
     for x in chunks:unique[(x["label"],x["neighboring_text"])]=x
-    return dict(status="DART_DOCUMENT_XML_TABLES_PARSED",
+    return dict(status=("DART_DOCUMENT_SGML_TABLES_PARSED" if fallback
+                        else "DART_DOCUMENT_XML_TABLES_PARSED"),
         extracted_candidate_cells=list(unique.values())[:15],
         amount_verified=False,contract_effect_verified=False)
 
