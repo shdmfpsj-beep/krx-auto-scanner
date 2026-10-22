@@ -57,6 +57,42 @@ class FinancialJoinTests(unittest.TestCase):
         self.assertTrue(r["stock_research_top5"][0]["fundamentals_filing_verified"])
         self.assertFalse(r["stock_research_top5"][0]["financial_screen_pass"])
         self.assertEqual(r["financial_quality_watch_top5"],[])
+    def test_verified_same_division_recent_ytd_growth_has_separate_watch(self):
+        annual=research()
+        annual["interim_research"]={
+            "status":"DATED_INTERIM_YTD_RESEARCH_ONLY",
+            "quality":"INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED",
+            "yoy_revenue_pct":21.3,"yoy_operating_profit_pct":14.1,
+            "ytd_operating_margin_pct":9.5}
+        annual["latest_periodic_division_comparable"]=True
+        annual["annual_plus_interim_growth_pass"]=True
+        annual["recent_financial_weakening_veto"]=False
+        r=join(BASE,source([annual]))
+        self.assertEqual(len(r["annual_plus_interim_growth_watch_top5"]),1)
+        self.assertEqual(r["stock_research_top5"][0]["interim_ytd_sales_yoy_pct"],21.3)
+        self.assertTrue(r["stock_research_top5"][0]["latest_periodic_financials_verified"])
+        self.assertIn("21.3%",render(r))
+        self.assertIsNone(r["stock_research_top5"][0]["final_verified_score"])
+        self.assertEqual(r["decision"],"CASH")
+    def test_recent_verified_earnings_decline_blocks_dual_growth_watch(self):
+        annual=research()
+        annual["interim_research"]={"status":"DATED_INTERIM_YTD_RESEARCH_ONLY",
+                                   "quality":"INTERIM_PROFIT_OR_SALES_WEAKENING",
+                                   "yoy_revenue_pct":-7.1}
+        annual["latest_periodic_division_comparable"]=True
+        annual["annual_plus_interim_growth_pass"]=False
+        annual["recent_financial_weakening_veto"]=True
+        r=join(BASE,source([annual]))
+        self.assertEqual(r["annual_plus_interim_growth_watch_top5"],[])
+        self.assertTrue(r["stock_research_top5"][0]["recent_financial_weakening_veto"])
+    def test_missing_current_interim_does_not_award_recent_growth(self):
+        annual=research()
+        annual["interim_research"]={"status":"INTERIM_CUMULATIVE_METRICS_INCOMPLETE"}
+        r=join(BASE,source([annual]))
+        self.assertEqual(r["annual_plus_interim_growth_watch_top5"],[])
+        self.assertFalse(r["stock_research_top5"][0]["latest_periodic_financials_verified"])
+        self.assertFalse(r["fundamentals_full_final_15_points_scored"])
+
     def test_price_only_top5_order_remains_stable(self):
         b={**BASE,"stock_research_top5":[
             BASE["stock_research_top5"][0],
