@@ -1,11 +1,11 @@
 name: Sector Evidence v18 daily auto-dispatch
 
+# Standalone sector_evidence_v18.yml already schedules one 18:20 KST
+# backfill each weekday. Keep this helper manually runnable only:
+# the former 18:25 schedule dispatched a second 180-minute backfill
+# against the same completed KRX session, wasting API budget and queuing.
 on:
   workflow_dispatch:
-  schedule:
-    # 18:25 Asia/Seoul on weekdays (UTC 09:25).
-    # On Korean market holidays the collector must validate its as-of date.
-    - cron: '25 9 * * 1-5'
 
 permissions:
   actions: write
