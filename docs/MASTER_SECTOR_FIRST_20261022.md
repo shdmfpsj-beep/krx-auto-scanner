@@ -10,6 +10,13 @@
 - A BUY setup requires >=65 correctly scoped historical regular-session bars, verified regular-session foreign/institution investor flow and constituent turnover, daily structure stop before entries, cost-adjusted R:R>=2, verified final score >=80/100, cash and one-slot C3 checks. Data unavailable -> PENDING_DATA_VALIDATION and CASH, not confirmed 0 candidate universe.
 - Legacy v18 20:15 source is an **all-session diagnostic**, not regular-only production evidence. Workflow CI success is not proof of valid quotes, actual returns, or BUY approval. Orders disabled.
 
+### New read-only official minute data bridge (2026-10-23)
+
+- **Official KIS [domestic-stock-213] KRX J (not NX/NXT or UN) minute source** is now optionally auditable using `scripts/kis_regular_minute_cli.py`, scheduled on weekdays 17:15 KST. It is NOT the default price source unless credentials are already configured as GitHub Secrets `KIS_APP_KEY`, `KIS_APP_SECRET`. No credentials means an explicit PENDING_PROVIDER_CONNECTION status and zero fabricated prices.
+- KIS time-stamped rows are filtered to 09:00–15:30 and rebuilt into OHLC+volume only when opening and 15:30 auction, minimum minute coverage, date/market and original fields all pass. After-market minute records are discarded. Audits are currently restricted to three named sample tickers (at most five per run) to avoid pretending that 2,600 stocks have been processed.
+- The 18:00 KRX regular-only final report optionally reads `kis-krx-regular-minute-audit` as a **separate observed price-subset diagnostic**, never as investor institutional/foreign net flow proof and never as 80-point trade clearance. It rejects mismatching dates and cannot use NXT/UN quotes.
+- Once minute-price provider access and independent official regular investor net-flow proof are available, expand cohort and 65-day history before making sector TOP3 and stock TOP5. The presence of a token, successful CI, or a reconstructed price subset is not a BUY signal.
+
 ## One outcome
 **Every completed Korean trading day, identify the three sectors with the strongest verifiable convergence of fresh positive catalysts, trading activity, and investor money flow; select quality stocks only from these sectors; propose a technically justified structural stop first and then realistic 1st/2nd entry prices. If evidence or entry quality is insufficient, recommend CASH.**
 
