@@ -115,6 +115,25 @@ class DartAnnualTests(unittest.TestCase):
                     dict(ticker="010120",name="엘에스",sector_id="OTHER",asof=str(ASOF))])
             result=read_stocks(path,str(ASOF),sector_ids=["SEMICON"])
             self.assertEqual([x["ticker"] for x in result],["005930"])
+    def test_dart_full_statement_omits_fs_div_from_rows(self):
+        # The request explicitly sets fs_div=CFS; response rows may omit it.
+        rows=[{k:v for k,v in x.items() if k!="fs_div"} for x in good_rows()]
+        r=evaluate_accounts({"status":"000","list":rows},"CFS")
+        self.assertEqual(r["status"],"DATED_ANNUAL_RESEARCH_ONLY")
+        self.assertEqual(r["payload_row_count"],len(rows))
+        self.assertEqual(r["division_unlabeled_row_count"],len(rows))
+        self.assertEqual(r["sales_yoy_pct"],25)
+    def test_explicit_other_division_cannot_leak_into_requested_statement(self):
+        rows=[{**x,"fs_div":"OFS"} for x in good_rows()]
+        r=evaluate_accounts({"status":"000","list":rows},"CFS")
+        self.assertEqual(r["status"],"ANNUAL_METRICS_INCOMPLETE")
+        self.assertEqual(r["payload_row_count"],len(rows))
+        self.assertEqual(r["available_statement_rows"],0)
+    def test_financial_api_unavailable_has_safe_status_without_raw_query(self):
+        r=evaluate_accounts({"status":"013"},"CFS")
+        self.assertEqual(r["status"],"FINANCIAL_API_UNAVAILABLE")
+        self.assertEqual(r["source_api_status"],"013")
+        self.assertEqual(r["payload_row_count"],0)
     def test_missing_api_key_reports_unverified_and_keeps_cash(self):
         r=collect(ASOF,[TICKER],key=None,today=ASOF)
         self.assertEqual(r["status"],"MISSING_DART_KEY")
