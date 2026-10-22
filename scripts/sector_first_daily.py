@@ -2,7 +2,7 @@
 """Sector-first mobile summary of existing v18 research, strictly fail closed.
 
 Never relabel ETF-constituent flow proxies as independently verified entire-sector
-money inflows; never use relative research index as final 85-point stock score.
+money inflows; never use relative research index as final 80-point stock score.
 """
 import argparse
 import csv
@@ -145,7 +145,7 @@ def build(summary, sector_rows, stock_rows, today):
     if not stocks:
         blockers.append("NO_SECTOR_CONSTITUENT_WITH_VERIFIED_PRICE_FLOW")
     blockers += ["FRESH_CATALYST_EVIDENCE_MISSING",
-                 "STOCK_FINANCIALS_AND_FINAL_85_POINT_SCORE_NOT_VERIFIED",
+                 "STOCK_FINANCIALS_AND_FINAL_80_POINT_SCORE_NOT_VERIFIED",
                  "STRUCTURAL_ENTRY_EXECUTION_NOT_VERIFIED"]
     return dict(version="sector_first_mobile_v1",asof=str(asof) if asof else None,
       report_date=str(today),status="PROVISIONAL_RESEARCH_ONLY" if sectors else "NO_VERIFIED_TOP3",
@@ -185,7 +185,7 @@ def render(report):
               " 다시 합산하지 않은 연구용 대리값입니다. 산업 전체 확정 유입액이 아닙니다.",
               "*5일 합산 수급은 당일 수급과 별도로 표시합니다."
               " 수급이 음수이면 당일 급반등을 중기 추세전환으로 단정하지 않습니다.",
-              "호재와 실적·최종 85점은 별도 미검증입니다.","",
+              "호재와 실적·최종 80점은 별도 미검증입니다.","",
               "## ② 해당 섹터 내부 종목 TOP5 (매수 승인 아님)","",
               "| 종목 | 섹터 | 상대 연구지수† | 1차 참고 | 2차 참고 | 일봉손절 참고 |",
               "|---|---|---:|---:|---:|---:|"]
@@ -209,7 +209,7 @@ def render(report):
         lines.append("")
         lines.append("**집중 경고:** 절대 TOP5의 4개 이상이 한 섹터입니다. 이는 연구 집중이지"
                      " 분산투자 근거나 매수 신호가 아닙니다.")
-    lines += ["","†0~100 상대 연구지수는 최종 85점 합격점수나 5거래일 상승확률이 아닙니다.",
+    lines += ["","†0~100 상대 연구지수는 최종 80점 합격점수나 5거래일 상승확률이 아닙니다.",
               "표의 가격은 완료 일봉 기준 연구 참고값이며 실시간 매수 주문 가격이 아닙니다.",
               "","## 검증 미충족",", ".join(report["blockers"]),"",
               "## Required Next Data"]
