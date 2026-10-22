@@ -39,9 +39,14 @@ def new_signals(report,price_rows,run_date=None):
     if not asof or asof!=run_date.isoformat() or report.get("status")!="PROVISIONAL_RESEARCH_ONLY":
         return []
     indices={str(r.get("ticker","")):r for r in price_rows}
+    disputed=set(report.get("focus_close_conflict_tickers") or [])
     signals=[]
     for row in (report.get("stock_research_top5") or [])[:5]:
         t=str(row.get("ticker",""))
+        # Never create a prospective simulated trade off a price known to
+        # disagree across same-date feeds: 2026-10-21 LS ELECTRIC showed why.
+        if t in disputed or row.get("independent_stop_status")=="CROSS_SOURCE_CLOSE_CONFLICT":
+            continue
         ref=indices.get(t,{})
         close=finite(ref.get("close"))
         stop=finite(ref.get("historical_stop_reference"))
