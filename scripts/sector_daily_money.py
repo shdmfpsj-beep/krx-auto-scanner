@@ -149,7 +149,7 @@ def daily_evidence(evidence,asof,expected_sectors=None):
             included_tickers=sorted(included),rank_kind="ETF_CONSTITUENT_DAILY_FLOW_PROXY"))
     used=set()
     remaining=[x for x in sector_data if x["base_eligible"] and
-               x["day_net_flow_krw"]>0 and x["day_breadth_pct"]>=60]
+               x["day_net_flow_krw"]>0 and x["day_breadth_pct"] is not None]
     chosen=[]
     while len(chosen)<3 and remaining:
         candidates=[]
@@ -165,6 +165,9 @@ def daily_evidence(evidence,asof,expected_sectors=None):
             name=s["name"],member_count=s["member_count"],
             cash_lines_excluded=s["cash_lines_excluded"],
             day_breadth_pct=s["day_breadth_pct"],
+            flow_phase=("EXPANDING" if s["day_breadth_pct"]>=60 else
+                        "NARROW_POSITIVE" if s["day_breadth_pct"]>0 else
+                        "DIVERGENT_ALL_DOWN"),
             raw_day_net_flow_krw=s["day_net_flow_krw"],
             incremental_day_net_flow_krw=round(winner[0]),
             day_turnover_krw=s["day_turnover_krw"],
@@ -176,12 +179,13 @@ def daily_evidence(evidence,asof,expected_sectors=None):
             final_100_score=None,trade_approval="NO"))
         used.update(s["included_tickers"])
         remaining=[x for x in remaining if x["sector_id"]!=s["sector_id"]]
-    # Separate watch-only ranking for positive-flow sectors that did NOT
-    # satisfy broad advancing-stock participation. Never upgrade these
-    # into the independently validated selected_top3 set.
+    # Additional money-inflow candidates outside TOP3. Breadth under 60%
+    # is an EARLY/WARNING classification, never a reason to conceal the flow.
+    selected_ids={x["sector_id"] for x in chosen}
     watch_pool=[x for x in sector_data if x["base_eligible"]
                 and x["day_net_flow_krw"]>0 and
-                (x["day_breadth_pct"] is None or x["day_breadth_pct"]<60)]
+                x["day_breadth_pct"] is not None and
+                x["sector_id"] not in selected_ids]
     watch_used=set()
     watch=[]
     while len(watch)<3 and watch_pool:
@@ -202,7 +206,8 @@ def daily_evidence(evidence,asof,expected_sectors=None):
              price_flow_coverage=row["price_flow_coverage"],
              breadth_coverage=row["breadth_coverage"],
              watch_only=True,trade_approval="NO",
-             exclusion_reason="RISING_BREADTH_BELOW_60_PERCENT"))
+             exclusion_reason=("BREADTH_LT_60_WATCH" if row["day_breadth_pct"]<60
+                               else "FLOW_RANK_OUTSIDE_TOP3")))
         watch_used.update(row["included_tickers"])
         watch_pool=[x for x in watch_pool if x["sector_id"]!=row["sector_id"]]
     compact=[]
@@ -214,6 +219,9 @@ def daily_evidence(evidence,asof,expected_sectors=None):
       sector_samples=compact,selected_top3=chosen,
       watch_only_positive_flow_top3=watch,
       complete_three=len(chosen)==3,
+      early_flow_research_only=True,
+      expanding_sector_count=sum(x["day_breadth_pct"]>=60 for x in chosen),
+      pre_expansion_sector_count=sum(x["day_breadth_pct"]<60 for x in chosen),
       overlaps_removed=True,
       five_day_flow_separate_from_day=True,
       independent_stock_closes_crosschecked=False,
@@ -225,26 +233,28 @@ def render(data):
     lines=["# KRX 당일 실측 수급 중심 섹터 TOP3","",
       "**CASH · 실측 수급 순위는 최종 매수 승인과 다릅니다.**","",
       "데이터 기준일: "+data["asof"],"",
-      "| 연구 순위 | 섹터 | 중복제거 순매수(억) | 전체 구성종목 순매수(억) | 거래대금(억) | 상승확산 | 5일 합산 순매수(억) |",
-      "|---|---|---:|---:|---:|---:|---:|"]
+      "| 연구 순위 | 섹터 | 중복제거 순매수(억) | 전체 구성종목 순매수(억) | 거래대금(억) | 상승확산 | 단계 | 5일 합산 순매수(억) |",
+      "|---|---|---:|---:|---:|---:|---|---:|"]
     def eok(x):return f"{x/1e8:,.0f}"
     for x in data["selected_top3"]:
         lines.append(f"| {x['rank']} | {x['name']} | {eok(x['incremental_day_net_flow_krw'])} | "+
           f"{eok(x['raw_day_net_flow_krw'])} | {eok(x['day_turnover_krw'])} | "+
-          f"{x['day_breadth_pct']}% | {eok(x['rolling_5d_net_flow_krw'])} |")
+          f"{x['day_breadth_pct']}% | {x['flow_phase']} | {eok(x['rolling_5d_net_flow_krw'])} |")
     if not data["selected_top3"]:
-        lines.append("| 적격 섹터 없음 | — | — | — | — | — | — |")
-        watch=data.get("watch_only_positive_flow_top3") or []
-        if watch:
-            lines.extend(["","## 매수 제외된 수급 관찰 섹터 (강세 TOP3 아님)","",
+        lines.append("| 자금유입 적격 섹터 없음 | — | — | — | — | — | — | — |")
+    watch=data.get("watch_only_positive_flow_top3") or []
+    if watch:
+            lines.extend(["","## 추가 자금유입 관찰 섹터 (TOP3 외)","",
               "| 관찰 | 섹터 | 중복제거 순매수(억) | 상승종목 비율 | 제외 사유 |",
               "|---|---|---:|---:|---|"])
             for row in watch:
                 lines.append(f"| {row['rank']} | {row['name']} | "
                   f"{eok(row['incremental_day_net_flow_krw'])} | "
-                  f"{row['day_breadth_pct']}% | 상승확산 60% 미달 |")
+                  f"{row['day_breadth_pct']}% | {row['exclusion_reason']} |")
             lines.append("이 목록은 ETF 구성종목 수급의 잠정 관찰순위로 BUY 추천이 아닙니다.")
-    lines+=["","*ETF 현금성 항목 제외·가격/매매주체 정보 누락 종목 점검 완료.",
+    lines+=["","*상승확산 60%는 관찰 단계 분류 기준입니다. 매수 승인이 아닙니다.",
+        "*상승 종목 0% 상태의 순매수는 하락 종목 흡수/집중 매수 가능성도 있으므로 추세 확정 금지.",
+        "*ETF 현금성 항목 제외·가격/매매주체 정보 누락 종목 점검 완료.",
         "*반도체와 IT·로봇 등 중복 구성종목의 돈은 추가 유입으로 재계산하지 않습니다.",
         "*주간 수급이 음수이면 하루 순매수만으로 추세전환을 확정하지 않습니다.",
         "*미검증 호재·실적·가격 품질 때문에 신규매수 CASH.",""]
