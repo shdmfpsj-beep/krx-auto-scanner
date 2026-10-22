@@ -1,0 +1,63 @@
+name: v18 standalone and backfill embedded source integrity
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/sector_evidence_v18.yml'
+      - '.github/workflows/sector_evidence_v18_backfill.yml'
+      - '.github/workflows/sector_v18_source_checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sector_evidence_v18.yml'
+      - '.github/workflows/sector_evidence_v18_backfill.yml'
+      - '.github/workflows/sector_v18_source_checks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-source-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Extract embedded source and test fixtures without running live collectors
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+          src=Path(".github/workflows")
+          for variant in ("sector_evidence_v18.yml","sector_evidence_v18_backfill.yml"):
+              content=(src/variant).read_text()
+              root=Path("v18_offline")/variant.replace(".yml","")
+              for n,dest in ((1,"config/sector_evidence_v18.json"),
+                             (2,"scripts/collect_sector_evidence_v18.py"),
+                             (3,"scripts/test_sector_evidence_v18.py")):
+                  start="<<'V18_FILE_"+str(n)+"_EOF'\n"
+                  end="\n          V18_FILE_"+str(n)+"_EOF"
+                  if start not in content:raise AssertionError(f"{variant} missing source tag {n}")
+                  body=content.split(start,1)[1].split(end,1)[0]
+                  output=root/dest
+                  output.parent.mkdir(parents=True,exist_ok=True)
+                  output.write_text(textwrap.dedent(body)+"\n")
+              print("EXTRACTED",variant,root)
+          PY
+      - name: Install pinned offline tests dependencies
+        run: python -m pip install --disable-pip-version-check 'pandas==2.2.3' 'numpy==2.2.6'
+      - name: Compile and run embedded offline tests for both v18 sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variant in sector_evidence_v18 sector_evidence_v18_backfill; do
+            root="v18_offline/$variant"
+            python -m py_compile "$root/scripts/collect_sector_evidence_v18.py" "$root/scripts/test_sector_evidence_v18.py"
+            PYTHONPATH="$root/scripts" python -m unittest discover -s "$root/scripts" -p 'test_sector_evidence_v18.py' -v
+          done
+          echo "V18_EMBEDDED_PRICE_SESSION_AUDIT_TESTS_PASSED"
