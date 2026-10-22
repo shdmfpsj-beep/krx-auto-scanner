@@ -120,7 +120,10 @@ def format_summary(data):
         lines.append("- "+txt(x.get("name"))+": "+txt(STATE_NAMES.get(reason,reason))+
            "; 최종 80점·당일 지지/수급/손익비 검증 전")
     if not stocks:
-        lines.append("- 섹터 또는 투자자 수급·가격 자료가 해당일 완결되지 않아 종목 선정 자체가 제한됨")
+        if data.get("daily_money_gate")=="VERIFIED_NO_QUALIFYING_SECTOR":
+            lines.append("- 오늘 완료된 KRX 수급자료는 검증됐으나 상승확산 60% 이상과 순매수 조건을 동시에 충족한 섹터가 없어 TOP3·TOP5 및 신규매수는 0건입니다.")
+        else:
+            lines.append("- 섹터 또는 투자자 수급·가격 자료가 해당일 완결되지 않아 종목 선정 자체가 제한됨")
     lines+=["","## ③ 해외에서 먼저 관찰된 뉴스 (원문 근거 목록)",""]
     count=0
     for s in sectors[:3]:
