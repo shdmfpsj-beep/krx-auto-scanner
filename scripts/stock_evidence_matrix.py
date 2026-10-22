@@ -269,7 +269,7 @@ def build(report,contracts=None):
             entry1_research=price.get("independent_first_entry_reference")
                  if price_ready else None,
             company_catalyst_impact_verified=False,news_positive_verified=False,
-            final_85_score_verified=False,trade_approved=False)
+            final_80_score_verified=False,final_85_score_verified=False,trade_approved=False)
         matrix.append(row)
     return dict(schema=VERSION,asof=str(asof) if asof else None,
          sector_money_asof_aligned=market_gate and asof is not None,
@@ -344,7 +344,7 @@ def render(data):
         " 계약의 금액·긍정적 실적 영향은 확인하지 않았습니다.",
         "*기사 검색 최초 관찰 시각과 원문 최초 발행 시각은 다릅니다.",
         "*연간 실적/분기 누적 실적/구조손절 참고가가 모두 있어도"
-        " 확정 호재·실제 타점·전방 손익비 등 독립 검증 전에는 최종 85점 및 매수 불가.",""]
+        " 확정 호재·실제 타점·전방 손익비 등 독립 검증 전에는 최종 80점 및 매수 불가.",""]
     return "\n".join(lines)
 
 def main():
