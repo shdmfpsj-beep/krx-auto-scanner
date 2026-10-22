@@ -126,9 +126,11 @@ def daily_evidence(evidence,asof,expected_sectors=None):
         daily_flow={t:flows[t]["foreign"]+flows[t]["institution"] for t in included}
         rolling5=sum((num(feat.get(k)) or 0) for k in (
             "foreign_net_buy_5d_krw","institution_net_buy_5d_krw"))
+        # v18 price_flow_proxy_ready describes multi-day indicator availability.
+        # It must NOT veto a fully observed one-day KRX flow/breadth comparison:
+        # POWER was falsely excluded on 2026-10-21 despite 100% valid 1D OHLC/flow.
         eligible=(coverage>=0.95 and breadth_coverage>=0.95 and
-            len(included)>=5 and len(by_company)>=5 and
-            feat.get("price_flow_proxy_ready","").lower() in ("true","yes","1"))
+            len(included)>=5 and len(by_company)>=5)
         sector_data.append(dict(
             sector_id=sid,name=feat.get("sector_name",sid),
             etf=feat["etf"],snapshot_date=str(snapshot),
