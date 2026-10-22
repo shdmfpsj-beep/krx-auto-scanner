@@ -61,7 +61,7 @@ class EntryABTests(unittest.TestCase):
         self.assertEqual(len(rows),1)
         self.assertEqual(rows[0]["ticker"],"005930")
         self.assertEqual(rows[0]["pullback_limit"]["status"],"CLOSED")
-        self.assertEqual(rows[0]["next_open"]["status"],"CLOSED")
+        self.assertEqual(rows[0]["next_open"]["status"],"OPEN_WAIT_MORE_BARS")
         self.assertFalse(rows[0]["pullback_limit"].get("trade_approved",False))
     def test_nonfills_reduce_signal_level_mean(self):
         values=[dict(pullback_limit={"status":"CLOSED","net_return_pct":10,"net_r":2}),
