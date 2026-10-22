@@ -1,0 +1,87 @@
+name: OpenDART preliminary earnings original one-off validation
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/dart_preliminary_live_check.yml']
+permissions:
+  contents: read
+jobs:
+  original:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/dart_financial_screen.py
+            /scripts/dart_interim_periods.py
+            /scripts/dart_contract_terms.py
+            /scripts/dart_contract_documents.py
+            /scripts/dart_preliminary_financials.py
+            /scripts/test_dart_preliminary_financials.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate conservative earnings period/unit tests
+        run: |
+          python -m unittest discover -s scripts -p test_dart_preliminary_financials.py -v
+      - name: Sample official LS ELECTRIC prior-day original without any trading actions
+        env:
+          OPENDART_API_KEY: \${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          mkdir -p output
+          python - <<'PY'
+          import json,os,re,sys
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          sys.path.insert(0,"scripts")
+          from dart_contract_documents import download_original
+          from dart_preliminary_financials import decode_document,assess
+          today=datetime.now(ZoneInfo("Asia/Seoul")).date()
+          filing={"ticker":"010120","date":"2026-10-21",
+              "title":"연결재무제표기준영업(잠정)실적(공정공시)",
+              "receipt_no":"20261021800151","correction_flag":False}
+          result={"asof":str(today),"mode":"DIAGNOSTIC_NOT_TRADING",
+              "ticker":"010120","official_receipt":filing["receipt_no"],
+              "source_status":"NOT_CHECKED","trade_approved":False,
+              "decision":"CASH","numbers_approved":False}
+          key=os.getenv("OPENDART_API_KEY","")
+          if not re.fullmatch(r"[A-Za-z0-9]{40}",key):
+              result["source_status"]="NO_VALID_GITHUB_SECRET"
+          elif today.isoformat()!="2026-10-22":
+              result["source_status"]="EXAMPLE_REPLAY_DAY_HAS_PASSED"
+          else:
+              source=download_original(filing["receipt_no"],key,parser=decode_document)
+              study=assess(source,filing,today)
+              result["source_status"]=source.get("status","UNKNOWN")
+              result["safe_table_row_count"]=len(source.get("rows",[]))
+              result["table_separator_count"]=sum(x==["__TABLE_BOUNDARY__"]
+                  for x in source.get("rows",[]))
+              result["unit_count"]=len(source.get("unit_candidates",[]))
+              result["typed_result"]=study
+              result["numbers_approved"]=bool(
+                  study.get("preliminary_figures_source_verified"))
+          Path("output/dart_preliminary_connectivity.json").write_text(
+              json.dumps(result,ensure_ascii=False,indent=2),encoding="utf-8")
+          print("PRELIMINARY_LS_SOURCE_STATUS",result["source_status"])
+          print("PRELIMINARY_LS_NUMBER_STATUS",
+              result.get("typed_result",{}).get("status","NOT_VERIFIED"))
+          print("PRELIMINARY_LS_QUARTER_METRICS",
+              {k:result.get("typed_result",{}).get(k) for k in (
+                  "quarter_period","revenue_current_krw","revenue_yoy_pct",
+                  "operating_profit_current_krw","operating_profit_yoy_pct")})
+          print("PRELIMINARY_LS_SOURCE_ROW_COUNT",
+              result.get("safe_table_row_count",0))
+          assert not result["trade_approved"] and result["decision"]=="CASH"
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preliminary-official-original-research
+          path: output/dart_preliminary_connectivity.json
+          if-no-files-found: warn
+          retention-days: 5
