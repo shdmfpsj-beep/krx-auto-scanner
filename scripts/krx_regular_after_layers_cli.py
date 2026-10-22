@@ -33,7 +33,8 @@ def collect(phase, now):
                 "separation_blockers":["CAPTURE_WINDOW_NOT_VERIFIED"]}
     try:
         markets=fetch_market(now.date().isoformat())
-        out=capture(phase,now,markets,provider_session_scope_verified=False)
+        out=capture(phase,now,markets,provider_session_scope_verified=False,
+                    completed_at=datetime.now(ZoneInfo("Asia/Seoul")))
         return out
     except Exception:
         return {"schema":"krx_session_observation_unavailable_v1",
