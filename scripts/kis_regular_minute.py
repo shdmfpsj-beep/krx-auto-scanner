@@ -104,11 +104,11 @@ def summarize_minute_rows(rows,date,ticker,source_market="J",min_minutes=300):
             "regular_ohlcv":prices,
             "regular_ohlcv_reconstruction_verified":bool(prices and not errors),
             "investor_net_flow_regular_verified":False,
+            "investor_net_flow_policy":"OPTIONAL_CONFIRMATION_NOT_BUY_GATE",
             "historical_65_days_verified":False,
             "sector_universe_verified":False,
             "trade_approved":False,"decision":"CASH",
-            "blockers":errors+["INVESTOR_FLOW_REGULAR_NOT_VERIFIED",
-                                 "FULL_SECTOR_UNIVERSE_NOT_VERIFIED",
+            "blockers":errors+["FULL_SECTOR_UNIVERSE_NOT_VERIFIED",
                                  "HISTORICAL_65_REGULAR_BARS_NOT_VERIFIED"]}
 
 def query_end_from_earliest(rows):

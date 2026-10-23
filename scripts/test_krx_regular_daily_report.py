@@ -21,13 +21,20 @@ class Tests(unittest.TestCase):
         self.assertEqual(r["decision"],"CASH")
         self.assertIn("PROVIDER_REGULAR_SESSION_SCOPE_NOT_ATTESTED",r["blockers"])
         self.assertIn("애프터마켓 자료",markdown(r))
-    def test_price_certification_alone_cannot_mark_market_ready_without_flows(self):
+    def test_price_certification_is_research_ready_without_institutional_flows(self):
         fake=obs()
+        # Frozen fixture represents future fully authenticated regular price.
+        # Missing institutional data must not block PRICE readiness but other
+        # strategy evidence remains absent; never approve a BUY.
         fake["provider_session_scope_verified"]=True
         fake["regular_strategy_eligible"]=True
         r=report(fake,"2026-10-23")
-        self.assertEqual(r["market_source_status"],"PENDING_DATA_VALIDATION")
-        self.assertIn("REGULAR_ONLY_FOREIGN_INSTITUTION_FLOW_NOT_VERIFIED",r["blockers"])
+        self.assertEqual(r["market_source_status"],"REGULAR_PRICE_SOURCE_VERIFIED_RESEARCH_ONLY")
+        self.assertEqual(r["investor_flow_policy"],"OPTIONAL_CONFIRMATION_NOT_BUY_GATE")
+        self.assertEqual(r["investor_flow_data_status"],"NOT_PROVIDED")
+        self.assertNotIn("REGULAR_ONLY_FOREIGN_INSTITUTION_FLOW_NOT_VERIFIED",r["blockers"])
+        self.assertIn("STRUCTURAL_ENTRY_AND_FINAL_SCORE_NOT_VERIFIED",r["mandatory_remaining_evidence"])
+        self.assertIn("선택적 확인",markdown(r))
         self.assertFalse(r["trade_approved"])
         self.assertEqual(r["approved_buy_count"],0)
 
@@ -58,6 +65,13 @@ class Tests(unittest.TestCase):
         r=report(obs(),"2026-10-23",audit)
         self.assertEqual(r["kis_krx_minute_price_probe"]["status"],"SOURCE_ASOF_MISMATCH")
         self.assertEqual(r["kis_krx_minute_price_probe"]["verified_subset_count"],0)
+        self.assertFalse(r["trade_approved"])
+
+    def test_unverified_regular_price_still_blocks_with_optional_flow(self):
+        r=report(obs(),"2026-10-23")
+        self.assertEqual(r["market_source_status"],"PENDING_DATA_VALIDATION")
+        self.assertIn("PROVIDER_REGULAR_SESSION_SCOPE_NOT_ATTESTED",r["blockers"])
+        self.assertNotIn("REGULAR_ONLY_FOREIGN_INSTITUTION_FLOW_NOT_VERIFIED",r["blockers"])
         self.assertFalse(r["trade_approved"])
 
     def test_previous_day_snapshot_cannot_be_used_as_today_close(self):

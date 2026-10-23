@@ -117,9 +117,10 @@ def build_missing(day,tickers):
         regular_reconstructions=[],
         audited_tickers=tickers,
         ready_count=0,investor_flows_verified=False,
+        investor_flow_policy="OPTIONAL_CONFIRMATION_NOT_BUY_GATE",
         sector_universe_verified=False,trade_approved=False,
         decision="CASH",blockers=["KIS_READONLY_CREDENTIALS_NOT_CONNECTED",
-                   "REGULAR_INVESTOR_NET_FLOW_UNVERIFIED"])
+                   "REGULAR_MARKET_PRICE_COVERAGE_UNAVAILABLE"])
 
 def main():
     p=argparse.ArgumentParser()
@@ -153,8 +154,7 @@ def main():
             output["data_status"]=(
                 "PARTIAL_REGULAR_MINUTE_PRICE_OBSERVED"
                 if output["ready_count"] else "PENDING_MARKET_DATA_VALIDATION")
-            output["blockers"]=["REGULAR_INVESTOR_NET_FLOW_UNVERIFIED",
-                "FULL_MARKET_SECTOR_UNIVERSE_NOT_VERIFIED",
+            output["blockers"]=["FULL_MARKET_SECTOR_UNIVERSE_NOT_VERIFIED",
                 "HISTORICAL_65_REGULAR_BARS_NOT_VERIFIED"]
         except Exception:
             output["data_status"]="PENDING_PROVIDER_CONNECTION"
