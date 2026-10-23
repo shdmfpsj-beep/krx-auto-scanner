@@ -1,5 +1,13 @@
 # C3 / K100 MASTER — Sector First (2026-10-22)
 
+## 2026-10-23 ACTIVE OVERRIDE — foreign/institution net buying is OPTIONAL
+
+- **Do not require investor-category foreign or institutional net buying to screen sectors, rank stocks or consider a conditional BUY.** No net-flow data is a neutral `NOT_PROVIDED` source field, not a quality failure, a zero net buy, proof of retail inflow, or an automatic CASH reason.
+- The **non-flow sector research rubric (100 points)** uses verified *regular-session* trading-activity/turnover acceleration (30), corroborated fresh catalysts/news/disclosures (20), earnings/order outlook supported by actual disclosures (20), constituent breadth and relative strength (20), and macro/global supply-chain context (10). A foreign/institutional flow value, if independently verified, can be displayed as a supplemental confirmation/warning **without automatically adding points**. This alternative weighting is a proposed research framework, not a validated profit predictor.
+- For a final stock BUY continue to require a separate verified >=80/100 assessment (not the sector research score), true homogeneous regular-only daily bars >=65, stop determined before entry, fees/slippage-adjusted reward:risk >=2, valid market/position/cash and strong dated catalyst/earnings evidence. No artificial score inflation from missing flow. Do not equate turnover with foreign/institution purchases.
+- Regular-only source price quality and sector coverage remain mandatory. The current PyKRX daily source is unscoped and the optional KIS sample is not market-wide; these independently still imply `PENDING_DATA_VALIDATION` and **CASH** until resolved. The missing-flow field alone no longer contributes to a hard-block reason.
+- The 08:35, 13:00, 16:00 and 18:30 mobile reports must mark foreign/institution `OPTIONAL / NOT_PROVIDED`, not a `PRICE_SOURCE_UNVERIFIED` cause. The legacy statements below that investor-category net buying is universally required are superseded.
+
 ## 2026-10-23 ACTIVE OVERRIDE — REGULAR ONLY (supersedes full-day instructions below)
 
 - Production C3/K100 strategy uses **KRX regular 09:00–15:30 only**. KRX after-market 16:00–20:00, and off-hours closing-price trades 15:40–16:00, must stay in a separate diagnostic layer; never merge later OHLC, turnover, prices or money-flow with the regular strategy.
