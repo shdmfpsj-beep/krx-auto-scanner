@@ -92,12 +92,16 @@ class RegularMinuteTests(unittest.TestCase):
         x=build_missing(D,[T])
         self.assertEqual(x["data_status"],"PENDING_PROVIDER_CONNECTION")
         self.assertEqual(x["ready_count"],0)
+        self.assertEqual(x["investor_flow_policy"],"OPTIONAL_CONFIRMATION_NOT_BUY_GATE")
+        self.assertNotIn("REGULAR_INVESTOR_NET_FLOW_UNVERIFIED",x["blockers"])
         self.assertFalse(x["trade_approved"])
         self.assertEqual(x["decision"],"CASH")
 
     def test_output_is_not_investor_net_flow_or_full_sector_universe(self):
         r=summarize_minute_rows(regular(),D,T)
         self.assertFalse(r["investor_net_flow_regular_verified"])
+        self.assertEqual(r["investor_net_flow_policy"],"OPTIONAL_CONFIRMATION_NOT_BUY_GATE")
+        self.assertNotIn("INVESTOR_FLOW_REGULAR_NOT_VERIFIED",r["blockers"])
         self.assertFalse(r["sector_universe_verified"])
         self.assertFalse(r["historical_65_days_verified"])
 
