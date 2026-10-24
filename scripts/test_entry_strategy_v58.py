@@ -6,7 +6,7 @@ from unittest.mock import patch
 from entry_strategy_v58 import (
     METHODS,base_row,build,breakout_retest,choose_second,
     confirmed_pivots,evaluate,nearest_ceiling,price_gate,trend_pullback,
-    MIN_RR)
+    mobile,MIN_RR)
 
 D=date(2026,10,23)
 T="005930"
@@ -172,6 +172,26 @@ class EntryV58Tests(unittest.TestCase):
                       x["blocking_reasons"])
         self.assertFalse(x["technical_research_ready"])
         self.assertFalse(x["trade_approved"])
+
+    def test_mobile_shows_reason_and_second_entry_even_if_all_buys_blocked(self):
+        h=history();d=date.fromisoformat(h[-1]["date"])
+        row=base_row(d,candidate(h),METHODS[2])
+        row.update(setup="RESEARCH_TRIGGER_CONFIRMED_ASOF",
+            stop_reference=109,first_entry_reference=118,
+            second_entry_reference=112,nearest_resistance_reference=121,
+            first_net_rr=.21,second_net_rr=.65,
+            technical_research_ready=False,
+            blocking_reasons=["FIRST_COST_ADJUSTED_RR_BELOW_2"])
+        rep=dict(asof=str(d),candidates=1,evaluated_method_rows=3,
+            method_trigger_counts={m:int(m==METHODS[2]) for m in METHODS},
+            completed_signal_diagnostic_rows=[row],
+            main_trigger_exclusion_counts={"FIRST_COST_ADJUSTED_RR_BELOW_2":1})
+        text=mobile([row],rep)
+        self.assertIn("2차 대체",text)
+        self.assertIn("112",text)
+        self.assertIn("109",text)
+        self.assertIn("FIRST_COST_ADJUSTED_RR_BELOW_2",text)
+        self.assertIn("CASH",text)
 
     def test_no_false_top5_if_source_missing(self):
         h=history();d=date.fromisoformat(h[-1]["date"])
