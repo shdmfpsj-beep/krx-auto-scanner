@@ -80,7 +80,7 @@ def frozen_inputs_valid(status,data,asof):
     if len({(t,m,d) for t,m,d,v in seen})!=status["original_research_signals"]:
         raise ValueError("V61_MISSING_FIRST_SECOND_PAIR")
     for ticker,method,day in {(t,m,d) for t,m,d,v in seen}:
-        if {(t,m,d,v) for v in MODES} - seen:
+        if {(ticker,method,day,variant) for variant in MODES} - seen:
             raise ValueError("V61_MISSING_FIRST_SECOND_PAIR")
     return True
 
