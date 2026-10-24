@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p inputs/recovery inputs/focus inputs/sector
+          mkdir -p inputs/recovery inputs/focus inputs/sector inputs/regular
           fetch_one () {
             local path="$1" name="$2" dest="$3"
             local run_id
@@ -83,6 +83,7 @@ jobs:
           fetch_one '.github/workflows/krx_recovery_scan.yml' krx-recovery-scan inputs/recovery
           fetch_one '.github/workflows/focus_daily_structure.yml' focus-daily-structure inputs/focus
           fetch_one '.github/workflows/sector_first_daily.yml' sector-first-daily inputs/sector
+          fetch_one '.github/workflows/krx_regular_final.yml' krx-regular-only-18h-final inputs/regular
 
       - name: Generate independent date-alignment and CASH safety report
         shell: bash
@@ -95,6 +96,7 @@ jobs:
             --focus-fallback inputs/sector/focus_daily_structure_status.json \
             --sector inputs/sector/sector_first_daily_status.json \
             --money inputs/sector/sector_daily_money.json \
+            --regular inputs/regular/regular_only_final_status.json \
             --out output
           cat output/today_asof_mobile.md
 
