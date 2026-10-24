@@ -315,10 +315,16 @@ def main():
         raise SystemExit("V59_V60_IMMUTABLE_DATED_PROVENANCE_REQUIRED")
     v59_rows=rows(a.v59/"shadow_v59_all.csv")
     v60_rows=rows(a.v60/"entry_fill_frontier_v60_all.csv")
-    if (len(v59_rows)!=older.get("total_simulated_alternative_scenarios")
+    archived_signals_count=older.get("historical_replay_signals")
+    v60_signals_count=status.get("research_signals")
+    if (not isinstance(archived_signals_count,int)
+        or not isinstance(v60_signals_count,int)
+        or archived_signals_count!=v60_signals_count
+        or len(v59_rows)!=older.get("total_simulated_alternative_scenarios")
         or len(v60_rows)!=status.get("research_rows")
-        or len(v59_rows)!=392 or len(v60_rows)!=980):
-        raise SystemExit("TRUNCATED_ASOF_ENTRY_EVIDENCE")
+        or len(v59_rows)!=2*archived_signals_count
+        or len(v60_rows)!=5*v60_signals_count):
+        raise SystemExit("TRUNCATED_OR_MISMATCHED_ASOF_ENTRY_EVIDENCE")
     result,diag=build(a.recovery,v59_rows,v60_rows,asof)
     summary=summarize(result,diag,asof)
     if summary["original_research_signals"]!=status.get("research_signals"):
