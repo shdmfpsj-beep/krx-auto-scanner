@@ -1,0 +1,190 @@
+name: Free v5.7 daily KRX source pairing after sector evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      asof:
+        description: 'Strict KRX trading date; 2026-10-23 replay default'
+        required: false
+        default: '2026-10-23'
+        type: string
+      recovery_run_id:
+        description: 'Exact source run ID; leave blank to find date-matched recovery'
+        required: false
+        default: '39923708922'
+        type: string
+      v18_run_id:
+        description: 'Exact standalone v18 run ID'
+        required: false
+        default: '39948306433'
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/regular_source_v57_daily.yml'
+  workflow_run:
+    workflows: ['Sector Evidence v18 (standalone)']
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: krx-v57-safepair-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  date-locked-daily:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      EVENT_NAME: ${{ github.event_name }}
+      SECTOR_RUN: ${{ github.event.workflow_run.id || inputs.v18_run_id || '39948306433' }}
+      RECOVERY_RUN: ${{ inputs.recovery_run_id || '' }}
+      MANUAL_ASOF: ${{ inputs.asof || '' }}
+    steps:
+      - name: Sparse-checkout only proven read-only scan analysis
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/krx_source_price_parity.py
+            /scripts/full_parity_v56.py
+            /scripts/regular_source_forensics_v57.py
+            /scripts/test_full_parity_v56.py
+            /scripts/test_regular_source_forensics_v57.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Run no-network tests and compile research-only modules
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p 'test_full_parity_v56.py' -v
+          python -m unittest discover -s scripts -p 'test_regular_source_forensics_v57.py' -v
+
+      - name: Download selected v18 report and derive its actual completed session
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input/v18 input/recovery input/paircheck output
+          [[ "$SECTOR_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_SECTOR_RUN_ID"; exit 1; }
+          actual="$(gh api "repos/$GH_REPO/actions/runs/$SECTOR_RUN" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$SECTOR_RUN" --jq '.conclusion')"
+          [[ "$actual" == '.github/workflows/sector_evidence_v18.yml' && "$conclusion" == 'success' ]] ||
+            { echo "SECTOR_SOURCE_ID_OR_CONCLUSION_UNVERIFIED"; exit 1; }
+          gh run download "$SECTOR_RUN" -R "$GH_REPO" -n sector-evidence-v18-report -D input/v18
+          python - <<'PY'
+          import json,os
+          from datetime import date
+          from pathlib import Path
+          p=Path('input/v18/diagnostics/collection_status.json')
+          d=json.loads(p.read_text(encoding='utf-8'))
+          asof=d.get('datasets',{}).get('krx_preflight',{}).get('asof')
+          if not isinstance(asof,str) or date.fromisoformat(asof).isoformat()!=asof:
+              raise SystemExit('V18_ASOF_NOT_VERIFIED')
+          expected=os.getenv('MANUAL_ASOF','')
+          # workflow_run MUST derive the actual market date from the source,
+          # never hardcode the date of the GitHub job completion.
+          if os.environ['EVENT_NAME']!='workflow_run' and expected and asof!=expected:
+              raise SystemExit('EXPLICIT_ASOF_AND_SECTOR_REPORT_DATE_MISMATCH')
+          for market in ('KOSPI','KOSDAQ'):
+              if not Path(f'input/v18/market/daily_prices/{market}/{asof}.csv').is_file():
+                  raise SystemExit('MARKET_DAILY_PRICES_FOR_ASOF_MISSING')
+          Path('input/asof.txt').write_text(asof,encoding='utf-8')
+          print('V18_SOURCE_SESSION_DATE',asof)
+          PY
+
+      - name: Pair recovery source only when its market-data date matches exactly
+        shell: bash
+        run: |
+          set -euo pipefail
+          asof="$(cat input/asof.txt)"
+          selected=''
+          if [[ "$EVENT_NAME" != 'workflow_run' && -n "$RECOVERY_RUN" ]]; then
+            [[ "$RECOVERY_RUN" =~ ^[0-9]{8,14}$ ]] || exit 1
+            selected="$RECOVERY_RUN"
+          else
+            # Restrict discovery to the actual recovery workflow; never use
+            # 'latest' across workflows and never substitute another day.
+            for id in $(gh api "repos/$GH_REPO/actions/workflows/krx_recovery_scan.yml/runs?per_page=25" --jq '.workflow_runs[] | select(.conclusion == "success") | .id'); do
+              rm -rf input/paircheck
+              mkdir -p input/paircheck
+              if ! gh run download "$id" -R "$GH_REPO" -n krx-recovery-scan -D input/paircheck >/dev/null 2>&1; then
+                continue
+              fi
+              if [[ ! -f input/paircheck/status.json ]]; then continue; fi
+              if python - "$asof" input/paircheck/status.json <<'PY'
+          import json,sys
+          try:
+              q=json.load(open(sys.argv[2],encoding='utf-8'))
+              good=(q.get('market_data_date')==sys.argv[1]
+                    and q.get('scan_complete') is True
+                    and q.get('data_date_verified') is True)
+          except (OSError,ValueError):good=False
+          raise SystemExit(0 if good else 1)
+          PY
+              then
+                selected="$id"
+                cp -R input/paircheck/. input/recovery/
+                break
+              fi
+            done
+          fi
+          [[ -n "$selected" ]] || { echo "NO_DATE_MATCHED_RECOVERY_ARTIFACT_FAIL_CLOSED"; exit 1; }
+          if [[ ! -s input/recovery/status.json ]]; then
+            actual="$(gh api "repos/$GH_REPO/actions/runs/$selected" --jq '.path')"
+            conclusion="$(gh api "repos/$GH_REPO/actions/runs/$selected" --jq '.conclusion')"
+            [[ "$actual" == '.github/workflows/krx_recovery_scan.yml' && "$conclusion" == 'success' ]] ||
+              { echo 'RECOVERY_SOURCE_WORKFLOW_MISMATCH'; exit 1; }
+            gh run download "$selected" -R "$GH_REPO" -n krx-recovery-scan -D input/recovery
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          asof=Path('input/asof.txt').read_text(encoding='utf-8')
+          q=json.loads(Path('input/recovery/status.json').read_text(encoding='utf-8'))
+          assert q['market_data_date']==asof, 'CROSS_DATE_RECOVERY_FORBIDDEN'
+          assert q['scan_complete'] is True and q['data_date_verified'] is True
+          assert Path('input/recovery/candidate_daily_history_v52.csv').is_file()
+          print('STRICT_SOURCE_DATE_PAIR',asof)
+          PY
+
+      - name: Compare and diagnose no-trade KRX OHLC source differences
+        shell: bash
+        run: |
+          set -euo pipefail
+          asof="$(cat input/asof.txt)"
+          python scripts/full_parity_v56.py --recovery input/recovery --v18 input/v18 --asof "$asof" --outdir output
+          python scripts/regular_source_forensics_v57.py --v56 output/source_price_parity.json --asof "$asof" --outdir output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path('output/source_forensics_v57.json').read_text(encoding='utf-8'))
+          assert q['diagnosis_valid'] is True
+          assert q['trade_approved'] is False and q['orders_enabled'] is False
+          assert q['regular_only_session_certified'] is False
+          assert q['decision']=='CASH'
+          assert q['mismatches']<=q['total_rows']
+          assert q['total_rows']>0
+          print('SAFE_ASOF_DAILY_DIAGNOSTIC',q['asof'],q['categories'])
+          PY
+
+      - name: Publish per-date full research evidence for Android mobile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v57-date-locked-free-source-diagnostic
+          path: |
+            input/asof.txt
+            output/source_price_parity.json
+            output/complete_price_parity_v56.csv
+            output/full_parity_v56_mobile.md
+            output/source_forensics_v57.json
+            output/source_forensics_v57_all.csv
+            output/source_forensics_v57_mobile.md
+          retention-days: 14
+          if-no-files-found: warn
