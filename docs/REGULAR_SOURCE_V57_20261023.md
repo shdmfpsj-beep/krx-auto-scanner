@@ -12,6 +12,15 @@
 - 출력: `source_forensics_v57.json`, `source_forensics_v57_all.csv`, `source_forensics_v57_mobile.md` (Actions artifact 다운로드)
 - 무료 GitHub Actions 호스팅, 키움 REST/고정 IP/유료 서버 불필요; **기존 저장 데이터 재생**에 관한 성과임
 
+## 2026-10-24 추가: 다음 거래일 자동 날짜 결합
+
+- [실제 실행 성공 #40086156734](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40086156734): `test_full_parity_v56.py` 7건 + v5.7 테스트 12건, 총 **19건 성공**. 23일 소스 간 날짜 일치 확인, 81/59 가격 재진단, 모바일 결과 업로드까지 성공.
+- 별도 추가 워크플로: `.github/workflows/regular_source_v57_daily.yml`.
+- 새 `Sector Evidence v18 (standalone)` 작업이 **성공적으로 완료되면**, 해당 작업의 정확한 ID에서 거래일을 확인하고, 최근 성공한 **KRX recovery scan**의 아티팩트 중 **그 날짜와 일치하는 것만** 사용한다.
+- 날짜가 일치하는 복구 스캔이 없다면 `NO_DATE_MATCHED_RECOVERY_ARTIFACT_FAIL_CLOSED`로 종료. 이전 날의 종가를 새 종가로 제시하거나 매수 시그널에 사용하는 오류 방지.
+- 모바일 GitHub `Actions` → `Free v5.7 daily KRX source pairing after sector evidence` → 최근 실행 → `v57-date-locked-free-source-diagnostic` 아티팩트를 열면 전체 개별 진단표와 요약을 볼 수 있음.
+- **중요:** 자동화가 설정됐다는 것과 **10월 26일 실제 새 데이터 수집이 성공했다는 것은 별개**이다. 실제 26일 데이터 수집·다른 공급원 시간 인증은 아직 미확인.
+
 ## 10/23 실제 계산
 
 | 항목 | 종목 |
