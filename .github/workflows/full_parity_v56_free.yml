@@ -1,0 +1,139 @@
+name: Free v5.6 full-price conflict replay 2026-10-23
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/full_parity_v56_free.yml'
+      - 'scripts/full_parity_v56.py'
+      - 'scripts/test_full_parity_v56.py'
+      - 'scripts/first_pullback_v55.py'
+      - 'scripts/test_first_pullback_v55.py'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: free-v56-frozen-20261023
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RECOVERY_RUN: '39923708922'
+      V18_RUN: '39948306433'
+      ASOF: '2026-10-23'
+    steps:
+      - name: Safe checkout (avoid nonportable legacy filenames)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/krx_source_price_parity.py
+            /scripts/first_pullback_v55.py
+            /scripts/test_first_pullback_v55.py
+            /scripts/full_parity_v56.py
+            /scripts/test_full_parity_v56.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Compile and run offline price evidence and entry checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_full_parity_v56.py -v
+          python -m unittest discover -s scripts -p test_first_pullback_v55.py -v
+
+      - name: Verify exact workflow identity of source artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery v18 out
+          for pair in "$RECOVERY_RUN:.github/workflows/krx_recovery_scan.yml" "$V18_RUN:.github/workflows/sector_evidence_v18.yml"; do
+            id="${pair%%:*}"
+            expected="${pair#*:}"
+            actual="$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.path')"
+            conclusion="$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.conclusion')"
+            [[ "$actual" == "$expected" && "$conclusion" == 'success' ]] || {
+              echo "::error::SOURCE_RUN_ID_OR_WORKFLOW_NOT_VERIFIED $id $actual"
+              exit 1
+            }
+          done
+          gh run download "$RECOVERY_RUN" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          gh run download "$V18_RUN" -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          test -s recovery/status.json
+          test -s recovery/candidate_daily_history_v52.csv
+          test -s v18/market/daily_prices/KOSPI/2026-10-23.csv
+          test -s v18/market/daily_prices/KOSDAQ/2026-10-23.csv
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          status=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          assert status.get('market_data_date') == os.environ['ASOF']
+          assert status.get('scan_complete') is True
+          assert status.get('data_date_verified') is True
+          p=Path('v18/diagnostics/collection_status.json')
+          data=json.loads(p.read_text(encoding='utf-8'))
+          assert data.get('datasets',{}).get('krx_preflight',{}).get('asof') == os.environ['ASOF']
+          print('FROZEN_INPUTS_VERIFIED',os.environ['ASOF'])
+          PY
+
+      - name: Compare all dated source closes, not first 15 examples
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/full_parity_v56.py --recovery recovery --v18 v18 --asof "$ASOF" --outdir out
+          cp out/source_price_parity.json recovery/source_price_parity.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('out/source_price_parity.json').read_text(encoding='utf-8'))
+          assert report['asof']=='2026-10-23'
+          assert report['overlap_tickers']==81
+          assert report['close_mismatches']==59
+          assert len(report['mismatch_tickers'])==59
+          assert report['mismatch_tickers_complete'] is True
+          assert report['regular_only_session_certified'] is False
+          assert report['trade_approved'] is False
+          print('DATED_FULL_PARITY',report['overlap_tickers'],report['close_mismatches'])
+          PY
+
+      - name: Replay existing HMA60 strategy with complete row-level conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/first_pullback_v55.py --input recovery --out out --asof "$ASOF"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path('out/first_pullback_v55_status.json').read_text(encoding='utf-8'))
+          assert q['scanned_count']==82
+          assert q['complete_parity_conflict_roster'] is True
+          assert len(q['all_disclosed_conflict_tickers'])==59
+          assert q['parity_mismatches']==59
+          assert q['watch_tickers']==[]
+          assert q['decision']=='CASH' and q['orders_enabled'] is False
+          print('ALL_59_CONFLICTS_APPLIED_TO_RESEARCH_ROWS')
+          PY
+
+      - name: Publish mobile summary, exact evidence and research diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v56-complete-parity-20261023
+          path: |
+            out/source_price_parity.json
+            out/complete_price_parity_v56.csv
+            out/full_parity_v56_mobile.md
+            out/first_pullback_v55_status.json
+            out/first_pullback_v55_mobile.md
+            out/first_pullback_v55_all.csv
+          retention-days: 30
+          if-no-files-found: warn
