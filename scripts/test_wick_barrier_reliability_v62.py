@@ -155,6 +155,34 @@ class ReliabilityV62Tests(unittest.TestCase):
         self.assertFalse(report["exact_regular_session_source_verified"])
         self.assertEqual(report["decision"],"CASH")
 
+    def test_signal_close_reclaim_is_reported_but_does_not_override_barrier(self):
+        b=bars()
+        meta,raw=archived(b)
+        b[100].update(open=100,high=109,low=98,close=108)
+        with patch("wick_barrier_reliability_v62.signal_rows_for_historic_selected_universe",
+                   return_value=([dict(ticker=TICKER)],{TICKER:b},[])):
+            cases,_=analyze(None,meta,raw,ASOF)
+        self.assertEqual(len(cases),2)
+        for item in cases:
+            self.assertTrue(item["nearby_barrier_below_signal_close"])
+            self.assertTrue(item["signal_close_confirms_barrier_reclaim"])
+            self.assertGreater(item["signal_close_over_near_atr"],.25)
+            self.assertFalse(item["barrier_status_is_proven_resistance"])
+            self.assertFalse(item["trade_approved"])
+
+    def test_report_counts_separate_first_vs_second_without_claimed_win_rate(self):
+        b=bars();meta,raw=archived(b)
+        with patch("wick_barrier_reliability_v62.signal_rows_for_historic_selected_universe",
+                   return_value=([dict(ticker=TICKER)],{TICKER:b},[])):
+            records,errors=analyze(None,meta,raw,ASOF)
+        report=aggregate(records,ASOF,errors)
+        self.assertEqual(report["by_entry_variant"]["V58_FIRST"]["rows"],1)
+        self.assertEqual(report["by_entry_variant"]["V58_PIVOT_SECOND"]["rows"],1)
+        self.assertEqual(sum(x["rows"] for x in report["categories"].values()),2)
+        self.assertTrue(report["signal_close_reclaim_is_diagnostic_not_trading_permission"])
+        self.assertFalse(report["validated_win_probability_available"])
+        self.assertEqual(report["decision"],"CASH")
+
     def test_forward_outcomes_mutation_does_not_change_pre_signal_labels(self):
         b=bars();meta,rows=archived(b)
         with patch("wick_barrier_reliability_v62.signal_rows_for_historic_selected_universe",
