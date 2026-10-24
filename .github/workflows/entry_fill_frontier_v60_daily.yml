@@ -6,7 +6,7 @@ on:
       v59_daily_run_id:
         description: 'Exact completed v5.9 daily dated research run'
         required: false
-        default: '40099062677'
+        default: '40136396292'
         type: string
   workflow_run:
     workflows: ['Free v5.9 shadow and forward-watch after exact v5.8 daily session']
@@ -32,7 +32,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      SOURCE_RUN: ${{ github.event.workflow_run.id || inputs.v59_daily_run_id || '40099062677' }}
+      SOURCE_RUN: ${{ github.event.workflow_run.id || inputs.v59_daily_run_id || '40136396292' }}
     steps:
       - name: Sparse checkout only audited no-order modules
         uses: actions/checkout@v4
