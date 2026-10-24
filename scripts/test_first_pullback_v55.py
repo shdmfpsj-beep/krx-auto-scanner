@@ -1,7 +1,7 @@
 """Offline, deterministic safety checks for free first-pullback research."""
 import unittest,copy
 from datetime import date,timedelta
-from first_pullback_v55 import wma,hma60,confirmed_turn,phase,down,up,inspect,analyze
+from first_pullback_v55 import wma,hma60,confirmed_turn,phase,down,up,inspect,analyze,net_reward_risk
 
 def fixture(n=120):
     first=date(2026,1,1)
@@ -94,6 +94,40 @@ class FirstPullbackTests(unittest.TestCase):
         self.assertFalse(report["trade_approved"])
         self.assertFalse(report["orders_enabled"])
         self.assertEqual(report["decision"],"CASH")
+
+    def test_fee_adjusted_stop_risk_is_not_understated(self):
+        # 0.5% round-trip fee: 100 paid at +0.25%, 90 stop at -0.25%.
+        effective_entry=100.25
+        effective_stop=89.775
+        effective_target=125*(1-.0025)
+        rr=(effective_target-effective_entry)/(effective_entry-effective_stop)
+        self.assertAlmostEqual(net_reward_risk(100,90,125,.5),rr)
+        self.assertLess(rr, (effective_target-effective_entry)/(100-90))
+        self.assertIsNone(net_reward_risk(100,100,125,.5))
+        self.assertIsNone(net_reward_risk(100,90,125,float('nan')))
+
+    def test_unconfirmed_pullback_cannot_enter_reclaim_watch(self):
+        from unittest.mock import patch
+        rows=fixture();d=date.fromisoformat(rows[-1]["date"])
+        status={"market_data_date":str(d),"scan_complete":True,
+                "data_date_verified":True,"coverage_ratio":0.99}
+        parity={"asof":str(d),"status":"CANDIDATE_CLOSES_MATCH_RESEARCH_ONLY",
+                "overlap_tickers":1,"close_mismatches":0,
+                "mismatch_tickers_complete":True,"mismatch_tickers":[]}
+        sample={"asof":str(d),"ticker":"005930","name":"TEST",
+                "setup":"PULLBACK_WATCH","daily_stop":90,"entry1":100,
+                "entry2":94,"rr_net":3.1,"warnings":[],"buy_approval":"NO"}
+        with patch("first_pullback_v55.inspect",return_value=sample):
+            _,report=analyze(status,[candidate(rows)],rows,[],d,parity)
+        self.assertEqual(report["watch_tickers"],[])
+        self.assertFalse(report["trade_approved"])
+        with patch("first_pullback_v55.inspect",
+                   return_value={**sample,"setup":"FIRST_PULLBACK_RECLAIM"}):
+            _,research=analyze(status,[candidate(rows)],rows,[],d,parity)
+        # Even a confirmed technical research WATCH is not a BUY approval.
+        self.assertEqual(research["watch_tickers"],["005930"])
+        self.assertFalse(research["trade_approved"])
+        self.assertEqual(research["decision"],"CASH")
 
     def test_v56_complete_roster_flags_conflict_beyond_first_15(self):
         rows=fixture();d=date.fromisoformat(rows[-1]["date"])
