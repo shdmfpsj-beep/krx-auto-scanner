@@ -46,6 +46,8 @@ FIELDS=("ticker","name","method","variant","signal_asof",
         "pre_signal_barrier_label","barrier_status_is_proven_resistance",
         "forward_bar_count","forward_first_touch_day",
         "forward_any_touch","forward_any_close_break",
+        "forward_new_close_break_after_signal_below",
+        "forward_above_after_signal_already_reclaimed",
         "forward_first_close_break_day","forward_two_consecutive_close_break",
         "forward_any_rejection","forward_max_high_over_barrier_atr",
         "forward_last_close_over_barrier_atr",
@@ -199,6 +201,10 @@ def analyze(archive,source_status,source_rows,asof):
         signal_reclaimed=(close_over_near is not None and
                           close_over_near>BREAKOUT_CLOSE_ABOVE_ATR)
         forward_status=future_reactions(forward,data["near"],atr)
+        forward_status["forward_new_close_break_after_signal_below"]=bool(
+            not signal_reclaimed and forward_status["forward_any_close_break"])
+        forward_status["forward_above_after_signal_already_reclaimed"]=bool(
+            signal_reclaimed and forward_status["forward_any_close_break"])
         observed_dates.add((ticker,record["signal_asof"],record["method"]))
         output.append(dict(
             ticker=ticker,name=record.get("name"),
@@ -239,6 +245,10 @@ def aggregate(records,asof,issues):
             valid_nearest_barrier_rows=len(usable),
             next_five_day_touch_count=sum(r["forward_any_touch"] for r in usable),
             next_five_day_close_break_count=sum(r["forward_any_close_break"] for r in usable),
+            first_new_close_break_after_signal_below_count=sum(
+                r["forward_new_close_break_after_signal_below"] for r in usable),
+            already_reclaimed_then_any_above_count=sum(
+                r["forward_above_after_signal_already_reclaimed"] for r in usable),
             next_five_day_two_close_break_count=sum(
                 r["forward_two_consecutive_close_break"] for r in usable),
             next_five_day_rejection_count=sum(r["forward_any_rejection"] for r in usable),
@@ -265,7 +275,11 @@ def aggregate(records,asof,issues):
                 r["pre_signal_barrier_label"]=="REPEATED_PRE_SIGNAL_REJECTION"
                 for r in pair),
             five_day_close_break=sum(
-                r["forward_any_close_break"] for r in pair))
+                r["forward_any_close_break"] for r in pair),
+            fresh_five_day_close_break_from_below=sum(
+                r["forward_new_close_break_after_signal_below"] for r in pair),
+            above_following_pre_reclaimed_signal=sum(
+                r["forward_above_after_signal_already_reclaimed"] for r in pair))
     return dict(schema=SCHEMA,asof=str(asof),
         input_rows=len(records),original_signal_count=len(records)//2,
         categories=cats,by_entry_variant=by_variant,source_issues=issues,
@@ -273,6 +287,7 @@ def aggregate(records,asof,issues):
         category_post_signal_reactions_are_hindsight_biased=True,
         nearest_barrier_remains_veto_even_if_historic_breakout=True,
         signal_close_reclaim_is_diagnostic_not_trading_permission=True,
+        post_signal_first_breaks_separate_from_already_reclaimed_price=True,
         exact_regular_session_source_verified=False,
         full_market_asof_universe_verified=False,
         official_daily_volume_profile_available=False,
@@ -292,6 +307,14 @@ def mobile(report):
     for name in LABELS:
         group=report["categories"][name]
         lines.append(f"| {name} | {group['rows']} | {group['next_five_day_touch_count']} | {group['next_five_day_close_break_count']} | {group['next_five_day_two_close_break_count']} |")
+    lines+=["", "## 기존 저항 아래에서 처음 넘은 경우와 이미 회복한 경우",
+      "| 구분 | 신호일 아래→5일 내 종가 신규 상향 | 신호일 이미 위→이후에도 종가 상향 |",
+      "|---|---:|---:|"]
+    for key in LABELS:
+        value=report["categories"][key]
+        lines.append(f"| {key} | "+
+            f"{value['first_new_close_break_after_signal_below_count']} | "+
+            f"{value['already_reclaimed_then_any_above_count']} |")
     lines+=["", "## 1차와 2차 대체가격 각각의 신호일 장벽 상태",
       "| 시나리오 | 평가행 | 과거 종가가 장벽 돌파 | 신호일 종가가 장벽 위 | 신호일 0.25ATR 이상 회복 |",
       "|---|---:|---:|---:|---:|"]
