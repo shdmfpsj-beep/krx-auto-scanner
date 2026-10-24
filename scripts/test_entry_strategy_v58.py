@@ -126,7 +126,10 @@ class EntryV58Tests(unittest.TestCase):
         a[-2].update(open=108,high=110,low=104,close=108)
         a[-1].update(open=109,high=115,low=108,close=113)
         self.assertIsNotNone(breakout_retest(a,8))
-        a[-2]["low"]=110
+        # Both the first retest day and last completed day must avoid
+        # the breakout-level touch; changing only one leaves a valid retest.
+        a[-3]["low"]=107
+        a[-2]["low"]=107
         self.assertIsNone(breakout_retest(a,8))
 
     def test_trend_requires_completed_reclaim_and_rising_ma(self):
