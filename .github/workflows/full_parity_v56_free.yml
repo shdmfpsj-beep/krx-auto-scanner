@@ -100,6 +100,7 @@ jobs:
           assert report['close_mismatches']==59
           assert len(report['mismatch_tickers'])==59
           assert report['mismatch_tickers_complete'] is True
+          assert report['invalid_recovery_tickers']==['050090']
           assert report['regular_only_session_certified'] is False
           assert report['trade_approved'] is False
           print('DATED_FULL_PARITY',report['overlap_tickers'],report['close_mismatches'])
