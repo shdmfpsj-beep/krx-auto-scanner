@@ -1,0 +1,142 @@
+name: Free v5.9 shadow and forward-watch after exact v5.8 daily session
+
+on:
+  workflow_dispatch:
+    inputs:
+      v58_run_id:
+        description: 'Exact successful v5.8 daily research run ID'
+        required: true
+        default: '40095818288'
+        type: string
+  workflow_run:
+    workflows: ['Free v5.8 daily 3-entry risk-first after v5.7 verified pairing']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/shadow_five_day_v59_daily.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: v59-date-locked-forward-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  research-only:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      V58_RUN: ${{ github.event.workflow_run.id || inputs.v58_run_id || '40095818288' }}
+    steps:
+      - name: Sparse checkout only v5.9 tested simulation and dependencies
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/test_shadow_five_day_v59.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Verify no-lookahead, alternative limits, fees and gap risk offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_shadow_five_day_v59.py -v
+
+      - name: Fetch dated upstream trading-session identity, never 'latest'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p upstream recovery output
+          [[ "$V58_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_UPSTREAM_RUN"; exit 1; }
+          workflow="$(gh api "repos/$GH_REPO/actions/runs/$V58_RUN" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$V58_RUN" --jq '.conclusion')"
+          [[ "$workflow" == '.github/workflows/entry_strategy_v58_daily.yml' && "$conclusion" == 'success' ]] ||
+            { echo "V58_UPSTREAM_WORKFLOW_NOT_VERIFIED"; exit 1; }
+          gh run download "$V58_RUN" -R "$GH_REPO" -n free-v58-daily-entry-research -D upstream
+          test -s upstream/evidence/input/asof.txt
+          test -s upstream/evidence/input/recovery_source_run_id.txt
+          test -s upstream/output/entry_strategy_v58_status.json
+          test -s upstream/output/entry_strategy_v58_all.csv
+          rec="$(cat upstream/evidence/input/recovery_source_run_id.txt)"
+          [[ "$rec" =~ ^[0-9]{8,14}$ ]] || { echo "BAD_RECOVERY_PROVENANCE_ID"; exit 1; }
+          rec_path="$(gh api "repos/$GH_REPO/actions/runs/$rec" --jq '.path')"
+          rec_conclusion="$(gh api "repos/$GH_REPO/actions/runs/$rec" --jq '.conclusion')"
+          [[ "$rec_path" == '.github/workflows/krx_recovery_scan.yml' && "$rec_conclusion" == 'success' ]] ||
+            { echo "MISMATCHED_RECOVERY_PROVENANCE"; exit 1; }
+          gh run download "$rec" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          test -s recovery/status.json
+          test -s recovery/candidates.csv
+          test -s recovery/candidate_daily_history_v52.csv
+          python - <<'PY'
+          import json
+          from datetime import date
+          from pathlib import Path
+          day=Path('upstream/evidence/input/asof.txt').read_text(encoding='utf-8')
+          assert date.fromisoformat(day).isoformat()==day
+          a=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          b=json.loads(Path('upstream/output/entry_strategy_v58_status.json').read_text(encoding='utf-8'))
+          assert a.get('market_data_date')==day==b.get('asof')
+          assert a.get('scan_complete') is True and a.get('data_date_verified') is True
+          assert b.get('trade_approved') is False and b.get('orders_enabled') is False
+          assert b.get('source_errors')==[]
+          print('V59_FUTURE_MONITOR_SOURCE_ASOF_LOCKED',day)
+          PY
+
+      - name: Emit biased historical comparator plus as-of pending-only forward ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          asof="$(cat upstream/evidence/input/asof.txt)"
+          python scripts/shadow_five_day_v59.py \
+            --recovery recovery \
+            --entry-report upstream/output/entry_strategy_v58_status.json \
+            --entry-rows upstream/output/entry_strategy_v58_all.csv \
+            --asof "$asof" --outdir output
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          r=json.loads(Path('output/shadow_v59_status.json').read_text(encoding='utf-8'))
+          assert r['retrospective_universe_selection_bias'] is True
+          assert r['point_in_time_historical_stock_universe_verified'] is False
+          assert r['historical_daily_price_regular_session_certified'] is False
+          assert r['validated_live_strategy_trade_count']==0
+          assert r['forward_completed_trade_count']==0
+          assert r['forward_five_day_roi_verified'] is False
+          assert r['trade_approved'] is False and r['orders_enabled'] is False
+          assert r['decision']=='CASH'
+          with Path('output/forward_seed_v59_asof.csv').open(encoding='utf-8-sig',newline='') as f:
+            q=list(csv.DictReader(f))
+          assert len(q)==r['forward_signal_variants']
+          assert all(x['observed_forward_sessions']=='0' for x in q)
+          assert all(x['net_return_pct']=='' for x in q)
+          assert all(x['trade_approved']=='False' for x in q)
+          print('V59_HISTORICAL_BIASED_AND_FUTURE_PENDING',r['asof'],
+                'historical',r['historical_replay_signals'],
+                'forward_versions',len(q),'approved',0)
+          PY
+
+      - name: Keep transparent Android report and dated virtual ledger
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: free-v59-daily-forward-seed-and-biased-shadow
+          path: |
+            upstream/evidence/input/asof.txt
+            upstream/evidence/input/recovery_source_run_id.txt
+            output/shadow_v59_status.json
+            output/shadow_v59_all.csv
+            output/shadow_v59_mobile.md
+            output/forward_seed_v59_asof.csv
+          retention-days: 21
+          if-no-files-found: warn
