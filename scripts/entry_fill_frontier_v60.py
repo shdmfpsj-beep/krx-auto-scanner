@@ -27,7 +27,8 @@ SCHEMA="C3_K100_FIXED_ENTRY_FILL_FRONTIER_V60"
 VARIANTS=("V58_FIRST","V58_PIVOT_SECOND",
           "ATR_HALF_RETRACE","ATR_ONE_RETRACE","COST_2R_BOUNDARY")
 ROW_FIELDS=("signal_asof","ticker","method","variant","entry_reference",
-   "stop_reference","nearest_overhead_target","actual_signal_close",
+   "stop_reference","nearest_overhead_target","legacy_first_entry_target",
+   "nearest_target_recomputed_for_variant","actual_signal_close",
    "atr14","distance_below_signal_close_atr","risk_pct",
    "cost_adjusted_rr","geometry_2r_ok","has_confirmed_second_support",
    "price_is_unconfirmed_support_proxy","geometry_blocker",
@@ -131,6 +132,8 @@ def simulate_variants(archive,shadow_rows,asof):
                 result.append(dict(signal_asof=str(sigday),ticker=ticker,
                     method=method,variant=v,entry_reference=None,
                     stop_reference=stop,nearest_overhead_target=None,
+                    legacy_first_entry_target=pos(control.get("target_reference")),
+                    nearest_target_recomputed_for_variant=True,
                     actual_signal_close=close,atr14=None,
                     distance_below_signal_close_atr=None,risk_pct=None,
                     cost_adjusted_rr=None,geometry_2r_ok=False,
@@ -148,9 +151,11 @@ def simulate_variants(archive,shadow_rows,asof):
         missed_run=(future[4]["close"]/close-1)>0.03
         for variant in VARIANTS:
             entry=levels[variant]
-            target=(pos(control["target_reference"]) if variant in
-                    ("V58_FIRST","V58_PIVOT_SECOND") else
-                    nearest_ceiling(prefix,entry) if entry is not None else None)
+            # CRITICAL FAIR TARGET REPRICING: lower limits expose lower,
+            # newly-nearby historic resistance. Using the archived FIRST
+            # target for SECOND makes the apparent 2R edge too optimistic.
+            # Recompute from completed signal-date bars for every variant.
+            target=nearest_ceiling(prefix,entry) if entry is not None else None
             rr=net_reward_risk(entry,stop,target,ROUNDTRIP_COST_PCT) if (
                 entry is not None and target is not None) else None
             risk=(100*(entry-stop)/entry if entry is not None and entry>stop else None)
@@ -189,6 +194,8 @@ def simulate_variants(archive,shadow_rows,asof):
             result.append(dict(signal_asof=str(sigday),ticker=ticker,
                 method=method,variant=variant,entry_reference=entry,
                 stop_reference=stop,nearest_overhead_target=target,
+                legacy_first_entry_target=pos(control.get("target_reference")),
+                nearest_target_recomputed_for_variant=True,
                 actual_signal_close=close,atr14=round(atr,4),
                 distance_below_signal_close_atr=round(dist,4) if dist is not None else None,
                 risk_pct=round(risk,4) if risk is not None else None,
@@ -246,6 +253,8 @@ def summary(rows,asof,diagnostics,upstream):
                 strategy_is_forward_verified=False)
     return dict(schema=SCHEMA,asof=str(asof),retro_selected_universe=True,
         same_signal_control_and_all_counterfactual_variants=True,
+        nearest_overhead_resistance_recomputed_for_each_limit_from_past_only=True,
+        deprecated_first_entry_ceiling_not_reused_for_pivot_second=True,
         research_signals=n,research_rows=len(rows),
         variants=list(VARIANTS),cost_pct_roundtrip=ROUNDTRIP_COST_PCT,
         signal_weighted_zeros_for_unfilled_are_not_pnl_on_deployed_capital=True,
@@ -279,9 +288,10 @@ def mobile(report):
     lines +=["",
       "## 함께 확인할 함정",
       "1. 거래비용 후 순수익은 체결된 종목에만 의미가 있으며, 미체결 0%는 투자수익이 아닙니다.",
-      "2. 가상 2R 경계가 계산됐더라도 해당 가격이 실제 지지선이라는 증거가 없습니다.",
-      "3. 정규장 장후 혼합 여부와 종목선정 편향이 해결되지 않은 자료이므로 승률 및 수익예측으로 해석하지 않습니다.",
-      "4. 모의매매에 사용한 고저가 순서가 미확인이므로 손절/목표 동시 달성은 손절을 우선합니다.",
+      "2. 2차를 더 낮추면 그 아래에 있는 가까운 저항이 목표가가 됩니다. 1차 목표를 그대로 사용한 옛 손익비와 다릅니다.",
+      "3. 가상 2R 경계가 계산됐더라도 해당 가격이 실제 지지선이라는 증거가 없습니다.",
+      "4. 정규장 장후 혼합 여부와 종목선정 편향이 해결되지 않은 자료이므로 승률 및 수익예측으로 해석하지 않습니다.",
+      "5. 모의매매에 사용한 고저가 순서가 미확인이므로 손절/목표 동시 달성은 손절을 우선합니다.",
       "",
       "## Required Next Data",
       "당시 날짜별 KRX 전체 종목선정 자료, 정규장 가격 출처, 그날 실측 거래대금과 섹터 수급, 이후 최소 7거래일 실제 완료 봉, 계좌 현금/보유종목.",
