@@ -37,6 +37,9 @@ LABELS=("NO_PRIOR_NEAR_BARRIER","TICK_ROUNDED_BARRIER_AT_ENTRY",
         "NO_PRE_SIGNAL_REJECTION")
 FIELDS=("ticker","name","method","variant","signal_asof",
         "entry_reference","stop_reference","nearest_barrier",
+        "signal_close","signal_close_over_near_atr",
+        "nearby_barrier_below_signal_close",
+        "signal_close_confirms_barrier_reclaim",
         "confirmed_pivot_resistance","clustered_pivot_resistance",
         "signal_atr14","prior_rejection_days","prior_independent_rejection_count",
         "prior_close_through_count","prior_cluster_pivot_count",
@@ -167,6 +170,7 @@ def analyze(archive,source_status,source_rows,asof):
             raise ValueError("FUTURE_SESSION_DATE_NOT_LATER")
         entry=pos(record.get("entry_reference"))
         stop=pos(record.get("daily_pivot_stop"))
+        signal_close=prefix[-1]["close"]
         if (entry is None)!=(record.get("entry_reference") in (None,"")):
             raise ValueError("INVALID_ENTRY_REFERENCE")
         if stop is None and record.get("daily_pivot_stop") not in (None,""):
@@ -185,6 +189,15 @@ def analyze(archive,source_status,source_rows,asof):
         atr=data["atr"]
         dates,crossed=pre_signal_rejections(prefix,data["near"],atr)
         label=classify_barrier(data["near"],entry,crossed,len(dates))
+        close_over_near=((signal_close-data["near"])/atr
+                         if data["near"] is not None and atr is not None else None)
+        # A small historical wick above a DEEP entry can already sit below
+        # the close when the signal is frozen. That is not an unbroken
+        # overhead resistance at the SIGNAL CLOSE. For a pullback limit,
+        # it may still be a hurdle on the way back up; do not delete it.
+        is_below_close=(data["near"] is not None and data["near"]<signal_close)
+        signal_reclaimed=(close_over_near is not None and
+                          close_over_near>BREAKOUT_CLOSE_ABOVE_ATR)
         forward_status=future_reactions(forward,data["near"],atr)
         observed_dates.add((ticker,record["signal_asof"],record["method"]))
         output.append(dict(
@@ -193,6 +206,11 @@ def analyze(archive,source_status,source_rows,asof):
             signal_asof=record["signal_asof"],
             entry_reference=entry,stop_reference=stop,
             nearest_barrier=data["near"],
+            signal_close=signal_close,
+            signal_close_over_near_atr=(
+                round(close_over_near,4) if close_over_near is not None else None),
+            nearby_barrier_below_signal_close=bool(is_below_close),
+            signal_close_confirms_barrier_reclaim=bool(signal_reclaimed),
             confirmed_pivot_resistance=data["pivot"],
             clustered_pivot_resistance=data["cluster"],
             signal_atr14=round(atr,4) if atr is not None else None,
@@ -226,13 +244,35 @@ def aggregate(records,asof,issues):
             next_five_day_rejection_count=sum(r["forward_any_rejection"] for r in usable),
             observed_past_repeated_rejection_count=sum(
                 r["prior_independent_rejection_count"]>=2 for r in group),
+            signal_close_above_near_count=sum(
+                r["nearby_barrier_below_signal_close"] for r in group),
+            signal_close_above_near_by_quarter_atr_count=sum(
+                r["signal_close_confirms_barrier_reclaim"] for r in group),
             not_a_validated_prediction=True)
+    by_variant={}
+    for variant in MODES:
+        pair=[r for r in records if r["variant"]==variant]
+        by_variant[variant]=dict(
+            rows=len(pair),
+            historically_closed_through=sum(
+                r["pre_signal_barrier_label"]=="HISTORIC_CLOSE_THROUGH_BARRIER"
+                for r in pair),
+            close_already_above_near=sum(
+                r["nearby_barrier_below_signal_close"] for r in pair),
+            close_already_reclaimed_by_quarter_atr=sum(
+                r["signal_close_confirms_barrier_reclaim"] for r in pair),
+            repeated_prior_rejection=sum(
+                r["pre_signal_barrier_label"]=="REPEATED_PRE_SIGNAL_REJECTION"
+                for r in pair),
+            five_day_close_break=sum(
+                r["forward_any_close_break"] for r in pair))
     return dict(schema=SCHEMA,asof=str(asof),
         input_rows=len(records),original_signal_count=len(records)//2,
-        categories=cats,source_issues=issues,
+        categories=cats,by_entry_variant=by_variant,source_issues=issues,
         hypothesis_thresholds_fixed_before_outcomes=True,
         category_post_signal_reactions_are_hindsight_biased=True,
         nearest_barrier_remains_veto_even_if_historic_breakout=True,
+        signal_close_reclaim_is_diagnostic_not_trading_permission=True,
         exact_regular_session_source_verified=False,
         full_market_asof_universe_verified=False,
         official_daily_volume_profile_available=False,
@@ -252,6 +292,13 @@ def mobile(report):
     for name in LABELS:
         group=report["categories"][name]
         lines.append(f"| {name} | {group['rows']} | {group['next_five_day_touch_count']} | {group['next_five_day_close_break_count']} | {group['next_five_day_two_close_break_count']} |")
+    lines+=["", "## 1차와 2차 대체가격 각각의 신호일 장벽 상태",
+      "| 시나리오 | 평가행 | 과거 종가가 장벽 돌파 | 신호일 종가가 장벽 위 | 신호일 0.25ATR 이상 회복 |",
+      "|---|---:|---:|---:|---:|"]
+    for variant in MODES:
+        v=report["by_entry_variant"][variant]
+        lines.append(f"| {variant} | {v['rows']} | {v['historically_closed_through']} | "+
+            f"{v['close_already_above_near']} | {v['close_already_reclaimed_by_quarter_atr']} |")
     lines+=["",
       "**위 숫자는 같은 신호의 1차·2차 대체안을 각각 포함하며 독립 승률 표본이 아닙니다.**",
       "가까운 저항의 반복 증거가 없더라도 높은 목표를 곧바로 매수 승인에 사용하지 않습니다.",
