@@ -1,0 +1,156 @@
+name: Free v6.1 dated resistance evidence and hard-friction sensitivity
+
+on:
+  workflow_dispatch:
+    inputs:
+      asof:
+        description: "Immutable completed KRX research date"
+        required: false
+        default: "2026-10-23"
+        type: string
+      recovery_run:
+        description: "Exact dated KRX recovery source"
+        required: false
+        default: "39923708922"
+        type: string
+      v59_run:
+        description: "Corrected v5.9 shadow archive ID"
+        required: false
+        default: "40136210930"
+        type: string
+      v60_run:
+        description: "Fixed v6.0 risk frontier archive ID"
+        required: false
+        default: "40136294979"
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/resistance_tiers_v61_free.yml"
+      - "scripts/resistance_tiers_v61.py"
+      - "scripts/test_resistance_tiers_v61.py"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: fixed-v61-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  strict-resistance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RECOVERY_RUN: ${{ inputs.recovery_run || '39923708922' }}
+      V59_RUN: ${{ inputs.v59_run || '40136210930' }}
+      V60_RUN: ${{ inputs.v60_run || '40136294979' }}
+      ASOF: ${{ inputs.asof || '2026-10-23' }}
+    steps:
+      - name: Sparse checkout source and tests only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/entry_fill_frontier_v60.py
+            /scripts/resistance_tiers_v61.py
+            /scripts/test_resistance_tiers_v61.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Unit-test 2-right-candle pivots and forbid favorable target promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_resistance_tiers_v61.py -v
+
+      - name: Fetch only stated and completed dated provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery v59 v60 output
+          for pair in "$RECOVERY_RUN:.github/workflows/krx_recovery_scan.yml" "$V59_RUN:.github/workflows/shadow_five_day_v59_free.yml" "$V60_RUN:.github/workflows/entry_fill_frontier_v60_free.yml"; do
+            id="${pair%%:*}"
+            expected="${pair#*:}"
+            [[ "$id" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_SOURCE_RUN_ID"; exit 1; }
+            path="$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.path')"
+            state="$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.conclusion')"
+            [[ "$path" == "$expected" && "$state" == 'success' ]] || {
+              echo "MISMATCHED_RUN_WORKFLOW_OR_STATUS $id $path $state"
+              exit 1
+            }
+          done
+          gh run download "$RECOVERY_RUN" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          gh run download "$V59_RUN" -R "$GH_REPO" -n v59-five-day-shadow-hindsight-20261023 -D v59
+          gh run download "$V60_RUN" -R "$GH_REPO" -n free-v60-fixed-five-entry-20261023 -D v60
+          test -s recovery/status.json
+          test -s recovery/candidates.csv
+          test -s recovery/candidate_daily_history_v52.csv
+          test -s v59/shadow_v59_status.json
+          test -s v59/shadow_v59_all.csv
+          test -s v60/entry_fill_frontier_v60_status.json
+          test -s v60/entry_fill_frontier_v60_all.csv
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          date=os.environ['ASOF']
+          r=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          n=json.loads(Path('v59/shadow_v59_status.json').read_text(encoding='utf-8'))
+          v=json.loads(Path('v60/entry_fill_frontier_v60_status.json').read_text(encoding='utf-8'))
+          assert r['market_data_date']==n['asof']==v['asof']==date
+          assert r['scan_complete'] is True and r['data_date_verified'] is True
+          assert n['nearest_overhead_target_recomputed_for_each_entry_variant'] is True
+          assert v['nearest_overhead_resistance_recomputed_for_each_limit_from_past_only'] is True
+          assert n['trade_approved'] is False and n['orders_enabled'] is False
+          assert v['trade_approved'] is False and v['orders_enabled'] is False
+          assert v['research_signals']==196 and v['research_rows']==980
+          print('V61_EXACT_SESSION_SOURCE_PROVENANCE',date)
+          PY
+
+      - name: Separate confirmed pivots from nearby overhead with complete row audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/resistance_tiers_v61.py --recovery recovery \
+            --v59 v59 --v60 v60 --asof "$ASOF" --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          r=json.loads(Path('output/resistance_tiers_v61_status.json').read_text(encoding='utf-8'))
+          assert r['asof']=='2026-10-23'
+          assert r['original_research_signals']==196
+          assert r['evaluated_entry_rows']==392
+          assert r['absolute_nearest_wick_is_hard_barrier_for_buy_approval'] is True
+          assert r['confirmed_pivot_tiers_are_diagnostic_not_approval'] is True
+          assert r['final_80_point_certification'] is False
+          assert r['independently_verified_market_price_count']==0
+          assert r['trade_approved'] is False and r['orders_enabled'] is False
+          assert r['decision']=='CASH'
+          with Path('output/resistance_tiers_v61_all.csv').open(encoding='utf-8-sig',newline='') as f:
+            evidence=list(csv.DictReader(f))
+          assert len(evidence)==392
+          assert all(x['trade_approved']=='False' for x in evidence)
+          assert all(x['regular_price_certified']=='False' for x in evidence)
+          assert all(x['orders_enabled']=='False' for x in evidence)
+          print('V61_RESEARCH_ONLY_TIERS',r['nearest_2r_rows'],
+                r['pivot_only_2r_rows'],r['tier_status_counts'])
+          PY
+
+      - name: Publish reproducible research evidence and Android report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v61-confirmed-resistance-vs-single-wicks
+          path: |
+            output/resistance_tiers_v61_status.json
+            output/resistance_tiers_v61_all.csv
+            output/resistance_tiers_v61_mobile.md
+          retention-days: 30
+          if-no-files-found: warn
