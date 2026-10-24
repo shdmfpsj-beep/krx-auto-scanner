@@ -118,7 +118,8 @@ def research_candidate_from_csv(path: Path, tickers: list, day: str) -> dict:
 def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
              research_candidate: dict | None = None,
              c3_state: dict | None = None,
-             focus_source: str = "INDEPENDENT_WORKFLOW") -> dict:
+             focus_source: str = "INDEPENDENT_WORKFLOW",
+             regular: dict | None = None) -> dict:
     dates = {
         "recovery_krx_price": recovery.get("market_data_date"),
         "focus_price": focus.get("asof"),
@@ -153,6 +154,42 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         reasons.append("INDEPENDENT_SECTOR_OR_STOCK_EVIDENCE_INCOMPLETE")
     if money.get("market_ohlc_quality_verified") is False:
         reasons.append("MARKET_OHLC_SOURCE_CONFLICT")
+    # 23 Oct incident: dated streams agreed, but date-only feed prices
+    # differed and KRX regular 15:33-15:39 observation was missed.
+    # Do not confuse same-day records with independently attested prices.
+    regular = regular if isinstance(regular, dict) else {}
+    price_parity = sector.get("source_price_parity")
+    price_parity = price_parity if isinstance(price_parity, dict) else {}
+    parity_status = price_parity.get("status", "NOT_PROVIDED")
+    mismatch_count = price_parity.get("close_mismatches")
+    overlap_count = price_parity.get("overlap_tickers")
+    if not price_parity:
+        reasons.append("CROSS_SOURCE_CLOSE_PARITY_NOT_PROVIDED")
+    elif price_parity.get("asof") != day:
+        reasons.append("CROSS_SOURCE_CLOSE_PARITY_DATE_MISMATCH")
+    elif (parity_status != "CANDIDATE_CLOSES_MATCH_RESEARCH_ONLY"
+          or mismatch_count != 0 or not isinstance(overlap_count, int)
+          or overlap_count <= 0):
+        reasons.append("CROSS_SOURCE_DAILY_CLOSE_CONFLICT_OR_UNVERIFIED")
+    reg_status = str(regular.get("market_source_status") or "MISSING")
+    reg_asof = regular.get("target_asof")
+    regular_ok = bool(
+        reg_asof == day
+        and regular.get("mode") == "KRX_REGULAR_ONLY_0900_1530"
+        and regular.get("after_market_excluded") is True
+        and regular.get("regular_snapshot_available") is True
+        and regular.get("provider_session_scope_verified") is True
+        and reg_status == "REGULAR_PRICE_SOURCE_VERIFIED_RESEARCH_ONLY"
+        and regular.get("blockers") == []
+        and regular.get("trade_approved") is False
+        and regular.get("decision") == "CASH"
+    )
+    if not regular:
+        reasons.append("REGULAR_ONLY_REPORT_MISSING")
+    elif reg_asof != day:
+        reasons.append("REGULAR_ONLY_REPORT_ASOF_MISMATCH")
+    elif not regular_ok:
+        reasons.append("REGULAR_ONLY_PRICE_SOURCE_NOT_CERTIFIED")
     # Research-only evidence, even if every source's calendar date agrees.
     # Final 80pt trade-score, live entry trigger, cash and existing holdings
     # are not independently verified by these free end-of-day files.
@@ -180,9 +217,23 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         "focus_stop_reference_count": focus.get("stop_reference_count"),
         "focus_source": focus_source,
         "all_independent_sources_verified": bool(
-            all(x==day for x in dates.values()) and
-            focus_source=="INDEPENDENT_WORKFLOW" and
-            money.get("market_ohlc_quality_verified") is True),
+            all(x == day for x in dates.values())
+            and focus_source == "INDEPENDENT_WORKFLOW"
+            and money.get("market_ohlc_quality_verified") is True
+            and regular_ok
+            and price_parity.get("independent_provider_verified") is True
+            and price_parity.get("close_mismatches") == 0
+            and price_parity.get("asof") == day),
+        "research_source_dates_aligned": all(x == day for x in dates.values()),
+        "regular_only_price_verified": regular_ok,
+        "regular_report_asof": reg_asof,
+        "regular_source_status": reg_status,
+        "regular_source_blockers": regular.get("blockers", []),
+        "recovery_vs_sector_price_parity_status": parity_status,
+        "price_parity_overlap_count": overlap_count,
+        "price_parity_mismatch_count": mismatch_count,
+        "price_parity_independent_provider_verified": (
+            price_parity.get("independent_provider_verified") is True),
         "sector_research_top3_count": len(sector.get("sector_top3") or []),
         "sector_research_top5_count": len(sector.get("stock_research_top5") or []),
         "sector_selection_outcome": sector.get("sector_selection_outcome","PENDING_DATA_VALIDATION"),
@@ -237,9 +288,11 @@ def to_markdown(data: dict) -> str:
 | 섹터 구성종목 수급 | {fmt(src['sector_constituent_flow'])} | {'확인' if src['sector_constituent_flow']==data['target_kst_date'] else '불일치'} |
 
 **KRX 데이터 커버리지:** {fmt(data['recovery_valid_ohlcv'])}/{fmt(data['recovery_universe'])} ({pct})
-**OHLC 무결성:** {str(data.get('market_ohlc_invalid'))+' / '+str(data.get('market_ohlc_checked'))+'건 ('+str(data.get('market_ohlc_invalid_pct'))+'%)' if data.get('market_ohlc_invalid') is not None else '수치 미확보'} · {'검증 완료' if data.get('market_ohlc_quality_verified') is True else '검증 실패/미확인'}
-**독립 출처 교차확인:** {'완료' if data.get('all_independent_sources_verified') else '미완료 (동일 파이프라인 복사본은 별개 확인 아님)'}
-**중요:** 수집 워크플로 실행 성공 및 날짜 일치는 원본 OHLC·수급 신뢰성 검증의 충분조건이 아닙니다.
+**OHLC 내부 일관성:** {str(data.get('market_ohlc_invalid'))+' / '+str(data.get('market_ohlc_checked'))+'건 ('+str(data.get('market_ohlc_invalid_pct'))+'%)' if data.get('market_ohlc_invalid') is not None else '수치 미확보'} · {'형식 검사 통과(공급원 독립 검증 아님)' if data.get('market_ohlc_quality_verified') is True else '형식 검사 실패/미확인'}
+**종목별 일봉 출처 대조:** {fmt(data.get('recovery_vs_sector_price_parity_status'))} · 중복 {fmt(data.get('price_parity_overlap_count'))}종목 중 종가 불일치 {fmt(data.get('price_parity_mismatch_count'))}종목
+**정규장 전용 가격 인증:** {'인증 연구 단계' if data.get('regular_only_price_verified') else '미완료'} · 상태 {fmt(data.get('regular_source_status'))} / 기준일 {fmt(data.get('regular_report_asof'))}
+**독립 원본 출처 교차확인:** {'완료' if data.get('all_independent_sources_verified') else '미완료 (날짜 일치 및 같은 공급원 내부 일관성은 인증이 아님)'}
+**중요:** 수집 워크플로 실행 성공·날짜 일치·OHLC 내부 유효성만으로 정규장 가격을 인증하지 않습니다.
 **일봉 연구 구조 통과:** {fmt(data['recovery_research_geometry_pass'])}건 · 연구 티커 {watch}
 {research_line}
 **TOP3 판정:** {data.get('sector_selection_outcome','PENDING_DATA_VALIDATION')} · **TOP5 판정:** {data.get('stock_selection_outcome','PENDING_DATA_VALIDATION')} (보류와 검증 후 0개를 구분)
@@ -251,7 +304,7 @@ def to_markdown(data: dict) -> str:
 
 **기존 보유주:** C3와 K100 별도 관리, 이 파일만으로 매도·손절·추가매수를 지시하지 않음.
 
-**Required Next Data:** 당일 완료 섹터·기관/외국인 수급, 공식 기업 호재·실적, 실시간 진입 트리거·실제 주문가능현금.
+**Required Next Data:** 공식 정규장 가격/65일 일봉 인증, 당일 섹터 거래대금·상승확산, 공식 기업 호재·실적, 구조손절·실시간 진입 트리거·실제 주문가능현금. 외국인·기관 수급은 선택적 보조 지표.
 """
 
 
@@ -264,6 +317,8 @@ def main() -> None:
     parser.add_argument("--focus-fallback",type=Path,required=False)
     parser.add_argument("--sector", type=Path, required=True)
     parser.add_argument("--money", type=Path, required=True)
+    parser.add_argument("--regular", type=Path, required=False,
+                        help="Read-only REGULAR-only final source status")
     parser.add_argument("--date", default=None)
     parser.add_argument("--out", type=Path, default=Path("output"))
     parser.add_argument("--c3-state", type=Path, default=Path("config/c3_position_state.json"))
@@ -287,7 +342,8 @@ def main() -> None:
             focus_source="SECTOR_FIRST_EMBEDDED_FALLBACK"
     result = evaluate(target_day, recovery, focus,
                       load_json(args.sector), load_json(args.money), candidate,
-                      load_c3_position(args.c3_state), focus_source)
+                      load_c3_position(args.c3_state), focus_source,
+                      load_json(args.regular) if args.regular else {})
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "today_asof_gate.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
