@@ -87,6 +87,16 @@ class ResistanceV61Tests(unittest.TestCase):
         self.assertIsNone(e["pivot"])
         self.assertIsNone(e["cluster"])
 
+    def test_tick_floor_of_nearest_high_to_entry_is_valid_hard_barrier(self):
+        b=market()
+        for bar in b:
+            bar["high"]=103.8
+        e=tier_levels(b,103)
+        self.assertEqual(e["near"],103)
+        self.assertIsNone(e["pivot"])
+        self.assertEqual(e["near_touches"],60)
+        self.assertFalse(e["near"]>103)
+
     def test_no_future_leakage_in_reference_levels(self):
         b=market()
         b[-18]["high"]=114
