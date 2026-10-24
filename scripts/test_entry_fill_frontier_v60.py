@@ -61,6 +61,17 @@ class FrontierTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"DUPLICATE"):
             archived_signals(x+[x[0]],ASOF)
 
+    def test_corrected_v59_may_store_distinct_targets_for_first_and_second(self):
+        rows=pairs(date(2026,10,14))
+        rows[0]["target_reference"]="118"
+        rows[1]["target_reference"]="112"
+        rows[0]["legacy_first_entry_target"]="125"
+        rows[1]["legacy_first_entry_target"]="125"
+        self.assertEqual(len(archived_signals(rows,ASOF)),1)
+        rows[1]["legacy_first_entry_target"]="130"
+        with self.assertRaisesRegex(ValueError,"MISMATCHED_ARCHIVED_ORIGINAL_FIRST_TARGET"):
+            archived_signals(rows,ASOF)
+
     def test_archived_signal_cannot_be_today_or_future(self):
         with self.assertRaisesRegex(ValueError,"FUTURE"):
             archived_signals(pairs(ASOF),ASOF)
