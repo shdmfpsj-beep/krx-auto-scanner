@@ -1,0 +1,144 @@
+name: Free v6.0 fixed entry fill and cost frontier (biased shadow)
+
+on:
+  workflow_dispatch:
+    inputs:
+      asof:
+        description: 'Immutable historical research session YYYY-MM-DD'
+        required: false
+        default: '2026-10-23'
+        type: string
+      recovery_run:
+        description: 'Complete archive recovery run ID'
+        required: false
+        default: '39923708922'
+        type: string
+      v59_run:
+        description: 'Completed v5.9 shadow archive run ID'
+        required: false
+        default: '40098931203'
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/entry_fill_frontier_v60_free.yml'
+      - 'scripts/entry_fill_frontier_v60.py'
+      - 'scripts/test_entry_fill_frontier_v60.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: free-v60-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  five-entry-frontier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RECOVERY_RUN: ${{ inputs.recovery_run || '39923708922' }}
+      V59_RUN: ${{ inputs.v59_run || '40098931203' }}
+      ASOF: ${{ inputs.asof || '2026-10-23' }}
+    steps:
+      - name: Sparse checkout free audited modules only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/entry_fill_frontier_v60.py
+            /scripts/test_entry_fill_frontier_v60.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Compile and check fixed-no-future price policies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_entry_fill_frontier_v60.py -v
+
+      - name: Fetch original explicitly identified dated sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery v59 output
+          [[ "$RECOVERY_RUN" =~ ^[0-9]{8,14}$ && "$V59_RUN" =~ ^[0-9]{8,14}$ ]] ||
+            { echo "SOURCE_RUN_ID_INVALID"; exit 1; }
+          rec_path="$(gh api "repos/$GH_REPO/actions/runs/$RECOVERY_RUN" --jq '.path')"
+          rec_status="$(gh api "repos/$GH_REPO/actions/runs/$RECOVERY_RUN" --jq '.conclusion')"
+          v59_path="$(gh api "repos/$GH_REPO/actions/runs/$V59_RUN" --jq '.path')"
+          v59_status="$(gh api "repos/$GH_REPO/actions/runs/$V59_RUN" --jq '.conclusion')"
+          [[ "$rec_path" == '.github/workflows/krx_recovery_scan.yml' && "$rec_status" == 'success' ]] ||
+            { echo "RECOVERY_PROVENANCE_INVALID"; exit 1; }
+          [[ "$v59_path" == '.github/workflows/shadow_five_day_v59_free.yml' && "$v59_status" == 'success' ]] ||
+            { echo "V59_PROVENANCE_INVALID"; exit 1; }
+          gh run download "$RECOVERY_RUN" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          gh run download "$V59_RUN" -R "$GH_REPO" -n v59-five-day-shadow-hindsight-20261023 -D v59
+          test -s recovery/status.json
+          test -s recovery/candidates.csv
+          test -s recovery/candidate_daily_history_v52.csv
+          test -s v59/shadow_v59_status.json
+          test -s v59/shadow_v59_all.csv
+          python - <<'PY'
+          import json,os,csv
+          from pathlib import Path
+          a=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          b=json.loads(Path('v59/shadow_v59_status.json').read_text(encoding='utf-8'))
+          assert a.get('market_data_date')==os.environ['ASOF']==b.get('asof')
+          assert a.get('scan_complete') is True and a.get('data_date_verified') is True
+          assert b.get('retrospective_universe_selection_bias') is True
+          assert b.get('regular_session_certified') is not True
+          assert b.get('trade_approved') is False and b.get('orders_enabled') is False
+          print('SOURCE_ASOF_MATCH_NO_AUTHORIZED_TRADING',os.environ['ASOF'])
+          PY
+
+      - name: Replay same 196 signals using five pre-committed entry prices
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/entry_fill_frontier_v60.py --recovery recovery \
+            --v59 v59 --asof "$ASOF" --outdir output
+          python - <<'PY'
+          import json,csv,os
+          from pathlib import Path
+          d=json.loads(Path('output/entry_fill_frontier_v60_status.json').read_text(encoding='utf-8'))
+          assert d['asof']==os.environ['ASOF']
+          assert d['research_signals']==196
+          assert d['research_rows']==196*5
+          assert d['retrospective_universe_selection_bias'] if 'retrospective_universe_selection_bias' in d else d['retro_selected_universe']
+          assert d['historic_120bar_pit_market_universe_verified'] is False
+          assert d['regular_market_ohlc_independently_verified'] is False
+          assert d['validated_live_trade_count']==0
+          assert d['trade_approved'] is False and d['orders_enabled'] is False
+          assert d['decision']=='CASH'
+          with Path('output/entry_fill_frontier_v60_all.csv').open(encoding='utf-8-sig',newline='') as f:
+              rs=list(csv.DictReader(f))
+          assert len(rs)==980
+          assert all(r['trade_approved']=='False' for r in rs)
+          assert all(r['regular_session_certified']=='False' for r in rs)
+          print('V60_DATED_196_SIGNALS_980_FIXED_PRICE_COUNTERFACTUALS',
+                d['research_signals'],d['research_rows'])
+          for key in d['variants']:
+              n=sum(d['category_stats'][m][key]['filled'] for m in d['category_stats'])
+              q=sum(d['category_stats'][m][key]['valid_2r_supported_price_entries'] for m in d['category_stats'])
+              print('V60_VARIANT',key,'filled',n,'supported_2R',q)
+          PY
+
+      - name: Preserve all hypothetical price levels, reasons and Android report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v60-fixed-five-entry-20261023
+          path: |
+            output/entry_fill_frontier_v60_status.json
+            output/entry_fill_frontier_v60_all.csv
+            output/entry_fill_frontier_v60_mobile.md
+          retention-days: 30
+          if-no-files-found: warn
