@@ -6,7 +6,7 @@ on:
       v60_daily_run_id:
         description: "Exact successful v6.0 daily paired run ID"
         required: false
-        default: "40136434371"
+        default: "40139134302"
         type: string
   push:
     branches: [main]
@@ -32,7 +32,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      V60_RUN: ${{ github.event.workflow_run.id || inputs.v60_daily_run_id || '40136434371' }}
+      V60_RUN: ${{ github.event.workflow_run.id || inputs.v60_daily_run_id || '40139134302' }}
     steps:
       - name: Sparse checkout v6.1 no-order source only
         uses: actions/checkout@v4
@@ -122,7 +122,7 @@ jobs:
           status=json.loads(Path('output/resistance_tiers_v61_status.json').read_text(encoding='utf-8'))
           assert status['evaluated_entry_rows']==2*status['original_research_signals']
           assert status['confirmed_pivot_tiers_are_diagnostic_not_approval'] is True
-          assert status['regular_market_ohlc_independently_verified'] is not True if 'regular_market_ohlc_independently_verified' in status else status['actual_regular_session_provider_verified'] is False
+          assert status['actual_regular_session_provider_verified'] is False
           assert status['final_80_point_certification'] is False
           assert status['trade_approved'] is False and status['orders_enabled'] is False
           assert status['decision']=='CASH'
