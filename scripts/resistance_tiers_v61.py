@@ -69,8 +69,10 @@ def tier_levels(bars,entry):
         raise ValueError("INVALID_SIGNAL_ATR")
     window=bars[-61:-1]
     near=nearest_ceiling(bars,entry)
-    if near is not None and near<=entry:
-        raise ValueError("INVALID_NEAR_FRICTION")
+    # The historical raw high may be above entry while KRX tick rounding
+    # floors it to the entry itself. This is an IMMEDIATE hard barrier
+    # with no positive tradeable reward, not a malformed market data row.
+    # Retain the observation to reconcile exactly with v6.0 provenance.
     # Empirical nearby wick count using 0.25 ATR tolerance, not a real
     # intraday order-book / traded-price profile.
     near_touches=(sum(abs(b["high"]-near)<=.25*atr for b in window)
@@ -196,6 +198,8 @@ def build(archive,v59_rows,v60_rows,asof):
                     pos(first["signal_second_reference"]) is not None))
             soft=rrpivot is not None and rrpivot>=2 and not strict
             if nearest is None:label="NO_PRIOR_NEARBY_OVERHEAD"
+            elif entry is not None and nearest<=entry:
+                label="TICK_ROUNDED_NEAREST_BARRIER_AT_OR_BELOW_ENTRY"
             elif pivot is None:label="ONLY_SINGLE_BAR_HIGH_NO_CONFIRMED_PIVOT"
             elif soft:label="PIVOT_TARGET_2R_BUT_NEARBY_FRICTION_BLOCKS"
             elif strict:label="NEAREST_BARRIER_2R_RESEARCH_ONLY"
