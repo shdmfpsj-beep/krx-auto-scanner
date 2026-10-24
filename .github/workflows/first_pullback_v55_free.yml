@@ -1,0 +1,133 @@
+name: Free HMA60 first pullback replay and daily research
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/first_pullback_v55_free.yml'
+      - 'scripts/first_pullback_v55.py'
+      - 'scripts/test_first_pullback_v55.py'
+  workflow_dispatch:
+    inputs:
+      recovery_run_id:
+        description: 'Recovery scan artifact run ID; default 23 Oct 2026 archive'
+        required: true
+        default: '39923708922'
+        type: string
+      asof:
+        description: 'KRX date YYYY-MM-DD (not a real-time signal)'
+        required: true
+        default: '2026-10-23'
+        type: string
+  workflow_run:
+    workflows: ['KRX recovery scan (safe sparse checkout)']
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: free-hma60-first-pullback-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  research:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SOURCE_RUN: ${{ github.event.workflow_run.id || inputs.recovery_run_id || '39923708922' }}
+      EXPECTED_ASOF: ${{ inputs.asof || '' }}
+    steps:
+      - name: Checkout only safe Python sources
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/test_first_pullback_v55.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Offline code and no-future-data regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/free_structural_v52.py scripts/first_pullback_v55.py scripts/test_first_pullback_v55.py
+          python -m unittest discover -s scripts -p test_first_pullback_v55.py -v
+
+      - name: Download exact source run (no latest-run mixing)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input output
+          [[ "$SOURCE_RUN" =~ ^[0-9]{8,14}$ ]] || { echo 'INVALID_SOURCE_RUN'; exit 1; }
+          gh run download "$SOURCE_RUN" -R "$GH_REPO" -n krx-recovery-scan -D input
+          test -s input/status.json
+          test -s input/candidate_daily_history_v52.csv
+          test -s input/candidates.csv
+          test -s input/c3_preliminary.csv
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads(Path('input/status.json').read_text(encoding='utf-8'))
+          asof=p.get('market_data_date')
+          if not isinstance(asof,str) or len(asof)!=10:
+              raise SystemExit('SOURCE_SCAN_ASOF_MISSING')
+          requested=os.environ.get('EXPECTED_ASOF') or asof
+          if requested!=asof:
+              raise SystemExit('SOURCE_SCAN_ASOF_DOES_NOT_MATCH_REQUEST')
+          Path('input/expected_asof.txt').write_text(asof)
+          print('REPLAYING_EXACT_SOURCE_DATE',asof,'RUN',os.environ['SOURCE_RUN'])
+          PY
+
+      - name: Download parity only for the explicitly paired 23 October replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$SOURCE_RUN" == '39923708922' ]] && [[ "$(cat input/expected_asof.txt)" == '2026-10-23' ]]; then
+            mkdir -p parity
+            if gh run download 39955677117 -R "$GH_REPO" -n sector-first-daily -D parity; then
+              if [[ -f parity/source_price_parity.json ]]; then
+                cp parity/source_price_parity.json input/source_price_parity.json
+                echo "PAIRED_DATE_LOCKED_PARITY_LOADED"
+              fi
+            fi
+          else
+            echo "INDEPENDENT_PARITY_NOT_AVAILABLE_FOR_THIS_EXACT_RUN; FAIL_CLOSED"
+          fi
+
+      - name: Reconstruct dated HMA60 research without trade execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/first_pullback_v55.py --input input --out output --asof "$(cat input/expected_asof.txt)"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('output/first_pullback_v55_status.json').read_text())
+          assert r['decision']=='CASH'
+          assert r['trade_approved'] is False and r['orders_enabled'] is False
+          assert r['market_session_certified'] is False
+          assert r['final_80_score_verified'] is False
+          assert r['asof']==Path('input/expected_asof.txt').read_text()
+          if r['asof']=='2026-10-23':
+              assert r['scanned_count']==82
+              assert r['parity_mismatches']==59 and r['parity_overlapping']==81
+          print('SAFE_RESEARCH_REPLAY',r['asof'],r['setup_counts'],r['watch_tickers'])
+          PY
+
+      - name: Publish free mobile report and complete row-level diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-pullback-v55-free
+          path: |
+            output/first_pullback_v55_status.json
+            output/first_pullback_v55_mobile.md
+            output/first_pullback_v55_all.csv
+          retention-days: 21
+          if-no-files-found: warn
