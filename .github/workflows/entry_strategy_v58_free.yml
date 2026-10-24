@@ -1,0 +1,144 @@
+name: Free v5.8 risk-first C3 K100 three-entry replay
+
+on:
+  workflow_dispatch:
+    inputs:
+      recovery_run_id:
+        description: 'Exact dated KRX recovery scan run'
+        required: false
+        default: '39923708922'
+        type: string
+      forensic_run_id:
+        description: 'Matching dated v5.7 full source report'
+        required: false
+        default: '40085866717'
+        type: string
+      asof:
+        description: 'Exact KRX close YYYY-MM-DD'
+        required: false
+        default: '2026-10-23'
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/entry_strategy_v58_free.yml'
+      - 'scripts/entry_strategy_v58.py'
+      - 'scripts/test_entry_strategy_v58.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: krx-v58-three-entries-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  exact-asof-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RECOVERY_RUN: ${{ inputs.recovery_run_id || '39923708922' }}
+      FORENSIC_RUN: ${{ inputs.forensic_run_id || '40085866717' }}
+      DATE_KRX: ${{ inputs.asof || '2026-10-23' }}
+    steps:
+      - name: Sparse checkout only safe research source and tests
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/test_entry_strategy_v58.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Run deterministic price, support and entry regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_entry_strategy_v58.py -v
+
+      - name: Select exact dated and completed sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery evidence output
+          [[ "$RECOVERY_RUN" =~ ^[0-9]{8,14}$ && "$FORENSIC_RUN" =~ ^[0-9]{8,14}$ ]] ||
+            { echo "INVALID_SOURCE_RUN_ID"; exit 1; }
+          actual="$(gh api "repos/$GH_REPO/actions/runs/$RECOVERY_RUN" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$RECOVERY_RUN" --jq '.conclusion')"
+          [[ "$actual" == '.github/workflows/krx_recovery_scan.yml' && "$conclusion" == 'success' ]] ||
+            { echo "RECOVERY_RUN_UNVERIFIED"; exit 1; }
+          actual="$(gh api "repos/$GH_REPO/actions/runs/$FORENSIC_RUN" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$FORENSIC_RUN" --jq '.conclusion')"
+          case "$actual" in
+            '.github/workflows/regular_source_forensics_v57_free.yml'|'.github/workflows/regular_source_v57_daily.yml') ;;
+            *) echo "FORENSICS_WORKFLOW_UNVERIFIED"; exit 1 ;;
+          esac
+          [[ "$conclusion" == 'success' ]] || { echo "FORENSICS_RUN_INCOMPLETE"; exit 1; }
+          gh run download "$RECOVERY_RUN" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          if [[ "$actual" == '.github/workflows/regular_source_forensics_v57_free.yml' ]]; then
+            gh run download "$FORENSIC_RUN" -R "$GH_REPO" -n free-v57-regular-source-forensics-20261023 -D evidence
+          else
+            gh run download "$FORENSIC_RUN" -R "$GH_REPO" -n v57-date-locked-free-source-diagnostic -D evidence
+          fi
+          test -s recovery/status.json
+          test -s recovery/candidate_daily_history_v52.csv
+          test -s recovery/candidates.csv
+          test -s evidence/source_forensics_v57.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          status=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          p=json.loads(Path('evidence/source_forensics_v57.json').read_text(encoding='utf-8'))
+          asof=os.environ['DATE_KRX']
+          assert status['market_data_date']==asof==p['asof']
+          assert status['scan_complete'] and status['data_date_verified']
+          assert p['diagnosis_valid'] is True
+          assert p['trade_approved'] is False
+          print('V58_DATED_SOURCES_MATCH',asof)
+          PY
+
+      - name: Produce all strategies and stop-first alternative entries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/entry_strategy_v58.py --recovery recovery --forensics evidence/source_forensics_v57.json --asof "$DATE_KRX" --outdir output
+          python - <<'PY'
+          import csv,json,os
+          from pathlib import Path
+          r=json.loads(Path('output/entry_strategy_v58_status.json').read_text(encoding='utf-8'))
+          assert r['asof']==os.environ['DATE_KRX']
+          assert r['evaluated_method_rows']==3*r['candidates']
+          assert r['orders_enabled'] is False and r['trade_approved'] is False
+          assert r['decision']=='CASH'
+          assert r['regular_only_session_certified'] is False
+          assert r['final_80_score_verified'] is False
+          assert r['source_errors']==[]
+          with Path('output/entry_strategy_v58_all.csv').open(encoding='utf-8-sig',newline='') as f:
+            rows=list(csv.DictReader(f))
+          assert len(rows)==r['evaluated_method_rows']
+          assert all(x['trade_approved']=='False' for x in rows)
+          assert all(x['orders_enabled']=='False' for x in rows)
+          if r['asof']=='2026-10-23':
+            assert r['candidates']==82
+            assert r['evaluated_method_rows']==246
+          print('REPLAYED_V58_METHOD_COUNTS',r['method_trigger_counts'])
+          print('REPLAYED_V58_RESEARCH_READY',r['technical_research_ready_count'],r['watch_tickers'])
+          PY
+
+      - name: Save mobile report and complete row-level reasoning
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v58-3entry-risk-first
+          path: |
+            output/entry_strategy_v58_status.json
+            output/entry_strategy_v58_all.csv
+            output/entry_strategy_v58_mobile.md
+          retention-days: 30
+          if-no-files-found: warn
