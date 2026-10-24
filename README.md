@@ -1,5 +1,13 @@
 # KRX C3 / K100 — 무료 주식분석 자동화
 
+## 최신 v6.1 스윙 고점·군집 저항증거 분리 (2026-10-25)
+
+- **[v6.1 392개 타점 저항 진단 및 결과](docs/RESISTANCE_TIERS_V61_20261023.md)** · [완료된 실데이터 재생/11개 테스트 #40139027642](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40139027642) · [v6.0→v6.1 정확한 원본 연결 및 자동 보고 성공 #40139210532](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40139210532).
+- 과거 196개 동일 신호 × 1·2차 대체 타점 392행에서, **확정 스윙 피벗 목표까지만 2R인 경우 37개**를 추가로 식별. 하지만 **더 가까운 고가 저항이 있어 매수 승인 0개**, CASH 유지.
+- 좌우 2개 완료봉으로 확인된 스윙 피벗과 2개 이상의 고점 군집을 일회성 고가와 구분. 먼 피벗으로 가까운 저항·손절 위험을 임의로 건너뛰지 않음. 하루 고가의 틱 단위 반올림 경계도 신호 차단.
+- 무료 [일일 v6.1 자동 연결](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/resistance_tiers_v61_daily.yml)은 v6.0의 정확한 v5.9/recovery 원본 실행번호와 날짜를 인계해 실데이터 보고. 정규장 독립 인증·시점별 전체시장 PIT 백테스트 미완료 → 실제 주문가·수익예측 아님.
+
+
 ## 최신 v6.0 수익·체결가능성 프런티어 (2026-10-25)
 
 - **[v6.0 전체 보고서 — 23일 기준 196 신호 × 5가지 가격안](docs/ENTRY_FILL_FRONTIER_V60_20261023.md)**.
