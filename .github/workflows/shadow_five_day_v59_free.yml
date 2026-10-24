@@ -1,0 +1,143 @@
+name: Free v5.9 biased-universe 5-session shadow backtest (read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      recovery_run:
+        description: 'Exact completed 23 Oct source run'
+        required: false
+        default: '39923708922'
+        type: string
+      entry_run:
+        description: 'Exact completed v5.8 as-of source run'
+        required: false
+        default: '40095664047'
+        type: string
+      asof:
+        description: 'Frozen end of archive YYYY-MM-DD'
+        required: false
+        default: '2026-10-23'
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/shadow_five_day_v59_free.yml'
+      - 'scripts/shadow_five_day_v59.py'
+      - 'scripts/test_shadow_five_day_v59.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: five-day-shadow-v59-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  causal-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RECOVERY_RUN: ${{ inputs.recovery_run || '39923708922' }}
+      ENTRY_RUN: ${{ inputs.entry_run || '40095664047' }}
+      ASOF: ${{ inputs.asof || '2026-10-23' }}
+    steps:
+      - name: Sparse checkout only audited no-order code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/test_shadow_five_day_v59.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Offline conservative fill, gap, fee and no-future regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p 'test_shadow_five_day_v59.py' -v
+
+      - name: Fetch and verify original dated archives and audited upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery source output
+          [[ "$RECOVERY_RUN" =~ ^[0-9]{8,14}$ && "$ENTRY_RUN" =~ ^[0-9]{8,14}$ ]] ||
+            { echo "INVALID_FIXED_ARTIFACT_RUN_ID"; exit 1; }
+          rpath="$(gh api "repos/$GH_REPO/actions/runs/$RECOVERY_RUN" --jq '.path')"
+          econclusion="$(gh api "repos/$GH_REPO/actions/runs/$ENTRY_RUN" --jq '.conclusion')"
+          epath="$(gh api "repos/$GH_REPO/actions/runs/$ENTRY_RUN" --jq '.path')"
+          rconclusion="$(gh api "repos/$GH_REPO/actions/runs/$RECOVERY_RUN" --jq '.conclusion')"
+          [[ "$rpath" == '.github/workflows/krx_recovery_scan.yml' && "$rconclusion" == 'success' ]] ||
+            { echo "RECOVERY_WORKFLOW_RUN_INVALID"; exit 1; }
+          [[ "$epath" == '.github/workflows/entry_strategy_v58_free.yml' && "$econclusion" == 'success' ]] ||
+            { echo "ENTRY_WORKFLOW_RUN_INVALID"; exit 1; }
+          gh run download "$RECOVERY_RUN" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          gh run download "$ENTRY_RUN" -R "$GH_REPO" -n free-v58-3entry-risk-first -D source
+          test -s recovery/candidate_daily_history_v52.csv
+          test -s recovery/status.json
+          test -s recovery/candidates.csv
+          test -s source/entry_strategy_v58_status.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          day=os.environ['ASOF']
+          a=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          b=json.loads(Path('source/entry_strategy_v58_status.json').read_text(encoding='utf-8'))
+          assert a['market_data_date']==day==b['asof'], "SOURCE_DATE_MISMATCH"
+          assert a['scan_complete'] is True and a['data_date_verified'] is True
+          assert b['source_errors']==[]
+          assert b['orders_enabled'] is False and b['trade_approved'] is False
+          assert b['regular_only_session_certified'] is False
+          print('V59_SOURCE_23OCT_PROVENANCE_LOCKED',day)
+          PY
+
+      - name: Run as-of causal shadow with hindsight-bias warnings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/shadow_five_day_v59.py --recovery recovery \
+             --entry-report source/entry_strategy_v58_status.json \
+             --asof "$ASOF" --outdir output
+          python - <<'PY'
+          import csv,json,os
+          from pathlib import Path
+          r=json.loads(Path('output/shadow_v59_status.json').read_text(encoding='utf-8'))
+          assert r['asof']==os.environ['ASOF']
+          assert r['selected_universe_size']==82
+          assert r['historical_bars_per_ticker_max']==120
+          assert r['retrospective_universe_selection_bias'] is True
+          assert r['historical_daily_price_regular_session_certified'] is False
+          assert r['point_in_time_historical_stock_universe_verified'] is False
+          assert r['validated_live_strategy_trade_count']==0
+          assert r['decision']=='CASH' and r['trade_approved'] is False
+          assert r['orders_enabled'] is False
+          assert r['total_simulated_alternative_scenarios']==2*r['historical_replay_signals']
+          with Path('output/shadow_v59_all.csv').open(encoding='utf-8-sig',newline='') as f:
+              all_rows=list(csv.DictReader(f))
+          assert len(all_rows)==r['total_simulated_alternative_scenarios']
+          assert all(row['trade_approved']=='False' for row in all_rows)
+          assert all(row['regular_session_certified']=='False' for row in all_rows)
+          print('BIASED_SHADOW_ONLY_ASOF',r['asof'],
+                'signals',r['historical_replay_signals'],
+                'alternatives',r['total_simulated_alternative_scenarios'],
+                'methods',r['signal_counts'])
+          PY
+
+      - name: Upload full hypothetical trades and Android report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v59-five-day-shadow-hindsight-20261023
+          path: |
+            output/shadow_v59_status.json
+            output/shadow_v59_all.csv
+            output/shadow_v59_mobile.md
+          if-no-files-found: warn
+          retention-days: 30
