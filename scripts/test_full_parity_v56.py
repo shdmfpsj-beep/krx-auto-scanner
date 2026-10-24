@@ -92,6 +92,19 @@ class FullParityTests(unittest.TestCase):
         self.assertGreaterEqual(res["invalid_rows"],2)
         self.assertFalse(res["mismatch_tickers_complete"])
 
+    def test_invalid_zero_ohlc_candidate_is_named_and_never_assumed_matched(self):
+        self.inputs(n=2,changed=[])
+        p=self.scan/"candidate_daily_history_v52.csv"
+        with p.open("a",encoding="utf-8") as handle:
+            handle.write("050090,2026-10-23,0,0,0,696,pykrx\n")
+        res=inspect(self.scan,self.evidence,DAY)
+        self.assertIn("050090",res["invalid_recovery_tickers"])
+        self.assertNotIn("050090",res["unpaired_recovery_tickers"])
+        self.assertEqual(res["recovery_valid_tickers"],2)
+        self.assertEqual(res["source_status"],"CANDIDATE_CLOSES_MATCH_RESEARCH_ONLY")
+        self.assertFalse(res["regular_only_session_certified"])
+        self.assertEqual(res["decision"],"CASH")
+
     def test_duplicate_recovery_prevents_partial_roster(self):
         self.inputs(n=2)
         p=self.scan/"candidate_daily_history_v52.csv"
