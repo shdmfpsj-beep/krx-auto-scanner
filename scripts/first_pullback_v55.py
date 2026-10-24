@@ -187,7 +187,7 @@ def analyze(status,candidates,histories,prelims,asof,parity=None):
       first_reclaims=counts.get("FIRST_PULLBACK_RECLAIM",0),
       market_session_certified=False,final_80_score_verified=False,
       manual_review_final_score_threshold=80,
-      excluded_chem_bio_stock_names_without_sector_master=True,
+      bio_pharma_name_exclusion_applied=True,
       roundtrip_cost_assumption_pct=COST_PCT,
       foreign_institution_netflows_optional=True,
       trade_approved=False,orders_enabled=False,decision="CASH",
