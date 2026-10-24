@@ -32,6 +32,7 @@ jobs:
             /scripts/sector_pipeline_health_gate.py
             /scripts/test_sector_pipeline_health_gate.py
             /scripts/krx_session_clock.py
+            /.github/workflows/sector_pipeline_health.yml
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Offline test source-quality verdicts
