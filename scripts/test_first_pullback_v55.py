@@ -95,6 +95,38 @@ class FirstPullbackTests(unittest.TestCase):
         self.assertFalse(report["orders_enabled"])
         self.assertEqual(report["decision"],"CASH")
 
+    def test_v56_complete_roster_flags_conflict_beyond_first_15(self):
+        rows=fixture();d=date.fromisoformat(rows[-1]["date"])
+        tickers=[f"{100000+i:06d}" for i in range(17)]+["005930"]
+        status={"market_data_date":str(d),"scan_complete":True,
+                "data_date_verified":True,"coverage_ratio":0.99}
+        parity={"asof":str(d),"status":"CROSS_SOURCE_CLOSE_CONFLICT",
+                "overlap_tickers":20,"close_mismatches":18,
+                "mismatch_tickers_complete":True,
+                "mismatch_tickers":tickers,
+                "mismatch_examples":[{"ticker":tickers[0]}]}
+        results,report=analyze(status,[candidate(rows)],rows,[],d,parity)
+        self.assertTrue(report["complete_parity_conflict_roster"])
+        self.assertEqual(len(report["all_disclosed_conflict_tickers"]),18)
+        self.assertIn("KNOWN_CROSS_SOURCE_CLOSE_CONFLICT",results[0]["warnings"])
+        self.assertEqual(report["watch_tickers"],[])
+        self.assertEqual(report["decision"],"CASH")
+
+    def test_truncated_conflict_list_is_explicitly_unverified(self):
+        rows=fixture();d=date.fromisoformat(rows[-1]["date"])
+        status={"market_data_date":str(d),"scan_complete":True,
+                "data_date_verified":True,"coverage_ratio":0.99}
+        parity={"asof":str(d),"status":"CROSS_SOURCE_CLOSE_CONFLICT",
+                "overlap_tickers":20,"close_mismatches":18,
+                "mismatch_tickers_complete":True,
+                "mismatch_tickers":["005930"],
+                "mismatch_examples":[{"ticker":"100000"}]}
+        _,report=analyze(status,[candidate(rows)],rows,[],d,parity)
+        self.assertFalse(report["complete_parity_conflict_roster"])
+        self.assertIn("COMPLETE_CROSS_SOURCE_CONFLICT_ROSTER_MISSING",
+                      report["source_errors"])
+        self.assertEqual(report["watch_tickers"],[])
+
     def test_nearby_rr_failure_is_rejected_diagnostic_not_a_trade(self):
         from unittest.mock import patch
         rows=fixture();d=date.fromisoformat(rows[-1]["date"])
