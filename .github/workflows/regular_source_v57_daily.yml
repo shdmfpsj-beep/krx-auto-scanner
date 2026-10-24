@@ -135,6 +135,10 @@ jobs:
             done
           fi
           [[ -n "$selected" ]] || { echo "NO_DATE_MATCHED_RECOVERY_ARTIFACT_FAIL_CLOSED"; exit 1; }
+          # Immutable pairing proof for the next pipeline stage. No need to
+          # rediscover a possibly different recovery run in v5.8.
+          printf '%s' "$selected" > input/recovery_source_run_id.txt
+          printf '%s' "$SECTOR_RUN" > input/sector_source_run_id.txt
           if [[ ! -s input/recovery/status.json ]]; then
             actual="$(gh api "repos/$GH_REPO/actions/runs/$selected" --jq '.path')"
             conclusion="$(gh api "repos/$GH_REPO/actions/runs/$selected" --jq '.conclusion')"
@@ -180,6 +184,8 @@ jobs:
           name: v57-date-locked-free-source-diagnostic
           path: |
             input/asof.txt
+            input/recovery_source_run_id.txt
+            input/sector_source_run_id.txt
             output/source_price_parity.json
             output/complete_price_parity_v56.csv
             output/full_parity_v56_mobile.md
