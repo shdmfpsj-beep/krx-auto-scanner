@@ -258,14 +258,14 @@ def historical_shadow(candidates,histories,asof,limit=MAX_METHOD_ROWS):
                     # price. That falsely improves SECOND's apparent R:R:
                     # recalculate overhead resistance specifically for
                     # EVERY limit using bars available on signal date only.
-                    limit=(plan["first_entry_reference"] if variant=="FIRST"
-                           else plan["second_entry_reference"])
+                    entry_limit=(plan["first_entry_reference"] if variant=="FIRST"
+                                 else plan["second_entry_reference"])
                     close_before=bars[:index+1]
-                    target=(nearest_ceiling(close_before,limit)
-                            if limit is not None else None)
+                    target=(nearest_ceiling(close_before,entry_limit)
+                            if entry_limit is not None else None)
                     stop=plan["stop_reference"]
-                    rr=(net_reward_risk(limit,stop,target,ROUNDTRIP_COST_PCT)
-                        if limit is not None and stop is not None
+                    rr=(net_reward_risk(entry_limit,stop,target,ROUNDTRIP_COST_PCT)
+                        if entry_limit is not None and stop is not None
                         and target is not None else None)
                     revised={**plan,"nearest_resistance_reference":target}
                     if variant=="FIRST":
