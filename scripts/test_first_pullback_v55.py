@@ -120,6 +120,25 @@ class FirstPullbackTests(unittest.TestCase):
         self.assertFalse(rejected["trade_approved"])
         self.assertEqual(result["decision"],"CASH")
 
+    def test_high_rr_is_not_enough_without_real_turnover_and_share_type(self):
+        from unittest.mock import patch
+        rows=fixture();d=date.fromisoformat(rows[-1]["date"])
+        cand=candidate(rows)
+        ok_status={"market_data_date":str(d),"scan_complete":True,
+                   "data_date_verified":True,"coverage_ratio":0.99}
+        mock_result={"asof":str(d),"ticker":"005930","name":"TEST",
+           "setup":"FIRST_PULLBACK_RECLAIM","daily_stop":90,"entry1":100,
+           "entry2":96,"rr_net":4.2,
+           "warnings":["TRADED_VALUE_ESTIMATED_NOT_VERIFIED",
+                       "COMMON_SHARE_TYPE_UNVERIFIED"],"buy_approval":"NO"}
+        good_parity={"asof":str(d),"status":"CANDIDATE_CLOSES_MATCH_RESEARCH_ONLY",
+                     "overlap_tickers":1,"close_mismatches":0}
+        with patch("first_pullback_v55.inspect",return_value=mock_result):
+            _,r=analyze(ok_status,[cand],rows,[],d,good_parity)
+        self.assertEqual(r["first_reclaims"],1)
+        self.assertEqual(r["watch_tickers"],[])
+        self.assertEqual(r["decision"],"CASH")
+
     def test_none_market_coverage_fails_closed_without_crashing(self):
         rows=fixture();d=date.fromisoformat(rows[-1]["date"])
         _,result=analyze({"market_data_date":str(d),"scan_complete":True,
