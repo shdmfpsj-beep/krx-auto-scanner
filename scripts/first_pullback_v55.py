@@ -160,12 +160,22 @@ def analyze(status,candidates,histories,prelims,asof,parity=None):
        and x["rr_net"] is not None and x["rr_net"]>=2
        and "KNOWN_CROSS_SOURCE_CLOSE_CONFLICT" not in x["warnings"]]
     eligible=sorted(eligible,key=lambda x:(-x["rr_net"],x["ticker"]))[:5] if not errors else []
+    # Show rejection diagnostics separately; never promote them to approved TOP5.
+    rejected=sorted((x for x in rows if x["setup"]=="PULLBACK_WATCH"),
+                    key=lambda x:(
+                        -(x["rr_net"] if isinstance(x["rr_net"],(int,float)) else -999),
+                        x["ticker"]))[:5]
+    rejected_summary=[dict(ticker=x["ticker"],name=x["name"],
+        research_entry=x["entry1"],research_stop=x["daily_stop"],
+        cost_adjusted_near_rr=x["rr_net"],blocked_by=x["warnings"],
+        trade_approved=False) for x in rejected]
     report=dict(schema=VERSION,asof=str(asof),scanned_count=len(rows),
       source_errors=errors,setup_counts=counts,
       parity_overlapping=p.get("overlap_tickers"),
       parity_mismatches=p.get("close_mismatches"),
       listed_parity_conflict_examples=len(conflicts),
       watch_tickers=[x["ticker"] for x in eligible],
+      rejected_pullback_diagnostics=rejected_summary,
       first_reclaims=counts.get("FIRST_PULLBACK_RECLAIM",0),
       market_session_certified=False,final_80_score_verified=False,
       roundtrip_cost_assumption_pct=COST_PCT,
@@ -192,6 +202,19 @@ def markdown(rows,report):
         x=lookup[t]
         lines.append(f"| {x['name']} ({t}) | {x['setup']} | {x['entry1']} | {x['entry2']} | {x['daily_stop']} | {x['rr_net']} |")
     if not report["watch_tickers"]:lines.append("| 충족 후보 없음 | CASH | — | — | — | — |")
+    lines+=["","## 눌림 감시 중 제외된 종목 (매수 금지, 최대 5개)","",
+       "| 종목 | 구조손절 참고 | 1차 참고 | 비용후 R:R | 제외사유 |",
+       "|---|---:|---:|---:|---|"]
+    for x in report.get("rejected_pullback_diagnostics",[]):
+        reasons=[y for y in x["blocked_by"] if y in (
+             "KNOWN_CROSS_SOURCE_CLOSE_CONFLICT",
+             "NEAREST_RESISTANCE_NET_RR_BELOW_2",
+             "SECOND_SUPPORT_NOT_SEPARATED_0_5_ATR",
+             "RECLAIM_NOT_CONFIRMED")]
+        reason=", ".join(reasons) or "미검증"
+        lines.append(f"| {x['name']} ({x['ticker']}) | {x['research_stop'] or '미확인'} | {x['research_entry'] or '미확인'} | {x['cost_adjusted_near_rr'] if x['cost_adjusted_near_rr'] is not None else '미확인'} | {reason} |")
+    if not report.get("rejected_pullback_diagnostics"):
+        lines.append("| 없음 | — | — | — | — |")
     lines+=["","수급·재무·섹터 확산·정규장 가격 인증·계좌가 확인되기 전",
       "매수가와 구조손절은 참고값이며 주문 지시가 아닙니다.",
       "**Required Next Data:** 65일 정규장 인증 이력, 종가 대조, 실측 거래대금, 공시·실적, 계좌 잔고.",""]
