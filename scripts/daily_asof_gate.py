@@ -194,7 +194,7 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
     # The 23 Oct original sector and stock watchlists have missing catalysts,
     # weak breadth and no validated structural entry references.
     def safe_label(value):
-        return str(value or "").replace("|", "/").replace("\\n", " ").replace("\\r", " ")[:48]
+        return str(value or "").replace("|", "/").replace("\n", " ").replace("\r", " ")[:48]
     watch_sectors = []
     if sector.get("asof") == day:
         for item in (sector.get("sector_top3") or [])[:3]:
@@ -309,28 +309,28 @@ def to_markdown(data: dict) -> str:
     candidate = data.get("today_research_candidate", {})
     watch_sectors = data.get("sector_research_watch") or []
     watch_stocks = data.get("stock_research_watch") or []
-    watch_section = ("\\n## 섹터 TOP3 (ETF 구성종목 연구 · 미승인)\\n\\n"
-        "| 순위 | 섹터 | 상승확산 | 분류 |\\n|---|---|---:|---|\\n")
+    watch_section = ("\n## 섹터 TOP3 (ETF 구성종목 연구 · 미승인)\n\n"
+        "| 순위 | 섹터 | 상승확산 | 분류 |\n|---|---|---:|---|\n")
     for item in watch_sectors:
         breadth = item.get("breadth_up_pct")
         watch_section += (f"| {item['rank']} | {item['name']} | "
-             f"{breadth:.1f}% | {item['phase']} |\\n"
+             f"{breadth:.1f}% | {item['phase']} |\n"
              if isinstance(breadth, (int, float)) else
-             f"| {item['rank']} | {item['name']} | 미확인 | {item['phase']} |\\n")
+             f"| {item['rank']} | {item['name']} | 미확인 | {item['phase']} |\n")
     if not watch_sectors:
-        watch_section += "| - | 검증 가능한 연구 목록 없음 | - | - |\\n"
-    watch_section += (f"\\n상승확산 60% 이상: "
+        watch_section += "| - | 검증 가능한 연구 목록 없음 | - | - |\n"
+    watch_section += (f"\n상승확산 60% 이상: "
         f"{data.get('sector_watch_breadth_ge_60_count', 0)}/{len(watch_sectors)}개."
-        " 이는 TOP3 강세 확인이 아닙니다.\\n"
-        "\\n## 종목 TOP5 (연구순위 · 미승인)\\n\\n"
-        "| 순위 | 종목 | 섹터 | 타점 |\\n|---|---|---|---|\\n")
+        " 이는 TOP3 강세 확인이 아닙니다.\n"
+        "\n## 종목 TOP5 (연구순위 · 미승인)\n\n"
+        "| 순위 | 종목 | 섹터 | 타점 |\n|---|---|---|---|\n")
     for item in watch_stocks:
         watch_section += (f"| {item['rank']} | {item['name']} ({item['ticker']}) | "
-             f"{item['sector_id']} | 일봉 구조가격·원본 검증 대기 |\\n")
+             f"{item['sector_id']} | 일봉 구조가격·원본 검증 대기 |\n")
     if not watch_stocks:
-        watch_section += "| - | 검증 가능한 연구 목록 없음 | - | - |\\n"
-    watch_section += ("\\n**이 표의 연구순위는 최종 80점이나 5거래일 "
-        "상승확률이 아닙니다.** 종가 불일치가 해소되기 전 개별 매매가격은 사용 금지.\\n")
+        watch_section += "| - | 검증 가능한 연구 목록 없음 | - | - |\n"
+    watch_section += ("\n**이 표의 연구순위는 최종 80점이나 5거래일 "
+        "상승확률이 아닙니다.** 종가 불일치가 해소되기 전 개별 매매가격은 사용 금지.\n")
     if candidate:
         research_line = (f"**오늘 확인한 기술 연구후보:** {candidate['name']} ({candidate['ticker']}) · "
             f"종가 {candidate['close_reference_tick_floor']:,}원 · 1차 {candidate['entry1_close_reference_tick_floor']:,}원 · "
