@@ -324,6 +324,51 @@ def build_report(candidates,histories,asof,replay,diagnostics,upstream_v58=None,
         evidence_level="HINDSIGHT_UNIVERSE_RESEARCH_ONLY_NO_EXPECTED_RETURN_PROOF",
         note="No verified 23 Oct + 5 future days available. Any replay metrics are non-PIT source-uncertified diagnostics, not forecast probabilities.")
 
+def future_seed(entry_rows,entry_report,asof):
+    """Frozen as-of signal ledger, with NO imagined forward fill or return."""
+    if (entry_report.get("schema")!="C3_K100_FREE_ENTRY_V58"
+        or entry_report.get("asof")!=str(asof)
+        or entry_report.get("trade_approved") is not False
+        or entry_report.get("orders_enabled") is not False):
+        raise ValueError("UNVERIFIED_FORWARD_SEED_STATUS")
+    n=entry_report.get("evaluated_method_rows")
+    if not isinstance(n,int) or len(entry_rows)!=n:
+        raise ValueError("INCOMPLETE_DATED_ENTRY_SIGNAL_ROWS")
+    seen=set();seed=[]
+    for raw in entry_rows:
+        if (raw.get("asof")!=str(asof)
+            or raw.get("trade_approved")!="False"
+            or raw.get("orders_enabled")!="False"):
+            raise ValueError("ASOF_OR_ORDER_SAFETY_UNVERIFIED")
+        ticker=raw.get("ticker");method=raw.get("method")
+        if (not isinstance(ticker,str) or len(ticker)!=6
+            or not ticker.isdigit() or method not in METHODS
+            or (ticker,method) in seen):
+            raise ValueError("DUPLICATE_OR_UNKNOWN_FORWARD_SIGNAL")
+        seen.add((ticker,method))
+        if raw.get("setup")!="RESEARCH_TRIGGER_CONFIRMED_ASOF":continue
+        for variant in ("FIRST","SECOND"):
+            entry=finite_positive(raw.get("first_entry_reference" if variant=="FIRST"
+                                           else "second_entry_reference"))
+            stop=finite_positive(raw.get("stop_reference"))
+            target=finite_positive(raw.get("nearest_resistance_reference"))
+            valid=(entry is not None and stop is not None and
+                   target is not None and 0<stop<entry<target)
+            seed.append(dict(asof=str(asof),ticker=ticker,
+                name=raw.get("name"),method=method,entry_variant=variant,
+                research_entry_reference=entry,research_stop_reference=stop,
+                research_target_reference=target,
+                forward_status=("PENDING_FUTURE_7_SESSION_BARS" if valid
+                                else "MISSING_VALID_REFERENCE"),
+                entry_simulated=False,holding_period_completed=False,
+                observed_forward_sessions=0,
+                net_return_pct=None,win_loss=None,
+                regular_session_certified=False,
+                trade_approved=False,orders_enabled=False,
+                second_is_alternative_not_averaging_down=True))
+    return seed
+
+
 def markdown(report):
     lines=["# C3/K100 v5.9 5거래일 모의 체결 연구", "",
       f"**선정 기준일**: {report['asof']}",
@@ -331,6 +376,8 @@ def markdown(report):
       f"23일 이후 5거래일을 관측한 결과가 아닙니다. 23일 선정된 {report['selected_universe_size']}개 종목의 지난 일봉을 다시 돌린 **선정편향 탐색**입니다.",
       "일봉 정규장 세션 미인증, 날짜별 사전 종목선정 미검증, 체결 대기열 및 장중 고저가 순서 미상.",
       f"왕복비용 {report['cost_assumption_roundtrip_pct']}%, 진입유효 {ENTRY_DAYS}거래일, 매수 후 {HOLD_DAYS}거래일 이내 시간청산.",
+      f"23일 기준 앞으로의 추적: {report.get('forward_signal_variants',0)}개 대체 시나리오, **미래 체결·손익 미관찰**.",
+      "2R 충족군의 가상 체결수가 30개 미만이면 승률 수치를 억지로 표시하지 않습니다.",
       "1차와 2차는 **독립된 대체 시나리오**; 동시에 매수하거나 추가매수하지 않습니다.",
       "",
       "## 구조손절과 비용후 2R 이상인 시나리오만 (여전히 검증 전)",
@@ -339,10 +386,10 @@ def markdown(report):
     for m in METHODS:
         for v in ("FIRST","SECOND"):
             s=report["geometric_2r_only_stats"][m][v]
-            rate=(f"{s['win_rate_pct']}%" if s["win_rate_pct"] is not None
-                  else "표본 없음")
-            ret=(f"{s['mean_net_return_pct']}%" if s["mean_net_return_pct"] is not None
-                 else "표본 없음")
+            rate=(f"{s['win_rate_pct']}%" if s["filled"]>=30
+                  and s["win_rate_pct"] is not None else "표본 부족")
+            ret=(f"{s['mean_net_return_pct']}%" if s["filled"]>=30
+                 and s["mean_net_return_pct"] is not None else "표본 부족")
             lines.append(f"| {m} | {v} | {s['signals']} | {s['filled']} | {rate} | {ret} |")
     lines.extend(["",
       "## 2R 등 품질 제한 없는 전체 모의 기술 신호 (투자전략 승률 아님)",
@@ -375,6 +422,7 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--recovery",type=Path,required=True)
     p.add_argument("--entry-report",type=Path,required=True)
+    p.add_argument("--entry-rows",type=Path,required=True)
     p.add_argument("--asof",required=True)
     p.add_argument("--outdir",type=Path,required=True)
     args=p.parse_args()
@@ -394,7 +442,12 @@ def main():
         x for x in issues if not x.startswith("HISTORY_EXCLUDED_")):
         raise SystemExit("HISTORICAL_ARCHIVE_INVALID_NO_REPLAY")
     result,diagnostics=historical_shadow(candidates,histories,asof)
+    forward=future_seed(rows(args.entry_rows),source,asof)
     report=build_report(candidates,histories,asof,result,diagnostics,source,issues)
+    report["forward_signal_variants"]=len(forward)
+    report["forward_completed_trade_count"]=0
+    report["forward_target_asof"]=str(asof)
+    report["forward_five_day_roi_verified"]=False
     args.outdir.mkdir(parents=True,exist_ok=True)
     (args.outdir/"shadow_v59_status.json").write_text(
         json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
@@ -410,6 +463,17 @@ def main():
                     for r in result])
     (args.outdir/"shadow_v59_mobile.md").write_text(
         markdown(report)+"\n",encoding="utf-8")
+    with (args.outdir/"forward_seed_v59_asof.csv").open(
+            "w",encoding="utf-8-sig",newline="") as f:
+        keys=("asof","ticker","name","method","entry_variant",
+              "research_entry_reference","research_stop_reference",
+              "research_target_reference","forward_status",
+              "entry_simulated","holding_period_completed",
+              "observed_forward_sessions","net_return_pct","win_loss",
+              "regular_session_certified","trade_approved","orders_enabled",
+              "second_is_alternative_not_averaging_down")
+        w=csv.DictWriter(f,fieldnames=keys,extrasaction="ignore")
+        w.writeheader();w.writerows(forward)
     print(json.dumps({k:report[k] for k in (
         "asof","selected_universe_size","historical_replay_signals",
         "total_simulated_alternative_scenarios","signal_counts",
