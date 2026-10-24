@@ -1,7 +1,8 @@
 """C3/K100 risk-first final-score rule (2026-10-22).
 
 The 100-point scoring scale is unchanged. Only the screening threshold
-decreased from 85 to 80 inclusive. Evidence must be independently verified.
+decreased from 85 to 80 inclusive. Evidence must be independently verified. Foreign/institution net flows are optional
+supplemental indicators, never a mandatory buy-review gate.
 This code never places orders and never turns a research score into a final score.
 """
 from __future__ import annotations
@@ -15,7 +16,6 @@ MANDATORY_EVIDENCE = (
     "same_session_data_verified",
     "market_regime_pass",
     "sector_money_flow_verified",
-    "foreign_institution_flows_verified",
     "direct_catalyst_or_fundamentals_verified",
     "daily_chart_history_and_structure_verified",
     "entry_trigger_verified",
@@ -55,6 +55,9 @@ def evaluate_review(score, evidence: dict | None = None, *, cost_adjusted_rr=Non
         "final_score_threshold": BUY_REVIEW_SCORE_MIN,
         "input_final_verified_score": score if isinstance(score, int) and not isinstance(score, bool) else None,
         "minimum_cost_adjusted_rr": MIN_COST_ADJUSTED_RR,
+        "foreign_institution_flow_confirmation": (
+            "VERIFIED" if checks.get("foreign_institution_flows_verified") is True else
+            "OPTIONAL_NOT_VERIFIED"),
         "manual_review_eligible": eligible,
         "trade_approved": False,
         "orders_enabled": False,
