@@ -16,7 +16,7 @@ on:
       v59_run:
         description: 'Completed v5.9 shadow archive run ID'
         required: false
-        default: '40098931203'
+        default: '40136210930'
         type: string
   push:
     branches: [main]
@@ -41,7 +41,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       RECOVERY_RUN: ${{ inputs.recovery_run || '39923708922' }}
-      V59_RUN: ${{ inputs.v59_run || '40098931203' }}
+      V59_RUN: ${{ inputs.v59_run || '40136210930' }}
       ASOF: ${{ inputs.asof || '2026-10-23' }}
     steps:
       - name: Sparse checkout free audited modules only
@@ -96,6 +96,8 @@ jobs:
           assert b.get('retrospective_universe_selection_bias') is True
           assert b.get('regular_session_certified') is not True
           assert b.get('trade_approved') is False and b.get('orders_enabled') is False
+          assert b.get('nearest_overhead_target_recomputed_for_each_entry_variant') is True
+          assert b.get('legacy_common_first_entry_target_no_longer_used') is True
           print('SOURCE_ASOF_MATCH_NO_AUTHORIZED_TRADING',os.environ['ASOF'])
           PY
 
