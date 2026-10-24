@@ -155,6 +155,24 @@ class DailyAsOfGateTests(unittest.TestCase):
                     "candidate_date_mismatch": 0}
         focus = {**self.focus, "asof": day}
         sector = {**self.sector, "asof": day,
+            "sector_top3": [
+                {"sector_id":"CONSTRUCTION","name":"건설",
+                 "day_breadth_up_pct":37.5,"flow_phase":"NARROW_POSITIVE",
+                 "buy_approval":"NO"},
+                {"sector_id":"DEFENSE","name":"방산",
+                 "day_breadth_up_pct":0.0,"flow_phase":"DIVERGENT_ALL_DOWN",
+                 "buy_approval":"NO"},
+                {"sector_id":"INSURANCE","name":"보험",
+                 "day_breadth_up_pct":18.18,"flow_phase":"NARROW_POSITIVE",
+                 "buy_approval":"NO"},
+            ],
+            "stock_research_top5": [
+                {"ticker":"028050","name":"삼성E&A","sector_id":"CONSTRUCTION","buy_approval":"NO"},
+                {"ticker":"000810","name":"삼성화재","sector_id":"INSURANCE","buy_approval":"NO"},
+                {"ticker":"032830","name":"삼성생명","sector_id":"INSURANCE","buy_approval":"NO"},
+                {"ticker":"006360","name":"GS건설","sector_id":"CONSTRUCTION","buy_approval":"NO"},
+                {"ticker":"005830","name":"DB손해보험","sector_id":"INSURANCE","buy_approval":"NO"},
+            ],
             "source_price_parity": {
                 "asof": day, "status": "CROSS_SOURCE_CLOSE_CONFLICT",
                 "overlap_tickers": 81, "close_mismatches": 59,
@@ -185,6 +203,13 @@ class DailyAsOfGateTests(unittest.TestCase):
         self.assertIn("중복 81종목 중 종가 불일치 59종목", report)
         self.assertIn("정규장 전용 가격 인증:", report)
         self.assertIn("미완료", report)
+        self.assertEqual(result["sector_watch_breadth_ge_60_count"], 0)
+        self.assertEqual(len(result["sector_research_watch"]), 3)
+        self.assertEqual(len(result["stock_research_watch"]), 5)
+        self.assertIn("\\n## 섹터 TOP3", report)
+        self.assertIn("\\n## 종목 TOP5", report)
+        self.assertIn("삼성E&A (028050)", report)
+        self.assertIn("방산 | 0.0%", report)
         self.assertEqual(result["decision"], "CASH")
 
     def test_regular_only_archive_must_match_same_day_and_session(self):
