@@ -251,6 +251,41 @@ class FiveDayShadowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"INCOMPLETE_DATED_ENTRY_SIGNAL_ROWS"):
             future_seed([row],p,date(2026,10,23))
 
+    def test_second_limit_reprices_nearest_overhead_below_first_target(self):
+        bars=[]
+        start=date(2026,4,1)
+        for i in range(120):
+            cl=100+i*.18
+            bars.append(dict(date=start+timedelta(days=i),
+                open=cl-.5,high=cl+2.5,low=cl-2.5,
+                close=cl,volume=1000,source="pykrx"))
+        def signal(candidate,prefix,when,method,paired=None):
+            if len(prefix)!=101 or method!=METHODS[2]:
+                return dict(setup="NO_CONFIRMED_SETUP")
+            return dict(setup="RESEARCH_TRIGGER_CONFIRMED_ASOF",
+                asof=str(when),ticker="005930",method=method,
+                asof_close_research=prefix[-1]["close"],
+                first_entry_reference=115,second_entry_reference=110,
+                stop_reference=105,nearest_resistance_reference=125,
+                first_net_rr=.9,second_net_rr=2.4,
+                first_stop_risk_pct=8.7,second_stop_risk_pct=4.55,
+                first_entry_below_close_atr=.4,
+                blocking_reasons=[],technical_research_ready=False)
+        with patch("shadow_five_day_v59.evaluate",side_effect=signal):
+            outcomes,diagnostics=historical_shadow(
+                [dict(ticker="005930",name="TEST")],
+                {"005930":bars},bars[-1]["date"])
+        self.assertEqual(diagnostics["historical_signal_days"],1)
+        self.assertEqual(len(outcomes),2)
+        a,b=outcomes
+        self.assertTrue(a["variant_specific_overhead_target_repriced"])
+        self.assertTrue(b["variant_specific_overhead_target_repriced"])
+        self.assertEqual(a["legacy_first_entry_target"],125)
+        self.assertEqual(b["legacy_first_entry_target"],125)
+        self.assertLess(b["target_reference"],a["target_reference"])
+        self.assertLess(b["target_reference"],125)
+        self.assertFalse(b["trade_approved"])
+
     def test_strictly_historical_signal_window_not_23_oct_future(self):
         all_bars=[]
         start=date(2026,4,27)
