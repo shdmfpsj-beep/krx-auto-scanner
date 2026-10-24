@@ -6,7 +6,7 @@ from unittest.mock import patch
 from shadow_five_day_v59 import (
     ENTRY_DAYS,HOLD_DAYS,simulate,commission_exit,stats,
     historical_shadow,signal_rows_for_historic_selected_universe,
-    build_report,markdown)
+    build_report,markdown,future_seed)
 from entry_strategy_v58 import METHODS
 
 BASE=date(2026,10,1)
@@ -206,6 +206,50 @@ class FiveDayShadowTests(unittest.TestCase):
         self.assertIsNone(s["win_rate_pct"])
         self.assertIsNone(s["mean_net_return_pct"])
         self.assertFalse(s["return_is_a_valid_strategy_win_probability"])
+
+    def test_future_seed_never_invents_post_oct23_fills_or_5day_profit(self):
+        p=dict(schema="C3_K100_FREE_ENTRY_V58",asof="2026-10-23",
+               evaluated_method_rows=1,trade_approved=False,orders_enabled=False)
+        row=dict(asof="2026-10-23",ticker="005930",method=METHODS[2],
+            setup="RESEARCH_TRIGGER_CONFIRMED_ASOF",name="TEST",
+            first_entry_reference="100",second_entry_reference="93",
+            stop_reference="90",nearest_resistance_reference="125",
+            trade_approved="False",orders_enabled="False")
+        seeds=future_seed([row],p,date(2026,10,23))
+        self.assertEqual(len(seeds),2)
+        self.assertTrue(all(x["net_return_pct"] is None for x in seeds))
+        self.assertTrue(all(x["observed_forward_sessions"]==0 for x in seeds))
+        self.assertTrue(all(x["forward_status"]=="PENDING_FUTURE_7_SESSION_BARS"
+                            for x in seeds))
+        self.assertTrue(all(x["orders_enabled"] is False and
+                            x["trade_approved"] is False for x in seeds))
+
+    def test_future_seed_invalid_second_is_explicitly_unconfirmed(self):
+        p=dict(schema="C3_K100_FREE_ENTRY_V58",asof="2026-10-23",
+               evaluated_method_rows=1,trade_approved=False,orders_enabled=False)
+        row=dict(asof="2026-10-23",ticker="005930",method=METHODS[0],
+            setup="RESEARCH_TRIGGER_CONFIRMED_ASOF",name="TEST",
+            first_entry_reference="100",second_entry_reference="",
+            stop_reference="90",nearest_resistance_reference="125",
+            trade_approved="False",orders_enabled="False")
+        seeds=future_seed([row],p,date(2026,10,23))
+        self.assertEqual(seeds[1]["forward_status"],"MISSING_VALID_REFERENCE")
+        self.assertIsNone(seeds[1]["research_entry_reference"])
+
+    def test_forward_ledger_rejects_wrong_source_date_and_unsafe_orders(self):
+        p=dict(schema="C3_K100_FREE_ENTRY_V58",asof="2026-10-23",
+               evaluated_method_rows=1,trade_approved=False,orders_enabled=False)
+        row=dict(asof="2026-10-22",ticker="005930",method=METHODS[0],
+            setup="RESEARCH_TRIGGER_CONFIRMED_ASOF",
+            trade_approved="False",orders_enabled="False")
+        with self.assertRaisesRegex(ValueError,"ASOF_OR_ORDER_SAFETY_UNVERIFIED"):
+            future_seed([row],p,date(2026,10,23))
+        row["asof"]="2026-10-23";row["orders_enabled"]="True"
+        with self.assertRaises(ValueError):
+            future_seed([row],p,date(2026,10,23))
+        row["orders_enabled"]="False";p["evaluated_method_rows"]=2
+        with self.assertRaisesRegex(ValueError,"INCOMPLETE_DATED_ENTRY_SIGNAL_ROWS"):
+            future_seed([row],p,date(2026,10,23))
 
     def test_strictly_historical_signal_window_not_23_oct_future(self):
         all_bars=[]
