@@ -157,6 +157,22 @@ class EntryV58Tests(unittest.TestCase):
             else "SECOND_PRESENT",x["second_entry_policy"] if x["second_entry_reference"] is None
             else "SECOND_PRESENT")
 
+    def test_deep_retrace_limit_does_not_look_like_an_immediate_buy(self):
+        h=history();d=date.fromisoformat(h[-1]["date"])
+        p=dict(ticker=T,close_equal=True,
+               category="OHLC_EXACT_MATCH_UNCERTIFIED")
+        with patch("entry_strategy_v58.first_pullback",
+             return_value=dict(method=METHODS[0],
+                 signal_condition="TEST_FIRST_RECLAIM",first_hint=101,
+                 support_hint=None)):
+            x=evaluate(candidate(h),h,d,METHODS[0],p)
+        self.assertGreater(x["first_entry_below_close_atr"],1.0)
+        self.assertEqual(x["first_entry_timing"],"WAIT_DEEP_PULLBACK_NO_CHASE")
+        self.assertIn("FIRST_ENTRY_MORE_THAN_1_ATR_BELOW_ASOF_CLOSE",
+                      x["blocking_reasons"])
+        self.assertFalse(x["technical_research_ready"])
+        self.assertFalse(x["trade_approved"])
+
     def test_no_false_top5_if_source_missing(self):
         h=history();d=date.fromisoformat(h[-1]["date"])
         status=dict(market_data_date=str(d),scan_complete=True,
