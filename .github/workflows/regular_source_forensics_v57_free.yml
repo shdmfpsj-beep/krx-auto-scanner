@@ -1,0 +1,106 @@
+name: Free v5.7 KRX session provenance forensics (frozen 23 Oct)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/regular_source_forensics_v57_free.yml'
+      - 'scripts/regular_source_forensics_v57.py'
+      - 'scripts/test_regular_source_forensics_v57.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: krx-v57-dated-source-forensics
+  cancel-in-progress: false
+
+jobs:
+  forensic-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      FROZEN_V56_RUN: '40075553719'
+      DATE_KRX: '2026-10-23'
+    steps:
+      - name: Sparse checkout of valid sources only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/regular_source_forensics_v57.py
+            /scripts/test_regular_source_forensics_v57.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Compile and test no-lookahead, KIS date and safe non-trading logic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/regular_source_forensics_v57.py scripts/test_regular_source_forensics_v57.py
+          python -m unittest discover -s scripts -p test_regular_source_forensics_v57.py -v
+
+      - name: Download exactly dated, known v5.6 full-evidence artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence result
+          path="$(gh api "repos/$GH_REPO/actions/runs/$FROZEN_V56_RUN" --jq '.path')"
+          outcome="$(gh api "repos/$GH_REPO/actions/runs/$FROZEN_V56_RUN" --jq '.conclusion')"
+          [[ "$path" == '.github/workflows/full_parity_v56_free.yml' && "$outcome" == 'success' ]] ||
+            { echo "DATED_UPSTREAM_V56_WORKFLOW_NOT_VERIFIED"; exit 1; }
+          gh run download "$FROZEN_V56_RUN" -R "$GH_REPO" -n free-v56-complete-parity-20261023 -D evidence
+          test -s evidence/source_price_parity.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads(Path('evidence/source_price_parity.json').read_text(encoding='utf-8'))
+          assert p['asof']==os.environ['DATE_KRX']
+          assert p['overlap_tickers']==81
+          assert p['close_mismatches']==59
+          assert len(p['comparison_rows'])==81
+          assert len(p['mismatch_tickers'])==59
+          assert p['mismatch_tickers_complete'] is True
+          assert p['trade_approved'] is False
+          print('V56_FROZEN_EVIDENCE_DATE_LOCKED',p['asof'])
+          PY
+
+      - name: Produce non-causal classification with all 81 price comparisons
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/regular_source_forensics_v57.py --v56 evidence/source_price_parity.json --asof "$DATE_KRX" --outdir result
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('result/source_forensics_v57.json').read_text(encoding='utf-8'))
+          assert p['diagnosis_valid'] is True
+          assert p['total_rows']==81 and p['mismatches']==59
+          c=p['categories']
+          assert c['OHLC_EXACT_MATCH_UNCERTIFIED']==22
+          assert c['CLOSE_ONLY_SAME_OPEN_HIGH_LOW']==34
+          assert c['RANGE_MISMATCH_SAME_OPEN']==25
+          assert c['OPEN_AND_OR_RANGE_MISMATCH']==0
+          assert p['recovery_outside_v18_range']==14
+          assert p['v18_outside_recovery_range']==0
+          assert p['kis_regular_minute_evidence_count']==0
+          assert p['regular_only_session_certified'] is False
+          assert p['trade_approved'] is False and p['decision']=='CASH'
+          print('REAL_V57_FORENSICS',p['categories'],
+                'recovery_price_outside_range',p['recovery_outside_v18_range'])
+          PY
+
+      - name: Upload full dated source-diagnosis and phone report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v57-regular-source-forensics-20261023
+          path: |
+            result/source_forensics_v57.json
+            result/source_forensics_v57_all.csv
+            result/source_forensics_v57_mobile.md
+          if-no-files-found: warn
+          retention-days: 30
