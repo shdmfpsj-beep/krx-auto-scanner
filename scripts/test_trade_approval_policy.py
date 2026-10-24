@@ -35,6 +35,17 @@ class TradeApprovalPolicyTests(unittest.TestCase):
             check[key] = False
             self.assertEqual(evaluate_review(100, check, cost_adjusted_rr=4)["decision"], "CASH", key)
 
+    def test_missing_foreign_institution_data_is_optional(self):
+        check = self.evidence()
+        check["foreign_institution_flows_verified"] = False
+        x = evaluate_review(80, check, cost_adjusted_rr=2.5)
+        self.assertEqual(x["foreign_institution_flow_confirmation"], "OPTIONAL_NOT_VERIFIED")
+        self.assertTrue(x["manual_review_eligible"])
+        self.assertFalse(x["trade_approved"])
+        self.assertNotIn("EVIDENCE_UNVERIFIED:foreign_institution_flows_verified", x["blockers"])
+        check["sector_money_flow_verified"] = False
+        self.assertEqual(evaluate_review(90, check, cost_adjusted_rr=2.5)["decision"], "CASH")
+
     def test_rr_and_c3_position_safety(self):
         for rr in (None, "3.0", 1.99, float("inf"), True):
             self.assertEqual(evaluate_review(85, self.evidence(), cost_adjusted_rr=rr)["decision"], "CASH")
