@@ -317,12 +317,28 @@ def build(status,candidates,histories,forensics,asof):
          "COMMON_SHARE_TYPE_UNVERIFIED_OR_SPECIAL","ACTUAL_TRADED_VALUE_MISSING",
          "BIO_PHARMA_EXCLUDED","NO_EXACT_DATED_SOURCE_PAIR"))]
     if errors:quality_ready=[]
+    triggered=[x for x in result if x["setup"]=="RESEARCH_TRIGGER_CONFIRMED_ASOF"]
+    # Diagnostics, not an investable or 80+ stock ranking. Exclude pharma,
+    # special issues and named SPACs from the short phone preview, but retain
+    # every source row in the archived CSV for technical auditing.
+    diagnostic_rows=[x for x in triggered if not any(
+        key in x["name"].upper() for key in EXCLUSION_KEYWORDS)
+        and "스팩" not in x["name"]]
+    diagnostic_rows=sorted(diagnostic_rows,key=lambda x:(
+        -(x["first_net_rr"] if isinstance(x["first_net_rr"],(int,float)) else -999),
+         x["ticker"],x["method"]))[:8]
+    exclusions=Counter(reason for x in triggered for reason in x["blocking_reasons"]
+        if reason not in ("FINAL_80_SCORE_UNVERIFIED",
+                          "SECTOR_MARKET_CAPITAL_GATE_PENDING",
+                          "EXECUTION_PRICE_NOT_VERIFIED"))
     report=dict(schema=VERSION,asof=str(asof),candidates=len(candidates),
         evaluated_method_rows=len(result),source_errors=errors,
         method_trigger_counts=triggers,
         technical_research_ready_count=len(technically_ready),
         quality_preliminary_count=len(quality_ready),
         watch_tickers=list(dict.fromkeys(x["ticker"] for x in quality_ready))[:5],
+        completed_signal_diagnostic_rows=diagnostic_rows,
+        main_trigger_exclusion_counts=dict(exclusions.most_common(12)),
         first_entry_policy="NEXT_SESSION_CONDITIONAL_NO_CHASE_NOT_A_FILLED_ORDER",
         second_entry_policy="ALTERNATIVE_ONLY_IF_FIRST_NOT_FILLED_NEVER_AVERAGE_DOWN",
         first_entry_rr_threshold=MIN_RR,second_entry_rr_threshold=MIN_RR,
@@ -350,6 +366,25 @@ def mobile(result,report):
     for p in picks:
         lines.append("| {name}({ticker}) {method} | {stop_reference} | {first_entry_reference} | {second_entry_reference} | {nearest_resistance_reference} | {first_net_rr} | {second_net_rr} |".format(**p))
     if not picks:lines.append("| 충족 종목 없음 | — | — | — | — | — | — |")
+    lines.extend(["","## 확정 진입으로 승인되지 않은 신호 진단 (매수 금지)", "",
+      "| 종목·방식 | 손절 참고 | 1차 참고 | 2차 대체 참고 | 가까운 저항 | 1차 순손익비 | 판단 |",
+      "|---|---:|---:|---:|---:|---:|---|"])
+    def fmt(v):return str(v) if v is not None else "미확인"
+    for x in report.get("completed_signal_diagnostic_rows",[]):
+        reason=next((s for s in x["blocking_reasons"] if s in (
+            "CROSS_SOURCE_CLOSE_MISMATCH","NO_VALID_SECOND_ENTRY_SUPPORT",
+            "FIRST_COST_ADJUSTED_RR_BELOW_2",
+            "FIRST_ENTRY_MORE_THAN_1_ATR_BELOW_ASOF_CLOSE",
+            "FIRST_ENTRY_STRUCTURAL_RISK_OUT_OF_2_TO_12_PCT")), "가격·계좌 검증 보류")
+        lines.append(f"| {x['name']}({x['ticker']}) {x['method']} | "+
+            f"{fmt(x['stop_reference'])} | {fmt(x['first_entry_reference'])} | "+
+            f"{fmt(x['second_entry_reference'])} | "+
+            f"{fmt(x['nearest_resistance_reference'])} | {fmt(x['first_net_rr'])} | {reason} |")
+    if not report.get("completed_signal_diagnostic_rows"):
+        lines.append("| 해당 신호 없음 | — | — | — | — | — | — |")
+    lines.extend(["","## 주요 탈락 사유 집계", ""])
+    for reason,count in report.get("main_trigger_exclusion_counts",{}).items():
+        lines.append(f"- {reason}: {count}건")
     lines.extend(["","## 참고: 2차 가격이 유효하지 않은 경우",
         "별도 일봉 피벗, 0.5ATR 이상 진입 간격, 구조손절 위 지지 여부가 미확인되면 미확정으로 표시합니다.",
         "## Required Next Data",
