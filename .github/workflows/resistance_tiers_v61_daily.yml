@@ -1,0 +1,151 @@
+name: Free v6.1 daily resistance tiers after v6.0 dated source
+
+on:
+  workflow_dispatch:
+    inputs:
+      v60_daily_run_id:
+        description: "Exact successful v6.0 daily paired run ID"
+        required: false
+        default: "40136434371"
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/resistance_tiers_v61_daily.yml"
+  workflow_run:
+    workflows: ['Free v6.0 daily risk frontier after dated v5.9 shadow']
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v61-immutable-dated-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  resistance-research:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      V60_RUN: ${{ github.event.workflow_run.id || inputs.v60_daily_run_id || '40136434371' }}
+    steps:
+      - name: Sparse checkout v6.1 no-order source only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/entry_fill_frontier_v60.py
+            /scripts/resistance_tiers_v61.py
+            /scripts/test_resistance_tiers_v61.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Test right-complete pivots, tick-precision barriers, source safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_resistance_tiers_v61.py -v
+
+      - name: Read exactly paired v6.0, v5.9 and recovery GitHub artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v60 v59 recovery output
+          [[ "$V60_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_V60_RUN"; exit 1; }
+          actual="$(gh api "repos/$GH_REPO/actions/runs/$V60_RUN" --jq '.path')"
+          state="$(gh api "repos/$GH_REPO/actions/runs/$V60_RUN" --jq '.conclusion')"
+          [[ "$actual" == '.github/workflows/entry_fill_frontier_v60_daily.yml' && "$state" == 'success' ]] ||
+            { echo "V60_PROVENANCE_UNVERIFIED"; exit 1; }
+          gh run download "$V60_RUN" -R "$GH_REPO" -n free-v60-daily-nearest-target-repricing -D v60
+          test -s v60/v59_source_run_id.txt
+          test -s v60/v59/upstream/evidence/input/asof.txt
+          test -s v60/v59/upstream/evidence/input/recovery_source_run_id.txt
+          test -s v60/output/entry_fill_frontier_v60_status.json
+          test -s v60/output/entry_fill_frontier_v60_all.csv
+          v59run="$(cat v60/v59_source_run_id.txt)"
+          recoveryrun="$(cat v60/v59/upstream/evidence/input/recovery_source_run_id.txt)"
+          [[ "$v59run" =~ ^[0-9]{8,14}$ && "$recoveryrun" =~ ^[0-9]{8,14}$ ]] ||
+            { echo "V60_RECORDED_ANCESTOR_IDS_INVALID"; exit 1; }
+          v59path="$(gh api "repos/$GH_REPO/actions/runs/$v59run" --jq '.path')"
+          v59state="$(gh api "repos/$GH_REPO/actions/runs/$v59run" --jq '.conclusion')"
+          recpath="$(gh api "repos/$GH_REPO/actions/runs/$recoveryrun" --jq '.path')"
+          recstate="$(gh api "repos/$GH_REPO/actions/runs/$recoveryrun" --jq '.conclusion')"
+          [[ "$v59path" == '.github/workflows/shadow_five_day_v59_daily.yml' && "$v59state" == 'success' ]] ||
+            { echo "V59_ANCESTOR_ID_INVALID"; exit 1; }
+          [[ "$recpath" == '.github/workflows/krx_recovery_scan.yml' && "$recstate" == 'success' ]] ||
+            { echo "RECOVERY_ANCESTOR_ID_INVALID"; exit 1; }
+          gh run download "$v59run" -R "$GH_REPO" -n free-v59-daily-forward-seed-and-biased-shadow -D v59
+          gh run download "$recoveryrun" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          test -s v59/output/shadow_v59_status.json
+          test -s v59/output/shadow_v59_all.csv
+          test -s recovery/status.json
+          test -s recovery/candidates.csv
+          test -s recovery/candidate_daily_history_v52.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import date
+          trading_day=Path('v60/v59/upstream/evidence/input/asof.txt').read_text(encoding='utf-8')
+          assert date.fromisoformat(trading_day).isoformat()==trading_day
+          rec=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          v59=json.loads(Path('v59/output/shadow_v59_status.json').read_text(encoding='utf-8'))
+          v60=json.loads(Path('v60/output/entry_fill_frontier_v60_status.json').read_text(encoding='utf-8'))
+          assert trading_day==rec['market_data_date']==v59['asof']==v60['asof']
+          assert rec['scan_complete'] is True and rec['data_date_verified'] is True
+          assert v59['nearest_overhead_target_recomputed_for_each_entry_variant'] is True
+          assert v60['nearest_overhead_resistance_recomputed_for_each_limit_from_past_only'] is True
+          assert v59['trade_approved'] is False and v59['orders_enabled'] is False
+          assert v60['trade_approved'] is False and v60['orders_enabled'] is False
+          print('V61_STRICT_DAILY_SOURCE_CHAIN',trading_day)
+          PY
+
+      - name: Research historical swing barriers only, never approve orders
+        shell: bash
+        run: |
+          set -euo pipefail
+          day="$(cat v60/v59/upstream/evidence/input/asof.txt)"
+          python scripts/resistance_tiers_v61.py \
+            --recovery recovery --v59 v59/output --v60 v60/output \
+            --asof "$day" --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          status=json.loads(Path('output/resistance_tiers_v61_status.json').read_text(encoding='utf-8'))
+          assert status['evaluated_entry_rows']==2*status['original_research_signals']
+          assert status['confirmed_pivot_tiers_are_diagnostic_not_approval'] is True
+          assert status['regular_market_ohlc_independently_verified'] is not True if 'regular_market_ohlc_independently_verified' in status else status['actual_regular_session_provider_verified'] is False
+          assert status['final_80_point_certification'] is False
+          assert status['trade_approved'] is False and status['orders_enabled'] is False
+          assert status['decision']=='CASH'
+          with Path('output/resistance_tiers_v61_all.csv').open(encoding='utf-8-sig',newline='') as f:
+            rows=list(csv.DictReader(f))
+          assert len(rows)==status['evaluated_entry_rows']
+          assert all(r['trade_approved']=='False' for r in rows)
+          print('V61_DAILY_NEAREST_AND_PIVOT_REPLAY',status['asof'],
+                status['evaluated_entry_rows'],
+                status['nearest_2r_rows'],status['pivot_only_2r_rows'])
+          PY
+
+      - name: Keep mobile results and exact source run IDs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v61-daily-swing-resistance-evidence
+          path: |
+            v60/v59_source_run_id.txt
+            v60/v59/upstream/evidence/input/asof.txt
+            v60/v59/upstream/evidence/input/recovery_source_run_id.txt
+            output/resistance_tiers_v61_status.json
+            output/resistance_tiers_v61_all.csv
+            output/resistance_tiers_v61_mobile.md
+          retention-days: 21
+          if-no-files-found: warn
