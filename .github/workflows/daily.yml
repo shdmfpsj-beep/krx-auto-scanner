@@ -97,6 +97,7 @@ jobs:
           sparse-checkout: |
             /scripts/*.py
             /config/*.csv
+            /config/krx_close_crosscheck_20261021.json
             /reports/**
             /requirements.txt
           sparse-checkout-cone-mode: false
@@ -245,6 +246,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python -m unittest discover -s scripts -p 'test_krx_price_integrity_v84.py' -v
           python scripts/krx_price_integrity_v84.py --outdir reports --max-price-drift-pct 0.5
 
       - name: Research-only v8.5 A/B entry geometry backtest (manual)
