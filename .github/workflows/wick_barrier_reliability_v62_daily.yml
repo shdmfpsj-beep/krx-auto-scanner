@@ -1,0 +1,144 @@
+name: Free v6.2 five-session wick reaction audit after dated v6.1
+
+on:
+  workflow_dispatch:
+    inputs:
+      v61_daily_run_id:
+        description: "Exact completed v6.1 daily archive with saved recovery ID"
+        required: false
+        default: "40139210532"
+        type: string
+  workflow_run:
+    workflows: ['Free v6.1 daily resistance tiers after v6.0 dated source']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/wick_barrier_reliability_v62_daily.yml'
+      - 'scripts/wick_barrier_reliability_v62.py'
+      - 'scripts/test_wick_barrier_reliability_v62.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v62-free-dated-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  wick-reaction:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      V61_RUN: ${{ github.event.workflow_run.id || inputs.v61_daily_run_id || '40139210532' }}
+    steps:
+      - name: Sparse checkout only read-only tested analysis
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/entry_fill_frontier_v60.py
+            /scripts/resistance_tiers_v61.py
+            /scripts/wick_barrier_reliability_v62.py
+            /scripts/test_wick_barrier_reliability_v62.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Compile and run fully offline causality tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p 'test_wick_barrier_reliability_v62.py' -v
+
+      - name: Download only exact paired dated v6.1 and recovery archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v61 recovery output
+          [[ "$V61_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_V61_RUN_ID"; exit 1; }
+          workflow="$(gh api "repos/$GH_REPO/actions/runs/$V61_RUN" --jq '.path')"
+          outcome="$(gh api "repos/$GH_REPO/actions/runs/$V61_RUN" --jq '.conclusion')"
+          [[ "$workflow" == '.github/workflows/resistance_tiers_v61_daily.yml' && "$outcome" == 'success' ]] ||
+            { echo "V61_DATED_UPSTREAM_NOT_COMPLETE"; exit 1; }
+          gh run download "$V61_RUN" -R "$GH_REPO" -n free-v61-daily-swing-resistance-evidence -D v61
+          test -s v61/v60/v59/upstream/evidence/input/asof.txt
+          test -s v61/v60/v59/upstream/evidence/input/recovery_source_run_id.txt
+          test -s v61/output/resistance_tiers_v61_status.json
+          test -s v61/output/resistance_tiers_v61_all.csv
+          rrun="$(cat v61/v60/v59/upstream/evidence/input/recovery_source_run_id.txt)"
+          [[ "$rrun" =~ ^[0-9]{8,14}$ ]] || { echo "BAD_RECOVERY_RUN_ID"; exit 1; }
+          rpath="$(gh api "repos/$GH_REPO/actions/runs/$rrun" --jq '.path')"
+          rstatus="$(gh api "repos/$GH_REPO/actions/runs/$rrun" --jq '.conclusion')"
+          [[ "$rpath" == '.github/workflows/krx_recovery_scan.yml' && "$rstatus" == 'success' ]] ||
+            { echo "RECOVERY_PROVENANCE_INVALID"; exit 1; }
+          gh run download "$rrun" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          test -s recovery/status.json
+          test -s recovery/candidates.csv
+          test -s recovery/candidate_daily_history_v52.csv
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          from datetime import date
+          day=Path('v61/v60/v59/upstream/evidence/input/asof.txt').read_text(encoding='utf-8')
+          assert date.fromisoformat(day).isoformat()==day
+          r=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          q=json.loads(Path('v61/output/resistance_tiers_v61_status.json').read_text(encoding='utf-8'))
+          assert r['market_data_date']==day==q['asof']
+          assert r['scan_complete'] is True and r['data_date_verified'] is True
+          assert q['absolute_nearest_wick_is_hard_barrier_for_buy_approval'] is True
+          assert q['actual_regular_session_provider_verified'] is False
+          assert q['trade_approved'] is False and q['orders_enabled'] is False
+          assert q['evaluated_entry_rows']==2*q['original_research_signals']
+          print('V62_IMMUTABLE_ASOF_AND_SOURCE_RUNS',day)
+          PY
+
+      - name: Label prior wick rejection separately from next 5 day observed reaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          asof="$(cat v61/v60/v59/upstream/evidence/input/asof.txt)"
+          python scripts/wick_barrier_reliability_v62.py \
+            --recovery recovery --v61 v61/output --asof "$asof" --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          q=json.loads(Path('output/wick_barrier_v62_status.json').read_text(encoding='utf-8'))
+          assert q['input_rows']==2*q['original_signal_count']
+          assert q['nearest_barrier_remains_veto_even_if_historic_breakout'] is True
+          assert q['hypothesis_thresholds_fixed_before_outcomes'] is True
+          assert q['exact_regular_session_source_verified'] is False
+          assert q['validated_win_probability_available'] is False
+          assert q['trade_approved'] is False and q['orders_enabled'] is False
+          assert q['decision']=='CASH'
+          with Path('output/wick_barrier_v62_all.csv').open(encoding='utf-8-sig',newline='') as f:
+              cases=list(csv.DictReader(f))
+          assert len(cases)==q['input_rows']
+          assert all(r['trade_approved']=='False' for r in cases)
+          assert all(r['regular_only_source_certified']=='False' for r in cases)
+          assert all(r['forward_bar_count']=='5' for r in cases)
+          print('V62_REACTION_AUDIT_COMPLETE',q['asof'],q['input_rows'],
+                [(k,v['rows'],v['next_five_day_close_break_count'])
+                  for k,v in q['categories'].items()])
+          PY
+
+      - name: Upload mobile report and full diagnostic categories with ancestor IDs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v62-dated-wick-reaction-audit
+          path: |
+            v61/v60/v59/upstream/evidence/input/asof.txt
+            v61/v60/v59/upstream/evidence/input/recovery_source_run_id.txt
+            output/wick_barrier_v62_status.json
+            output/wick_barrier_v62_all.csv
+            output/wick_barrier_v62_mobile.md
+          retention-days: 21
+          if-no-files-found: warn
