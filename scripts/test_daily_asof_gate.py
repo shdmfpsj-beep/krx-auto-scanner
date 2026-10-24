@@ -147,6 +147,75 @@ class DailyAsOfGateTests(unittest.TestCase):
         self.assertNotIn("FOCUS_RESEARCH_ORDER_FLAG_NOT_SAFE",
                          result["data_integrity_blockers"])
 
+    def test_oct23_real_archives_report_missed_regular_window(self):
+        # Actual 2026-10-23 research: 2604 valid OHLC, 59 of 81
+        # shared candidate closes conflict; regular capture window missed.
+        day = "2026-10-23"
+        recovery = {**self.recovery, "market_data_date": day,
+                    "candidate_date_mismatch": 0}
+        focus = {**self.focus, "asof": day}
+        sector = {**self.sector, "asof": day,
+            "source_price_parity": {
+                "asof": day, "status": "CROSS_SOURCE_CLOSE_CONFLICT",
+                "overlap_tickers": 81, "close_mismatches": 59,
+                "independent_provider_verified": False,
+            }}
+        money = {**self.money, "asof": day,
+                 "market_ohlc_quality_verified": True}
+        regular = {
+            "target_asof": day, "mode": "KRX_REGULAR_ONLY_0900_1530",
+            "after_market_excluded": True,
+            "regular_snapshot_available": False,
+            "provider_session_scope_verified": False,
+            "market_source_status": "PENDING_DATA_VALIDATION",
+            "blockers": ["CAPTURE_WINDOW_NOT_VERIFIED"],
+            "trade_approved": False, "decision": "CASH",
+        }
+        result = evaluate(day, recovery, focus, sector, money,
+                          regular=regular)
+        self.assertTrue(result["all_source_dates_aligned"])
+        self.assertFalse(result["all_independent_sources_verified"])
+        self.assertFalse(result["regular_only_price_verified"])
+        self.assertEqual(result["price_parity_mismatch_count"], 59)
+        self.assertIn("CROSS_SOURCE_DAILY_CLOSE_CONFLICT_OR_UNVERIFIED",
+                      result["data_integrity_blockers"])
+        self.assertIn("REGULAR_ONLY_PRICE_SOURCE_NOT_CERTIFIED",
+                      result["data_integrity_blockers"])
+        report = to_markdown(result)
+        self.assertIn("중복 81종목 중 종가 불일치 59종목", report)
+        self.assertIn("정규장 전용 가격 인증:", report)
+        self.assertIn("미완료", report)
+        self.assertEqual(result["decision"], "CASH")
+
+    def test_regular_only_archive_must_match_same_day_and_session(self):
+        source = {
+            "target_asof": self.today, "mode": "KRX_REGULAR_ONLY_0900_1530",
+            "after_market_excluded": True, "regular_snapshot_available": True,
+            "provider_session_scope_verified": True,
+            "market_source_status": "REGULAR_PRICE_SOURCE_VERIFIED_RESEARCH_ONLY",
+            "blockers": [], "trade_approved": False, "decision": "CASH",
+        }
+        self.assertTrue(self.run_gate()["all_source_dates_aligned"])
+        missing = evaluate(self.today, self.recovery, self.focus,
+                           self.sector, self.money, regular={})
+        self.assertIn("REGULAR_ONLY_REPORT_MISSING",
+                      missing["data_integrity_blockers"])
+        stale = evaluate(self.today, self.recovery, self.focus,
+                         self.sector, self.money,
+                         regular={**source, "target_asof": "2026-10-21"})
+        self.assertIn("REGULAR_ONLY_REPORT_ASOF_MISMATCH",
+                      stale["data_integrity_blockers"])
+        misleading = evaluate(self.today, self.recovery, self.focus,
+                         self.sector, self.money, regular={
+                           **source, "provider_session_scope_verified": False,
+                         })
+        self.assertFalse(misleading["regular_only_price_verified"])
+        valid = evaluate(self.today, self.recovery, self.focus, self.sector,
+                         self.money, regular=source)
+        self.assertTrue(valid["regular_only_price_verified"])
+        self.assertFalse(valid["all_independent_sources_verified"])
+        self.assertEqual(valid["decision"], "CASH")
+
     def test_dates_alone_never_trigger_buy(self):
         output = self.run_gate()
         self.assertTrue(output["all_source_dates_aligned"])
