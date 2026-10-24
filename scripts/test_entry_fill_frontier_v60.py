@@ -102,6 +102,23 @@ class FrontierTests(unittest.TestCase):
             for r in result[2:]))
         self.assertFalse(any(r["geometry_2r_ok"] for r in result[2:]))
 
+    def test_second_limit_nearest_target_is_recomputed_not_legacy_first_target(self):
+        b=candles()
+        sig=b[100]["date"]
+        x=pairs(sig)
+        with patch("entry_fill_frontier_v60.signal_rows_for_historic_selected_universe",
+                   return_value=([dict(ticker=T)],{T:b},[])):
+            vals,_=simulate_variants(None,x,ASOF)
+        first,second=vals[0],vals[1]
+        self.assertTrue(first["nearest_target_recomputed_for_variant"])
+        self.assertTrue(second["nearest_target_recomputed_for_variant"])
+        self.assertEqual(first["legacy_first_entry_target"],125)
+        self.assertEqual(second["legacy_first_entry_target"],125)
+        self.assertLess(second["nearest_overhead_target"],
+                        first["nearest_overhead_target"])
+        self.assertLess(second["nearest_overhead_target"],125)
+        self.assertFalse(second["trade_approved"])
+
     def test_future_changes_outcome_only_not_candidate_entry(self):
         b=candles()
         sig=b[100]["date"]
