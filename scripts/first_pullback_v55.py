@@ -161,7 +161,12 @@ def analyze(status,candidates,histories,prelims,asof,parity=None):
     eligible=[x for x in rows if x["setup"] in ("PULLBACK_WATCH","FIRST_PULLBACK_RECLAIM")
        and x["daily_stop"] is not None and x["entry2"] is not None
        and x["rr_net"] is not None and x["rr_net"]>=2
-       and "KNOWN_CROSS_SOURCE_CLOSE_CONFLICT" not in x["warnings"]]
+       and "KNOWN_CROSS_SOURCE_CLOSE_CONFLICT" not in x["warnings"]
+       and "SPECIAL_SECURITY_EXCLUDED" not in x["warnings"]
+       and "COMMON_SHARE_TYPE_UNVERIFIED" not in x["warnings"]
+       and "TRADED_VALUE_ESTIMATED_NOT_VERIFIED" not in x["warnings"]
+       and not any(t in str(x["name"]).upper()
+                   for t in ("바이오","제약","PHARMA","BIOTECH"))]
     eligible=sorted(eligible,key=lambda x:(-x["rr_net"],x["ticker"]))[:5] if not errors else []
     # Show rejection diagnostics separately; never promote them to approved TOP5.
     rejected=sorted((x for x in rows if x["setup"]=="PULLBACK_WATCH"),
@@ -181,6 +186,8 @@ def analyze(status,candidates,histories,prelims,asof,parity=None):
       rejected_pullback_diagnostics=rejected_summary,
       first_reclaims=counts.get("FIRST_PULLBACK_RECLAIM",0),
       market_session_certified=False,final_80_score_verified=False,
+      manual_review_final_score_threshold=80,
+      excluded_chem_bio_stock_names_without_sector_master=True,
       roundtrip_cost_assumption_pct=COST_PCT,
       foreign_institution_netflows_optional=True,
       trade_approved=False,orders_enabled=False,decision="CASH",
