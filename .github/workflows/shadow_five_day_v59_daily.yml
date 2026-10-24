@@ -15,6 +15,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/shadow_five_day_v59_daily.yml'
+      - 'scripts/shadow_five_day_v59.py'
+      - 'scripts/test_shadow_five_day_v59.py'
 
 permissions:
   actions: read
@@ -108,6 +110,8 @@ jobs:
           from pathlib import Path
           r=json.loads(Path('output/shadow_v59_status.json').read_text(encoding='utf-8'))
           assert r['retrospective_universe_selection_bias'] is True
+          assert r['nearest_overhead_target_recomputed_for_each_entry_variant'] is True
+          assert r['legacy_common_first_entry_target_no_longer_used'] is True
           assert r['point_in_time_historical_stock_universe_verified'] is False
           assert r['historical_daily_price_regular_session_certified'] is False
           assert r['validated_live_strategy_trade_count']==0
