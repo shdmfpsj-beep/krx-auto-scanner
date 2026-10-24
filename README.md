@@ -1,10 +1,19 @@
 # KRX C3 / K100 — 무료 주식분석 자동화
 
-## 최신 v5.9 수익성 검증 프로토타입 (2026-10-24)
+## 최신 v6.0 수익·체결가능성 프런티어 (2026-10-25)
 
-- [v5.9 연구·테스트 보고서](docs/FIVE_DAY_SHADOW_V59_20261023.md) · [24개 자동 안전테스트 포함 전체 재생 성공 #40098931203](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40098931203) · [일일 v5.8→v5.9 자동연결 성공 #40099062677](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40099062677).
-- 23일 선정 82종목의 *과거* 기술신호 196개를 연구용 모의 체결. 1차·2차 대체안 392개 중 비용 반영 **2R 이상 구조 신호 84개, 가상 체결 1개**. **목표가에 닿았어도 거래비용 후 순손실인 64건**도 기록.
-- **종목선정 편향 및 정규장 일봉 미인증**: 위 성과를 승률·예상 급등확률·실전 수익률로 사용하지 않는다. 2R 충족 집단의 1건만 체결된 결과를 `승률 100%`로 표시하지 않음.
+- **[v6.0 전체 보고서 — 23일 기준 196 신호 × 5가지 가격안](docs/ENTRY_FILL_FRONTIER_V60_20261023.md)**.
+- [v6.0 실제 GitHub 계산·10/10 테스트 통과](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40136294979) · [v5.9 목표가 과대평가 수정·25/25 테스트](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40136210930) · [무료 일일 자동 연결 성공](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40136417640).
+- 82종목의 과거 **196개 기술 신호를 고정**하고 1차, 피벗 2차, 0.5ATR, 1ATR, 비용후 2R 경계가격 총 **980개의 가상 체결** 비교. 실제 가상 체결 건수 순서대로 **125 / 12 / 65 / 28 / 1건**.
+- **중요 손익비 정정:** 이전 v5.9의 2차 `2R 84건·1건 체결`은 1차 저항 목표를 2차에 재사용한 **과대평가 수치(폐기)**. 진입가별 가까운 저항 재산출 후 v5.9는 **2R 1건·체결 0건**, v6.0은 2ATR 거리·지지검증까지 적용해 **실제 매수 적격 0건**.
+- v6.0 자동 보고: [일일 v5.9→v6.0 실행](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/entry_fill_frontier_v60_daily.yml). 비용반영 진입가·손절·목표·미체결률과 탈락사유를 모바일에서 확인. 전진검증/PIT/정규장 독립 가격은 미완료, **CASH · 자동주문 불허**.
+
+
+## 이전 v5.9 5거래일 그림자 검증 (2026-10-25 정정)
+
+- [v5.9 연구·테스트 보고서](docs/FIVE_DAY_SHADOW_V59_20261023.md) · [25개 안전테스트·목표 수정 재생 성공 #40136210930](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40136210930) · [수정된 일일 v5.8→v5.9 자동연결 성공 #40136396292](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40136396292).
+- 23일 선정 82종목의 *과거* 기술신호 196개를 연구용 모의 체결. 1차·2차 대체안 392개 중 가격별 가까운 저항 재산출 후 **2R 이상 구조 신호 1개, 가상 체결 0개**. **목표가에 닿았어도 거래비용 후 순손실인 71건**도 기록.
+- **종목선정 편향 및 정규장 일봉 미인증**: 위 성과를 승률·예상 급등확률·실전 수익률로 사용하지 않는다. 기존 84/1은 폐기하고 정정된 1/0 수치만 사용.
 - 당일 기술신호 17건의 1차/2차 대체 계획을 `forward_seed_v59_asof.csv` **34행**으로 생성하되, 23일 이후 미래 5거래일 미관찰로 **체결·수익률 미정**. 1차 후 2차 물타기 금지.
 - [무료 일일 연계 GitHub Actions](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/shadow_five_day_v59_daily.yml): v5.7 날짜와 v5.8 완료된 가격 연구 실행번호를 그대로 인계받아 가상 연구와 미관찰 추적만 실행. **CASH/BUY 승인 0건**.
  
