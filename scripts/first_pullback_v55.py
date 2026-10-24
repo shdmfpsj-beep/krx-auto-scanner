@@ -142,7 +142,10 @@ def analyze(status,candidates,histories,prelims,asof,parity=None):
     if status.get("market_data_date")!=str(asof):errors.append("SCAN_DATE_MISMATCH")
     if status.get("scan_complete") is not True or status.get("data_date_verified") is not True:
         errors.append("SCAN_NOT_VERIFIED")
-    if status.get("coverage_ratio",0)<0.95:errors.append("LOW_MARKET_COVERAGE")
+    try:coverage=float(status.get("coverage_ratio"))
+    except (ValueError,TypeError):coverage=0.0
+    if not math.isfinite(coverage) or coverage<0.95:
+        errors.append("LOW_MARKET_COVERAGE")
     if p.get("asof")!=str(asof):errors.append("PRICE_PARITY_DATE_OR_FILE_MISSING")
     elif p.get("close_mismatches")!=0 or p.get("status")!="CANDIDATE_CLOSES_MATCH_RESEARCH_ONLY":
         errors.append("CROSS_SOURCE_PRICE_CONFLICT")
