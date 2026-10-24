@@ -84,6 +84,7 @@ jobs:
           test -s recovery/status.json
           test -s recovery/candidates.csv
           test -s source/entry_strategy_v58_status.json
+          test -s source/entry_strategy_v58_all.csv
           python - <<'PY'
           import json,os
           from pathlib import Path
@@ -104,6 +105,7 @@ jobs:
           set -euo pipefail
           python scripts/shadow_five_day_v59.py --recovery recovery \
              --entry-report source/entry_strategy_v58_status.json \
+             --entry-rows source/entry_strategy_v58_all.csv \
              --asof "$ASOF" --outdir output
           python - <<'PY'
           import csv,json,os
@@ -119,6 +121,14 @@ jobs:
           assert r['decision']=='CASH' and r['trade_approved'] is False
           assert r['orders_enabled'] is False
           assert r['total_simulated_alternative_scenarios']==2*r['historical_replay_signals']
+          assert r['forward_signal_variants']==34
+          assert r['forward_completed_trade_count']==0
+          assert r['forward_five_day_roi_verified'] is False
+          with Path('output/forward_seed_v59_asof.csv').open(encoding='utf-8-sig',newline='') as f:
+              forward=list(csv.DictReader(f))
+          assert len(forward)==34
+          assert all(x['net_return_pct']=='' for x in forward)
+          assert all(x['trade_approved']=='False' for x in forward)
           with Path('output/shadow_v59_all.csv').open(encoding='utf-8-sig',newline='') as f:
               all_rows=list(csv.DictReader(f))
           assert len(all_rows)==r['total_simulated_alternative_scenarios']
@@ -139,5 +149,6 @@ jobs:
             output/shadow_v59_status.json
             output/shadow_v59_all.csv
             output/shadow_v59_mobile.md
+            output/forward_seed_v59_asof.csv
           if-no-files-found: warn
           retention-days: 30
