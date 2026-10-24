@@ -1,0 +1,138 @@
+name: Free v6.0 daily risk frontier after dated v5.9 shadow
+
+on:
+  workflow_dispatch:
+    inputs:
+      v59_daily_run_id:
+        description: 'Exact completed v5.9 daily dated research run'
+        required: false
+        default: '40099062677'
+        type: string
+  workflow_run:
+    workflows: ['Free v5.9 shadow and forward-watch after exact v5.8 daily session']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/entry_fill_frontier_v60_daily.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v60-dated-source-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SOURCE_RUN: ${{ github.event.workflow_run.id || inputs.v59_daily_run_id || '40099062677' }}
+    steps:
+      - name: Sparse checkout only audited no-order modules
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/entry_fill_frontier_v60.py
+            /scripts/test_entry_fill_frontier_v60.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Verify policy, fixed ATR plans and no future-price leakage
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p 'test_entry_fill_frontier_v60.py' -v
+
+      - name: Fetch dated v5.9 paired sources including immutable exact recovery ID
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v59 recovery output
+          [[ "$SOURCE_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_V59_RUN"; exit 1; }
+          actual="$(gh api "repos/$GH_REPO/actions/runs/$SOURCE_RUN" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$SOURCE_RUN" --jq '.conclusion')"
+          [[ "$actual" == '.github/workflows/shadow_five_day_v59_daily.yml' && "$conclusion" == 'success' ]] ||
+            { echo "V59_ORIGIN_UNVERIFIED"; exit 1; }
+          gh run download "$SOURCE_RUN" -R "$GH_REPO" -n free-v59-daily-forward-seed-and-biased-shadow -D v59
+          test -s v59/upstream/evidence/input/asof.txt
+          test -s v59/upstream/evidence/input/recovery_source_run_id.txt
+          test -s v59/output/shadow_v59_status.json
+          test -s v59/output/shadow_v59_all.csv
+          recovered="$(cat v59/upstream/evidence/input/recovery_source_run_id.txt)"
+          [[ "$recovered" =~ ^[0-9]{8,14}$ ]] || { echo "BAD_RECOVERY_RUN"; exit 1; }
+          rec_path="$(gh api "repos/$GH_REPO/actions/runs/$recovered" --jq '.path')"
+          rec_done="$(gh api "repos/$GH_REPO/actions/runs/$recovered" --jq '.conclusion')"
+          [[ "$rec_path" == '.github/workflows/krx_recovery_scan.yml' && "$rec_done" == 'success' ]] ||
+            { echo "RECOVERY_ORIGIN_UNVERIFIED"; exit 1; }
+          gh run download "$recovered" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          test -s recovery/candidates.csv
+          test -s recovery/status.json
+          test -s recovery/candidate_daily_history_v52.csv
+          python - <<'PY'
+          import json
+          from datetime import date
+          from pathlib import Path
+          asof=Path('v59/upstream/evidence/input/asof.txt').read_text(encoding='utf-8')
+          assert date.fromisoformat(asof).isoformat()==asof
+          rec=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          d=json.loads(Path('v59/output/shadow_v59_status.json').read_text(encoding='utf-8'))
+          assert rec['market_data_date']==asof==d['asof']
+          assert rec['scan_complete'] is True and rec['data_date_verified'] is True
+          assert d.get('retrospective_universe_selection_bias') is True
+          assert d.get('nearest_overhead_target_recomputed_for_each_entry_variant') is True
+          assert d.get('legacy_common_first_entry_target_no_longer_used') is True
+          assert d.get('trade_approved') is False and d.get('orders_enabled') is False
+          print('V60_DAILY_DATED_AND_TARGET_BASIS_MATCH',asof)
+          PY
+
+      - name: Replay exactly the same v5.9 signals with five alternative prices
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/entry_fill_frontier_v60.py \
+             --recovery recovery \
+             --v59 v59/output \
+             --asof "$(cat v59/upstream/evidence/input/asof.txt)" \
+             --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          d=json.loads(Path('output/entry_fill_frontier_v60_status.json').read_text(encoding='utf-8'))
+          assert d['nearest_overhead_resistance_recomputed_for_each_limit_from_past_only'] is True
+          assert d['research_rows']==5*d['research_signals']
+          assert d['historic_120bar_pit_market_universe_verified'] is False
+          assert d['regular_market_ohlc_independently_verified'] is False
+          assert d['trade_approved'] is False and d['orders_enabled'] is False
+          assert d['decision']=='CASH'
+          with Path('output/entry_fill_frontier_v60_all.csv').open(encoding='utf-8-sig',newline='') as f:
+            lines=list(csv.DictReader(f))
+          assert len(lines)==d['research_rows']
+          assert all(x['trade_approved']=='False' for x in lines)
+          print('V60_DAILY_RISK_AND_FILL_FRONTIER',d['asof'],d['research_rows'],
+                'historical_signals',d['research_signals'])
+          PY
+
+      - name: Save Android report and all non-executable diagnostic orders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v60-daily-nearest-target-repricing
+          path: |
+            v59/upstream/evidence/input/asof.txt
+            v59/upstream/evidence/input/recovery_source_run_id.txt
+            output/entry_fill_frontier_v60_status.json
+            output/entry_fill_frontier_v60_all.csv
+            output/entry_fill_frontier_v60_mobile.md
+          retention-days: 21
+          if-no-files-found: warn
