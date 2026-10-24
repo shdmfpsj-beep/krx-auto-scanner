@@ -1,0 +1,133 @@
+name: Free v6.3 freeze dated 1st and alternative 2nd signal references
+
+on:
+  workflow_dispatch:
+    inputs:
+      v58_daily_run_id:
+        description: 'Exact completed v5.8 daily as-of source'
+        required: false
+        default: '40095818288'
+        type: string
+  workflow_run:
+    workflows: ['Free v5.8 daily 3-entry risk-first after v5.7 verified pairing']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/forward_freeze_v63.yml'
+      - 'scripts/forward_ledger_v63.py'
+      - 'scripts/test_forward_ledger_v63.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: krx-v63-freeze-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  immutable-freeze:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      V58_RUN: ${{ github.event.workflow_run.id || inputs.v58_daily_run_id || '40095818288' }}
+    steps:
+      - name: Sparse checkout audited research only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/test_forward_ledger_v63.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Run no-profit-without-future and cryptographic snapshot tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_forward_ledger_v63.py -v
+
+      - name: Retrieve exact successful v5.8 source and its verified recovery ancestor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v58 recovery output
+          [[ "$V58_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_V58_SOURCE_ID"; exit 1; }
+          workflow="$(gh api "repos/$GH_REPO/actions/runs/$V58_RUN" --jq '.path')"
+          result="$(gh api "repos/$GH_REPO/actions/runs/$V58_RUN" --jq '.conclusion')"
+          [[ "$workflow" == '.github/workflows/entry_strategy_v58_daily.yml' && "$result" == 'success' ]] ||
+            { echo "V58_MUST_BE_FINISHED_MATCHING_DAILY_WORKFLOW"; exit 1; }
+          gh run download "$V58_RUN" -R "$GH_REPO" -n free-v58-daily-entry-research -D v58
+          test -s v58/output/entry_strategy_v58_status.json
+          test -s v58/output/entry_strategy_v58_all.csv
+          test -s v58/evidence/input/asof.txt
+          test -s v58/evidence/input/recovery_source_run_id.txt
+          rec="$(cat v58/evidence/input/recovery_source_run_id.txt)"
+          [[ "$rec" =~ ^[0-9]{8,14}$ ]] || { echo "RECOVERY_ID_INVALID"; exit 1; }
+          workflow="$(gh api "repos/$GH_REPO/actions/runs/$rec" --jq '.path')"
+          result="$(gh api "repos/$GH_REPO/actions/runs/$rec" --jq '.conclusion')"
+          [[ "$workflow" == '.github/workflows/krx_recovery_scan.yml' && "$result" == 'success' ]] ||
+            { echo "RECOVERY_ORIGIN_UNVERIFIED"; exit 1; }
+          gh run download "$rec" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          test -s recovery/status.json
+          test -s recovery/candidate_daily_history_v52.csv
+          echo "$rec" > recovery_id.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.loads(Path('v58/output/entry_strategy_v58_status.json').read_text(encoding='utf-8'))
+          r=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          day=Path('v58/evidence/input/asof.txt').read_text(encoding='utf-8')
+          assert day==v['asof']==r['market_data_date']
+          assert v['source_errors']==[]
+          assert v['trade_approved'] is False and v['orders_enabled'] is False
+          assert r['scan_complete'] is True and r['data_date_verified'] is True
+          print('V63_FREEZE_ASOF_CONFIRMED',day)
+          PY
+
+      - name: Hash-freeze full method decisions and both alternative entry plans
+        shell: bash
+        run: |
+          set -euo pipefail
+          freeze_time="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          rec="$(cat recovery_id.txt)"
+          python scripts/forward_ledger_v63.py freeze \
+             --v58 v58/output --recovery recovery --outdir output \
+             --v58-run-id "$V58_RUN" --recovery-run-id "$rec" \
+             --frozen-at-utc "$freeze_time"
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          q=json.loads(Path('output/frozen_v63_manifest.json').read_text(encoding='utf-8'))
+          p=json.loads(Path('output/frozen_v63_signals.json').read_text(encoding='utf-8'))
+          assert q['schema']=='C3_K100_FORWARD_LEDGER_V63'
+          assert len(p)==2*q['asof_signal_count']
+          assert q['trade_approved'] is False and q['orders_enabled'] is False
+          assert q['prospective_pre_first_followup_session_open_verified'] is False
+          assert q['research_source_regular_only_certified'] is False
+          assert all(x['trade_approved'] is False for x in p)
+          assert all(x['net_return_pct'] is None for x in p)
+          print('V63_ARCHIVE_FROZEN_SESSIONS_PENDING',q['asof'],
+                q['asof_signal_count'],q['frozen_payload_sha256'])
+          PY
+
+      - name: Upload frozen as-of signals and SHA256 source fingerprint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v63-date-frozen-forward-seed
+          path: |
+            output/frozen_v63_manifest.json
+            output/frozen_v63_signals.json
+            output/frozen_v63_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
