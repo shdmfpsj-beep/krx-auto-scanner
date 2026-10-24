@@ -1,5 +1,14 @@
 # KRX C3 / K100 — 무료 주식분석 자동화
 
+## 최신 v5.9 수익성 검증 프로토타입 (2026-10-24)
+
+- [v5.9 연구·테스트 보고서](docs/FIVE_DAY_SHADOW_V59_20261023.md) · [24개 자동 안전테스트 포함 전체 재생 성공 #40098931203](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40098931203) · [일일 v5.8→v5.9 자동연결 성공 #40099062677](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40099062677).
+- 23일 선정 82종목의 *과거* 기술신호 196개를 연구용 모의 체결. 1차·2차 대체안 392개 중 비용 반영 **2R 이상 구조 신호 84개, 가상 체결 1개**. **목표가에 닿았어도 거래비용 후 순손실인 64건**도 기록.
+- **종목선정 편향 및 정규장 일봉 미인증**: 위 성과를 승률·예상 급등확률·실전 수익률로 사용하지 않는다. 2R 충족 집단의 1건만 체결된 결과를 `승률 100%`로 표시하지 않음.
+- 당일 기술신호 17건의 1차/2차 대체 계획을 `forward_seed_v59_asof.csv` **34행**으로 생성하되, 23일 이후 미래 5거래일 미관찰로 **체결·수익률 미정**. 1차 후 2차 물타기 금지.
+- [무료 일일 연계 GitHub Actions](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/shadow_five_day_v59_daily.yml): v5.7 날짜와 v5.8 완료된 가격 연구 실행번호를 그대로 인계받아 가상 연구와 미관찰 추적만 실행. **CASH/BUY 승인 0건**.
+ 
+
 ## 최신 v5.8 3가지 타점 비교와 1·2차 구조진입 (2026-10-24)
 
 - [v5.8 23일 재생 및 매수 보류 근거](docs/ENTRY_STRATEGY_V58_20261023.md).
