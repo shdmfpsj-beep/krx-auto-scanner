@@ -95,6 +95,39 @@ class FirstPullbackTests(unittest.TestCase):
         self.assertFalse(report["orders_enabled"])
         self.assertEqual(report["decision"],"CASH")
 
+    def test_nearby_rr_failure_is_rejected_diagnostic_not_a_trade(self):
+        from unittest.mock import patch
+        rows=fixture();d=date.fromisoformat(rows[-1]["date"])
+        candidate_data=[candidate(rows)]
+        status={"market_data_date":str(d),"scan_complete":True,
+                "data_date_verified":True,"coverage_ratio":0.99}
+        sample={"asof":str(d),"ticker":"005930","name":"TEST",
+                "setup":"PULLBACK_WATCH","daily_stop":93,
+                "entry1":100,"entry2":97,"rr_net":0.268,
+                "warnings":["KNOWN_CROSS_SOURCE_CLOSE_CONFLICT",
+                            "RECLAIM_NOT_CONFIRMED",
+                            "NEAREST_RESISTANCE_NET_RR_BELOW_2"],
+                "buy_approval":"NO"}
+        with patch("first_pullback_v55.inspect",return_value=sample):
+            _,result=analyze(status,candidate_data,rows,[],d,parity={
+                "asof":str(d),"status":"CROSS_SOURCE_CLOSE_CONFLICT",
+                "overlap_tickers":81,"close_mismatches":59,
+                "mismatch_examples":[{"ticker":"005930"}]})
+        self.assertEqual(result["watch_tickers"],[])
+        self.assertEqual(len(result["rejected_pullback_diagnostics"]),1)
+        rejected=result["rejected_pullback_diagnostics"][0]
+        self.assertEqual(rejected["cost_adjusted_near_rr"],0.268)
+        self.assertFalse(rejected["trade_approved"])
+        self.assertEqual(result["decision"],"CASH")
+
+    def test_none_market_coverage_fails_closed_without_crashing(self):
+        rows=fixture();d=date.fromisoformat(rows[-1]["date"])
+        _,result=analyze({"market_data_date":str(d),"scan_complete":True,
+            "data_date_verified":True,"coverage_ratio":None},
+            [candidate(rows)],rows,[],d,parity={})
+        self.assertIn("LOW_MARKET_COVERAGE",result["source_errors"])
+        self.assertEqual(result["decision"],"CASH")
+
     def test_missing_parity_does_not_promote_research(self):
         rows=fixture()
         d=date.fromisoformat(rows[-1]["date"])
