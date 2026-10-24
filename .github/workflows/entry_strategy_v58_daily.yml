@@ -118,6 +118,10 @@ jobs:
           assert r['trade_approved'] is False
           assert r['regular_only_session_certified'] is False
           assert r['decision']=='CASH'
+          assert isinstance(r['completed_signal_diagnostic_rows'],list)
+          mobile=Path('output/entry_strategy_v58_mobile.md').read_text(encoding='utf-8')
+          assert '2차 대체' in mobile and '매수 금지' in mobile
+          assert '## 주요 탈락 사유 집계' in mobile
           print('DATED_V58_3WAY_RESEARCH',r['asof'],
                 r['method_trigger_counts'],r['technical_research_ready_count'],
                 r['watch_tickers'])
