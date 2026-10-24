@@ -65,6 +65,9 @@ jobs:
           [[ "$actual" == '.github/workflows/shadow_five_day_v59_daily.yml' && "$conclusion" == 'success' ]] ||
             { echo "V59_ORIGIN_UNVERIFIED"; exit 1; }
           gh run download "$SOURCE_RUN" -R "$GH_REPO" -n free-v59-daily-forward-seed-and-biased-shadow -D v59
+          # Store the immutable paired run ID for downstream v6.1. Never
+          # rediscover 'latest' and never pair unrelated research sessions.
+          printf '%s' "$SOURCE_RUN" > v59_source_run_id.txt
           test -s v59/upstream/evidence/input/asof.txt
           test -s v59/upstream/evidence/input/recovery_source_run_id.txt
           test -s v59/output/shadow_v59_status.json
@@ -131,6 +134,7 @@ jobs:
           path: |
             v59/upstream/evidence/input/asof.txt
             v59/upstream/evidence/input/recovery_source_run_id.txt
+            v59_source_run_id.txt
             output/entry_fill_frontier_v60_status.json
             output/entry_fill_frontier_v60_all.csv
             output/entry_fill_frontier_v60_mobile.md
