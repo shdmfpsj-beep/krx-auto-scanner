@@ -1,0 +1,139 @@
+name: Free v5.8 daily 3-entry risk-first after v5.7 verified pairing
+
+on:
+  workflow_dispatch:
+    inputs:
+      v57_run_id:
+        description: 'Exact successful v5.7 daily pair run ID'
+        required: true
+        default: '40095411571'
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/entry_strategy_v58_daily.yml'
+  workflow_run:
+    workflows: ['Free v5.7 daily KRX source pairing after sector evidence']
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: daily-risk-first-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  date-locked-entry-research:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PAIR_RUN: ${{ github.event.workflow_run.id || inputs.v57_run_id || '40095411571' }}
+    steps:
+      - name: Sparse checkout of exact needed sources
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/test_entry_strategy_v58.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Test three entry methods without web or broker calls
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_entry_strategy_v58.py -v
+
+      - name: Fetch exact completed v5.7 market-day pair and provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence recovery output
+          [[ "$PAIR_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_V57_PAIR_RUN_ID"; exit 1; }
+          source="$(gh api "repos/$GH_REPO/actions/runs/$PAIR_RUN" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$PAIR_RUN" --jq '.conclusion')"
+          [[ "$source" == '.github/workflows/regular_source_v57_daily.yml' && "$conclusion" == 'success' ]] ||
+            { echo "V57_PAIR_RUN_NOT_VERIFIED"; exit 1; }
+          gh run download "$PAIR_RUN" -R "$GH_REPO" -n v57-date-locked-free-source-diagnostic -D evidence
+          test -s evidence/input/asof.txt
+          test -s evidence/input/recovery_source_run_id.txt
+          test -s evidence/input/sector_source_run_id.txt
+          test -s evidence/output/source_forensics_v57.json
+          asof="$(cat evidence/input/asof.txt)"
+          recovery_id="$(cat evidence/input/recovery_source_run_id.txt)"
+          sector_id="$(cat evidence/input/sector_source_run_id.txt)"
+          [[ "$recovery_id" =~ ^[0-9]{8,14}$ && "$sector_id" =~ ^[0-9]{8,14}$ ]] ||
+            { echo "PROVENANCE_RUN_IDS_INVALID"; exit 1; }
+          r_path="$(gh api "repos/$GH_REPO/actions/runs/$recovery_id" --jq '.path')"
+          r_status="$(gh api "repos/$GH_REPO/actions/runs/$recovery_id" --jq '.conclusion')"
+          s_path="$(gh api "repos/$GH_REPO/actions/runs/$sector_id" --jq '.path')"
+          s_status="$(gh api "repos/$GH_REPO/actions/runs/$sector_id" --jq '.conclusion')"
+          [[ "$r_path" == '.github/workflows/krx_recovery_scan.yml' && "$r_status" == 'success' ]] ||
+            { echo "PAIRED_RECOVERY_RUN_UNVERIFIED"; exit 1; }
+          [[ "$s_path" == '.github/workflows/sector_evidence_v18.yml' && "$s_status" == 'success' ]] ||
+            { echo "PAIRED_SECTOR_RUN_UNVERIFIED"; exit 1; }
+          gh run download "$recovery_id" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          test -s recovery/candidates.csv
+          test -s recovery/candidate_daily_history_v52.csv
+          test -s recovery/status.json
+          python - <<'PY'
+          import json
+          from datetime import date
+          from pathlib import Path
+          day=Path('evidence/input/asof.txt').read_text(encoding='utf-8')
+          assert date.fromisoformat(day).isoformat()==day
+          rec=json.loads(Path('recovery/status.json').read_text(encoding='utf-8'))
+          p=json.loads(Path('evidence/output/source_forensics_v57.json').read_text(encoding='utf-8'))
+          assert rec.get('market_data_date')==day==p.get('asof')
+          assert rec.get('scan_complete') is True
+          assert rec.get('data_date_verified') is True
+          assert p.get('diagnosis_valid') is True
+          assert p.get('trade_approved') is False
+          assert p.get('orders_enabled') is False
+          print('V58_CONFIRMED_RECOVERY_AND_SECTOR_PROVENANCE',day)
+          PY
+
+      - name: Build as-of technical entries from prior daily bars only
+        run: |
+          set -euo pipefail
+          python scripts/entry_strategy_v58.py \
+            --recovery recovery \
+            --forensics evidence/output/source_forensics_v57.json \
+            --asof "$(cat evidence/input/asof.txt)" \
+            --outdir output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('output/entry_strategy_v58_status.json').read_text(encoding='utf-8'))
+          assert r['source_errors']==[]
+          assert r['evaluated_method_rows']==3*r['candidates']
+          assert r['orders_enabled'] is False
+          assert r['trade_approved'] is False
+          assert r['regular_only_session_certified'] is False
+          assert r['decision']=='CASH'
+          print('DATED_V58_3WAY_RESEARCH',r['asof'],
+                r['method_trigger_counts'],r['technical_research_ready_count'],
+                r['watch_tickers'])
+          PY
+
+      - name: Upload Android-readable research only (no auto orders)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v58-daily-entry-research
+          path: |
+            evidence/input/asof.txt
+            evidence/input/recovery_source_run_id.txt
+            evidence/input/sector_source_run_id.txt
+            output/entry_strategy_v58_status.json
+            output/entry_strategy_v58_all.csv
+            output/entry_strategy_v58_mobile.md
+          retention-days: 21
+          if-no-files-found: warn
