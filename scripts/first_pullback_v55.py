@@ -74,6 +74,21 @@ def up(v):
     n=int(math.ceil(v/tick(v))*tick(v))
     return n if tick(n)==tick(v) else up(n)
 
+def net_reward_risk(entry,stop,resistance,cost_pct=COST_PCT):
+    """Return conservative two-sided fee-adjusted reward/risk or None."""
+    inputs=(entry,stop,resistance,cost_pct)
+    if (any(not isinstance(x,(int,float)) or isinstance(x,bool)
+            or not math.isfinite(x) for x in inputs)
+        or not 0<stop<entry or resistance<=0 or not 0<=cost_pct<=5):
+        return None
+    fee_one_way=cost_pct/200
+    paid=entry*(1+fee_one_way)
+    received_target=resistance*(1-fee_one_way)
+    received_stop=stop*(1-fee_one_way)
+    denominator=paid-received_stop
+    return (received_target-paid)/denominator if denominator>0 else None
+
+
 def inspect(candidate,history,asof,rank=None,conflicted=None):
     ticker=str(candidate.get("ticker","")).strip()
     r=dict(asof=asof.isoformat(),ticker=ticker,name=candidate.get("name") or ticker,
@@ -124,17 +139,13 @@ def inspect(candidate,history,asof,rank=None,conflicted=None):
             resist=sorted({b["high"] for b in bars[-21:-1] if b["high"]>first})
             if resist:
                 ceiling=resist[0];r["nearest_resistance"]=down(ceiling)
-                # All-in reward AND all-in risk: entry fee adds to cost,
-                # exit/stop fees subtract from proceeds. Prior v5.5 only
-                # deducted fees from reward, overstating reward/risk.
-                fee_one_way=COST_PCT/200
-                effective_entry=first*(1+fee_one_way)
-                effective_target=ceiling*(1-fee_one_way)
-                effective_stop=stop*(1-fee_one_way)
-                risk=effective_entry-effective_stop
-                rr=(effective_target-effective_entry)/risk
-                r["rr_net"]=round(rr,3)
-                if rr<2:warnings.append("NEAREST_RESISTANCE_NET_RR_BELOW_2")
+                # Both reward and stop-side risk include estimated costs.
+                rr=net_reward_risk(first,stop,ceiling)
+                if rr is None:
+                    warnings.append("INVALID_FEE_ADJUSTED_RISK")
+                else:
+                    r["rr_net"]=round(rr,3)
+                    if rr<2:warnings.append("NEAREST_RESISTANCE_NET_RR_BELOW_2")
             else:warnings.append("NO_UPSIDE_NEARBY_RESISTANCE")
         else:warnings.append("INVALID_STRUCTURAL_STOP")
     warnings+=["REGULAR_PRICE_SOURCE_UNCERTIFIED","SECTOR_EVIDENCE_UNVERIFIED",
