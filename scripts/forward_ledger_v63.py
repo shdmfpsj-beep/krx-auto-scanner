@@ -242,6 +242,10 @@ def evaluate(manifest,plans,future_root):
     outcomes=[]
     for plan in plans:
         r=dict(plan)
+        # A pending outcome is always an explicit NULL, even if an older
+        # separately constructed snapshot left these optional fields absent.
+        for key in ("filled_at","exit_date","net_return_pct","net_r"):
+            r.setdefault(key,None)
         if plan.get("research_entry_reference") is None or (
             plan.get("daily_structure_stop_reference") is None or
             plan.get("nearest_target_repriced_reference") is None):
