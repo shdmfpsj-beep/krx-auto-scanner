@@ -74,10 +74,17 @@ def archived_signals(shadow_rows,asof):
         if set(pair)!=set(("FIRST","SECOND")):
             raise ValueError("UNPAIRED_ARCHIVED_V59_ALTERNATIVES")
         first,second=pair["FIRST"],pair["SECOND"]
+        # v5.9 corrects its former shared-target overstatement by storing
+        # a different nearest resistance for the lower SECOND entry.
+        # Control-level stop, original limits and signal close still agree.
         for f in ("stop_reference","signal_first_reference",
-                  "signal_second_reference","target_reference","signal_close"):
+                  "signal_second_reference","signal_close"):
             if first.get(f)!=second.get(f):
                 raise ValueError("DIFFERING_ARCHIVED_SIGNAL_REFERENCES")
+        if (first.get("legacy_first_entry_target") or
+            second.get("legacy_first_entry_target")):
+            if first.get("legacy_first_entry_target")!=second.get("legacy_first_entry_target"):
+                raise ValueError("MISMATCHED_ARCHIVED_ORIGINAL_FIRST_TARGET")
     return [(k,pair["FIRST"],pair["SECOND"]) for k,pair in sorted(seen.items())]
 
 def bounded_two_r_price(signal_bars,first,stop,atr):
