@@ -33,6 +33,7 @@ def inspect(recovery_root: Path, v18_root: Path, asof: str):
                 mismatch_tickers_complete=False, overlap_tickers=0,
                 close_mismatches=None, exact_close_matches=0,
                 comparison_rows=[], mismatch_tickers=[], unpaired_recovery_tickers=[],
+                invalid_recovery_tickers=[], invalid_v18_tickers=[],
                 missing_market_files=[], invalid_rows=0, duplicate_tickers=[],
                 independent_provider_verified=False,
                 regular_only_session_certified=False, trade_approved=False,
@@ -49,6 +50,7 @@ def inspect(recovery_root: Path, v18_root: Path, asof: str):
         return base
 
     recovery, v18, duplicate, invalid = {}, {}, set(), 0
+    bad_recovery, bad_v18 = set(), set()
     for row in csv_rows(history):
         if row.get("date") != asof:
             continue
@@ -56,6 +58,8 @@ def inspect(recovery_root: Path, v18_root: Path, asof: str):
         price = valid_ohlc(row, ("open", "high", "low", "close"))
         if len(ticker) != 6 or not ticker.isdecimal() or price is None:
             invalid += 1
+            if len(ticker) == 6 and ticker.isdecimal():
+                bad_recovery.add(ticker)
             continue
         if ticker in recovery:
             duplicate.add(ticker)
@@ -69,16 +73,20 @@ def inspect(recovery_root: Path, v18_root: Path, asof: str):
             # Date is a required provenance field even if the file is named asof.
             if row.get("Date") != asof:
                 invalid += 1
+                bad_v18.add(ticker)
                 continue
             price = valid_ohlc(row, ("Open", "High", "Low", "Close"))
             if price is None:
                 invalid += 1
+                bad_v18.add(ticker)
                 continue
             if ticker in v18:
                 duplicate.add(ticker)
                 continue
             v18[ticker] = dict(**price, market=market)
     base["invalid_rows"] = invalid
+    base["invalid_recovery_tickers"] = sorted(bad_recovery)
+    base["invalid_v18_tickers"] = sorted(bad_v18)
     base["duplicate_tickers"] = sorted(duplicate)
     base["recovery_valid_tickers"] = len(recovery)
     base["v18_valid_tickers"] = len(v18)
@@ -156,6 +164,7 @@ def main():
              f"Overlap: {data['overlap_tickers']} / mismatches: {data['close_mismatches']}",
              f"All mismatches enumerated: {data['mismatch_tickers_complete']}",
              f"Unpaired candidate tickers: {', '.join(data['unpaired_recovery_tickers']) or 'none'}",
+             f"Invalid recovery tickers: {', '.join(data['invalid_recovery_tickers']) or 'none'}",
              "",
              "Matching date/close values is not independent KRX regular-session verification.",
              "**CASH / zero BUY approvals / no executed orders.**"]
