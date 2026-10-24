@@ -37,6 +37,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: true
+          # Full checkout fails on accidentally committed invalid long paths.
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.csv
+            /reports/**
+            /requirements-v94.txt
+          sparse-checkout-cone-mode: false
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
