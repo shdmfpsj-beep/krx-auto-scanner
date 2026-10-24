@@ -124,9 +124,15 @@ def inspect(candidate,history,asof,rank=None,conflicted=None):
             resist=sorted({b["high"] for b in bars[-21:-1] if b["high"]>first})
             if resist:
                 ceiling=resist[0];r["nearest_resistance"]=down(ceiling)
-                risk=first-stop
-                # Worse-case first entry and explicit roundtrip transaction cost.
-                rr=(ceiling*(1-COST_PCT/200)-first*(1+COST_PCT/200))/risk
+                # All-in reward AND all-in risk: entry fee adds to cost,
+                # exit/stop fees subtract from proceeds. Prior v5.5 only
+                # deducted fees from reward, overstating reward/risk.
+                fee_one_way=COST_PCT/200
+                effective_entry=first*(1+fee_one_way)
+                effective_target=ceiling*(1-fee_one_way)
+                effective_stop=stop*(1-fee_one_way)
+                risk=effective_entry-effective_stop
+                rr=(effective_target-effective_entry)/risk
                 r["rr_net"]=round(rr,3)
                 if rr<2:warnings.append("NEAREST_RESISTANCE_NET_RR_BELOW_2")
             else:warnings.append("NO_UPSIDE_NEARBY_RESISTANCE")
@@ -173,7 +179,9 @@ def analyze(status,candidates,histories,prelims,asof,parity=None):
           for c in candidates]
     counts=dict(Counter(x["setup"] for x in rows))
     # Eligible WATCH (not BUY): never force 5 low-quality stocks into TOP5.
-    eligible=[x for x in rows if x["setup"] in ("PULLBACK_WATCH","FIRST_PULLBACK_RECLAIM")
+    # A merely forming pullback must not share the confirmed-reclaim
+    # research shortlist, even when its geometric R:R is attractive.
+    eligible=[x for x in rows if x["setup"]=="FIRST_PULLBACK_RECLAIM"
        and x["daily_stop"] is not None and x["entry2"] is not None
        and x["rr_net"] is not None and x["rr_net"]>=2
        and "KNOWN_CROSS_SOURCE_CLOSE_CONFLICT" not in x["warnings"]
