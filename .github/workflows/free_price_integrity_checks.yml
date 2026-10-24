@@ -1,0 +1,29 @@
+name: Free C3 K100 price integrity offline checks
+
+on:
+  push:
+    paths:
+      - 'scripts/krx_price_integrity_v84.py'
+      - 'scripts/test_krx_price_integrity_v84.py'
+      - '.github/workflows/free_price_integrity_checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/krx_price_integrity_v84.py
+            /scripts/test_krx_price_integrity_v84.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Compile and test no-cost fail-closed price auditing
+        run: |
+          python -m py_compile scripts/krx_price_integrity_v84.py scripts/test_krx_price_integrity_v84.py
+          python -m unittest discover -s scripts -p 'test_krx_price_integrity_v84.py' -v
