@@ -26,6 +26,8 @@ DETAIL_FIELDS=("ticker","method","entry_variant","signal_asof",
     "signal_second_rr","entered_at","entry_date","entry_price",
     "exit_date","exit_price","exit_reason","sessions_held",
     "net_return_pct","net_r","outcome","path_ambiguity",
+    "signal_variant_rr","signal_geometric_2r_pass",
+    "target_hit_but_net_loss",
     "hypothetical_only","trade_approved")
 VALID_EXITS=("STOP","TARGET","TIME_EXIT")
 
@@ -49,7 +51,22 @@ def commission_exit(entry,stop,exit_price,cost_pct=ROUNDTRIP_COST_PCT):
     if risk<=0:return None
     return (round((sold/paid-1)*100,4),round((sold-paid)/risk,4))
 
+def geometric_two_r_gate(plan,variant):
+    """Only risk geometry, NEVER issuer eligibility or buy permission."""
+    rr=finite_positive(plan.get("first_net_rr" if variant=="FIRST" else "second_net_rr"))
+    risk=finite_positive(plan.get("first_stop_risk_pct" if variant=="FIRST"
+                                 else "second_stop_risk_pct"))
+    if rr is None or rr<2 or risk is None:return False
+    if variant=="FIRST":
+        dist=plan.get("first_entry_below_close_atr")
+        if not isinstance(dist,(int,float)) or not math.isfinite(dist) or dist>1:
+            return False
+        return 2<=risk<=12
+    return 1<=risk<=12
+
 def blank(plan,variant):
+    rr=plan.get("first_net_rr" if variant=="FIRST" else "second_net_rr")
+    gate=geometric_two_r_gate(plan,variant)
     return dict(ticker=plan["ticker"],method=plan["method"],
         entry_variant=variant,signal_asof=plan["asof"],
         signal_close=plan.get("asof_close_research"),
@@ -62,7 +79,9 @@ def blank(plan,variant):
         entered_at=None,entry_date=None,entry_price=None,
         exit_date=None,exit_price=None,exit_reason=None,sessions_held=0,
         net_return_pct=None,net_r=None,outcome="UNRESOLVED",
-        path_ambiguity=None,hypothetical_only=True,trade_approved=False)
+        path_ambiguity=None,signal_variant_rr=rr,
+        signal_geometric_2r_pass=gate,target_hit_but_net_loss=False,
+        hypothetical_only=True,trade_approved=False)
 
 def simulate(plan,future_bars,variant="FIRST",entry_days=ENTRY_DAYS,hold_days=HOLD_DAYS):
     """Conservative daily OHLC. No same-candle TARGET credit after limit fill.
@@ -153,6 +172,7 @@ def simulate(plan,future_bars,variant="FIRST",entry_days=ENTRY_DAYS,hold_days=HO
             r.update(exit_date=bar["date"].isoformat(),exit_price=exit_price,
                exit_reason=reason,sessions_held=held+1,
                net_return_pct=net_pct,net_r=net_r,
+               target_hit_but_net_loss=(reason.startswith("TARGET") and net_pct<=0),
                outcome=("NET_WIN" if net_pct>0 else "NET_LOSS" if net_pct<0
                         else "NET_FLAT"))
             return r
@@ -243,8 +263,9 @@ def historical_shadow(candidates,histories,asof,limit=MAX_METHOD_ROWS):
         historical_signal_days=historical_signal_days,
         cooldown_skipped=dict(overlapping_skipped))
 
-def stats(rows,variant,method):
-    subset=[x for x in rows if x["entry_variant"]==variant and x["method"]==method]
+def stats(rows,variant,method,only_geometric_two_r=False):
+    subset=[x for x in rows if x["entry_variant"]==variant and x["method"]==method
+       and (not only_geometric_two_r or x.get("signal_geometric_2r_pass") is True)]
     n=len(subset)
     filled=[x for x in subset if x["outcome"] in ("NET_WIN","NET_LOSS","NET_FLAT")]
     wins=[x for x in filled if x["outcome"]=="NET_WIN"]
@@ -261,6 +282,7 @@ def stats(rows,variant,method):
         stop_exits=sum(x.startswith("STOP") for x in exits),
         target_exits=sum(x.startswith("TARGET") for x in exits),
         time_exits=sum(x.startswith("TIME") for x in exits),
+        targets_that_lost_after_cost=sum(x.get("target_hit_but_net_loss") is True for x in filled),
         not_filled=sum(x["outcome"]=="NOT_FILLED_WITHIN_2_SESSIONS" for x in subset),
         pending=sum(x["outcome"]=="PENDING_FULL_FORWARD_HORIZON" for x in subset),
         invalid_count=sum(x["outcome"].startswith(("INVALID","CANCEL")) for x in subset),
@@ -268,9 +290,11 @@ def stats(rows,variant,method):
 
 def build_report(candidates,histories,asof,replay,diagnostics,upstream_v58=None,source_errors=None):
     summary=defaultdict(dict)
+    two_r=defaultdict(dict)
     for method in METHODS:
         for variant in ("FIRST","SECOND"):
             summary[method][variant]=stats(replay,variant,method)
+            two_r[method][variant]=stats(replay,variant,method,only_geometric_two_r=True)
     return dict(schema=VERSION,asof=str(asof),
         universe_selection_date=str(asof),selected_universe_size=len(candidates),
         historical_bars_per_ticker_max=max((len(x) for x in histories.values()),default=0),
@@ -279,7 +303,12 @@ def build_report(candidates,histories,asof,replay,diagnostics,upstream_v58=None,
         historical_replay_signals=diagnostics["historical_signal_days"],
         signal_counts=diagnostics["trigger_counts"],
         total_simulated_alternative_scenarios=len(replay),
-        stats=summary,source_errors=source_errors or [],
+        stats=summary,geometric_2r_only_stats=two_r,
+        target_hit_but_net_loss_total=sum(x.get("target_hit_but_net_loss") is True for x in replay),
+        only_geometric_2r_scenarios=sum(x.get("signal_geometric_2r_pass") is True for x in replay),
+        # Even the >=2R group is not independent/PIT/session-verified.
+        geometric_2r_group_is_validated_win_probability=False,
+        source_errors=source_errors or [],
         retrospective_universe_selection_bias=True,
         historical_daily_price_regular_session_certified=False,
         point_in_time_historical_stock_universe_verified=False,
@@ -303,8 +332,22 @@ def markdown(report):
       "일봉 정규장 세션 미인증, 날짜별 사전 종목선정 미검증, 체결 대기열 및 장중 고저가 순서 미상.",
       f"왕복비용 {report['cost_assumption_roundtrip_pct']}%, 진입유효 {ENTRY_DAYS}거래일, 매수 후 {HOLD_DAYS}거래일 이내 시간청산.",
       "1차와 2차는 **독립된 대체 시나리오**; 동시에 매수하거나 추가매수하지 않습니다.",
-      "", "| 전략 | 방식 | 역사적 신호 | 체결 가정 | 승률(탐색용) | 평균 순수익(탐색용) |",
+      "",
+      "## 구조손절과 비용후 2R 이상인 시나리오만 (여전히 검증 전)",
+      "| 전략 | 방식 | 2R 가격조건 충족 | 가정 체결 | 순승률(극소표본 주의) | 순수익 평균 |",
       "|---|---|---:|---:|---:|---:|"]
+    for m in METHODS:
+        for v in ("FIRST","SECOND"):
+            s=report["geometric_2r_only_stats"][m][v]
+            rate=(f"{s['win_rate_pct']}%" if s["win_rate_pct"] is not None
+                  else "표본 없음")
+            ret=(f"{s['mean_net_return_pct']}%" if s["mean_net_return_pct"] is not None
+                 else "표본 없음")
+            lines.append(f"| {m} | {v} | {s['signals']} | {s['filled']} | {rate} | {ret} |")
+    lines.extend(["",
+      "## 2R 등 품질 제한 없는 전체 모의 기술 신호 (투자전략 승률 아님)",
+      "| 전략 | 방식 | 역사적 신호 | 체결 가정 | 순승률(탐색용) | 평균 순수익(탐색용) |",
+      "|---|---|---:|---:|---:|---:|"])
     for m in METHODS:
         for v in ("FIRST","SECOND"):
             s=report["stats"][m][v]
@@ -313,7 +356,10 @@ def markdown(report):
             ret=(f"{s['mean_net_return_pct']}%" if s["mean_net_return_pct"] is not None
                  else "표본 없음")
             lines.append(f"| {m} | {v} | {s['signals']} | {s['filled']} | {rate} | {ret} |")
-    lines.extend(["","## 엄격한 실전 평가", "",
+    lines.extend(["",
+      f"**가까운 목표가를 맞혔어도 거래비용 때문에 실제 순손실인 모의 건수: {report['target_hit_but_net_loss_total']}건.**",
+      "목표 터치율을 수익 승률로 사용하면 매매성과가 과대평가됩니다.",
+      "## 엄격한 실전 평가", "",
       "미통과: 원본 정규장 가격 인증, 당시 전체 종목/상장/퇴출 구성, 실측 거래대금, 시장점수 및 계좌자금 인증.",
       "위 숫자는 실거래 가능 종목의 승률·5일 급등확률·수익보장이 아닙니다.",
       "당일 저가와 고가에 손절·목표가 둘 다 닿으면 **손절 우선** 처리.",
