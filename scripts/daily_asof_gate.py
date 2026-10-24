@@ -190,6 +190,46 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
         reasons.append("REGULAR_ONLY_REPORT_ASOF_MISMATCH")
     elif not regular_ok:
         reasons.append("REGULAR_ONLY_PRICE_SOURCE_NOT_CERTIFIED")
+    # Surface research watches without giving them executable prices.
+    # The 23 Oct original sector and stock watchlists have missing catalysts,
+    # weak breadth and no validated structural entry references.
+    def safe_label(value):
+        return str(value or "").replace("|", "/").replace("\\n", " ").replace("\\r", " ")[:48]
+    watch_sectors = []
+    if sector.get("asof") == day:
+        for item in (sector.get("sector_top3") or [])[:3]:
+            if not isinstance(item, dict) or item.get("buy_approval") not in ("NO", None):
+                continue
+            breadth = item.get("day_breadth_up_pct")
+            if isinstance(breadth, bool) or not isinstance(breadth, (int, float)):
+                breadth = None
+            elif not 0 <= breadth <= 100:
+                breadth = None
+            watch_sectors.append({
+                "rank": len(watch_sectors) + 1,
+                "sector_id": safe_label(item.get("sector_id")),
+                "name": safe_label(item.get("name")),
+                "breadth_up_pct": breadth,
+                "phase": safe_label(item.get("flow_phase")),
+                "scope": "ETF_CONSTITUENT_RESEARCH_ONLY",
+                "buy_approval": False,
+            })
+    watch_stocks = []
+    if sector.get("asof") == day:
+        for item in (sector.get("stock_research_top5") or [])[:5]:
+            if not isinstance(item, dict) or item.get("buy_approval") not in ("NO", None):
+                continue
+            ticker = str(item.get("ticker") or "")
+            if len(ticker) != 6 or not ticker.isdigit():
+                continue
+            watch_stocks.append({
+                "rank": len(watch_stocks) + 1,
+                "ticker": ticker, "name": safe_label(item.get("name")),
+                "sector_id": safe_label(item.get("sector_id")),
+                "final_verified_score": None,
+                "structural_order_level_verified": False,
+                "trade_approved": False,
+            })
     # Research-only evidence, even if every source's calendar date agrees.
     # Final 80pt trade-score, live entry trigger, cash and existing holdings
     # are not independently verified by these free end-of-day files.
@@ -236,6 +276,11 @@ def evaluate(day: str, recovery: dict, focus: dict, sector: dict, money: dict,
             price_parity.get("independent_provider_verified") is True),
         "sector_research_top3_count": len(sector.get("sector_top3") or []),
         "sector_research_top5_count": len(sector.get("stock_research_top5") or []),
+        "sector_research_watch": watch_sectors,
+        "stock_research_watch": watch_stocks,
+        "sector_watch_breadth_ge_60_count": sum(
+            x["breadth_up_pct"] is not None and x["breadth_up_pct"] >= 60
+            for x in watch_sectors),
         "sector_selection_outcome": sector.get("sector_selection_outcome","PENDING_DATA_VALIDATION"),
         "stock_selection_outcome": sector.get("stock_selection_outcome","PENDING_DATA_VALIDATION"),
         "c3_position_state": c3_state or {"status":"POSITION_UNVERIFIED","user_reported":False},
@@ -262,6 +307,30 @@ def to_markdown(data: dict) -> str:
     watch = ", ".join(data["recovery_research_watch_tickers"]) or "없음"
     reason_lines = "\n".join(f"- {x}" for x in data["data_integrity_blockers"])
     candidate = data.get("today_research_candidate", {})
+    watch_sectors = data.get("sector_research_watch") or []
+    watch_stocks = data.get("stock_research_watch") or []
+    watch_section = ("\\n## 섹터 TOP3 (ETF 구성종목 연구 · 미승인)\\n\\n"
+        "| 순위 | 섹터 | 상승확산 | 분류 |\\n|---|---|---:|---|\\n")
+    for item in watch_sectors:
+        breadth = item.get("breadth_up_pct")
+        watch_section += (f"| {item['rank']} | {item['name']} | "
+             f"{breadth:.1f}% | {item['phase']} |\\n"
+             if isinstance(breadth, (int, float)) else
+             f"| {item['rank']} | {item['name']} | 미확인 | {item['phase']} |\\n")
+    if not watch_sectors:
+        watch_section += "| - | 검증 가능한 연구 목록 없음 | - | - |\\n"
+    watch_section += (f"\\n상승확산 60% 이상: "
+        f"{data.get('sector_watch_breadth_ge_60_count', 0)}/{len(watch_sectors)}개."
+        " 이는 TOP3 강세 확인이 아닙니다.\\n"
+        "\\n## 종목 TOP5 (연구순위 · 미승인)\\n\\n"
+        "| 순위 | 종목 | 섹터 | 타점 |\\n|---|---|---|---|\\n")
+    for item in watch_stocks:
+        watch_section += (f"| {item['rank']} | {item['name']} ({item['ticker']}) | "
+             f"{item['sector_id']} | 일봉 구조가격·원본 검증 대기 |\\n")
+    if not watch_stocks:
+        watch_section += "| - | 검증 가능한 연구 목록 없음 | - | - |\\n"
+    watch_section += ("\\n**이 표의 연구순위는 최종 80점이나 5거래일 "
+        "상승확률이 아닙니다.** 종가 불일치가 해소되기 전 개별 매매가격은 사용 금지.\\n")
     if candidate:
         research_line = (f"**오늘 확인한 기술 연구후보:** {candidate['name']} ({candidate['ticker']}) · "
             f"종가 {candidate['close_reference_tick_floor']:,}원 · 1차 {candidate['entry1_close_reference_tick_floor']:,}원 · "
@@ -296,6 +365,7 @@ def to_markdown(data: dict) -> str:
 **일봉 연구 구조 통과:** {fmt(data['recovery_research_geometry_pass'])}건 · 연구 티커 {watch}
 {research_line}
 **TOP3 판정:** {data.get('sector_selection_outcome','PENDING_DATA_VALIDATION')} · **TOP5 판정:** {data.get('stock_selection_outcome','PENDING_DATA_VALIDATION')} (보류와 검증 후 0개를 구분)
+{watch_section}
 {c3_mobile_line(data.get('c3_position_state') or {})}
 **최종 검증 80점·매수승인:** 0건 (독립 검증 미완료)
 
