@@ -183,6 +183,31 @@ class ReliabilityV62Tests(unittest.TestCase):
         self.assertFalse(report["validated_win_probability_available"])
         self.assertEqual(report["decision"],"CASH")
 
+    def test_break_above_level_is_not_fresh_when_signal_already_above(self):
+        b=bars();meta,raw=archived(b)
+        b[100].update(high=110,close=108)
+        b[101].update(high=115,close=110)
+        b[102].update(high=115,close=110)
+        with patch("wick_barrier_reliability_v62.signal_rows_for_historic_selected_universe",
+                   return_value=([dict(ticker=TICKER)],{TICKER:b},[])):
+            outcome,_=analyze(None,meta,raw,ASOF)
+        self.assertTrue(outcome[0]["signal_close_confirms_barrier_reclaim"])
+        self.assertTrue(outcome[0]["forward_any_close_break"])
+        self.assertFalse(outcome[0]["forward_new_close_break_after_signal_below"])
+        self.assertTrue(outcome[0]["forward_above_after_signal_already_reclaimed"])
+
+    def test_fresh_break_when_signal_close_starts_below_level(self):
+        b=bars();meta,raw=archived(b)
+        b[101].update(high=114,close=111)
+        with patch("wick_barrier_reliability_v62.signal_rows_for_historic_selected_universe",
+                   return_value=([dict(ticker=TICKER)],{TICKER:b},[])):
+            outcome,_=analyze(None,meta,raw,ASOF)
+        self.assertFalse(outcome[0]["signal_close_confirms_barrier_reclaim"])
+        self.assertTrue(outcome[0]["forward_new_close_break_after_signal_below"])
+        self.assertFalse(outcome[0]["forward_above_after_signal_already_reclaimed"])
+        report=aggregate(outcome,ASOF,[])
+        self.assertTrue(report["post_signal_first_breaks_separate_from_already_reclaimed_price"])
+
     def test_forward_outcomes_mutation_does_not_change_pre_signal_labels(self):
         b=bars();meta,rows=archived(b)
         with patch("wick_barrier_reliability_v62.signal_rows_for_historic_selected_universe",
