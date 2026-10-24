@@ -123,7 +123,7 @@ class FiveDayShadowTests(unittest.TestCase):
     def test_target_hit_can_still_be_net_loss_after_fees(self):
         x=plan(first=100,stop=90,target=100.2)
         b=future()
-        b[0]=bar(0,open=99,high=101,low=98,close=100.3)
+        b[0]=bar(0,open=100,high=101,low=98,close=100.3)
         result=simulate(x,b)
         self.assertEqual(result["exit_reason"],"TARGET")
         self.assertEqual(result["outcome"],"NET_LOSS")
