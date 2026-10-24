@@ -149,8 +149,23 @@ def analyze(status,candidates,histories,prelims,asof,parity=None):
     if p.get("asof")!=str(asof):errors.append("PRICE_PARITY_DATE_OR_FILE_MISSING")
     elif p.get("close_mismatches")!=0 or p.get("status")!="CANDIDATE_CLOSES_MATCH_RESEARCH_ONLY":
         errors.append("CROSS_SOURCE_PRICE_CONFLICT")
-    conflicts={str(v.get("ticker")) for v in p.get("mismatch_examples",[])
-               if isinstance(v,dict)}
+    # v5.5 only received 15 examples; that does NOT identify all 59
+    # conflicting tickers from 2026-10-23. Prefer v5.6 complete, dated
+    # roster. Truncated or missing rosters must never pass as verified.
+    roster=p.get("mismatch_tickers")
+    complete=(p.get("mismatch_tickers_complete") is True
+              and isinstance(roster,list)
+              and all(isinstance(t,str) and len(t)==6 and t.isdigit() for t in roster)
+              and len(roster)==len(set(roster))
+              and p.get("close_mismatches")==len(roster)
+              and isinstance(p.get("overlap_tickers"),int)
+              and p["overlap_tickers"]>=len(roster))
+    if complete:
+        conflicts=set(roster)
+    else:
+        conflicts={str(v.get("ticker")) for v in p.get("mismatch_examples",[])
+                   if isinstance(v,dict)}
+        errors.append("COMPLETE_CROSS_SOURCE_CONFLICT_ROSTER_MISSING")
     group=defaultdict(list)
     for b in histories:group[str(b.get("ticker","")).zfill(6)].append(b)
     ranks={v.get("ticker"):v for v in prelims}
@@ -182,6 +197,8 @@ def analyze(status,candidates,histories,prelims,asof,parity=None):
       parity_overlapping=p.get("overlap_tickers"),
       parity_mismatches=p.get("close_mismatches"),
       listed_parity_conflict_examples=len(conflicts),
+      complete_parity_conflict_roster=complete,
+      all_disclosed_conflict_tickers=sorted(conflicts),
       watch_tickers=[x["ticker"] for x in eligible],
       rejected_pullback_diagnostics=rejected_summary,
       first_reclaims=counts.get("FIRST_PULLBACK_RECLAIM",0),
