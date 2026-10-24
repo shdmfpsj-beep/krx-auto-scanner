@@ -39,6 +39,15 @@ jobs:
     timeout-minutes: 135
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Avoid malformed legacy path names that break full checkout.
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.csv
+            /reports/**
+            /requirements-v93.txt
+            /requirements-v94.txt
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
