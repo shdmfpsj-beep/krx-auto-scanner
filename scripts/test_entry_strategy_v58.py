@@ -163,7 +163,7 @@ class EntryV58Tests(unittest.TestCase):
                category="OHLC_EXACT_MATCH_UNCERTIFIED")
         with patch("entry_strategy_v58.first_pullback",
              return_value=dict(method=METHODS[0],
-                 signal_condition="TEST_FIRST_RECLAIM",first_hint=101,
+                 signal_condition="TEST_FIRST_RECLAIM",first_hint=113,
                  support_hint=None)):
             x=evaluate(candidate(h),h,d,METHODS[0],p)
         self.assertGreater(x["first_entry_below_close_atr"],1.0)
