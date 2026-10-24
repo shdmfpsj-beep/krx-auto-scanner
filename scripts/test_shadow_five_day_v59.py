@@ -120,6 +120,52 @@ class FiveDayShadowTests(unittest.TestCase):
         self.assertEqual(r["exit_date"],str(BASE+timedelta(days=4)))
         self.assertEqual(r["exit_reason"],"TIME_EXIT_5TH_SESSION")
 
+    def test_target_hit_can_still_be_net_loss_after_fees(self):
+        x=plan(first=100,stop=90,target=100.2)
+        b=future()
+        b[0]=bar(0,open=99,high=101,low=98,close=100.3)
+        result=simulate(x,b)
+        self.assertEqual(result["exit_reason"],"TARGET")
+        self.assertEqual(result["outcome"],"NET_LOSS")
+        self.assertTrue(result["target_hit_but_net_loss"])
+        diag=stats([result],"FIRST",METHODS[2])
+        self.assertEqual(diag["targets_that_lost_after_cost"],1)
+        self.assertEqual(diag["wins"],0)
+
+    def test_two_r_shadow_cohort_requires_risk_and_limit_distance(self):
+        from shadow_five_day_v59 import geometric_two_r_gate
+        p=plan()
+        p.update(first_net_rr=2.5,second_net_rr=2.9,
+                 first_stop_risk_pct=6,second_stop_risk_pct=3,
+                 first_entry_below_close_atr=.5)
+        self.assertTrue(geometric_two_r_gate(p,"FIRST"))
+        self.assertTrue(geometric_two_r_gate(p,"SECOND"))
+        p["first_entry_below_close_atr"]=2
+        self.assertFalse(geometric_two_r_gate(p,"FIRST"))
+        self.assertTrue(geometric_two_r_gate(p,"SECOND"))
+        p["second_net_rr"]=1.5
+        self.assertFalse(geometric_two_r_gate(p,"SECOND"))
+        p["second_net_rr"]=2.5
+        p["second_stop_risk_pct"]=15
+        self.assertFalse(geometric_two_r_gate(p,"SECOND"))
+
+    def test_strict_subcohort_has_no_false_live_approval(self):
+        p=plan()
+        p.update(first_net_rr=2.5,second_net_rr=2.5,
+                 first_stop_risk_pct=6,second_stop_risk_pct=4,
+                 first_entry_below_close_atr=.5)
+        b=future()
+        b[0]=bar(0,open=99,high=121,low=98,close=120)
+        f=simulate(p,b)
+        q=build_report([],{},date(2026,10,23),[f],
+                       dict(historical_signal_days=1,
+                            trigger_counts={METHODS[2]:1}))
+        self.assertEqual(q["only_geometric_2r_scenarios"],1)
+        self.assertEqual(q["geometric_2r_only_stats"][METHODS[2]]["FIRST"]["filled"],1)
+        self.assertFalse(q["geometric_2r_group_is_validated_win_probability"])
+        self.assertEqual(q["validated_live_strategy_trade_count"],0)
+        self.assertEqual(q["decision"],"CASH")
+
     def test_fee_calculation_uses_both_buy_and_sell_and_stop_risk(self):
         net,r=commission_exit(100,90,120)
         paid=100*1.0025;proceeds=120*.9975;stop=90*.9975
