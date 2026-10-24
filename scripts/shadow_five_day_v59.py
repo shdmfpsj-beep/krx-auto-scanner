@@ -13,7 +13,8 @@ from collections import Counter,defaultdict
 from datetime import date
 from pathlib import Path
 from free_structural_v52 import history_check
-from entry_strategy_v58 import (METHODS,evaluate,rows,safe_json)
+from entry_strategy_v58 import (METHODS,evaluate,rows,safe_json,nearest_ceiling)
+from first_pullback_v55 import net_reward_risk
 
 VERSION="C3_K100_FIVE_DAY_SHADOW_V59"
 ENTRY_DAYS=2
@@ -27,7 +28,8 @@ DETAIL_FIELDS=("ticker","method","entry_variant","signal_asof",
     "exit_date","exit_price","exit_reason","sessions_held",
     "net_return_pct","net_r","outcome","path_ambiguity",
     "signal_variant_rr","signal_geometric_2r_pass",
-    "target_hit_but_net_loss",
+    "target_hit_but_net_loss","legacy_first_entry_target",
+    "variant_specific_overhead_target_repriced",
     "hypothetical_only","trade_approved")
 VALID_EXITS=("STOP","TARGET","TIME_EXIT")
 
@@ -251,8 +253,29 @@ def historical_shadow(candidates,histories,asof,limit=MAX_METHOD_ROWS):
                 # Forbid counting simulated 'signals' as a trade when stop
                 # or reference is invalid; diagnostic rejection is still kept.
                 for variant in ("FIRST","SECOND"):
-                    r=simulate(plan,bars[index+1:index+1+ENTRY_DAYS+HOLD_DAYS],
+                    # v5.8 originally used the FIRST entry's nearest
+                    # historical high as target for the lower SECOND
+                    # price. That falsely improves SECOND's apparent R:R:
+                    # recalculate overhead resistance specifically for
+                    # EVERY limit using bars available on signal date only.
+                    limit=(plan["first_entry_reference"] if variant=="FIRST"
+                           else plan["second_entry_reference"])
+                    close_before=bars[:index+1]
+                    target=(nearest_ceiling(close_before,limit)
+                            if limit is not None else None)
+                    stop=plan["stop_reference"]
+                    rr=(net_reward_risk(limit,stop,target,ROUNDTRIP_COST_PCT)
+                        if limit is not None and stop is not None
+                        and target is not None else None)
+                    revised={**plan,"nearest_resistance_reference":target}
+                    if variant=="FIRST":
+                        revised["first_net_rr"]=rr
+                    else:
+                        revised["second_net_rr"]=rr
+                    r=simulate(revised,bars[index+1:index+1+ENTRY_DAYS+HOLD_DAYS],
                                variant)
+                    r["legacy_first_entry_target"]=plan["nearest_resistance_reference"]
+                    r["variant_specific_overhead_target_repriced"]=True
                     r["signal_blockers"]=plan["blocking_reasons"]
                     r["signal_technical_research_ready"]=plan["technical_research_ready"]
                     r["hindsight_selected_ticker"]=True
@@ -311,6 +334,8 @@ def build_report(candidates,histories,asof,replay,diagnostics,upstream_v58=None,
         source_errors=source_errors or [],
         retrospective_universe_selection_bias=True,
         historical_daily_price_regular_session_certified=False,
+        nearest_overhead_target_recomputed_for_each_entry_variant=True,
+        legacy_common_first_entry_target_no_longer_used=True,
         point_in_time_historical_stock_universe_verified=False,
         issuer_and_trading_value_point_in_time_verified=False,
         same_day_low_high_order_unknown=True,
@@ -373,6 +398,7 @@ def markdown(report):
     lines=["# C3/K100 v5.9 5거래일 모의 체결 연구", "",
       f"**선정 기준일**: {report['asof']}",
       "**최종 실행: CASH / 주문 0건**",
+      "2차 매수 목표는 1차 목표를 재활용하지 않고, 2차 가격 위에 있는 가장 가까운 과거 저항으로 재산출했습니다.",
       f"23일 이후 5거래일을 관측한 결과가 아닙니다. 23일 선정된 {report['selected_universe_size']}개 종목의 지난 일봉을 다시 돌린 **선정편향 탐색**입니다.",
       "일봉 정규장 세션 미인증, 날짜별 사전 종목선정 미검증, 체결 대기열 및 장중 고저가 순서 미상.",
       f"왕복비용 {report['cost_assumption_roundtrip_pct']}%, 진입유효 {ENTRY_DAYS}거래일, 매수 후 {HOLD_DAYS}거래일 이내 시간청산.",
