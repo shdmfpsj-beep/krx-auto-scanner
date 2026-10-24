@@ -25,6 +25,7 @@ FIELDS=("asof","ticker","name","method","setup","signal_condition",
         "stop_reference","first_entry_reference","second_entry_reference",
         "second_entry_policy","nearest_resistance_reference",
         "first_stop_risk_pct","second_stop_risk_pct",
+        "first_entry_below_close_atr","first_entry_timing",
         "first_net_rr","second_net_rr","first_rr_2r_pass","second_rr_2r_pass",
         "technical_research_ready","source_category","price_source_status",
         "blocking_reasons","trade_approved","orders_enabled")
@@ -158,6 +159,8 @@ def base_row(asof,candidate,method):
         second_entry_policy="UNCONFIRMED_NOT_A_BUY",
         nearest_resistance_reference=None,
         first_stop_risk_pct=None,second_stop_risk_pct=None,
+        first_entry_below_close_atr=None,
+        first_entry_timing="NO_VALID_FIRST_ENTRY",
         first_net_rr=None,second_net_rr=None,
         first_rr_2r_pass=False,second_rr_2r_pass=False,
         technical_research_ready=False,source_category="NOT_PAIRED",
@@ -229,6 +232,13 @@ def evaluate(candidate,history,asof,method,paired=None):
         out["blocking_reasons"]=list(dict.fromkeys(reasons+["FIRST_LIMIT_NOT_ABOVE_STOP_OR_CHASE_CAP"]))
         return out
     out["first_entry_reference"]=first
+    distance_atr=(close-first)/atr
+    out["first_entry_below_close_atr"]=round(distance_atr,3)
+    out["first_entry_timing"]=(
+        "WAIT_DEEP_PULLBACK_NO_CHASE" if distance_atr>1 else
+        "CONDITIONAL_LIMIT_NOT_ORDER")
+    if distance_atr>1:
+        reasons.append("FIRST_ENTRY_MORE_THAN_1_ATR_BELOW_ASOF_CLOSE")
     out["first_stop_risk_pct"]=round(100*(first-stop)/first,3)
     if not 2<=out["first_stop_risk_pct"]<=12:
         reasons.append("FIRST_ENTRY_STRUCTURAL_RISK_OUT_OF_2_TO_12_PCT")
@@ -262,6 +272,7 @@ def evaluate(candidate,history,asof,method,paired=None):
     # Distinguish a geometric opportunity from a real executable BUY.
     technical=(out["first_rr_2r_pass"]
        and 2<=out["first_stop_risk_pct"]<=12
+       and distance_atr<=1
        and out["second_entry_reference"] is not None
        and out["second_rr_2r_pass"]
        and 1<=out["second_stop_risk_pct"]<=12)
