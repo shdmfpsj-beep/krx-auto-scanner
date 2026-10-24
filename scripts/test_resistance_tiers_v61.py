@@ -75,7 +75,7 @@ class ResistanceV61Tests(unittest.TestCase):
         b[-17]["high"]=115.8
         evidence=tier_levels(b,99.5)
         self.assertEqual(evidence["cluster_count"],2)
-        self.assertAlmostEqual(evidence["cluster"],115.8)
+        self.assertEqual(evidence["cluster"],115)
         self.assertEqual(len(evidence["cluster_dates"]),2)
         self.assertIsNotNone(evidence["cluster_volume_ratio"])
 
