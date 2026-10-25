@@ -7,7 +7,7 @@ A day's file may be used in forward monitoring only if its collection truly
 completed AFTER the original frozen signal snapshot.
 """
 from __future__ import annotations
-import argparse,csv,hashlib,json,shutil
+import argparse,csv,hashlib,json,shutil,re
 from collections import Counter
 from datetime import date,datetime,timezone
 from pathlib import Path
@@ -39,7 +39,7 @@ def day_market(src,asof):
         n=0
         for row in reader:
             t=row["ticker"]
-            if (len(t)!=6 or not t.isdigit() or t in seen
+            if (not re.fullmatch(r"[0-9A-Z]{6}",t or "") or t in seen
                 or row["Date"]!=asof):
                 raise ValueError("MARKET_DUPLICATE_TICKER_OR_DATE")
             seen.add(t);n+=1
