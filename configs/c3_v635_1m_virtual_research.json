@@ -1,0 +1,52 @@
+{
+  "schema": "C3_V635_RESEARCH_BASELINE_1M_FROZEN",
+  "effective_from": "2026-10-26",
+  "historical_data_seen_through": "2026-10-23",
+  "research_starting_capital_krw": 1000000,
+  "actual_broker_orderable_cash_krw": null,
+  "actual_broker_deposit_performed": false,
+  "default_account_risk_fraction": 0.01,
+  "initial_1pct_risk_budget_krw": 10000,
+  "risk_sensitivities_only": [
+    0.005,
+    0.02
+  ],
+  "roundtrip_friction_fraction": 0.0065,
+  "additional_cost_stress_fraction": 0.003,
+  "maximum_simultaneous_stocks": 1,
+  "use_margin_or_leverage": false,
+  "shares_formula": "min(floor(verified_cash/entry),floor(current_account_equity*0.01/(entry-confirmed_daily_structure_stop+entry*0.0065)))",
+  "frozen_models": [
+    "GST_v632_original_NEAR60_RISK8_TRAIL7_TO12",
+    "GST_v633_BALANCED_NEAR60_RISK8_TRAIL7_TO12",
+    "HMA_DARVAS_v630_deep_retest_0p65ATR_STOP_TRAIL7",
+    "WAVETREND_v624_reclaim_OPEN_STOP_TRAIL7"
+  ],
+  "hypothetical_control": [
+    "HMA_DARVAS_next_open_STOP_TRAIL7"
+  ],
+  "passing_research_minimum": {
+    "new_independent_completed_trades": 30,
+    "distinct_entry_months": 3,
+    "net_after_cost_positive": true,
+    "median_after_cost_positive": true,
+    "after_extra_cost_positive": true,
+    "total_pnl_ex_top2_positive": true,
+    "comparable_market_and_same_D_vs_cash_benchmark": true,
+    "verified_true_KRX_0900_1530_only": true,
+    "intraday_and_broker_fill_quality_verified": true
+  },
+  "human_review_additional_requirements": {
+    "final_stock_score_minimum": 80,
+    "valid_daily_structure_stop": true,
+    "verified_overhead_reward_risk_after_cost_minimum": 2,
+    "actual_available_cash_and_existing_C3_position_verified": true,
+    "actual_broker_fill_not_price_touch": true,
+    "actual_PIT_regular_session_stock_class_and_corporate_action_verified": true
+  },
+  "disabled": {
+    "orders_enabled": false,
+    "trade_approved": false,
+    "K100_unchanged": true
+  }
+}
