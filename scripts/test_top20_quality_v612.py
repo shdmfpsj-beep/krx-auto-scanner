@@ -126,7 +126,8 @@ class Top20V612Tests(unittest.TestCase):
             r=dict(schema=SCHEMA,asof=DAY,v611_market_watched=100,
                  v611_total_market=2764,queue_actual={"BACKFILL":0},
                  source_original_market_SHA256={},source_original_fi_flow_SHA256={},
-                 top20_count=0,trade_approved=False,orders_enabled=False,decision="CASH")
+                 top20_count=0,top5_risk_watch_only=[],trade_approved=False,
+                 orders_enabled=False,decision="CASH")
             save(Path(tmp),r,[],[])
             m=json.loads((Path(tmp)/"top20_quality_v612_status.json").read_text())
             self.assertEqual(m["top20_count"],0)
