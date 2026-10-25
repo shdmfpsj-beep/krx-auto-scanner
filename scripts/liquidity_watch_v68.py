@@ -55,6 +55,15 @@ def run(scan):
         or manifest.get("archived_candidate_120_daily_rows")!=len(histories)
         or len(histories)!=120*len(candidates)):
         raise ValueError("V68_AUDITED_RAW_CANDIDATES_MISSING_OR_UNSAFE")
+    files=manifest.get("artifact_file_sha256",{})
+    for filename in ("full_market_v68_candidates.csv",
+                     "full_market_v68_candidate_120bars.csv",
+                     "full_market_v68_universe_audit.csv",
+                     "full_market_v68_method_research.csv"):
+        path=scan/filename
+        if (not path.is_file() or
+            files.get(filename)!=digest(path.read_bytes())):
+            raise ValueError("V68_FROZEN_DERIVED_REPORT_SHA256_MISMATCH")
     history=defaultdict(list)
     for bar in histories:
         history[bar["ticker"]].append(bar)
