@@ -243,15 +243,22 @@ def build(v18,scan,flows,issuer):
     strong=ranked([x for x in radar if x["in_strong_sector_proxy"]])
     broad=ranked(radar)
     both=ranked([x for x in radar if x["two_sided_fi_positive"]])
+    moderate=ranked([x for x in radar if
+        0<x["return20_pct"]<=20 and x["rvol20"]>=1])
     samples={"strong_sector_watch":strong[:20],
         "broad_flow_watch":broad[:20],
-        "two_sided_investors_watch":both[:20]}
+        "two_sided_investors_watch":both[:20],
+        "moderate_trend_watch":moderate[:20]}
     outcome=dict(schema=SCHEMA,asof=asof,
         full_market_universe=len(diary),
         official_common_120day_50e8_liquid=counts["TURNOVER_50E8_VERIFIED"],
         official_common_120day_liquid_5d_positive_FI=len(radar),
         both_investors_5d_net_buy_positive=counts["BOTH_FI_POSITIVE"],
         strong_proxy_sector_5d_positive_liquid=len(strong),
+        strong_proxy_sector_last20day_declining_count=sum(x["return20_pct"]<0 for x in strong),
+        positive20day_money_flow_count=sum(x["return20_pct"]>0 for x in radar),
+        moderate_trend_no_chase_research_count=len(moderate),
+        twentieth_day_return_above_20pct_count=sum(x["return20_pct"]>20 for x in radar),
         strong_sector_ids=sorted(strict),
         broad_radar_universe_untouched_by_old_52_candidate_filter=True,
         raw_full_market_and_liquidity_coverage_by_exclusion_reason=dict(counts),
@@ -287,13 +294,17 @@ def save(outdir,report,watch,audit,groups):
        f"{report['official_common_120day_liquid_5d_positive_FI']}개, "+
        f"둘 다 순매수 {report['both_investors_5d_net_buy_positive']}개.",
        f"기존 52개 조기 기술패턴 필터를 통과하지 않아도 강한 섹터 연구 "+
-       f"{report['strong_proxy_sector_5d_positive_liquid']}종목 추적.",
+       f"{report['strong_proxy_sector_5d_positive_liquid']}종목 추적. 그중 "+
+       f"{report['strong_proxy_sector_last20day_declining_count']}종목은 최근 20일 하락으로 매수에는 주의.",
+       f"돈 유입 관찰군 중 20일 완만한 상승(0~20%) 및 거래량 전20일 평균 이상 "+
+       f"{report['moderate_trend_no_chase_research_count']}종목(미검증 연구기준).",
        "이 수치에는 이름과 ETF 헬스케어 구성으로 의심되는 제약·바이오가 연구 제외되었습니다.",
        "", "## 그룹별 넓은 상위 관찰 대상 (실제 매수가 아님)"]
     for label,key in (
       ("강한 ETF 섹터·실측 순매수·유동성","strong_sector_watch"),
       ("전체시장 5일 순매수·유동성","broad_flow_watch"),
-      ("외국인·기관 각각 5일 순매수","two_sided_investors_watch")):
+      ("외국인·기관 각각 5일 순매수","two_sided_investors_watch"),
+      ("완만한 상승 0~20%·거래량 전20일 평균 이상","moderate_trend_watch")):
         lines+=["","### "+label, "",
           "| 종목 | 분야 ETF 대용 | 외국인(억) | 기관(억) | 거래대금(억) | 20일 등락률 | 기술자리 |",
           "|---|---|---:|---:|---:|---:|---:|"]
