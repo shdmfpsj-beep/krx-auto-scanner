@@ -81,6 +81,7 @@ jobs:
               --jq '[.workflow_runs[] | select(.conclusion=="success") | .id][0]')"
           fi
           [[ "$V18_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "V18_EXACT_SOURCE_ID_REQUIRED"; exit 1; }
+          echo "SOURCE_V18_RUN_ID=$V18_RUN" >> "$GITHUB_ENV"
           path="$(gh api "repos/$GH_REPO/actions/runs/$V18_RUN" --jq '.path')"
           finish="$(gh api "repos/$GH_REPO/actions/runs/$V18_RUN" --jq '.conclusion')"
           [[ "$path" == '.github/workflows/sector_evidence_v18.yml' && "$finish" == 'success' ]] ||
