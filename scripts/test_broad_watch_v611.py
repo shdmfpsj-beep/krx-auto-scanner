@@ -120,7 +120,8 @@ class BroadWatchV611Test(unittest.TestCase):
                 strong_proxy_sector_5d_positive_liquid=10,
                 trade_approved=False,orders_enabled=False,decision="CASH")
             groups={g:[] for g in ("strong_sector_watch",
-              "broad_flow_watch","two_sided_investors_watch")}
+              "broad_flow_watch","two_sided_investors_watch",
+              "moderate_trend_watch")}
             out=Path(temp)/"output"
             save(out,r,[],[],groups)
             self.assertEqual(len(list(csv.DictReader(
