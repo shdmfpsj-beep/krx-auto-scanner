@@ -12,7 +12,7 @@ as finalized trade recommendations. 1st/2nd alternative and structural stop
 are research-only and NEVER average down the same filled position.
 """
 from __future__ import annotations
-import argparse,csv,json,math,re
+import argparse,csv,json,math,os,re
 from collections import Counter,defaultdict
 from pathlib import Path
 from datetime import date
@@ -251,6 +251,7 @@ def build(v18,scan,flows,issuer):
         "moderate_trend_watch":moderate[:20]}
     outcome=dict(schema=SCHEMA,asof=asof,
         full_market_universe=len(diary),
+        source_v610_github_run_id=os.environ.get("V610_RUN",""),
         official_common_120day_50e8_liquid=counts["TURNOVER_50E8_VERIFIED"],
         official_common_120day_liquid_5d_positive_FI=len(radar),
         both_investors_5d_net_buy_positive=counts["BOTH_FI_POSITIVE"],
@@ -278,14 +279,17 @@ def build(v18,scan,flows,issuer):
 
 def save(outdir,report,watch,audit,groups):
     outdir.mkdir(parents=True,exist_ok=True)
-    (outdir/"broad_watch_v611_status.json").write_text(
-        json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     for fname,rows,cols in (
       ("broad_watch_v611_all.csv",watch,WATCH_FIELDS),
       ("broad_watch_v611_full_audit.csv",audit,AUDIT_FIELDS)):
         with (outdir/fname).open("w",encoding="utf-8-sig",newline="") as f:
             w=csv.DictWriter(f,fieldnames=cols,extrasaction="ignore")
             w.writeheader();w.writerows(rows)
+    report["artifact_file_sha256"]={
+        fn:digest((outdir/fn).read_bytes()) for fn in (
+          "broad_watch_v611_all.csv","broad_watch_v611_full_audit.csv")}
+    (outdir/"broad_watch_v611_status.json").write_text(
+        json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     lines=["# v6.11 KRX 넓은 발굴 · 엄격한 매수 승인 분리","",
        f"**{report['asof']} 데이터 기준 · CASH / 승인된 매수 0**",
        f"전체 {report['full_market_universe']}개 중 보통주·120일 이력·50억원 유동성 "+
