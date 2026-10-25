@@ -62,6 +62,16 @@
 - 기존 규칙: 개별주식 최종 검증 점수 80점 이상, 공식 정규장 전용 65봉/원본 기업공시, 주도 섹터, 보통주 및 비제약바이오, 실제 키움 가용현금/최소 1주/단일 C3, 확정 일봉 구조손절 우선, 확인된 저항 비용차감 2R 이상, 악장 시 CASH, 주문 자동실행 비활성. K100 운용과 혼동 금지.
 
 
+## 2026-10-26 v6.29 ENTRY-EXECUTION RESEARCH — PRICE CONTACT IS NOT FILL
+
+- 2026-10-26 장전 시점(국내 미개장) 최신 연구 원본 2026-10-23까지의 **v6.25 804개 동결 신호** 사용. 연구판정은 10/26 장중 실거래/수익이 아님.
+- HMA+Darvas 122, WaveTrend 33, 기존 RS5 537 등 692개 모형·종목 신호를 당일 완료 일봉 정보만으로 각 모델/날짜 1종목으로 고정해 213개의 관찰 기회(59/24/130)를 구성. 연구는 4개 진입: D+1 시초가, D+1 종가-0.2ATR, D+1~D+2 종가-0.65ATR, D+1 종가 지지반등 확인→D+2 시초가. 7% 추적손절/10% 익절 각각 비교, 총 1704 모형·기회 연구와 15개 로컬 안전 테스트; 실행 코드/CSV는 해당 대화의 `C3_v629_entry_and_profit_frontier.zip`. 상세문서 연구브랜치 `docs/C3_V629_PRACTICAL_ENTRIES_PROFIT_AUDIT_20261026.md`.
+- 조건부 **실제 접촉된 주문만 비교하지 말 것**: WaveTrend 깊은 재시험은 시초가와 *모두 가격 접촉된* 8건에서 +2.977%p 가상 개선이나, 미접촉=현금 0까지 포함한 24개 D-기회에서는 **-0.428%p**. HMA+Darvas D+1/D+2 깊은 눌림은 고정 59개 기회당 +1.108%p vs D+1 시초가이지만 서로 중첩된 기회이며 1슬롯 포트폴리오의 앞선 구간 평균은 -0.122%, 최근 구간 +1.338%. 진짜 미래 검증 전 BUY가 아닌 WATCH 가설.
+- D 종가 종목 우선순위는 D+1 시초가/저가를 보기 **전에 고정**, D+1 gap -2%~+2.5% 이외에서는 취소해도 같은 날 2위 종목으로 소급 교체 금지. 수동 호가 지정가 주문은 D+1 시가 확정 이후 실제 가능 여부를 확인하여 연구; 주문가격을 KRX 유효 호가단위로 내림 처리. D+1 저가가 지정가를 통과한 사실은 체결 증거 아님. D+1 확인봉은 D+2 이후에만 이용.
+- 새 알람 보고에는 모델 명칭, D-시점 고정 후보, 1차 지정가·미체결 대체가격·확정 일봉 손절, 갭 취소 및 미체결, 정확한 본장 종료시각과 **가격 접촉 / 실제 브로커 체결**을 나누어 기록하라. 2026-10-26 이후 새 정규장만 진정한 이후 평가, 공시PIT/현금/저항2R/80점/65봉/비제약바이오/한종목 검증 없으면 CASH 유지.
+- 앞서 반복 열람한 2026-01~10/23 모의수익과 95% 단순 날짜 bootstrap은 독립 미래 검증이 아니며 통계적 편향 가능. HMA 깊은 재시험 가설 외 다른 기법에 임의 점수 가점하거나 자동주문 활성화 금지. K100 변경 없음.
+
+
 ## 2026-10-23 ACTIVE OVERRIDE — foreign/institution net buying is OPTIONAL
 
 - **Do not require investor-category foreign or institutional net buying to screen sectors, rank stocks or consider a conditional BUY.** No net-flow data is a neutral `NOT_PROVIDED` source field, not a quality failure, a zero net buy, proof of retail inflow, or an automatic CASH reason.
