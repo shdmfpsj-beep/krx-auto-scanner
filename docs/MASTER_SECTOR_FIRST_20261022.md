@@ -23,6 +23,16 @@
 - **검증 실행:** [v6.18 24개 안전성 테스트/글로벌 데이터 수집 성공](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40177651213), [해외 주의+국내 RED 연구 조합 증명](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40178102665). 구체적인 미실현 실전 수익률·종목 상승확률을 주장하지 않는다.
 
 
+## 2026-10-25 v6.24 PUBLIC CHART HYPOTHESES — NO BUY AUTHORIZATION
+
+- 지난 2025-12~2026-10-23의 기존 KRX date-only OHLCV 제한 소급 연구에서 **HMA16 첫 눌림, 다바스 확정 박스 돌파/재시험, WaveTrend 공개형 재상승 교차**를 TradingView 공개 지표 설명에 따라 독립 연구. 원본 유튜브 채널별 비공개 설정을 재현했다고 주장하지 않는다.
+- `research/v615-usable-entry-frontier-20261025`의 `docs/C3_V624_HMA_DARVAS_WAVETREND_PROFIT_AUDIT_20261025.md`에 8개 조건 ×2 진입 ×4 청산 ×2 기간 = 128개 사후 비교 기록. 로컬 9개 테스트 성공, 신규 GitHub Actions CI v6.24는 별도로 인증하지 않음.
+- HMA+Darvas 연구 NEXT_OPEN/구조손절/7% 추적: 앞선 10건 평균 +0.140%, 최근 6건 +0.420%, 합계 +0.245%지만 최고 1건 제외 -0.436%, 총비용 +0.30%p 스트레스 평균 -0.055%. WaveTrend: 앞선 6건 +5.725%, 최근 4건 +0.353%, 최근 중앙값 -1.608%. **포트폴리오 수익 검증 아님**.
+- **두 기간 각각 n>=8, 두 기간 모두 평균 >0인 진입·청산 조합 0개**. 이미 재사용한 7~10월 구간은 진짜 이후 홀드아웃이 아님. 표본수가 적고 128개 비교 선택편향 우려; 실전 매수 지시와 신규 자동매수 금지.
+- 향후 08:35/13:00/16:00/18:30 보고 시 위 세 기법은 검증 점수에 임의 가점 없이 **WATCH 연구 태그**만 부여 가능. 최종 국내 regular-only 09:00–15:30 인증된 당일·과거 시세, 시장·업종, 회사 실적·공시 발표시각, 보통주/비제약바이오 제외, C3 현금·1주 가능·단일 포지션, 독립 최종주식점수 >=80, **일봉 확인된 구조손절 먼저**와 검증 저항까지 비용차감 >=2R 모두 확인되기 전에는 CASH.
+- 10/26 이후 아직 한 번도 연구에 사용하지 않은 일봉을 **순차적 전진 실험**하고 주문 취소/가격 접촉/이익/손절/거래비용/현금 대비 성과를 기록. 매수 성과 향상을 이유로 미래 시가에 따라 종목을 소급 교체하지 않음. 누적표본이 너무 적으면 확률 수치나 안정 수익성을 주장하지 않는다.
+ 
+
 ## 2026-10-23 ACTIVE OVERRIDE — foreign/institution net buying is OPTIONAL
 
 - **Do not require investor-category foreign or institutional net buying to screen sectors, rank stocks or consider a conditional BUY.** No net-flow data is a neutral `NOT_PROVIDED` source field, not a quality failure, a zero net buy, proof of retail inflow, or an automatic CASH reason.
