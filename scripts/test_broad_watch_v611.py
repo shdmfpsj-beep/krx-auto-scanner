@@ -118,6 +118,8 @@ class BroadWatchV611Test(unittest.TestCase):
                 official_common_120day_liquid_5d_positive_FI=116,
                 both_investors_5d_net_buy_positive=27,
                 strong_proxy_sector_5d_positive_liquid=10,
+                strong_proxy_sector_last20day_declining_count=9,
+                moderate_trend_no_chase_research_count=10,
                 trade_approved=False,orders_enabled=False,decision="CASH")
             groups={g:[] for g in ("strong_sector_watch",
               "broad_flow_watch","two_sided_investors_watch",
