@@ -1,5 +1,15 @@
 # KRX C3 / K100 — 무료 주식분석 자동화
 
+## 최신 v6.5 KRX 공식 일별매매정보 연동 검증기 (2026-10-25)
+
+- **[v6.5 정규장 15:30 인증과 공식 EOD를 분리한 개발·설정 보고서](docs/KRX_OFFICIAL_EOD_V65_20261025.md)**.
+- [v6.5 실제 GitHub 성공 #40152003678](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40152003678): **비밀키 없는 환경을 포함한 14/14 오프라인 테스트 통과**, 10/23 v6.4 후보 82종목 원본을 정확한 거래일로 인계.
+- 공식 [KRX OPEN API](https://openapi.krx.co.kr/contents/OPP/INFO/service/OPPINFO004.cmd)의 **유가증권/코스닥 주식 일별매매정보**를 승인된 `KRX_AUTH_KEY` GitHub Actions Secret이 있을 때만 사용. Secret이 없으면 **`AUTH_KEY_NOT_CONNECTED`**, 공식 수집 0종목, 매수/손익검증 보류. 현재 실제 10/23 실행은 이 연결 대기 상태임.
+- 승인된 공식 EOD 자료를 수집하더라도 **KRX도 2026-09-14 이후 16:00~20:00 After Market 운영**. 공식 데이터가 15:30 정규장만 포함함이 인증되지 않으면 `krx_1530_regular_session_certified=false` 및 **CASH, BUY 0, 자동주문 0** 유지.
+- **[평일 08:45 KST 자동 KRX 공식 EOD 비교](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/krx_official_eod_v65_daily.yml)**: GitHub Actions 무료 서버로 실행하며 고정 IP 클라우드·개인 노트북을 사용하지 않음. 비밀키는 소스/로그/파일에 기록하지 않으며 KRX API별 이용승인이 별도로 필요할 수 있음.
+- 기존 v6.4 **82종목 중 종가 충돌 59 / 일치 22 / 원본 무효 1**과 frozen **34개 진입안 24개 격리·10개 인증미완료** 판정은 그대로 보존함.
+
+
 ## 최신 v6.4 거래일 가격 출처 대조·신호 안전격리 (2026-10-25)
 
 - **[v6.4 가격 출처 교차검증·자동화 개발보고서](docs/SOURCE_PROVENANCE_V64_20261025.md)**.
