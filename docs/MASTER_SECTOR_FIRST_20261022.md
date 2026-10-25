@@ -33,6 +33,15 @@
 - 10/26 이후 아직 한 번도 연구에 사용하지 않은 일봉을 **순차적 전진 실험**하고 주문 취소/가격 접촉/이익/손절/거래비용/현금 대비 성과를 기록. 매수 성과 향상을 이유로 미래 시가에 따라 종목을 소급 교체하지 않음. 누적표본이 너무 적으면 확률 수치나 안정 수익성을 주장하지 않는다.
  
 
+## 2026-10-25 v6.25 SPECIAL-DIVIDEND FIREWALL & NEW CHALLENGERS
+
+- **기업행사 가격자료 감사를 수익모델 평가 전에 추가.** `417310 코람코더원리츠` 2026-08-26 신호 이후 08-27 연구상 시가 10,970원→08-28 배당락 시가 2,290원은 특별배당 약 8,900원 및 예정 청산분배 관련. 과거 OHLC 전용 모의손절 -79.775%는 실제 권리취득자의 투자 총수익률로 보고할 수 없음. 공시·시장 보고서: [DART 2026-08-26](https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260826800685), [뉴스핌 2026-08-26](https://web3.newspim.com/news/view/20260826000967). 확정 배당 현금·세금·지급시점·권리 및 종목 분류 미검증이면 손익 `UNSCORABLE_CORPORATE_ACTION`으로 표기할 것. 당일 사전 공시 시각 미확인인 이벤트를 당시 알고 있던 것으로 소급하지 말 것.
+- 읽기 전용 `scripts/corporate_action_guard_v625.py`와 `scripts/test_corporate_action_guard_v625.py`, `.github/workflows/corporate_action_guard_v625_free.yml`을 main에 추가. D 15:30과 D+1 08:35 PIT 시각 별도 체크; 불완전 공시목록은 GREEN 아니며, 기업행사 확인되면 신호 당일 후보선정 뒤 다음날 진입만 취소. 차순위 후보를 D+1 갭·발표를 보고 **사후로 선택하는 것은 금지**. **실제 스캐너/브로커 주문과 연결된 것 아님.**
+- 새로운 공개 지표 영감 연구 v6.25: VCP 수축 돌파, 가격변동 스퀴즈 확장, NR7 돌파, 상대강도 가속, 작은 구조위험 HMA 눌림+시장 양호의 5개 challenger vs WaveTrend/HMA+Darvas/단기상대강도 기준선 3개. 과거 21,036관찰/1,369코드에서 667 기술패턴 신호, 8x2x2x2=64개 모의 비교. n>=20/각 기간, 평균·중앙값·최고1건 제외·비용+0.3%p에 모두 플러스이며 최대손실 >=-12%라는 최소 연구 조건을 통과한 **신규 모델 0개**. 세부 문서: 연구 Draft PR#25의 `docs/C3_V625_PROFIT_CHALLENGERS_CORPORATE_ACTION_20261025.md`. 이 결과는 새로운 독립 검증구간이 아닌 **반복 열람한 기간의 소급 실험**으로 실전 승인 근거 아님.
+- **C3 지속적인 모델연구 알림 별도 활성화**: 평일 저녁 글로벌 매크로, 국내 정규장, 기업행사, 정규장 동질 65일+ 자료, 강한 섹터·실적, 실전호가/매수후 5일, 중앙값·수익률·절대손실·수수료 스트레스 및 CASH/RESEARCH/BUY 단계구분을 정기 평가. 새 모델을 추가하더라도 검증 손절+실제 저항 2R+최종 종목점수 >=80+증권사 잔고+1종목 원칙과 독립 새 기간 검증 유지.
+- 현재 v6.25 실전 승인 **0건**. K100 보유/운영과 주식주문은 미변경.
+
+
 ## 2026-10-23 ACTIVE OVERRIDE — foreign/institution net buying is OPTIONAL
 
 - **Do not require investor-category foreign or institutional net buying to screen sectors, rank stocks or consider a conditional BUY.** No net-flow data is a neutral `NOT_PROVIDED` source field, not a quality failure, a zero net buy, proof of retail inflow, or an automatic CASH reason.
