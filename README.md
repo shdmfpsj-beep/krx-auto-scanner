@@ -1,5 +1,14 @@
 # KRX C3 / K100 — 무료 주식분석 자동화
 
+## 최신 v6.4 거래일 가격 출처 대조·신호 안전격리 (2026-10-25)
+
+- **[v6.4 가격 출처 교차검증·자동화 개발보고서](docs/SOURCE_PROVENANCE_V64_20261025.md)**.
+- [82종목 종가 전수 교차검증·9/9 테스트 성공 #40151275009](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40151275009): **두 수집원 종가 불일치 59개 / 유효하게 일치 22개 / 비정상 복구 일봉 1개**. 종가 1% 넘는 불일치는 29개. 두 수집원이 같아도 정규장 09:00–15:30 인증이 아니다.
+- [동결 34개 1차·2차 시나리오 안전격리·8/8 테스트 성공 #40151473487](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40151473487): 종가 출처가 충돌하는 **24개 가상 진입안 차단**, 나머지 10개도 독립 정규장 가격 인증 미완료로 매수 승인·공식 수익률 출력 금지.
+- **[최근 거래일 원본을 자동 짝짓고 같은 규칙으로 재검증 성공 #40151559797](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40151559797)**. [v6.4 평일 23:30 KST 자동 분석](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/source_provenance_v64_daily.yml)은 SHA-256 동결 신호·원본 스캔 실행번호·같은 날짜 전체시장 소스를 정확하게 결합하며 휴대폰 아티팩트로 보고.
+- **CASH / BUY 0건 / 자동주문 없음**. 키움 증권 고정 IP·유료 클라우드·노트북 상시 연결 불필요. 가격 불일치 원인과 최종 전략 승률은 아직 증명되지 않았다.
+
+
 ## 최신 v6.3 SHA-256 동결·7시장일 전진검증 연결 (2026-10-25)
 
 - **[v6.3 실제 GitHub 테스트·운영 보고서](docs/FORWARD_LEDGER_V63_20261025.md)**. [신호 고정 성공 #40144815020](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40144815020) · [두 시장 일봉 경량화 성공 #40145125003](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40145125003) · [진짜 이후 날짜 관찰 자동화 성공 #40145258020](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40145258020).
