@@ -323,7 +323,7 @@ def build(v18,official_root):
         final_80point_score_verified=False,
         instrument_common_share_type_verified=False,
         sector_flow_catalyst_and_financials_verified=False,
-        120day_all_sessions_official_API_authenticated=False,
+        historical_120day_official_API_authenticated=False,
         regular_1530_only_price_certified=False,
         full_universe_historical_PIT_verified=False,
         orders_enabled=False,trade_approved=False,decision="CASH")
