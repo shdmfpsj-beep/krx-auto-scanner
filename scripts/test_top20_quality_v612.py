@@ -5,7 +5,7 @@ from datetime import date,timedelta
 from pathlib import Path
 from top20_quality_v612 import (
     SCHEMA,WEIGHTS,COHORT_TARGETS,metrics,score,dart_prior,
-    validate_source,save,TOP_FIELDS)
+    validate_source,save,TOP_FIELDS,risk_priority_reason)
 from dart_dated_evidence_v610 import SOURCE_FIELDS
 
 DAY="2026-10-23"
@@ -132,6 +132,24 @@ class Top20V612Tests(unittest.TestCase):
             self.assertEqual(m["top20_count"],0)
             self.assertEqual(len(m["output_file_sha256"]),2)
             self.assertIn("CASH",(Path(tmp)/"top20_quality_v612_mobile.md").read_text())
+
+    def test_overheated_high_score_is_not_top5_risk_prechecked(self):
+        candidate=dict(heat_risk=True,atr14_pct=2,return_20d_pct=10,
+            distance_from_sma20_pct=2,sma20_slope_5d_pct=1)
+        self.assertEqual(risk_priority_reason(candidate),"OVERHEATED_MOMENTUM_OR_DISTANCE")
+        self.assertEqual(risk_priority_reason({**candidate,"heat_risk":False}),
+                         "RISK_PRECHECK_WATCH_NOT_ORDER")
+        self.assertEqual(risk_priority_reason({**candidate,"heat_risk":False,
+                 "atr14_pct":8.1}),"ATR14_TOO_WIDE_FOR_C3_PRECHECK")
+
+    def test_deep_ma20_overshoot_blocks_top5_without_cutting_top20(self):
+        c=dict(heat_risk=False,atr14_pct=4.5,return_20d_pct=7,
+            distance_from_sma20_pct=12,sma20_slope_5d_pct=2)
+        self.assertEqual(risk_priority_reason(c),"MA20_DISTANCE_EXCESSIVE_OR_BELOW_SUPPORT")
+        self.assertEqual(risk_priority_reason({**c,"distance_from_sma20_pct":-6}),
+                         "MA20_DISTANCE_EXCESSIVE_OR_BELOW_SUPPORT")
+        self.assertEqual(risk_priority_reason({**c,"distance_from_sma20_pct":2,
+                         "sma20_slope_5d_pct":-0.1}),"MA20_SLOPE_NOT_POSITIVE")
 
     def test_missing_or_tampered_upstream_status_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
