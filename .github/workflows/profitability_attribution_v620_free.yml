@@ -1,0 +1,104 @@
+name: C3 v6.20 profitability cause audit and market alpha (NO orders)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v615-usable-entry-frontier-20261025
+    paths:
+      - '.github/workflows/profitability_attribution_v620_free.yml'
+      - 'scripts/profitability_attribution_v620.py'
+      - 'scripts/test_profitability_attribution_v620.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/profitability_attribution_v620_free.yml'
+      - 'scripts/profitability_attribution_v620.py'
+      - 'scripts/test_profitability_attribution_v620.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit-15-daily-sessions-no-trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Test no-lookahead gap rejection and no false profit authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/profitability_attribution_v620.py
+          python -m unittest discover -s scripts -p test_profitability_attribution_v620.py -v
+          python -m unittest discover -s scripts -p test_practical_entry_quotes_v619.py -q
+          python -m unittest discover -s scripts -p test_entry_mode_tournament_v616.py -q
+      - name: Restore immutable v18, v615, v616 and v617 source artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v18 v615 v616 v617 output
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/39948306433" --jq '.conclusion')" == success ]] || exit 1
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/40173674034" --jq '.conclusion')" == success ]] || exit 1
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/40174445460" --jq '.conclusion')" == success ]] || exit 1
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/40174980454" --jq '.conclusion')" == success ]] || exit 1
+          gh run download 39948306433 -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          gh run download 40173674034 -R "$GH_REPO" -n c3-v615-conditional-opportunities-no-trades -D v615
+          gh run download 40174445460 -R "$GH_REPO" -n c3-v616-5-entry-mode-tournament-research -D v616
+          gh run download 40174980454 -R "$GH_REPO" -n c3-v617-market-regime-five-mode-risk-gate -D v617
+          for path in v18/market/etf_prices/069500.csv v615/v615_all_setups.csv \
+              v615/v615_status.json v616/v616_all_entry_modes.csv \
+              v616/v616_status.json v617/v617_risk_days.csv v617/v617_status.json; do
+            test -s "$path" || exit 1
+          done
+      - name: Execute predeclared 11 cohorts by 5 entry modes with strict KRX limits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u scripts/profitability_attribution_v620.py \
+            --v18 v18 \
+            --v615-status v615/v615_status.json --v615-signals v615/v615_all_setups.csv \
+            --v616-status v616/v616_status.json --v616-cases v616/v616_all_entry_modes.csv \
+            --v617-status v617/v617_status.json --v617-risk v617/v617_risk_days.csv \
+            --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          from forward_ledger_v63 import digest
+          q=json.loads(Path('output/v620_status.json').read_text())
+          assert q['schema']=='C3_V620_PROFITABILITY_ATTRIBUTION_NO_BUY'
+          assert q['asof']=='2026-10-23'
+          assert q['case_count']==315
+          assert q['cohort_count']==11
+          assert q['comparison_count']==55
+          assert q['trade_approved'] is False and q['orders_enabled'] is False
+          assert q['profit_proven'] is False
+          assert q['independent_unseen_period_validation'] is False
+          for p,h in q['sha256'].items():
+              assert digest(Path('output',p).read_bytes())==h
+          with Path('output/v620_predeclared_cohorts.csv').open(encoding='utf-8-sig',newline='') as f:
+              rows=list(csv.DictReader(f))
+          assert len(rows)==55 and all(x['live_approved_buys']=='0' for x in rows)
+          print('V620_PROFITABILITY_STUDY_VALIDATED',len(rows),'comparisons, real BUYS 0')
+          PY
+      - name: Upload full asof audit cases and Korean-mobile readout (never orders)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v620-profitability-cause-research-no-trades
+          path: |
+            output/v620_status.json
+            output/v620_trade_attribution.csv
+            output/v620_predeclared_cohorts.csv
+            output/v620_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
