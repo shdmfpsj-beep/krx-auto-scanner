@@ -1,0 +1,34 @@
+name: C3 v6.35 virtual KRW 1m capital gate (NO ORDERS)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'scripts/c3_virtual_capital_gate_v635.py'
+      - 'scripts/test_c3_virtual_capital_gate_v635.py'
+      - 'configs/c3_v635_1m_virtual_research.json'
+      - '.github/workflows/c3_virtual_capital_gate_v635_free.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/c3_virtual_capital_gate_v635.py'
+      - 'scripts/test_c3_virtual_capital_gate_v635.py'
+      - 'configs/c3_v635_1m_virtual_research.json'
+      - '.github/workflows/c3_virtual_capital_gate_v635_free.yml'
+permissions:
+  contents: read
+jobs:
+  test_1m_read_only_budget:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run research sizing tests (no broker secrets)
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/c3_virtual_capital_gate_v635.py
+          python -m unittest discover -s scripts -p test_c3_virtual_capital_gate_v635.py -v
