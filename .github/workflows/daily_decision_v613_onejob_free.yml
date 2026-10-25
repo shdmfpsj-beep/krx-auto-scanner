@@ -1,0 +1,209 @@
+name: Free single-job end-to-end KRX daily data to Top5 readiness (no order)
+
+on:
+  workflow_dispatch:
+    inputs:
+      v18_source_run:
+        description: 'Optional exact finished Sector Evidence v18 run; blank uses latest successful source'
+        required: false
+        type: string
+        default: ''
+  workflow_run:
+    workflows: ['Sector Evidence v18 (standalone)']
+    types: [completed]
+  schedule:
+    # Weekdays 08:50 KST: rerun when same-day official API was not available
+    # after the evening v18 source finished; NOT an 08:35 market recommendation.
+    - cron: '50 23 * * 0-4'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: unified-KRX-eod-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  end-to-end-research-not-orders:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      V18_SOURCE_RUN: ${{ github.event.workflow_run.id || inputs.v18_source_run || '' }}
+    steps:
+      - name: Checkout only trusted original code, never submit broker orders
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Run the same fail-closed evidence and optional second risk tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/{full_market_scanner_v68,liquidity_watch_v68,sector_flow_v69,official_issuer_entry_v610,broad_watch_v611,top20_quality_v612,entry_readiness_v613}.py
+          python -m unittest discover -s scripts -p test_broad_watch_v611.py -q
+          python -m unittest discover -s scripts -p test_top20_quality_v612.py -q
+          python -m unittest discover -s scripts -p test_entry_readiness_v613.py -q
+
+      - name: Download latest genuinely completed dated 2764 market source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v18 official scan flow issuer watch top readiness
+          if [[ -z "$V18_SOURCE_RUN" ]]; then
+            V18_SOURCE_RUN="$(gh api "repos/$GH_REPO/actions/workflows/sector_evidence_v18.yml/runs?per_page=30" \
+               --jq '[.workflow_runs[] | select(.conclusion=="success") | .id][0]')"
+          fi
+          [[ "$V18_SOURCE_RUN" =~ ^[0-9]{8,14}$ ]] ||
+            { echo 'INTEGRATED_EXACT_V18_SUCCESS_SOURCE_MISSING'; exit 1; }
+          workflow="$(gh api "repos/$GH_REPO/actions/runs/$V18_SOURCE_RUN" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$V18_SOURCE_RUN" --jq '.conclusion')"
+          [[ "$workflow" == '.github/workflows/sector_evidence_v18.yml' && "$conclusion" == success ]] ||
+            { echo 'INTEGRATED_V18_NOT_SUCCESSFUL_OR_WRONG_PATH'; exit 1; }
+          echo "SOURCE_V18_RUN_ID=$V18_SOURCE_RUN" >> "$GITHUB_ENV"
+          gh run download "$V18_SOURCE_RUN" -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          python - <<'PY'
+          from datetime import datetime,date
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from forward_ledger_v63 import read_json
+          obj=read_json(Path('v18/diagnostics/collection_status.json'))
+          asof=date.fromisoformat(obj['asof'])
+          today=datetime.now(ZoneInfo('Asia/Seoul')).date()
+          age=(today-asof).days
+          assert obj['orders_enabled'] is False
+          assert 0<=age<=4, 'INTEGRATED_SOURCE_TOO_OLD_OR_FUTURE_NO_BUY'
+          assert obj['datasets']['prices']['status']=='OK'
+          assert obj['datasets']['flows']['status']=='OK'
+          assert obj['datasets']['holdings']['status']=='OK'
+          assert obj['datasets']['dart']['status']=='DATE_ONLY_COMPLETE'
+          Path('source_asof.txt').write_text(obj['asof'])
+          print('UNIFIED_MARKET_SOURCE_AGE',obj['asof'],'calendar_days',age)
+          PY
+
+      - name: Query same-asof KRX official EOD once with existing approved key
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          from krx_official_eod_v65 import collect
+          day=Path('source_asof.txt').read_text()
+          r=collect(day,Path('official'),os.environ.get('KRX_AUTH_KEY'))
+          ready=(r['official_dataset_usable'] is True)
+          Path('official_gate.txt').write_text('READY' if ready else 'WAIT')
+          print('UNIFIED_KRX_OFFICIAL_GATE',day,r['status'],'READY' if ready else 'WAIT')
+          PY
+          if [[ "$(cat official_gate.txt)" != READY ]]; then
+            python - <<'PY'
+          from pathlib import Path
+          import json
+          day=Path('source_asof.txt').read_text()
+          status=dict(schema='C3_K100_KRX_UNIFIED_V613_DAILY_RESEARCH',
+                asof=day,state='WAIT_KRX_OFFICIAL_EOD_OR_APPROVAL',
+                decision='CASH',orders_enabled=False,trade_approved=False,
+                reason='Never fabricate latest-day source, candidate prices, or orders')
+          Path('readiness/entry_readiness_v613_status.json').write_text(
+             json.dumps(status,ensure_ascii=False,indent=2)+'\n')
+          Path('readiness/entry_readiness_v613_mobile.md').write_text(
+            '# 통합 스캐너 공식 KRX 소스 대기\n'+day+
+            '\n**공식 동일날짜 거래소 응답 대기 · CASH / 매수승인 0**\n')
+          PY
+          fi
+
+      - name: Full 2764 KRX to 100 money flow to balanced 20 to risk Top5 and 60 methods
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(cat official_gate.txt)" != READY ]]; then
+            echo 'UNIFIED_NO_OFFICIAL_MATCH_WAIT_CASH'
+            exit 0
+          fi
+          # All computations use the same downloaded v18 directory and
+          # identical asof. There is NO workflow_run chain depth dependence.
+          python scripts/full_market_scanner_v68.py --v18 v18 --official official --outdir scan
+          python scripts/liquidity_watch_v68.py --scan scan --outdir scan
+          python scripts/sector_flow_v69.py --v18 v18 --scan scan --outdir flow
+          python scripts/official_issuer_entry_v610.py --scan scan --v69 flow --outdir issuer --collect
+          python scripts/broad_watch_v611.py --v18 v18 --scan scan --flow flow --issuer issuer --outdir watch
+          python scripts/top20_quality_v612.py --v18 v18 --watch watch --issuer issuer --outdir top
+          python scripts/entry_readiness_v613.py --top top --issuer issuer --v18 v18 --outdir readiness
+          python - <<'PY'
+          import json,csv,os
+          from pathlib import Path
+          from forward_ledger_v63 import digest
+          def status(folder,name):
+              return json.loads((Path(folder)/name).read_text(encoding='utf-8'))
+          s=status('scan','full_market_v68_status.json')
+          f=status('flow','sector_money_v69_status.json')
+          i=status('issuer','issuer_entry_v610_status.json')
+          w=status('watch','broad_watch_v611_status.json')
+          t=status('top','top20_quality_v612_status.json')
+          r=status('readiness','entry_readiness_v613_status.json')
+          a=s['asof']
+          assert a==f['asof']==i['asof']==w['asof']==t['asof']==r['asof']
+          assert s['source_v18_github_run_id']==os.environ['SOURCE_V18_RUN_ID']
+          assert s['official_krx_and_v18_latest_all_fields_match'] is True
+          assert s['asof_universe_count']>=2000
+          assert w['official_common_120day_liquid_5d_positive_FI']>0
+          assert len(w['observed_watches']['broad_flow_watch'])<=20
+          assert t['v611_market_watched']==w['official_common_120day_liquid_5d_positive_FI']
+          assert r['asof_top20_count']==t['top20_count']==20
+          assert r['method_evaluations']==60
+          assert r['asof_risk_screened_top5_count']<=5
+          for obj in (s,f,i,w,t,r):
+              assert obj['decision']=='CASH'
+              assert obj['trade_approved'] is False
+              assert obj['orders_enabled'] is False
+          assert r['verified_1530_session'] is False
+          assert r['verified_historic_financials'] is False
+          assert r['verified_80point_buy_score'] is False
+          assert r['current_account_capital_verified'] is False
+          Path('readiness/unified_v613_provenance.json').write_text(json.dumps({
+              'schema':'C3_K100_KRX_UNIFIED_V613_DAILY_RESEARCH',
+              'source_v18_run_id':os.environ['SOURCE_V18_RUN_ID'],
+              'asof':a,
+              'whole_market_universe':s['asof_universe_count'],
+              'broad_money_watch':w['official_common_120day_liquid_5d_positive_FI'],
+              'balanced_top20':t['top20_count'],
+              'risk_top5':t['top5_risk_watch_only'],
+              'structure_first_2r':r['confirmed_first_cost_2r_reference_method_count'],
+              'regular_1530_price_verified':False,
+              'trade_approved':False,'orders_enabled':False,
+              'decision':'CASH'},ensure_ascii=False,indent=2)+'\n')
+          print('UNIFIED_KRX_20_TO_RISK_5_TO_READY_SUCCESS',
+                a,s['asof_universe_count'],
+                w['official_common_120day_liquid_5d_positive_FI'],
+                t['top20_count'],r['confirmed_first_cost_2r_reference_method_count'],
+                'CASH')
+          PY
+
+      - name: Publish newest actual-date mobile report including WAIT reason if gated
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v613-unified-daily-asof-regular-unverified-readiness
+          path: |
+            official/krx_v65_collect_status.json
+            scan/full_market_v68_status.json
+            flow/sector_money_v69_status.json
+            issuer/issuer_entry_v610_status.json
+            watch/broad_watch_v611_status.json
+            top/top20_quality_v612_status.json
+            top/top20_quality_v612_selected.csv
+            readiness/entry_readiness_v613_all.csv
+            readiness/entry_readiness_v613_methods.csv
+            readiness/entry_readiness_v613_status.json
+            readiness/entry_readiness_v613_mobile.md
+            readiness/unified_v613_provenance.json
+          retention-days: 90
+          if-no-files-found: warn
