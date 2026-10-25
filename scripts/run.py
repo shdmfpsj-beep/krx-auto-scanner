@@ -6,13 +6,14 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 from pykrx import stock
+from market_session_policy_v66 import completed_scan_cutoff_date, source_policy_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'reports'
 OUT.mkdir(parents=True, exist_ok=True)
 
 NOW = datetime.now(ZoneInfo('Asia/Seoul'))
-CUTOFF = NOW.date() if (NOW.hour, NOW.minute) >= (16, 10) else NOW.date() - timedelta(days=1)
+CUTOFF = completed_scan_cutoff_date(NOW)  # KRX after-market ends at 20:00
 END = CUTOFF.strftime('%Y%m%d')
 START = (CUTOFF - timedelta(days=550)).strftime('%Y%m%d')
 
@@ -42,6 +43,8 @@ status = {
     'errors': [],
     'note': 'Technical candidate scan only; no trade approvals. Flows and account cash not verified.'
 }
+
+status.update(source_policy_metadata(NOW))
 
 def save_status():
     (OUT / 'status.json').write_text(
