@@ -81,7 +81,7 @@ class FullMarketLiquidityTests(unittest.TestCase):
             out=Path(temp)/"out"
             save_liquid(out,report,rows,c3,k100)
             self.assertIn("CASH",(out/"liquid_watch_v681_mobile.md").read_text())
-            self.assertIn("15,000",(out/"liquid_watch_v681_all.csv").read_text())
+            self.assertIn("15000000000.0",(out/"liquid_watch_v681_all.csv").read_text())
 
     def test_stale_or_tampered_candidate_table_fails_full_sha(self):
         with tempfile.TemporaryDirectory() as temp:
