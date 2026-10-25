@@ -1,5 +1,14 @@
 # KRX C3 / K100 — 무료 주식분석 자동화
 
+## 최신 v6.3 SHA-256 동결·7시장일 전진검증 연결 (2026-10-25)
+
+- **[v6.3 실제 GitHub 테스트·운영 보고서](docs/FORWARD_LEDGER_V63_20261025.md)**. [신호 고정 성공 #40144815020](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40144815020) · [두 시장 일봉 경량화 성공 #40145125003](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40145125003) · [진짜 이후 날짜 관찰 자동화 성공 #40145258020](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40145258020).
+- 10/23 스캔 82종목 × 3진입 방법 = 246 분석행 가운데 기술 신호 **17건**을 1차·2차 **34개 독립 대체가격**으로 SHA 고정. 원본 v5.8/복구수집 실행번호 및 가격·손절·목표가의 SHA-256 저장. 1차 목표를 2차에 그대로 적용하던 옛 v5.9 계산 오류 수정 원칙 유지.
+- Sector Evidence v18의 KOSPI 940, KOSDAQ 1,824 등 **2,764개 날짜별 증권코드**를 2개의 소형 CSV와 SHA-256 메타데이터로 분리. 혼합 영문 종목코드도 원형 보존. **정규장/장후 독립 가격 인증을 의미하지 않음**.
+- 이후 시장일이 7개 쌓일 때까지 **수익률 계산 보류(PENDING)**. 2026-10-25 기준 23일 이후 관찰 **0/7시장일**. 그 뒤에도 주문체결이 아니라 원본시세 불확실성을 표시하는 **가상 결과(PROVISIONAL)**.
+- 자동화: [일일 신호동결](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/forward_freeze_v63.yml) / [종합시장 가격분리](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/forward_market_slice_v63.yml) / [7일 전진검증](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/forward_watch_v63.yml). 무료 GitHub Actions·아티팩트 90일 저장. **CASH / 실거래 매수 승인 0 / 자동주문 0**.
+
+
 ## 최신 v6.2 이미 회복한 저항과 신규 돌파 구분 (2026-10-25)
 
 - **[v6.2 실제 10월 23일 저장자료 재생·검증 보고서](docs/WICK_BARRIER_RELIABILITY_V62_20261023.md)** · [전체 GitHub 실행 성공·16개 테스트 통과 #40141098419](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40141098419).
