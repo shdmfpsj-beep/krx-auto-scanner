@@ -1,0 +1,179 @@
+name: Free v6.4 daily date-locked source audit and forward quarantine
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 23:30 KST weekdays: after v18 daily collection and v6.3 watch.
+    - cron: '30 14 * * 1-5'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/source_provenance_v64_daily.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: daily-v64-source-and-forward
+  cancel-in-progress: false
+
+jobs:
+  date-paired-source-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Sparse checkout safe v6.3 and v6.4 analysis
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/forward_source_gate_v64.py
+            /scripts/test_source_consensus_v64.py
+            /scripts/test_forward_source_gate_v64.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Check full offline source-parity and quarantine safeguards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p 'test_source_consensus_v64.py' -v
+          python -m unittest discover -s scripts -p 'test_forward_source_gate_v64.py' -v
+
+      - name: Download only successful frozen, market and forward snapshot runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p cache/freeze cache/market cache/forward reports
+          mapfile -t freeze_ids < <(gh api "repos/$GH_REPO/actions/workflows/forward_freeze_v63.yml/runs?per_page=40" --jq '.workflow_runs[] | select(.conclusion=="success") | .id')
+          mapfile -t market_ids < <(gh api "repos/$GH_REPO/actions/workflows/forward_market_slice_v63.yml/runs?per_page=40" --jq '.workflow_runs[] | select(.conclusion=="success") | .id')
+          mapfile -t forward_ids < <(gh api "repos/$GH_REPO/actions/workflows/forward_watch_v63.yml/runs?per_page=25" --jq '.workflow_runs[] | select(.conclusion=="success") | .id')
+          if [[ "${#freeze_ids[@]}" -eq 0 || "${#market_ids[@]}" -eq 0 || "${#forward_ids[@]}" -eq 0 ]]; then
+            echo "NO_COMPLETE_FREEZE_MARKET_AND_FORWARD_SET_YET" > reports/source_audit_pending.txt
+            exit 0
+          fi
+          for id in "${freeze_ids[@]}"; do
+            [[ "$id" =~ ^[0-9]{8,14}$ ]] || exit 1
+            mkdir -p "cache/freeze/$id"
+            gh run download "$id" -R "$GH_REPO" -n free-v63-date-frozen-forward-seed -D "cache/freeze/$id"
+          done
+          for id in "${market_ids[@]}"; do
+            [[ "$id" =~ ^[0-9]{8,14}$ ]] || exit 1
+            mkdir -p "cache/market/$id"
+            gh run download "$id" -R "$GH_REPO" -n free-v63-one-day-full-market-slice -D "cache/market/$id"
+          done
+          fid="${forward_ids[0]}"
+          [[ "$fid" =~ ^[0-9]{8,14}$ ]] || exit 1
+          gh run download "$fid" -R "$GH_REPO" -n free-v63-multi-asof-7day-forward-observation -D cache/forward
+          python - <<'PY'
+          import json
+          from datetime import date,datetime,timedelta,timezone
+          from pathlib import Path
+          recent=datetime.now(timezone.utc).date()-timedelta(days=25)
+          frozen={};markets={}
+          for p in Path('cache/freeze').glob('*/frozen_v63_manifest.json'):
+              m=json.loads(p.read_text(encoding='utf-8'))
+              day=m.get('asof')
+              if day is None or date.fromisoformat(day)<recent:continue
+              if m.get('schema')!='C3_K100_FORWARD_LEDGER_V63' or m.get('trade_approved') is not False:
+                  raise SystemExit('UNSAFE_ASOF_FROZEN_SOURCE')
+              old=frozen.get(day)
+              if old and old[1]['frozen_payload_sha256']!=m['frozen_payload_sha256']:
+                  raise SystemExit('CONFLICTING_FROZEN_SAME_DAY_FINGERPRINTS')
+              if old is None or m['freeze_utc']<old[1]['freeze_utc']:
+                  frozen[day]=(p.parent,m)
+          for p in Path('cache/market').glob('*/*/meta.json'):
+              m=json.loads(p.read_text(encoding='utf-8'))
+              day=m.get('asof')
+              if p.parent.name!=day or m.get('regular_only_verified') is not False:
+                  raise SystemExit('UNVERIFIED_MARKET_SLICE_TIMESTAMP')
+              old=markets.get(day)
+              if old and old[1]['sha256']!=m['sha256']:
+                  raise SystemExit('TWO_DISAGREEING_MARKET_RUNS_FOR_SAME_DATE')
+              if old is None or m['source_completed_utc']<old[1]['source_completed_utc']:
+                  markets[day]=(p.parent,m)
+          selected=[]
+          for day,(folder,meta) in sorted(frozen.items()):
+              if day not in markets:continue
+              watcher=Path('cache/forward')/day
+              if not (watcher/'forward_v63_status.json').exists():
+                  continue
+              candidate=json.loads((watcher/'forward_v63_status.json').read_text(encoding='utf-8'))
+              if candidate.get('frozen_payload_sha256')!=meta['frozen_payload_sha256']:
+                  raise SystemExit('WATCHED_SIGNAL_AND_FREEZE_HASH_DIVERGED')
+              rec=str(meta.get('source_run_ids',{}).get('recovery_run_id',''))
+              if not rec.isdigit():raise SystemExit('INVALID_RECOVERY_ANCESTOR_ID')
+              selected.append((day,folder,markets[day][0],watcher,rec))
+          with Path('pairs.txt').open('w',encoding='utf-8') as f:
+              for day,fr,ma,watch,rec in selected:
+                  f.write('|'.join(map(str,(day,fr,ma,watch,rec)))+'\n')
+          print('V64_EXACT_ASOF_AUTOMATIC_PAIR_COUNT',len(selected))
+          if not selected:
+              Path('reports/source_audit_pending.txt').write_text(
+                'NO_DATED_FREEZE_MARKET_AND_FORWARD_JOIN_YET\n',encoding='utf-8')
+          PY
+
+      - name: Evaluate every complete corresponding market day, no source mixing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -s pairs.txt ]]; then
+            echo "NO_MATCHING_ASOF_TO_RECONCILE"
+            exit 0
+          fi
+          mkdir -p cache/recovery
+          while IFS='|' read -r day frozen market forward rec; do
+            [[ "$rec" =~ ^[0-9]{8,14}$ ]] || exit 1
+            rpath="$(gh api "repos/$GH_REPO/actions/runs/$rec" --jq '.path')"
+            rconclusion="$(gh api "repos/$GH_REPO/actions/runs/$rec" --jq '.conclusion')"
+            [[ "$rpath" == '.github/workflows/krx_recovery_scan.yml' && "$rconclusion" == 'success' ]] ||
+              { echo "RECOVERY_ANCESTOR_WRONG $day $rec"; exit 1; }
+            if [[ ! -s "cache/recovery/$rec/status.json" ]]; then
+              mkdir -p "cache/recovery/$rec"
+              gh run download "$rec" -R "$GH_REPO" -n krx-recovery-scan -D "cache/recovery/$rec"
+            fi
+            mkdir -p "reports/$day/consensus" "reports/$day/gate"
+            python scripts/source_consensus_v64.py \
+              --recovery "cache/recovery/$rec" \
+              --market-day "$market" --freeze "$frozen" \
+              --outdir "reports/$day/consensus"
+            python scripts/forward_source_gate_v64.py \
+              --freeze "$frozen" --source-audit "reports/$day/consensus" \
+              --forward "$forward" --outdir "reports/$day/gate"
+            python - "$day" <<'PY'
+          import json,sys,csv
+          from pathlib import Path
+          day=sys.argv[1]
+          a=json.loads((Path('reports')/day/'consensus/source_consensus_v64_status.json').read_text(encoding='utf-8'))
+          b=json.loads((Path('reports')/day/'gate/forward_source_gate_v64_status.json').read_text(encoding='utf-8'))
+          assert a['asof']==b['asof']==day
+          assert a['trade_approved'] is False and b['trade_approved'] is False
+          assert a['kst_regular_session_0900_1530_independently_certified'] is False
+          assert b['official_regular_session_price_certified'] is False
+          assert a['decision']=='CASH' and b['decision']=='CASH'
+          assert b['frozen_alternative_count']==(b['asof_source_conflict_or_invalid_variants']
+                                               +b['asof_source_concordant_but_uncertified_variants'])
+          assert b['outcome_performance_published'] is False
+          print('V64_AUTOMATIC_DATED_COMPARISON_PASSED',day,
+                a['valid_close_conflicts'],b['asof_source_conflict_or_invalid_variants'])
+          PY
+          done < pairs.txt
+
+      - name: Upload per-day full discrepancy and source-quarantined Android reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v64-daily-source-audit-and-forward-gate
+          path: reports/
+          retention-days: 90
+          if-no-files-found: warn
