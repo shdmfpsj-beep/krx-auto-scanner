@@ -149,6 +149,7 @@ jobs:
           q=json.loads(Path('output/full_market_v68_status.json').read_text(encoding='utf-8'))
           assert q['schema']=='C3_K100_FULL_MARKET_SAME_SOURCE_RESEARCH_V68'
           assert q['asof']==Path('source_asof.txt').read_text()
+          assert q['source_v18_github_run_id']==__import__('os').environ['SOURCE_V18_RUN_ID']
           assert q['asof_universe_count']==q['official_market_stock_count']
           assert q['asof_universe_count']>=2000
           assert q['histories_screened']>0
