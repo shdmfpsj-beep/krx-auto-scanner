@@ -86,7 +86,10 @@ class FullMarketLiquidityTests(unittest.TestCase):
     def test_stale_or_tampered_candidate_table_fails_full_sha(self):
         with tempfile.TemporaryDirectory() as temp:
             scan=scan_fixture(temp)
-            (scan/"full_market_v68_candidates.csv").write_text("CORRUPT")
+            cp=scan/"full_market_v68_candidates.csv"
+            fields,rows=csvrows(cp)
+            rows[0]["name"]="TAMPERED_STOCK_NAME"
+            write(cp,fields,rows)
             with self.assertRaisesRegex(ValueError,"SHA256_MISMATCH"):
                 run(scan)
 
