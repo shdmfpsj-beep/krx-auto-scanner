@@ -376,6 +376,15 @@ def build(v18,watch,issuer):
         strong_proxy_total=len(pools["STRONG_SECTOR"]),
         rebound_watch_total=len(pools["RECOVERY"]),
         overheat_flags_in_top20=sum(r["heat_risk"] for r in chosen),
+        before_after_diagnostic=dict(
+            prior_v611_broad_watch_total=len(rows),
+            balanced_top20_count=len(chosen),
+            naive_first5_atr_over8_count=sum(r["atr14_pct"]>8 for r in chosen[:5]),
+            risk_filtered_top5_atr_over8_count=sum(r["atr14_pct"]>8 for r in priority),
+            naive_first5_heat_flags=sum(r["heat_risk"] for r in chosen[:5]),
+            risk_filtered_top5_heat_flags=sum(r["heat_risk"] for r in priority),
+            risk_filtered_top5_n=len(priority),
+            demonstrated_improvement_is_risk_screen_coverage_not_future_returns=True),
         strict_setup_and_cost_adjusted_2r_approvals=0,
         final_80_score_verified=False,financial_growth_verified=False,
         regular_1530_verified=False,industry_PIT_verified=False,
@@ -402,6 +411,18 @@ def save(folder,manifest,allrows,top20):
     manifest["output_file_sha256"]=shas
     (folder/"top20_quality_v612_status.json").write_text(
         json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    # Evidence-based progress ledger: improved *risk screening*, not
+    # an unobserved win rate or a guarantee of profitable entry.
+    (folder/"top20_quality_v612_improvement.json").write_text(
+        json.dumps(dict(asof=manifest["asof"],
+            predecessor="v6.11_full_KRX_100_liquid_buy_watch",
+            current="v6.12_balanced_Top20_and_risk_checked_Top5",
+            measured_before_after=manifest["before_after_diagnostic"],
+            verified_technical_trigger_and_2R_buy=False,
+            measured_future_five_session_return=False,
+            claim_of_profitable_improvement=False,
+            trade_approved=False,orders_enabled=False),
+            ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     lines=["# v6.12 100종목 → 균형 잡힌 Top20 연구 후보","",
         f"{manifest['asof']} 완료 시장일 · **CASH / 주문 0**",
         f"원본 후보 {manifest['v611_market_watched']}개 중 120일 가격·최근5일 기관/외국인 "+
