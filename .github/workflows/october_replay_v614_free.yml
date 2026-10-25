@@ -1,0 +1,145 @@
+name: Free v6.14 October 2026 15-session historical BUY verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/october_replay_v614_free.yml'
+      - 'scripts/october_replay_v614.py'
+      - 'scripts/test_october_replay_v614.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v614-oct-replay-full-pit-disclaimer-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  retrospective-15-session-what-if-not-broker-executions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+    steps:
+      - name: Checkout read-only October replay and existing production selection rules
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Prove source missing flow no-lookahead and never order in unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/{october_replay_v614,entry_strategy_v58,entry_readiness_v613,top20_quality_v612}.py
+          python -m unittest discover -s scripts -p test_october_replay_v614.py -v
+          python -m unittest discover -s scripts -p test_entry_readiness_v613.py -q
+
+      - name: Download exact Oct23 2026 full 420day OHLCV and 5day investor records
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v18 issuer output
+          for pair in "39948306433|.github/workflows/sector_evidence_v18.yml" \
+            "40165164433|.github/workflows/official_issuer_entry_v610_free.yml"; do
+            id="${pair%%|*}"
+            expected="${pair#*|}"
+            actual="$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.path')"
+            result="$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.conclusion')"
+            [[ "$actual" == "$expected" && "$result" == success ]] ||
+              { echo "V614_ORIGINAL_SOURCE_NOT_SUCCESS_OR_WRONG_WORKFLOW"; exit 1; }
+          done
+          gh run download 39948306433 -R "$GH_REPO" \
+            -n sector-evidence-v18-report -D v18
+          gh run download 40165164433 -R "$GH_REPO" \
+            -n free-v610-issuer-common-risk-first-research -D issuer
+          test -s v18/research/sector_evidence_daily.csv
+          test -s v18/market/sector_membership_dated.csv
+          test -s v18/diagnostics/collection_status.json
+          test -s issuer/basic/krx_basic_v610_status.json
+          test -s issuer/basic/KOSPI_basic_v610.csv
+          test -s issuer/basic/KOSDAQ_basic_v610.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          st=json.loads(Path('v18/diagnostics/collection_status.json').read_text(encoding='utf-8'))
+          ib=json.loads(Path('issuer/basic/krx_basic_v610_status.json').read_text(encoding='utf-8'))
+          assert st['asof']==ib['asof']=='2026-10-23'
+          assert st['orders_enabled'] is False
+          assert st['datasets']['flows']['status']=='OK'
+          assert st['datasets']['prices']['status']=='OK'
+          assert ib['official_base_usable'] is True
+          assert sum(ib['market_counts'].values())>=2000
+          print('V614_REPLAY_SOURCE_OCT23_V18_PLUS_KRX_BASE_APPROVED')
+          PY
+
+      - name: Replay 15 October trading dates with 5day pre-dated flows and next-day hypothetical limit touch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u scripts/october_replay_v614.py \
+            --v18 v18 --issuer issuer --outdir output
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          from forward_ledger_v63 import digest
+          m=json.loads(Path('output/october_replay_v614_status.json').read_text(encoding='utf-8'))
+          assert m['schema']=='C3_K100_OCTOBER_15DAY_REPLAY_V614'
+          assert m['first_day']=='2026-10-01'
+          assert m['last_day']=='2026-10-23'
+          assert m['evaluated_sessions']==15
+          assert m['issuer_labels_asof23_used_for_historical_replay'] is True
+          assert m['independently_validated_PIT_base_info_on_each_date'] is False
+          assert m['restored_OHLCV_independent_1530_regular_only_source'] is False
+          assert m['broker_execution_log_available'] is False
+          assert m['full_v613_buy_gate_authorizations']==0
+          assert m['trade_approved'] is False and m['orders_enabled'] is False
+          assert m['decision']=='CASH'
+          def rows(filename):
+              with Path('output',filename).open(encoding='utf-8-sig',newline='') as f:
+                  return list(csv.DictReader(f))
+          perdate=rows('october_replay_v614_daily.csv')
+          top=rows('october_replay_v614_top20_by_date.csv')
+          methods=rows('october_replay_v614_method_signals.csv')
+          assert len(perdate)==15
+          assert len(top)==300
+          assert all(x['verified_real_buy_authorizations']=='0' and
+              x['trade_approved']=='False' for x in perdate)
+          assert all(x['trade_approved']=='False' and
+              x['actual_broker_order_execution_known']=='False' for x in methods)
+          assert perdate[-1]['flow_complete_and_net_buy_positive']=='100', (
+              'Oct23 broad watch must match independently verified v611 100 stocks')
+          lasttop={x['ticker'] for x in top if x['asof']=='2026-10-23' and x['risk_filter_pass']=='True'}
+          assert lasttop=={'011200','036460','012750','064400','373220'}, (
+              'Oct23 risk Top5 must match trusted v612 stable 5-code prior result')
+          for file,sha in m['artifact_sha256'].items():
+              assert digest(Path('output',file).read_bytes())==sha
+          print('V614_15_COMPLETED_DATES_ACTUAL_RESEARCH_REPLAY_CONFIRMED',
+                'all_technicals',m['method_signal_count_all_positive_flow'],
+                'first_independent_2R',m['first_2R_method_count_all_positive_flow'],
+                'selected20_first_2R',m['first_2R_method_count_selected_top20'],
+                'risk5_first_2R',m['first_2R_method_count_risk_top5'],
+                'next_bar_possible_limit_touches',m['possible_next_session_limit_touches_top20'],
+                'verified_REAL_BUYS',m['full_v613_buy_gate_authorizations'])
+          PY
+
+      - name: Archive every daily score and hypothetical setup with exact source limitations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v614-october-15session-replay-no-broker-execution
+          path: |
+            output/october_replay_v614_status.json
+            output/october_replay_v614_daily.csv
+            output/october_replay_v614_method_signals.csv
+            output/october_replay_v614_top20_by_date.csv
+            output/october_replay_v614_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
