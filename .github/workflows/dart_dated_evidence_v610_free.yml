@@ -92,10 +92,15 @@ jobs:
           assert s['decision']=='CASH' and s['trade_approved'] is False
           assert s['exact_regular_1530_prices_verified'] is False
           assert s['asof_earnings_and_catalyst_verified'] is False
-          ref=str(s['v68_source_run_id'])
+          ref=str(s.get('v68_source_run_id') or '')
+          if not ref and s['asof']=='2026-10-23':
+              # Legacy 10/23 exact-price SHA-provenance recovery only.
+              # The next step hashes BOTH KOSPI/KOSDAQ 2026-10-23
+              # and every archived 5-day foreign/institution file.
+              ref='39948306433'
           assert ref.isdigit() and 8<=len(ref)<=14
           Path('v18_parent.txt').write_text(ref,encoding='utf-8')
-          print('V6101_REPLAY_V18_SOURCE_RUN',ref,'asof',s['asof'])
+          print('V6101_EXACT_OR_SHA_RECOVERED_V18_SOURCE_RUN',ref,'asof',s['asof'])
           PY
           parent="$(cat v18_parent.txt)"
           actual="$(gh api "repos/$GH_REPO/actions/runs/$parent" --jq '.path')"
@@ -112,6 +117,13 @@ jobs:
           issuer=json.loads(Path('issuer/issuer_entry_v610_status.json').read_text(encoding='utf-8'))
           v18=json.loads(Path('v18/diagnostics/collection_status.json').read_text(encoding='utf-8'))
           assert v18['asof']==issuer['asof']
+          from forward_ledger_v63 import digest
+          for market,sha in issuer['v68_market_sha256'].items():
+              path=Path('v18/market/daily_prices')/market/(issuer['asof']+'.csv')
+              assert path.is_file() and digest(path.read_bytes())==sha
+          for relative,sha in issuer['v69_flow_sha256'].items():
+              path=Path('v18')/relative
+              assert path.is_file() and digest(path.read_bytes())==sha
           assert v18['datasets']['dart']['status']=='DATE_ONLY_COMPLETE'
           assert v18['datasets']['dart']['exact_publication_time']=='UNAVAILABLE'
           assert v18['orders_enabled'] is False
