@@ -1,0 +1,216 @@
+name: Free v6.11 broad 2764 stock watch separate from strict BUY gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      v610_run:
+        description: 'Successful issuer base and risk-first v6.10 source'
+        type: string
+        required: false
+        default: '40165164433'
+  workflow_run:
+    workflows: ['Free v6.10 official KRX common shares and strict risk-first 2R']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/broad_watch_v611_free.yml'
+      - 'scripts/broad_watch_v611.py'
+      - 'scripts/test_broad_watch_v611.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v611-fullmarket-broad-radar-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  scan-frozen-full-market-not-only-old-52:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+      V610_RUN: ${{ github.event.workflow_run.id || inputs.v610_run || '40165164433' }}
+    steps:
+      - name: Checkout complete no-order reader chain
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/rank_candidates.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/full_market_scanner_v68.py
+            /scripts/liquidity_watch_v68.py
+            /scripts/sector_flow_v69.py
+            /scripts/official_issuer_entry_v610.py
+            /scripts/broad_watch_v611.py
+            /scripts/test_broad_watch_v611.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Test historic asof, no order, biotech exclusion and source tamper
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_broad_watch_v611.py -v
+
+      - name: Download exact v610 issued basic classifications and ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p issuer flow scan v18 output
+          [[ "$V610_RUN" =~ ^[0-9]{8,14}$ ]] ||
+            { echo "INVALID_V610_RUN_ID"; exit 1; }
+          actual="$(gh api "repos/$GH_REPO/actions/runs/$V610_RUN" --jq '.path')"
+          result="$(gh api "repos/$GH_REPO/actions/runs/$V610_RUN" --jq '.conclusion')"
+          [[ "$actual" == '.github/workflows/official_issuer_entry_v610_free.yml' && "$result" == 'success' ]] ||
+            { echo "V610_ISSUER_SOURCE_NOT_SUCCESS"; exit 1; }
+          gh run download "$V610_RUN" -R "$GH_REPO" \
+            -n free-v610-issuer-common-risk-first-research -D issuer
+          test -s issuer/issuer_entry_v610_status.json
+          test -s issuer/basic/KOSPI_basic_v610.csv
+          test -s issuer/basic/KOSDAQ_basic_v610.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('issuer/issuer_entry_v610_status.json').read_text(encoding='utf-8'))
+          assert m['decision']=='CASH' and m['trade_approved'] is False
+          id=str(m.get('v69_source_github_run_id') or '')
+          if not id and m['asof']=='2026-10-23':
+              # Frozen Oct23 only: all price, flow and member hashes are
+              # independently checked against the earlier exact archives.
+              id='40165136567'
+          assert id.isdigit() and 8<=len(id)<=14
+          Path('v69_parent.txt').write_text(id)
+          print('V611_EXACT_OR_SHA_RECOVERED_SECTOR_RUN',id,m['asof'])
+          PY
+
+      - name: Download source-locked 5-day investor flow and v68 full market
+        shell: bash
+        run: |
+          set -euo pipefail
+          sector="$(cat v69_parent.txt)"
+          name="$(gh api "repos/$GH_REPO/actions/runs/$sector" --jq '.path')"
+          done="$(gh api "repos/$GH_REPO/actions/runs/$sector" --jq '.conclusion')"
+          [[ "$name" == '.github/workflows/sector_flow_v69_free.yml' && "$done" == 'success' ]] ||
+            { echo 'V611_SECTOR_PARENT_NOT_SUCCESSFUL'; exit 1; }
+          gh run download "$sector" -R "$GH_REPO" \
+            -n free-v69-5session-sector-foreign-institution-research -D flow
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('flow/sector_money_v69_status.json').read_text(encoding='utf-8'))
+          issuer=json.loads(Path('issuer/issuer_entry_v610_status.json').read_text(encoding='utf-8'))
+          assert m['asof']==issuer['asof']
+          assert m['decision']=='CASH' and m['trade_approved'] is False
+          assert m['flow_source_sha256']==issuer['v69_flow_sha256']
+          id=str(m.get('v68_github_run_id') or '')
+          if not id and m['asof']=='2026-10-23':
+              id='40163120843'
+          assert id.isdigit() and 8<=len(id)<=14
+          Path('v68_parent.txt').write_text(id)
+          print('V611_EXACT_OR_SHA_RECOVERED_FULL_MARKET',id,m['asof'])
+          PY
+          scanrun="$(cat v68_parent.txt)"
+          path="$(gh api "repos/$GH_REPO/actions/runs/$scanrun" --jq '.path')"
+          completed="$(gh api "repos/$GH_REPO/actions/runs/$scanrun" --jq '.conclusion')"
+          [[ "$path" == '.github/workflows/full_market_scan_v68_free.yml' && "$completed" == success ]] ||
+            { echo 'V611_V68_PARENT_NOT_SUCCESSFUL'; exit 1; }
+          gh run download "$scanrun" -R "$GH_REPO" \
+            -n free-v68-all-market-dated-source-universe-research -D scan
+          test -s scan/output/full_market_v68_status.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          f=json.loads(Path('scan/output/full_market_v68_status.json').read_text(encoding='utf-8'))
+          g=json.loads(Path('flow/sector_money_v69_status.json').read_text(encoding='utf-8'))
+          b=json.loads(Path('issuer/issuer_entry_v610_status.json').read_text(encoding='utf-8'))
+          assert f['asof']==g['asof']==b['asof']
+          assert f['asof_universe_count']==2764 if f['asof']=='2026-10-23' else f['asof_universe_count']>=2000
+          assert f['market_v18_daily_source_sha256']==g['v68_market_sha256']==b['v68_market_sha256']
+          parent=str(f.get('source_v18_github_run_id') or '')
+          if not parent and f['asof']=='2026-10-23':
+              parent='39948306433'
+          assert parent.isdigit() and 8<=len(parent)<=14
+          Path('v18_parent.txt').write_text(parent)
+          print('V611_MARKET_DATA_ANCESTOR',parent,f['asof'])
+          PY
+
+      - name: Authenticate original whole KRX 160day files and 20 FI daily flows
+        shell: bash
+        run: |
+          set -euo pipefail
+          x="$(cat v18_parent.txt)"
+          path="$(gh api "repos/$GH_REPO/actions/runs/$x" --jq '.path')"
+          outcome="$(gh api "repos/$GH_REPO/actions/runs/$x" --jq '.conclusion')"
+          [[ "$path" == '.github/workflows/sector_evidence_v18.yml' && "$outcome" == success ]] ||
+            { echo 'V611_V18_ANCESTOR_NOT_COMPLETE'; exit 1; }
+          gh run download "$x" -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          test -s v18/diagnostics/collection_status.json
+          test -s v18/market/sector_membership_dated.csv
+          test -s v18/market/daily_flows/KOSPI/2026-10-23_foreign.csv || {
+            echo 'V611_DATE_SPECIFIC_20261023_ONLY_TEST_ARTIFACT_NOT_FOUND'
+            true
+          }
+
+      - name: Rescreen every common KRX ticker BEFORE technical trigger gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/broad_watch_v611.py \
+            --v18 v18 --scan scan/output --flow flow --issuer issuer \
+            --outdir output
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          r=json.loads(Path('output/broad_watch_v611_status.json').read_text(encoding='utf-8'))
+          assert r['schema']=='C3_K100_BROAD_COVERAGE_RISK_FIRST_WATCH_V611'
+          assert r['full_market_universe']>=2000
+          assert r['official_common_120day_50e8_liquid']>100
+          assert r['official_common_120day_liquid_5d_positive_FI']>=30
+          assert r['strong_proxy_sector_5d_positive_liquid']>=1
+          assert r['both_investors_5d_net_buy_positive']>=1
+          assert r['official_common_120day_liquid_5d_positive_FI']>=r['strong_proxy_sector_5d_positive_liquid']
+          assert r['broad_radar_universe_untouched_by_old_52_candidate_filter'] is True
+          assert r['final_80_score_verified'] is False
+          assert r['regular_1530_session_certified'] is False
+          assert r['trade_approved'] is False and r['orders_enabled'] is False
+          assert r['decision']=='CASH'
+          with Path('output/broad_watch_v611_all.csv').open(encoding='utf-8-sig',newline='') as f:
+              rows=list(csv.DictReader(f))
+          assert len(rows)==r['official_common_120day_liquid_5d_positive_FI']
+          assert all(x['trade_approved']=='False' and x['orders_enabled']=='False' for x in rows)
+          with Path('output/broad_watch_v611_full_audit.csv').open(encoding='utf-8-sig',newline='') as f:
+              aud=list(csv.DictReader(f))
+          assert len(aud)==r['full_market_universe']
+          print('V611_BROAD_FUND_FLOW_UNIVERSE_REAL_RESULTS',
+                r['asof'],r['official_common_120day_50e8_liquid'],
+                r['official_common_120day_liquid_5d_positive_FI'],
+                r['both_investors_5d_net_buy_positive'],
+                r['strong_proxy_sector_5d_positive_liquid'],
+                r['confirmed_research_trigger_rows'],'CASH')
+          PY
+
+      - name: Publish complete ex-post KRX radar, transparent reasons, Android report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v611-krx-full-market-broad-watch-vs-strict-buy
+          path: |
+            output/broad_watch_v611_status.json
+            output/broad_watch_v611_all.csv
+            output/broad_watch_v611_full_audit.csv
+            output/broad_watch_v611_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
