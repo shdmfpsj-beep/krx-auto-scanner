@@ -1,0 +1,150 @@
+name: Free v6.4 dated source consensus, never regular-session certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      recovery_run_id:
+        description: "Immutable KRX recovery exact run ID"
+        type: string
+        default: '39923708922'
+        required: false
+      freeze_run_id:
+        description: "v6.3 frozen source exact run ID"
+        type: string
+        default: '40144815020'
+        required: false
+      market_slice_run_id:
+        description: "v6.3 KOSPI and KOSDAQ v18 day slice exact run ID"
+        type: string
+        default: '40145125003'
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/source_consensus_v64_free.yml'
+      - 'scripts/source_consensus_v64.py'
+      - 'scripts/test_source_consensus_v64.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: free-v64-source-audit-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  compare-two-unverified-feeds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RECOVERY_RUN: ${{ inputs.recovery_run_id || '39923708922' }}
+      FREEZE_RUN: ${{ inputs.freeze_run_id || '40144815020' }}
+      MARKET_SLICE_RUN: ${{ inputs.market_slice_run_id || '40145125003' }}
+    steps:
+      - name: Sparse checkout non-order provenance validator and tests
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/test_source_consensus_v64.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Run offline integrity and no-false-session-certification tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_source_consensus_v64.py -v
+
+      - name: Verify exact completed workflow types and download dated sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery freeze market output
+          for arg in "$RECOVERY_RUN:.github/workflows/krx_recovery_scan.yml" \
+             "$FREEZE_RUN:.github/workflows/forward_freeze_v63.yml" \
+             "$MARKET_SLICE_RUN:.github/workflows/forward_market_slice_v63.yml"; do
+            runid="${arg%%:*}"
+            expected="${arg#*:}"
+            [[ "$runid" =~ ^[0-9]{8,14}$ ]] || { echo "RUN_ID_NOT_DECIMAL"; exit 1; }
+            sourcepath="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.path')"
+            result="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.conclusion')"
+            [[ "$sourcepath" == "$expected" && "$result" == 'success' ]] ||
+              { echo "PROVENANCE_OR_WORKFLOW_MISMATCH $runid"; exit 1; }
+          done
+          gh run download "$RECOVERY_RUN" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          gh run download "$FREEZE_RUN" -R "$GH_REPO" -n free-v63-date-frozen-forward-seed -D freeze
+          gh run download "$MARKET_SLICE_RUN" -R "$GH_REPO" -n free-v63-one-day-full-market-slice -D market
+          test -s recovery/status.json
+          test -s recovery/candidates.csv
+          test -s recovery/candidate_daily_history_v52.csv
+          test -s freeze/frozen_v63_signals.json
+          test -s freeze/frozen_v63_manifest.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from datetime import date
+          f=json.loads(Path('freeze/frozen_v63_manifest.json').read_text(encoding='utf-8'))
+          asof=f['asof']
+          assert date.fromisoformat(asof).isoformat()==asof
+          assert f['source_run_ids']['recovery_run_id']==os.environ['RECOVERY_RUN']
+          assert (Path('market')/asof/'meta.json').is_file()
+          market=json.loads((Path('market')/asof/'meta.json').read_text(encoding='utf-8'))
+          assert market['asof']==asof
+          print('V64_EXACT_DATED_SOURCE_PAIRS',asof)
+          PY
+
+      - name: Preserve every price disagreement and invalid bar, no trade promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          day="$(python -c "import json;print(json.load(open('freeze/frozen_v63_manifest.json'))['asof'])")"
+          python scripts/source_consensus_v64.py --recovery recovery \
+            --freeze freeze --market-day "market/$day" --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          s=json.loads(Path('output/source_consensus_v64_status.json').read_text(encoding='utf-8'))
+          assert s['asof']=='2026-10-23'
+          assert s['candidate_count']==82
+          assert s['market_universe_size']==2764
+          assert s['same_date_v18_covered']==82
+          assert s['valid_close_conflicts']==59
+          assert s['valid_close_matches']==22
+          assert s['malformed_recovery_ohlc']==1
+          assert s['frozen_signal_distinct_tickers']==16
+          assert s['frozen_ticker_valid_close_conflicts']==12
+          assert s['frozen_alternatives']==34
+          assert s['kst_regular_session_0900_1530_independently_certified'] is False
+          assert s['trade_approved'] is False and s['orders_enabled'] is False
+          with Path('output/source_consensus_v64_all.csv').open(encoding='utf-8-sig',newline='') as f:
+            rows=list(csv.DictReader(f))
+          assert len(rows)==82
+          assert all(r['trade_approved']=='False' for r in rows)
+          assert all(r['independent_regular_close_certified']=='False' for r in rows)
+          assert all(r['eligible_for_80point_score']=='False' for r in rows)
+          print('V64_82_CANDIDATES_VALID_59_MISMATCH_22_MATCH_1_INVALID',
+                s['asof'],s['valid_close_conflicts'],s['valid_close_matches'],
+                s['frozen_ticker_valid_close_conflicts'],'CASH')
+          PY
+
+      - name: Upload complete discrepancy ledger and mobile summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v64-asof-source-close-discrepancy
+          path: |
+            output/source_consensus_v64_status.json
+            output/source_consensus_v64_all.csv
+            output/source_consensus_v64_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
