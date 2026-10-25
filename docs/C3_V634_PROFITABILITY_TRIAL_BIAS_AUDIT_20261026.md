@@ -1,0 +1,26 @@
+# C3 v6.34 — Are we actually discovering a profitable trading strategy? (2026-10-26, premarket)
+
+**Answer: not yet.** GST early breakout, HMA/Darvas and WaveTrend are plausible **hypotheses**, not demonstrated after-cost trading edges. We have repeatedly optimized on largely the same 2026 Jan–Oct23 dataset and cannot treat repeated historical comparisons as unseen validation. No 2026-10-26 complete regular-session market bars in this study. Actual Kiwoom fills/cash, stock class/issuer historical eligibility, corporate action entitlement, PIT release, full 09:00–15:30 session provenance, sector map and audited 2R overhead are missing. **CASH; no live BUY.**
+
+## Executed v6.34 retrospective selection-bias reality audit
+
+Use frozen v6.33 files `v633_capital_one_slot_ranking.csv`, `v633_random_same_date_200_runs.csv`, `v633_one_slot_trades.csv`. Fixed exit: `TRAIL7_TO12`; six alternative D-only ranking algorithms on same model-date candidates, 269230 KRW historical **not current** research account with modeled 1% equity-at-risk and .65% trading friction. This turn runs an independent read-only Python audit over those saved results. The complete executed audit code, the parent CSVs, audited CSV, fixed future research protocol, forward research source-readiness gate and **25 passing local tests** are in chat ZIP `C3_v634_proof_not_backtest_research.zip` and Korean report `C3_v634_profitability_direction_audit.md`. **No new market data or fresh-profit trades; no full GitHub Actions run asserted.**
+
+| GST-style cohort | Best historical rank, model single-slot account net | Number of 200 uniform D-day random ranking accounts >= best | Proportion | Illustrative chance ONE OR MORE of SIX independent random picks >= best |
+|---|---|---:|---:|---:|
+| EARLY_BELOW60_RISK12 | V632_BASE +2.192% | 9 | 4.5% | 24.1% |
+| EARLY_BELOW60_RISK8 | BALANCED +1.574% | 78 | 39.0% | 94.8% |
+| GOLDEN_ABOVE60_RISK8 | BALANCED +3.365% | 2 | 1.0% | 5.9% |
+| **NEAR60_RISK8** | **BALANCED +4.329%** | **35** | **17.5%** | **68.5%** |
+
+For NEAR60, independent-draw *illustration* is `1-(1-35/200)^6 = .6847002`. **NOT a formal corrected p-value or a statistically valid independent-out-of-sample test**: six real models are correlated and multiple entry/exit/cohort families previously optimized; random runs seeded against this same historically inspected period; 200 simulations have sampling uncertainty. GOLDEN's apparent stronger rank is heavily winner-concentrated, only 10 capital-limited trades, and itself chosen after looking at the data, so cannot claim success either.
+
+NEAR60 `BALANCED_LEADER`: +4.329% virtual capital ROI, 13 simulated tickets, approx **KRW 11,656** paper net, **KRW 10,995.51** from the top two, residual **+KRW 660.52** across the remaining 11 tickets by simple contribution arithmetic (*not a capital-path resimulation excluding past winners*). Original +3.835% across 14 tickets, top two +10,995.51, remaining 12 -670.05. Crucially, prior fixed same-D 75-opportunity comparison found new BALANCED **-0.592pp vs original**, despite a higher portfolio cumulative result due different future freed-cash timing.
+
+## Change in research program (not production)
+
+**Stop inventing new rank weights and takeprofit fractions on repeatedly observed Jan–Oct23 history**. Freeze exact four challenger hypotheses: GST original D-rank NEAR60, GST BALANCED D-rank, v6.30 HMA+Darvas deep-first-retest vs original open, and v6.24 WaveTrend as research challenger. Publish their fixed parameters in `v634_frozen_forward_protocol.json` (conversation ZIP). Pre-register **Oct26 onward completed certified 09:00–15:30 KRX data** for strict *sequential* prospective evaluation. D-close stock preselection and D+1 no-substitution cancellations; explicit actual broker order fills versus candle-price contacts, structure stop first, account minimum 1 share/cash, company PIT catalysts, trade eligibility and sector peers, 5- and 12-trading-day outcomes, marked monthly cash equity, max daily drawdown, >.65% cost and +.30pp stress, top-2 removed attribution and 200 same-D random controls.
+
+**Research-only minimum screen before even human review:** at least 30 independent filled closed trades over 3 distinct entry months (not a scientific significance guarantee), after-fee positive account return and trade median, positive after additional cost and after top-two trades contribution, excess against CASH and comparable index benchmark and D-matched comparator, with full marked-equity drawdown reported. Even if these pass, live broker buy still blocked until user confirmation, actual current Kiwoom cash/single-slot/1-share, regular-session provenance, verified PIT eligibility, final stock score >=80, confirmed daily structural stop and dated resistance net reward/risk >=2. `trade_approved=False;orders_enabled=False` across all tools and models. K100 unchanged.
+
+This is an **objective audit**, not a declaration that more complex indicators will produce profits. Relevant references: [Bailey et al., Probability of Backtest Overfitting](https://escholarship.org/uc/item/4w1110bb), [Harvey, Liu & Zhu, Multiple Testing of Factors](https://academic.oup.com/rfs/article-abstract/29/1/5/1843824), [TradingView Broker Emulator limitations](https://www.tradingview.com/support/solutions/43000786181-broker-emulator/).
