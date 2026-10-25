@@ -1,0 +1,177 @@
+name: Free v6.8 whole KRX market uniform-price scanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      v18_source_run:
+        description: 'Exact completed Sector Evidence v18 market-wide run; default Oct 23 replay'
+        required: false
+        type: string
+        default: '39948306433'
+  workflow_run:
+    workflows: ['Sector Evidence v18 (standalone)']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/full_market_scan_v68_free.yml'
+      - 'scripts/full_market_scanner_v68.py'
+      - 'scripts/test_full_market_scanner_v68.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v68-KRX-fullmarket-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  official-krx-verified-asof-preliminary:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      V18_RUN: ${{ github.event.workflow_run.id || inputs.v18_source_run || '39948306433' }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+    steps:
+      - name: Read only pinned scanner and source verification modules
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/rank_candidates.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/full_market_scanner_v68.py
+            /scripts/test_full_market_scanner_v68.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Deterministic safety and data-date regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_full_market_scanner_v68.py -v
+
+      - name: Download exact successfully completed full KOSPI/KOSDAQ source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v18 official output
+          [[ "$V18_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "V18_EXACT_SOURCE_ID_REQUIRED"; exit 1; }
+          path="$(gh api "repos/$GH_REPO/actions/runs/$V18_RUN" --jq '.path')"
+          finish="$(gh api "repos/$GH_REPO/actions/runs/$V18_RUN" --jq '.conclusion')"
+          [[ "$path" == '.github/workflows/sector_evidence_v18.yml' && "$finish" == 'success' ]] ||
+            { echo "UPSTREAM_NOT_ACTUAL_SUCCESSFUL_MARKET_WIDE_V18"; exit 1; }
+          gh run download "$V18_RUN" -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path('v18/diagnostics/collection_status.json').read_text(encoding='utf-8'))
+          assert q['orders_enabled'] is False
+          assert q['datasets']['prices']['status']=='OK'
+          assert q['datasets']['krx_preflight']['asof']==q['asof']
+          assert q['datasets']['krx_preflight']['status']=='OK'
+          assert (Path('v18/market/daily_prices/KOSPI')/(q['asof']+'.csv')).is_file()
+          assert (Path('v18/market/daily_prices/KOSDAQ')/(q['asof']+'.csv')).is_file()
+          Path('source_asof.txt').write_text(q['asof'])
+          print('V68_FULL_KRX_SOURCE_DATED_COMPLETE',q['asof'])
+          PY
+
+      - name: Obtain exactly same day's independently authenticated official KRX EOD
+        shell: bash
+        run: |
+          set -euo pipefail
+          day="$(cat source_asof.txt)"
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          from krx_official_eod_v65 import collect
+          day=Path('source_asof.txt').read_text()
+          manifest=collect(day,Path('official'),os.environ.get('KRX_AUTH_KEY'))
+          Path('official_ready.txt').write_text(
+            "READY" if manifest['official_dataset_usable'] is True else "WAIT")
+          print("V68_OFFICIAL_SOURCE_STATE",manifest["status"],
+                "rows",manifest["official_market_rows"])
+          PY
+          if [[ "$(cat official_ready.txt)" != READY ]]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest=json.loads(Path('official/krx_v65_collect_status.json').read_text())
+          q=dict(schema='C3_K100_FULL_MARKET_SAME_SOURCE_RESEARCH_V68',
+                 asof=manifest['asof'],status='WAIT_OFFICIAL_KRX_SAME_DATE',
+                 official_source_status=manifest['status'],
+                 trade_approved=False,orders_enabled=False,decision='CASH')
+          Path('output/full_market_v68_pending.json').write_text(
+              json.dumps(q,ensure_ascii=False,indent=2))
+          Path('output/full_market_v68_mobile.md').write_text(
+              '# v6.8 KRX 전체시장\n\n공식 KRX 동일 날짜 소스 미확보. 후보·매매가격 계산 중단. **CASH / 주문 0**\n',encoding='utf-8')
+          PY
+          fi
+
+      - name: Rebuild same-provider full 160-day histories for every as-of security
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(cat official_ready.txt)" != READY ]]; then
+            echo 'V68_NO_OFFICIAL_CURRENT_SESSION_COMPARE_SOURCE_PENDING'
+            exit 0
+          fi
+          python scripts/full_market_scanner_v68.py \
+            --v18 v18 --official official --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          q=json.loads(Path('output/full_market_v68_status.json').read_text(encoding='utf-8'))
+          assert q['schema']=='C3_K100_FULL_MARKET_SAME_SOURCE_RESEARCH_V68'
+          assert q['asof']==Path('source_asof.txt').read_text()
+          assert q['asof_universe_count']==q['official_market_stock_count']
+          assert q['asof_universe_count']>=2000
+          assert q['histories_screened']>0
+          assert q['histories_screened']<q['asof_universe_count']
+          assert q['method_research_rows']==3*q['histories_screened']
+          assert q['archived_candidate_120_daily_rows']==120*q['histories_screened']
+          assert q['official_krx_and_v18_latest_all_fields_match'] is True
+          assert q['legacy_adjusted_per_security_history_used'] is False
+          assert q['instrument_common_share_type_verified'] is False
+          assert q['regular_1530_only_price_certified'] is False
+          assert q['final_80point_score_verified'] is False
+          assert q['trade_approved'] is False and q['orders_enabled'] is False
+          assert q['decision']=='CASH'
+          with Path('output/full_market_v68_universe_audit.csv').open(
+               encoding='utf-8-sig',newline='') as f:
+              allrows=list(csv.DictReader(f))
+          assert len(allrows)==q['asof_universe_count']
+          assert all(r['trade_approved']=='False' for r in allrows)
+          assert all(r['orders_enabled']=='False' for r in allrows)
+          print('V68_WHOLE_KRX_SAME_DAY_RESEARCH_COMPLETE',
+                q['asof'],q['asof_universe_count'],
+                q['histories_screened'],q['completed_method_triggers'],
+                'CASH_NOT_BUY')
+          PY
+
+      - name: Archive report, candidate 120bars and all excluded historical securities
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v68-all-market-dated-source-universe-research
+          path: |
+            output/full_market_v68_status.json
+            output/full_market_v68_pending.json
+            output/full_market_v68_universe_audit.csv
+            output/full_market_v68_candidates.csv
+            output/full_market_v68_method_research.csv
+            output/full_market_v68_candidate_120bars.csv
+            output/full_market_v68_mobile.md
+            official/krx_v65_collect_status.json
+          retention-days: 90
+          if-no-files-found: warn
