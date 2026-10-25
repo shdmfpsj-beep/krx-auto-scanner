@@ -1,5 +1,16 @@
 # C3 / K100 MASTER — Sector First (2026-10-22)
 
+## 2026-10-25 ACTIVE RESEARCH CONTEXT — US & GLOBAL MACRO (v6.18, no order authority)
+
+- **순서:** 08:35 장전 → 13:00 장중 → 16:00 정규장 종료 잠정 → 18:30 최종 투자 보고마다 세계 매크로·미국증시를 선행 확인하되, C3/K100 기존 정규장-only·계좌·일봉 구조손절·최종 종목 >=80/100·비용 반영 2R 게이트를 대체하지 않는다. 08:35에서는 뉴욕시간 16:00 마감 이후 한국시간 08:35까지 실제 끝난 미국 시장일만 사용(DST 반영). 13시/16시/18:30에는 새 미국 마감이 없으면 동일한 전일 미국 장을 재사용하고 갱신 시각을 표시.
+- **실측 미국 시장:** SPY(미국 광역), SMH·SOXX(반도체), XLK(기술), XLE(에너지), XLI(산업), XLU(유틸리티), EWT·EWJ·FXI(미국상장 해외시장 대용) ETF. 가격은 Yahoo Finance/yfinance 2차 제공처로 수집. SPY나 해외 ETF와 해당 한국 상장회사 매출이 바로 연결된다고 가정 금지. 미국 지수 및 업종 ETF의 1일/5일 변화와 20일선·강약은 **연구용 배경**.
+- **무료 세계 매크로:** FRED SP500/NASDAQCOM(지수), VIXCLS(위험), DGS10/DGS2(미국 금리), DEXKOUS·DTWEXBGS(환율/달러), DCOILWTICO(유가), BAMLH0A0HYM2(신용 스프레드). 반드시 각각 **관측일/수집상태/출처/발표지연**을 붙인다. FRED 과거 수정자료는 발표 당시 PIT 가격 증명이 아니며, 마지막 관측일이 미국 최종 마감보다 오래된 시계열을 동일 날짜라고 꾸미지 않는다. 관측 누락은 `MISSING_OR_STALE`, **0% 변화 또는 긍정 점수 추정 금지**.
+- **연구 위험등급:** `GLOBAL_RISK_OFF_RESEARCH_ONLY`(미국 광역 급락 또는 다중 위험), `GLOBAL_CAUTION_RESEARCH_ONLY`(광역·반도체 약세/매크로 변동성), `GLOBAL_MIXED_RESEARCH_ONLY`, `GLOBAL_SUPPORTIVE_RESEARCH_ONLY`, `GLOBAL_DATA_INCOMPLETE_RESEARCH_ONLY`. 국내 RED라면 우선 CASH. 해외 위험이 낮더라도 **미국 지표만으로 종목 BUY 불가**; 기업 직접 관련성·KRX 해당 날짜 정규장 가격/수급·타점·현금 재확인. 에너지 강세는 에너지 기업만의 가능성이므로 시장 전체 상승으로 일반화 금지.
+- **결과 화면:** `시장 조합(미국/세계→국내)` 첫 줄, 대표 5개 지표의 최근 실제 날짜·등락, 국내 섹터 Top3/종목 Top5/구조손절·1차/2차 대체 매수가, BUY/CASH, Required Next Data. 시장 RED에서도 Top5 관찰은 계속하되 실거래 승인을 억지로 생성하지 않는다. 외국인/기관 수급은 현재 MASTER의 OPTIONAL override 유지.
+- **실제 배포 상태:** 무료 읽기 전용 `.github/workflows/global_macro_risk_v618_free.yml`는 main에서 08:25 및 15:45 KST에 원본 관측 시도. GitHub cron 시작은 정확한 08:35 도착을 보장하지 않는다. 해당 날의 `v618_global_macro_status.json` 또는 `v618_global_macro_mobile.md` 가 있으면 원본 날짜/신뢰성 확인 후 참조하며, 없으면 뉴스·지수 출처를 별도로 검증해 표시한다. `trade_approved=False`, `orders_enabled=False`; 실전 매수 자동 실행 기능 아님. v6.15~v6.17 실험 브랜치 코드는 별도 검증 중이며 본 문구로 실전 BUY에 적용한 것이 아님.
+- **검증 실행:** [v6.18 24개 안전성 테스트/글로벌 데이터 수집 성공](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40177651213), [해외 주의+국내 RED 연구 조합 증명](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40178102665). 구체적인 미실현 실전 수익률·종목 상승확률을 주장하지 않는다.
+
+
 ## 2026-10-23 ACTIVE OVERRIDE — foreign/institution net buying is OPTIONAL
 
 - **Do not require investor-category foreign or institutional net buying to screen sectors, rank stocks or consider a conditional BUY.** No net-flow data is a neutral `NOT_PROVIDED` source field, not a quality failure, a zero net buy, proof of retail inflow, or an automatic CASH reason.
