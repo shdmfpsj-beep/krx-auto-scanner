@@ -416,7 +416,20 @@ def save(folder,manifest,allrows,top20):
         lines.append(f"| {r['rank']} | {r['name']} ({r['ticker']}) | {r['discovery_cohort']} | "+
           f"{r['discovery_index_100']:.1f} | {r['return_20d_pct']:+.1f}% | "+
           f"{r['fi_positive_session_count']}/5 | {r['last_turnover_krw']/1e8:,.1f} |")
-    lines+=["","### 매수 승인을 막는 검증항목",
+    lines+=["","## Top5 — 추가 변동성·과열·추세 필터 통과 연구후보",
+        "| 종목 | 발굴지수 | ATR14% | 20일 변화 | 최근 5일 수급 양수 발생일 |",
+        "|---|---:|---:|---:|---:|"]
+    bycode={r["ticker"]:r for r in top20}
+    for code in manifest["top5_risk_watch_only"]:
+        r=bycode[code]
+        lines.append(f"| {r['name']} ({code}) | {r['discovery_index_100']:.1f} | "+
+                     f"{r['atr14_pct']:.2f}% | {r['return_20d_pct']:+.1f}% | "+
+                     f"{r['fi_positive_session_count']}/5 |")
+    if not manifest["top5_risk_watch_only"]:
+        lines.append("| 추가 위험필터 통과 종목 없음 | — | — | — | — |")
+    lines+=["","Top5도 매수·구조손절·2R·5일 상승확률이 인증된 목록이 아닙니다.",
+        "전략상 1·2차 가격은 동일 포지션 물타기가 아니라 서로 대체하는 지정가만 허용합니다.",
+        "", "### 매수 승인을 막는 검증항목",
        "- 정규장 전용 15:30 가격/호가 및 PIT 종목 산업분류, 실제 재무 실적/계약 공시본문",
        "- 구조저점 및 1차/2차 대체매수가의 수수료·슬리피지 후 2R, 계좌 체결가능 수량",
        "- 다음 5거래일 진짜 미래 관측치가 없는 2026-10-23 시점에서는 백테스트 승률 미공개",
