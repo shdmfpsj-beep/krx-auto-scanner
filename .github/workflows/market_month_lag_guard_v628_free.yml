@@ -1,0 +1,34 @@
+name: C3 v6.28 previous-month market risk guard validation (NO orders)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v615-usable-entry-frontier-20261025
+    paths:
+      - 'scripts/market_month_lag_guard_v628.py'
+      - 'scripts/test_market_month_lag_guard_v628.py'
+      - '.github/workflows/market_month_lag_guard_v628_free.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/market_month_lag_guard_v628.py'
+      - 'scripts/test_market_month_lag_guard_v628.py'
+      - '.github/workflows/market_month_lag_guard_v628_free.yml'
+permissions:
+  contents: read
+jobs:
+  verify_no_lookahead_not_live_buy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run previous month end and signal-date safety tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/market_month_lag_guard_v628.py
+          python -m unittest discover -s scripts -p test_market_month_lag_guard_v628.py -v
