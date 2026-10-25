@@ -1,0 +1,200 @@
+name: Free v6.9 KRX five-session foreign institutional sector proxy audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      v68_run:
+        description: 'Exact successful full-market v6.8 run with official KRX EOD'
+        required: false
+        type: string
+        default: '40160970463'
+      v18_run:
+        description: 'Exact v18 underlying dated member/flow source (manual replay)'
+        required: false
+        type: string
+        default: '39948306433'
+  workflow_run:
+    workflows: ['Free v6.8 whole KRX market uniform-price scanner']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sector_flow_v69_free.yml'
+      - 'scripts/sector_flow_v69.py'
+      - 'scripts/test_sector_flow_v69.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v69-exact-asof-sector-flow-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  five-session-full-source-reconciliation:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      V68_RUN: ${{ github.event.workflow_run.id || inputs.v68_run || '40160970463' }}
+      V18_MANUAL: ${{ inputs.v18_run || '39948306433' }}
+      PYTHONPATH: scripts
+    steps:
+      - name: Sparse checkout entire chain only, no orders and no secret
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/rank_candidates.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/full_market_scanner_v68.py
+            /scripts/test_full_market_scanner_v68.py
+            /scripts/liquidity_watch_v68.py
+            /scripts/test_liquidity_watch_v68.py
+            /scripts/sector_flow_v69.py
+            /scripts/test_sector_flow_v69.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Verify flow units, missing member flows, sector/PIT caveat
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_sector_flow_v69.py -v
+
+      - name: Download exact finished v68 entire-market output and find ancestor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p scan v18 output
+          [[ "$V68_RUN" =~ ^[0-9]{8,14}$ ]] ||
+            { echo 'INVALID_V68_SOURCE_RUN'; exit 1; }
+          workflow="$(gh api "repos/$GH_REPO/actions/runs/$V68_RUN" --jq '.path')"
+          result="$(gh api "repos/$GH_REPO/actions/runs/$V68_RUN" --jq '.conclusion')"
+          [[ "$workflow" == '.github/workflows/full_market_scan_v68_free.yml' && "$result" == success ]] ||
+            { echo 'V68_WRONG_WORKFLOW_OR_UNFINISHED'; exit 1; }
+          gh run download "$V68_RUN" -R "$GH_REPO" \
+            -n free-v68-all-market-dated-source-universe-research -D scan
+          test -s scan/output/full_market_v68_status.json || {
+            echo "V69_FULLMARKET_NOT_GENERATED_WAIT"
+            printf '%s\n' 'SOURCE_NOT_YET_READY_CASH' > output/waiting.txt
+            exit 0
+          }
+          test -s scan/output/liquid_watch_v681_status.json
+          test -s scan/output/liquid_watch_v681_all.csv
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          m=json.loads(Path('scan/output/full_market_v68_status.json').read_text(encoding='utf-8'))
+          assert m['schema']=='C3_K100_FULL_MARKET_SAME_SOURCE_RESEARCH_V68'
+          assert m['trade_approved'] is False and m['orders_enabled'] is False
+          assert m['decision']=='CASH'
+          upstream=str(m.get('source_v18_github_run_id',''))
+          if not upstream:
+              # Older v68 artifacts from before source run was persisted
+              # allowed only for explicit/manual or source-code-push replay.
+              if os.environ.get('GITHUB_EVENT_NAME')=='workflow_run':
+                  raise SystemExit('AUTOMATED_V69_REQUIRES_FROZEN_V18_PARENT_ID')
+              upstream=os.environ['V18_MANUAL']
+          assert upstream.isdigit()
+          with Path('v18_parent.txt').open('w') as f:f.write(upstream)
+          print('V69_UPSTREAM_EXACT_RUN',upstream,'asof',m['asof'])
+          PY
+
+      - name: Date-and-hash lock membership + 5-day flows against v68 official asof
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f output/waiting.txt ]]; then
+            echo 'WAIT_FOR_KRX_OFFICIAL_SAME_DAY_PRICES'
+            exit 0
+          fi
+          source="$(cat v18_parent.txt)"
+          [[ "$source" =~ ^[0-9]{8,14}$ ]] || exit 1
+          parentpath="$(gh api "repos/$GH_REPO/actions/runs/$source" --jq '.path')"
+          parentok="$(gh api "repos/$GH_REPO/actions/runs/$source" --jq '.conclusion')"
+          [[ "$parentpath" == '.github/workflows/sector_evidence_v18.yml' && "$parentok" == success ]] ||
+            { echo 'V18_ORIGIN_WRONG_OR_NOT_COMPLETE'; exit 1; }
+          gh run download "$source" -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from forward_ledger_v63 import digest
+          p=Path('scan/output/full_market_v68_status.json')
+          meta=json.loads(p.read_text(encoding='utf-8'))
+          v18=json.loads(Path('v18/diagnostics/collection_status.json').read_text(encoding='utf-8'))
+          assert v18['asof']==meta['asof']
+          assert v18['datasets']['flows']['status']=='OK'
+          assert v18['datasets']['holdings']['status']=='OK'
+          for market in ('KOSPI','KOSDAQ'):
+              path=Path('v18/market/daily_prices')/market/(meta['asof']+'.csv')
+              assert path.is_file() and digest(path.read_bytes())==meta['market_v18_daily_source_sha256'][market]
+          print('V69_PRICE_ARCHIVE_SHA_AND_FLOW_ASOF_MATCHED',meta['asof'])
+          PY
+
+      - name: Reconcile ETF proxy totals and rank sector-linked liquid 52
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f output/waiting.txt ]]; then
+            cat > output/sector_money_v69_mobile.md <<'EOF'
+          # v6.9 기관·외국인 섹터 수급 연구
+          **동일 날짜 공식 KRX 일봉이 준비되지 않아 대조 보류 · CASH / 매수승인 0**
+          EOF
+            exit 0
+          fi
+          python scripts/sector_flow_v69.py \
+            --v18 v18 --scan scan/output --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          r=json.loads(Path('output/sector_money_v69_status.json').read_text(encoding='utf-8'))
+          assert r['schema']=='C3_K100_SECTOR_MONEY_FLOW_RESEARCH_V69'
+          assert r['asof']==json.loads(Path('scan/output/full_market_v68_status.json').read_text(encoding='utf-8'))['asof']
+          assert r['total_proxy_sectors']>=10
+          assert len(r['validated_flow_dates'])==5
+          assert r['individual_ticker_flow_rows']==r['v68_candidate_count']
+          assert len(r['top3_research_sectors'])<=3
+          assert r['third_strong_sector_confirmed'] is (r['strict_strong_proxy_sector_count']>=3)
+          assert r['ETF_membership_not_independent_PIT'] is True
+          assert r['official_regular_1530_not_certified'] is True
+          assert r['full_80_score_not_certified'] is True
+          assert r['trade_approved'] is False and r['orders_enabled'] is False
+          assert r['decision']=='CASH'
+          with Path('output/sector_money_v69_all.csv').open(encoding='utf-8-sig',newline='') as f:
+              secs=list(csv.DictReader(f))
+          assert len(secs)==r['total_proxy_sectors']
+          assert all(x['trade_approved']=='False' for x in secs)
+          with Path('output/sector_money_v69_candidates.csv').open(encoding='utf-8-sig',newline='') as f:
+              cand=list(csv.DictReader(f))
+          assert len(cand)==r['v68_candidate_count']
+          assert all(x['final80_verification']=='False' and
+                     x['trade_approved']=='False' for x in cand)
+          print('V69_SECTOR_PIT_PROXY_RESEARCH_PASS',r['asof'],
+                r['strict_strong_proxy_sector_count'],
+                r['top3_research_sectors'],
+                r['selected_strong_sector_and_liquid_tickers'],'CASH')
+          PY
+
+      - name: Upload 17 sector reconciliations, 52 stock flow rows, Android report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v69-5session-sector-foreign-institution-research
+          path: |
+            output/sector_money_v69_status.json
+            output/sector_money_v69_all.csv
+            output/sector_money_v69_candidates.csv
+            output/sector_money_v69_mobile.md
+            output/waiting.txt
+          retention-days: 90
+          if-no-files-found: warn
