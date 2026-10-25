@@ -17,6 +17,8 @@ on:
       - '.github/workflows/full_market_scan_v68_free.yml'
       - 'scripts/full_market_scanner_v68.py'
       - 'scripts/test_full_market_scanner_v68.py'
+      - 'scripts/liquidity_watch_v68.py'
+      - 'scripts/test_liquidity_watch_v68.py'
 
 permissions:
   contents: read
@@ -52,6 +54,8 @@ jobs:
             /scripts/krx_official_eod_v65.py
             /scripts/full_market_scanner_v68.py
             /scripts/test_full_market_scanner_v68.py
+            /scripts/liquidity_watch_v68.py
+            /scripts/test_liquidity_watch_v68.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -61,6 +65,7 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/*.py
           python -m unittest discover -s scripts -p test_full_market_scanner_v68.py -v
+          python -m unittest discover -s scripts -p test_liquidity_watch_v68.py -v
 
       - name: Download exact successfully completed full KOSPI/KOSDAQ source
         shell: bash
@@ -160,6 +165,37 @@ jobs:
                 'CASH_NOT_BUY')
           PY
 
+      - name: Apply separate measured turnover and 20-session expansion observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(cat official_ready.txt)" != READY ]]; then
+            echo "V681_NO_KRX_OFFICIAL_SOURCE_WAIT"
+            exit 0
+          fi
+          python scripts/liquidity_watch_v68.py --scan output --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          scan=json.loads(Path('output/full_market_v68_status.json').read_text(encoding='utf-8'))
+          r=json.loads(Path('output/liquid_watch_v681_status.json').read_text(encoding='utf-8'))
+          assert r['asof']==scan['asof']
+          assert r['full_market_asof_universe']==scan['asof_universe_count']
+          assert r['candidates_observed']==scan['histories_screened']
+          assert r['c3_min_real_turnover_krw']==5_000_000_000
+          assert r['k100_min_real_turnover_krw']==2_000_000_000
+          assert r['final_80point_score_verified'] is False
+          assert r['regular_1530_verified'] is False
+          assert r['trade_approved'] is False and r['orders_enabled'] is False
+          assert r['decision']=='CASH'
+          with Path('output/liquid_watch_v681_all.csv').open(encoding='utf-8-sig',newline='') as f:
+              rows=list(csv.DictReader(f))
+          assert len(rows)==scan['histories_screened']
+          assert all(row['trade_approved']=='False' for row in rows)
+          print('V681_LIQUID_C3_K100_RESEARCH_COMPLETE',
+               r['c3_liquid_count'],r['k100_liquid_count'])
+          PY
+
       - name: Archive report, candidate 120bars and all excluded historical securities
         if: always()
         uses: actions/upload-artifact@v4
@@ -173,6 +209,9 @@ jobs:
             output/full_market_v68_method_research.csv
             output/full_market_v68_candidate_120bars.csv
             output/full_market_v68_mobile.md
+            output/liquid_watch_v681_status.json
+            output/liquid_watch_v681_all.csv
+            output/liquid_watch_v681_mobile.md
             official/krx_v65_collect_status.json
           retention-days: 90
           if-no-files-found: warn
