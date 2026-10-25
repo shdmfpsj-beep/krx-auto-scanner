@@ -355,6 +355,16 @@ def write_outputs(output,report,candidates,diagnostics,histories,setups):
             writer=csv.DictWriter(f,fieldnames=fields,extrasaction="ignore")
             writer.writeheader()
             writer.writerows(rows)
+    # Bind the derived 52-candidate universe to its complete 120-day
+    # history and method outcomes. A downstream liquidity screen must never
+    # silently accept modified candidate prices or altered past turnover.
+    report["artifact_file_sha256"]={
+        filename:digest((output/filename).read_bytes())
+        for filename in (
+            "full_market_v68_candidates.csv",
+            "full_market_v68_universe_audit.csv",
+            "full_market_v68_method_research.csv",
+            "full_market_v68_candidate_120bars.csv")}
     (output/"full_market_v68_status.json").write_text(
         json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     lookup={x["ticker"]:x for x in candidates}
