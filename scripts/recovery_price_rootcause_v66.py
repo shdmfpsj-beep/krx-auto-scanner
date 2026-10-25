@@ -230,7 +230,7 @@ def analysis(recovery,freeze,v58,v64,v65,official_dir):
         alternative_trigger_added=sum(r["research_trigger_added"] for r in results),
         atr14_changed_tickers=sum(
             r["atr14_difference"] is not None and abs(r["atr14_difference"])>1e-9
-            for r in per_ticker.values() if r["method"]==METHODS[0]),
+            for r in results if r["method"]==METHODS[0]),
         stop_references_changed_when_both_exist=sum(
             r["stop_difference"] is not None and abs(r["stop_difference"])>1e-9 for r in results),
         open_same_across_all_candidates=(col["open"]==0),
