@@ -1,0 +1,35 @@
+name: C3 GST v6.33 read-only D-day ranking tests
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'scripts/gst_d_only_leader_rank_v633.py'
+      - 'scripts/test_gst_d_only_leader_rank_v633.py'
+      - '.github/workflows/gst_leader_rank_v633_free.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/gst_d_only_leader_rank_v633.py'
+      - 'scripts/test_gst_d_only_leader_rank_v633.py'
+      - '.github/workflows/gst_leader_rank_v633_free.yml'
+permissions:
+  contents: read
+jobs:
+  immutable_D_rank_and_no_orders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install minimal testing requirements
+        run: python -m pip install --disable-pip-version-check numpy pandas
+      - name: Run only read-only preentry ranking and no-order gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/gst_d_only_leader_rank_v633.py
+          python -m unittest discover -s scripts -p test_gst_d_only_leader_rank_v633.py -v
