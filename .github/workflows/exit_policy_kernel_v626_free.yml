@@ -1,0 +1,33 @@
+name: C3 v6.26 research exit-cashflow kernel no BUY
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v615-usable-entry-frontier-20261025
+    paths:
+      - 'scripts/exit_policy_kernel_v626.py'
+      - 'scripts/test_exit_policy_kernel_v626.py'
+      - '.github/workflows/exit_policy_kernel_v626_free.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/exit_policy_kernel_v626.py'
+      - 'scripts/test_exit_policy_kernel_v626.py'
+      - '.github/workflows/exit_policy_kernel_v626_free.yml'
+permissions:
+  contents: read
+jobs:
+  test_read_only_exit_kernel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run 10 frozen no-lookahead, stop-first and no-trade tests
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/exit_policy_kernel_v626.py
+          python -m unittest discover -s scripts -p test_exit_policy_kernel_v626.py -v
