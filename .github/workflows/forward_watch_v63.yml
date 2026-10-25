@@ -1,0 +1,166 @@
+name: Free v6.3 ongoing 7-session frozen-signal forward observation
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['Free v6.3 dated full-market thin slice from Sector Evidence v18']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/forward_watch_v63.yml'
+  schedule:
+    # 22:45 Korea weekdays, independent of deep workflow_run chaining limits.
+    - cron: '45 13 * * 1-5'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: krx-v63-forward-observe
+  cancel-in-progress: false
+
+jobs:
+  dated-frozen-observation:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Sparse checkout only SHA-locked research evaluator
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/test_forward_ledger_v63.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Offline test for future leakage and false completed trades
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p 'test_forward_ledger_v63.py' -v
+
+      - name: Retrieve recent successful frozen signals and small daily market slices
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging/freezes staging/days workspace reports
+          mapfile -t frozen_runs < <(gh api "repos/$GH_REPO/actions/workflows/forward_freeze_v63.yml/runs?per_page=30" --jq '.workflow_runs[] | select(.conclusion == "success") | .id')
+          [[ "${#frozen_runs[@]}" -gt 0 ]] || { echo "NO_FROZEN_SOURCE_ASOF_YET"; exit 1; }
+          for id in "${frozen_runs[@]}"; do
+            [[ "$id" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_FREEZE_ID"; exit 1; }
+            mkdir -p "staging/freezes/$id"
+            gh run download "$id" -R "$GH_REPO" \
+              -n free-v63-date-frozen-forward-seed \
+              -D "staging/freezes/$id"
+          done
+          mapfile -t market_runs < <(gh api "repos/$GH_REPO/actions/workflows/forward_market_slice_v63.yml/runs?per_page=35" --jq '.workflow_runs[] | select(.conclusion == "success") | .id')
+          for id in "${market_runs[@]}"; do
+            [[ "$id" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_MARKET_SOURCE_ID"; exit 1; }
+            mkdir -p "staging/days/$id"
+            gh run download "$id" -R "$GH_REPO" \
+              -n free-v63-one-day-full-market-slice \
+              -D "staging/days/$id"
+          done
+          python - <<'PY'
+          import json,shutil
+          from datetime import date,datetime,timezone,timedelta
+          from pathlib import Path
+          freezes={};markets={}
+          today=datetime.now(timezone.utc).date()
+          for p in Path('staging/freezes').glob('*/frozen_v63_manifest.json'):
+              f=json.loads(p.read_text(encoding='utf-8'))
+              day=f.get('asof')
+              if not day or date.fromisoformat(day)<today-timedelta(days=25):
+                  continue
+              if f.get('schema')!='C3_K100_FORWARD_LEDGER_V63' or f.get('trade_approved') is not False:
+                  raise SystemExit('UNVERIFIED_IMMUTABLE_FREEZE')
+              if not (p.parent/'frozen_v63_signals.json').is_file():
+                  raise SystemExit('FROZEN_SIGNAL_PAYLOAD_MISSING')
+              earlier=freezes.get(day)
+              if earlier and earlier[1]['frozen_payload_sha256']!=f['frozen_payload_sha256']:
+                  raise SystemExit('CONFLICTING_SAME_ASOF_FROZEN_PLANS_FAIL_CLOSED')
+              if earlier is None or f['freeze_utc']<earlier[1]['freeze_utc']:
+                  freezes[day]=(p.parent,f)
+          if not freezes:raise SystemExit('NO_ACTIVE_FROZEN_ASOF_WITHIN_25_DAYS')
+          for p in Path('staging/days').glob('*/*/meta.json'):
+              m=json.loads(p.read_text(encoding='utf-8'))
+              day=m.get('asof')
+              if day!=p.parent.name or m.get('regular_only_verified') is not False:
+                  raise SystemExit('INVALID_DATED_MARKET_SLICE_METADATA')
+              earlier=markets.get(day)
+              if earlier and earlier[1]['sha256']!=m['sha256']:
+                  raise SystemExit('CONFLICTING_IDENTICAL_MARKET_DATE_BYTES')
+              if earlier is None or m['source_completed_utc']<earlier[1]['source_completed_utc']:
+                  markets[day]=(p.parent,m)
+          for day,(root,manifest) in sorted(freezes.items()):
+              work=Path('workspace')/day
+              (work/'snapshot').mkdir(parents=True,exist_ok=True)
+              (work/'future').mkdir(parents=True,exist_ok=True)
+              for n in ('frozen_v63_manifest.json','frozen_v63_signals.json'):
+                  shutil.copy2(root/n,work/'snapshot'/n)
+              cutoff=datetime.fromisoformat(manifest['freeze_utc'])
+              later=[(d,src) for d,src in markets.items()
+                     if d>day and datetime.fromisoformat(src[1]['source_completed_utc'])>cutoff]
+              for future_day,(p,m) in sorted(later)[:7]:
+                  target=work/'future'/future_day
+                  target.mkdir(parents=True,exist_ok=True)
+                  for n in ('KOSPI.csv','KOSDAQ.csv','meta.json'):
+                      shutil.copy2(p/n,target/n)
+              print('FROZEN_ASOF_AND_DISTINCT_SOURCE_DAYS',day,len(later))
+          PY
+
+      - name: Recompute ONLY as-of frozen signals using later distinct source days
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in workspace/*/snapshot; do
+            day="$(basename "$(dirname "$path")")"
+            python scripts/forward_ledger_v63.py evaluate \
+              --snapshot "$path" \
+              --future "workspace/$day/future" \
+              --outdir "reports/$day"
+          done
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          statuses=sorted(Path('reports').glob('*/forward_v63_status.json'))
+          assert statuses, 'NO_IMMUTABLE_FORWARD_LEDGER_CREATED'
+          for p in statuses:
+              a=json.loads(p.read_text(encoding='utf-8'))
+              assert a['asof']==p.parent.name
+              assert a['decision']=='CASH'
+              assert a['trade_approved'] is False and a['orders_enabled'] is False
+              assert a['officially_verified_forward_trade_count']==0
+              assert a['all_prices_regular_only_verified'] is False
+              assert a['forward_calendar_complete_officially_verified'] is False
+              assert a['frozen_research_alternatives']==34 if a['asof']=='2026-10-23' else a['frozen_research_alternatives']>=0
+              with (p.parent/'forward_v63_all.csv').open(encoding='utf-8-sig',newline='') as f:
+                  rows=list(csv.DictReader(f))
+              assert len(rows)==a['frozen_research_alternatives']
+              assert all(r['trade_approved']=='False' for r in rows)
+              if a['status']=='WAITING_FOR_NEW_DAILY_SOURCES':
+                  assert a['provisional_filled_scenarios']==0
+                  assert all(x['net_return_pct']=='' for x in rows)
+              print('V63_FROZEN_FORWARD_STATUS',a['asof'],
+                a['observed_full_market_snapshot_days'],a['status'])
+          PY
+
+      - name: Upload each unchanged-date forward progress report for Android
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v63-multi-asof-7day-forward-observation
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 90
