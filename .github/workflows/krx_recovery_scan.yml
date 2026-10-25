@@ -2,14 +2,11 @@ name: KRX recovery scan (safe sparse checkout)
 
 on:
   workflow_dispatch:
-  # Run one real recovery scan when this isolated workflow is updated.
-  # Avoid launching market downloads for unrelated strategy commits.
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/krx_recovery_scan.yml'
+  # Run only on weekdays AFTER the 20:00 KRX after-market; do not
+  # assume the 16:10 partial day or 17:18 per-ticker data are final.
+  # Source-policy pushes are offline-tested elsewhere, not 100-minute scans.
   schedule:
-    - cron: '45 7 * * 1-5'
+    - cron: '45 11 * * 1-5'
 
 permissions:
   contents: read
@@ -28,6 +25,8 @@ jobs:
         with:
           sparse-checkout: |
             /scripts/run.py
+            /scripts/market_session_policy_v66.py
+            /scripts/test_market_session_policy_v66.py
             /scripts/rank_candidates.py
             /scripts/test_rank_candidates.py
             /scripts/free_structural_v52.py
@@ -51,7 +50,10 @@ jobs:
       - name: Verify no-cost daily structural analysis safety (offline)
         run: python -m unittest discover -s scripts -p 'test_free_structural_v52.py' -v
 
-      - name: Collect fresh KRX OHLCV
+      - name: Validate post-20:00 KRX source-day policy and timezone
+        run: python -m unittest discover -s scripts -p 'test_market_session_policy_v66.py' -v
+
+      - name: Collect latest completed after-market KRX OHLCV (research only)
         run: python scripts/run.py
 
       - name: Verify scan date and coverage
