@@ -1,0 +1,197 @@
+name: Free v6.12 balanced Top20 full-market 5-session quality research
+
+on:
+  workflow_dispatch:
+    inputs:
+      v611_run:
+        description: 'Successful date-locked broad 2,764-market v6.11 scan'
+        required: false
+        type: string
+        default: '40166793595'
+  workflow_run:
+    workflows: ['Free v6.11 broad 2764 stock watch separate from strict BUY gate']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/top20_quality_v612_free.yml'
+      - 'scripts/top20_quality_v612.py'
+      - 'scripts/test_top20_quality_v612.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v612-sha-pinned-top20-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  score-100-into-evidence-balanced-20:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+      V611_RUN: ${{ github.event.workflow_run.id || inputs.v611_run || '40166793595' }}
+    steps:
+      - name: Checkout exact asof-only quality and safety modules
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/rank_candidates.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/full_market_scanner_v68.py
+            /scripts/liquidity_watch_v68.py
+            /scripts/sector_flow_v69.py
+            /scripts/official_issuer_entry_v610.py
+            /scripts/dart_dated_evidence_v610.py
+            /scripts/broad_watch_v611.py
+            /scripts/top20_quality_v612.py
+            /scripts/test_top20_quality_v612.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Unit proof of score components 100, data dates, and no lookahead
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_top20_quality_v612.py -v
+
+      - name: Fetch exact successful 100-watch upstream with latest issuer parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p watch issuer v18 output
+          [[ "$V611_RUN" =~ ^[0-9]{8,14}$ ]] ||
+            { echo 'V612_INVALID_BROAD_PARENT_ID'; exit 1; }
+          path="$(gh api "repos/$GH_REPO/actions/runs/$V611_RUN" --jq '.path')"
+          done="$(gh api "repos/$GH_REPO/actions/runs/$V611_RUN" --jq '.conclusion')"
+          [[ "$path" == '.github/workflows/broad_watch_v611_free.yml' && "$done" == success ]] ||
+            { echo 'V612_BROAD_PARENT_WRONG_OR_INCOMPLETE'; exit 1; }
+          gh run download "$V611_RUN" -R "$GH_REPO" \
+            -n free-v611-krx-full-market-broad-watch-vs-strict-buy -D watch
+          test -s watch/broad_watch_v611_status.json
+          test -s watch/broad_watch_v611_all.csv
+          test -s watch/broad_watch_v611_full_audit.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('watch/broad_watch_v611_status.json').read_text())
+          assert a['trade_approved'] is False and a['orders_enabled'] is False
+          assert a['decision']=='CASH'
+          assert a['full_market_universe']>=2000
+          id=str(a.get('source_v610_github_run_id') or '')
+          if not id and a['asof']=='2026-10-23':
+              # Only for the 2026-10-23 historical artifact; reject
+              # any newly dated item without strict upstream run ID.
+              id='40166458119'
+          assert id.isdigit() and 8<=len(id)<=14
+          Path('issuer_parent.txt').write_text(id)
+          print('V612_BROAD_UPSTREAM_ISSUER_ID',id,a['asof'])
+          PY
+
+      - name: Authenticate 100 securities against exact issuer run and investor SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          issuer="$(cat issuer_parent.txt)"
+          name="$(gh api "repos/$GH_REPO/actions/runs/$issuer" --jq '.path')"
+          result="$(gh api "repos/$GH_REPO/actions/runs/$issuer" --jq '.conclusion')"
+          [[ "$name" == '.github/workflows/official_issuer_entry_v610_free.yml' && "$result" == success ]] ||
+            { echo 'V612_OFFICIAL_SHARE_SOURCE_INVALID'; exit 1; }
+          gh run download "$issuer" -R "$GH_REPO" \
+            -n free-v610-issuer-common-risk-first-research -D issuer
+          test -s issuer/issuer_entry_v610_status.json
+          test -s issuer/basic/KOSPI_basic_v610.csv
+          test -s issuer/basic/KOSDAQ_basic_v610.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('watch/broad_watch_v611_status.json').read_text())
+          b=json.loads(Path('issuer/issuer_entry_v610_status.json').read_text())
+          assert a['asof']==b['asof']
+          assert b['decision']=='CASH'
+          ref=str(b.get('v68_source_run_id') or '')
+          if not ref and b['asof']=='2026-10-23':
+              ref='39948306433'
+          assert ref.isdigit() and 8<=len(ref)<=14
+          Path('v18_parent.txt').write_text(ref)
+          print('V612_ORIGINAL_V18_ARCHIVE_SOURCE',ref,a['asof'])
+          PY
+          src="$(cat v18_parent.txt)"
+          w="$(gh api "repos/$GH_REPO/actions/runs/$src" --jq '.path')"
+          o="$(gh api "repos/$GH_REPO/actions/runs/$src" --jq '.conclusion')"
+          [[ "$w" == '.github/workflows/sector_evidence_v18.yml' && "$o" == success ]] ||
+            { echo 'V612_HISTORIC_KRX_MARKET_ORIGIN_INVALID'; exit 1; }
+          gh run download "$src" -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          test -s v18/diagnostics/collection_status.json
+          test -s v18/catalysts/disclosures.csv
+
+      - name: Recompute 5-date FI persistence, 120day trend, DART titles and balanced Top20
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/top20_quality_v612.py \
+            --v18 v18 --watch watch --issuer issuer --outdir output
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          from forward_ledger_v63 import digest
+          report=json.loads(Path('output/top20_quality_v612_status.json').read_text())
+          assert report['schema']=='C3_K100_BALANCED_TOP20_FIVE_DAY_MONEY_QUALITY_V612'
+          assert report['asof']==json.loads(Path('watch/broad_watch_v611_status.json').read_text())['asof']
+          assert report['v611_total_market']>=2000
+          assert report['v611_market_watched']>=30
+          assert report['top20_count']==20
+          assert len(report['top20_tickers'])==20
+          assert len(set(report['top20_tickers']))==20
+          assert len(report['completed_fi_dates'])==5
+          assert report['five_day_investor_reconciliation_complete'] is True
+          assert report['missing_fundamentals_are_neither_zero_nor_positive'] is True
+          assert report['backtest_5day_forward_evaluated'] is False
+          assert report['financial_growth_verified'] is False
+          assert report['final_80_score_verified'] is False
+          assert report['trade_approved'] is False and report['orders_enabled'] is False
+          assert report['decision']=='CASH'
+          allfile=Path('output/top20_quality_v612_all.csv')
+          topfile=Path('output/top20_quality_v612_selected.csv')
+          with allfile.open(encoding='utf-8-sig',newline='') as f:
+              allrows=list(csv.DictReader(f))
+          with topfile.open(encoding='utf-8-sig',newline='') as f:
+              top=list(csv.DictReader(f))
+          assert len(allrows)==report['v611_market_watched']
+          assert len(top)==20
+          assert all(r['buy_authorized']=='False' and
+                     r['regular_1530_verified']=='False' and
+                     r['positive_fundamental_numbers_verified']=='False'
+                     for r in top)
+          assert allfile.is_file() and topfile.is_file()
+          for fname,sha in report['output_file_sha256'].items():
+              assert digest(Path('output',fname).read_bytes())==sha
+          print('V612_NO_FUTURE_TOP20_BALANCED_COMPLETE',
+              report['asof'],report['v611_market_watched'],
+              report['queue_actual'],report['top5_watch_only'],'CASH')
+          PY
+
+      - name: Upload full100 diagnostics Top20 and mobile summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v612-balance-top20-asof-five-day-money-quality
+          path: |
+            output/top20_quality_v612_all.csv
+            output/top20_quality_v612_selected.csv
+            output/top20_quality_v612_status.json
+            output/top20_quality_v612_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
