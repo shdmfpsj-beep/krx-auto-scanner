@@ -1,0 +1,95 @@
+name: C3 v6.16 five-session asof entry-mode research (NO orders)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v615-usable-entry-frontier-20261025
+    paths:
+      - '.github/workflows/entry_mode_tournament_v616_free.yml'
+      - 'scripts/entry_mode_tournament_v616.py'
+      - 'scripts/test_entry_mode_tournament_v616.py'
+
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/entry_mode_tournament_v616_free.yml'
+      - 'scripts/entry_mode_tournament_v616.py'
+      - 'scripts/test_entry_mode_tournament_v616.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compare-and-audit-predeclared-modes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Prove no-order/no-future path semantics (v6.16, v6.15, old audit)
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/entry_mode_tournament_v616.py
+          python -m unittest discover -s scripts -p test_entry_mode_tournament_v616.py -v
+          python -m unittest discover -s scripts -p test_entry_opportunities_v615.py -q
+          python -m unittest discover -s scripts -p test_entry_shadow_audit_v615.py -q
+          python -m unittest discover -s scripts -p test_october_replay_v614.py -q
+      - name: Restore immutable October 23 source and validated v6.15 candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v18 input output
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/39948306433" --jq '.conclusion')" == success ]] || exit 1
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/40173674034" --jq '.conclusion')" == success ]] || exit 1
+          gh run download 39948306433 -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          gh run download 40173674034 -R "$GH_REPO" -n c3-v615-conditional-opportunities-no-trades -D input
+          test -s input/v615_status.json
+          test -s input/v615_all_setups.csv
+          test -s v18/diagnostics/collection_status.json
+      - name: Replay 5 modes with asof-only entry prices and 5 market sessions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u scripts/entry_mode_tournament_v616.py \
+            --v18 v18 --parent input/v615_status.json \
+            --signals input/v615_all_setups.csv --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          from forward_ledger_v63 import digest
+          x=json.loads(Path('output/v616_status.json').read_text())
+          assert x['schema']=='C3_V616_PREDECLARED_ENTRY_TOURNAMENT_READ_ONLY'
+          assert x['trade_approved'] is False and x['orders_enabled'] is False
+          assert x['daily_price_source_last_day']=='2026-10-23'
+          assert x['event_signals_raw_v615']==458
+          assert x['K100_not_traded'] is True
+          for name,sha in x['artifacts_sha256'].items():
+            assert digest(Path('output',name).read_bytes())==sha
+          with Path('output/v616_mode_comparison.csv').open(encoding='utf-8-sig',newline='') as f:
+            rows=list(csv.DictReader(f))
+          assert len(rows)==5
+          assert all(r['approved_live_buys']=='0' for r in rows)
+          print('V616_FIVE_MODES_FROZEN_REPLAY_OK',x['study_candidates'],flush=True)
+          PY
+      - name: Publish C3 mode-by-mode trade study without orders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v616-5-entry-mode-tournament-research
+          path: |
+            output/v616_status.json
+            output/v616_all_entry_modes.csv
+            output/v616_mode_comparison.csv
+            output/v616_one_slot_scenarios.csv
+            output/v616_mobile.md
+          retention-days: 90
+          if-no-files-found: warn

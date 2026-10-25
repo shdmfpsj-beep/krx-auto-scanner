@@ -1,0 +1,115 @@
+name: v6.15 Experimental C3 research opportunities (NO orders)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v615-usable-entry-frontier-20261025
+    paths:
+      - '.github/workflows/entry_opportunities_v615_free.yml'
+      - 'scripts/entry_opportunities_v615.py'
+      - 'scripts/test_entry_opportunities_v615.py'
+      - 'scripts/entry_shadow_audit_v615.py'
+      - 'scripts/test_entry_shadow_audit_v615.py'
+      - 'scripts/entry_shadow_audit_v615.py'
+      - 'scripts/test_entry_shadow_audit_v615.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/entry_opportunities_v615_free.yml'
+      - 'scripts/entry_opportunities_v615.py'
+      - 'scripts/test_entry_opportunities_v615.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  retrospective-research-no-trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Prevent an optimistic BUY downgrade in the research branch
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/entry_opportunities_v615.py
+          python -m unittest discover -s scripts -p test_entry_opportunities_v615.py -v
+          python -m unittest discover -s scripts -p test_entry_shadow_audit_v615.py -v
+          python -m unittest discover -s scripts -p test_october_replay_v614.py -q
+      - name: Restore EXACT original Oct23 priced and investor flow archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v18 issuer output
+          for pair in "39948306433|.github/workflows/sector_evidence_v18.yml" "40165164433|.github/workflows/official_issuer_entry_v610_free.yml"; do
+            id="${pair%%|*}"
+            expected="${pair#*|}"
+            [[ "$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.path')" == "$expected" ]] || exit 1
+            [[ "$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.conclusion')" == "success" ]] || exit 1
+          done
+          gh run download 39948306433 -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          gh run download 40165164433 -R "$GH_REPO" -n free-v610-issuer-common-risk-first-research -D issuer
+          test -s v18/diagnostics/collection_status.json
+          test -s issuer/basic/krx_basic_v610_status.json
+      - name: Replay every Oct1–23 completed KRX session and report tier A/B/C
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u scripts/entry_opportunities_v615.py --v18 v18 --issuer issuer --outdir output
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          x=json.loads(Path("output/v615_status.json").read_text())
+          assert x["schema"]=="C3_CONDITIONAL_OPPORTUNITY_FRONTIER_V615"
+          assert x["sessions"]==15
+          assert x["orders_enabled"] is False and x["trade_approved"] is False
+          assert x["buy_authorizations"]==0
+          assert x["K100_new_candidates_allowed"] is False
+          with Path("output/v615_all_setups.csv").open(encoding="utf-8-sig") as f:
+              rows=list(csv.DictReader(f))
+          assert all(r["trade_approved"]=="False" and r["orders_enabled"]=="False" for r in rows)
+          print("V615_EXPERIMENT_DONE","A",x["total_A_signals"],"B",x["total_B_signals"],
+                "days_A_B",x["dates_with_A_or_B"],"orders",x["buy_authorizations"])
+          PY
+      - name: Audit next five sessions with no-fill and stop-first convention
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u scripts/entry_shadow_audit_v615.py \
+            --v18 v18 --status output/v615_status.json \
+            --signals output/v615_all_setups.csv --outdir output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("output/v615_shadow_five_session_status.json").read_text())
+          assert x["schema"]=="C3_V615_FIVE_SESSION_SHADOW_AUDIT"
+          assert x["A_count"]>=0 and x["B_count"]>=0
+          assert x["orders_enabled"] is False and x["trade_approved"] is False
+          assert x["profit_expectancy_proven"] is False
+          print("SHADOW_AUDIT_RESEARCH_ONLY",x["observation_counts"])
+          PY
+      - name: Publish clear evidence, including zero-case diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v615-conditional-opportunities-no-trades
+          path: |
+            output/v615_status.json
+            output/v615_daily.csv
+            output/v615_all_setups.csv
+            output/v615_top5_per_day.csv
+            output/v615_mobile.md
+            output/v615_shadow_five_session_status.json
+            output/v615_shadow_five_session_cases.csv
+            output/v615_shadow_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
