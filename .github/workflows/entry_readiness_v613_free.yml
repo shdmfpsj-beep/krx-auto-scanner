@@ -1,0 +1,189 @@
+name: Free v6.13 risk-first buy-readiness gap and optional second entry audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      v612_run:
+        description: 'Exact successful full KRX 100 to 20 to risk Top5 run'
+        type: string
+        required: false
+        default: '40168741669'
+  workflow_run:
+    workflows: ['Free v6.12 balanced Top20 full-market 5-session quality research']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/entry_readiness_v613_free.yml'
+      - 'scripts/entry_readiness_v613.py'
+      - 'scripts/test_entry_readiness_v613.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v613-asof-entry-evidence-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  dated-price-structural-stop-first-entry-no-buy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+      V612_RUN: ${{ github.event.workflow_run.id || inputs.v612_run || '40168741669' }}
+    steps:
+      - name: Fetch only read-only established historical methods and safety tests
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/rank_candidates.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/full_market_scanner_v68.py
+            /scripts/liquidity_watch_v68.py
+            /scripts/sector_flow_v69.py
+            /scripts/official_issuer_entry_v610.py
+            /scripts/dart_dated_evidence_v610.py
+            /scripts/broad_watch_v611.py
+            /scripts/top20_quality_v612.py
+            /scripts/entry_readiness_v613.py
+            /scripts/test_entry_readiness_v613.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Verify 1st limit can be independent from optional 2nd 0.5 percent cost
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_entry_readiness_v613.py -v
+
+      - name: Fetch proven Top20 SHA archive and exact last 120 bars ancestor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p top issuer v18 output
+          [[ "$V612_RUN" =~ ^[0-9]{8,14}$ ]] ||
+            { echo "V613_INVALID_EXACT_V612_PARENT"; exit 1; }
+          source="$(gh api "repos/$GH_REPO/actions/runs/$V612_RUN" --jq '.path')"
+          result="$(gh api "repos/$GH_REPO/actions/runs/$V612_RUN" --jq '.conclusion')"
+          [[ "$source" == '.github/workflows/top20_quality_v612_free.yml' && "$result" == success ]] ||
+            { echo "V613_WRONG_UPSTREAM_OR_NONFINAL"; exit 1; }
+          gh run download "$V612_RUN" -R "$GH_REPO" \
+            -n free-v612-balance-top20-asof-five-day-money-quality -D top
+          test -s top/top20_quality_v612_selected.csv
+          test -s top/top20_quality_v612_status.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          t=json.loads(Path('top/top20_quality_v612_status.json').read_text(encoding='utf-8'))
+          assert t['trade_approved'] is False and t['orders_enabled'] is False
+          assert t['top20_count']==20 and len(t['top5_risk_watch_only'])<=5
+          x=str(t.get('source_v610_run_id') or '')
+          y=str(t.get('source_v18_run_id') or '')
+          if not x and t['asof']=='2026-10-23':
+              x='40165164433'
+          if not y and t['asof']=='2026-10-23':
+              y='39948306433'
+          assert x.isdigit() and 8<=len(x)<=14
+          assert y.isdigit() and 8<=len(y)<=14
+          Path('issuer_parent_id.txt').write_text(x,encoding='utf-8')
+          Path('v18_parent_id.txt').write_text(y,encoding='utf-8')
+          print('V613_DATE_LOCKED_PARENT_V610_V18',t['asof'],x,y)
+          PY
+
+      - name: Retrieve exact market-wide source and official issuer evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          issuer_run="$(cat issuer_parent_id.txt)"
+          evidence_run="$(cat v18_parent_id.txt)"
+          name="$(gh api "repos/$GH_REPO/actions/runs/$issuer_run" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$issuer_run" --jq '.conclusion')"
+          [[ "$name" == '.github/workflows/official_issuer_entry_v610_free.yml' && "$conclusion" == success ]] ||
+            { echo "V613_ISSUER_BASIC_DATA_PROVENANCE_UNTRUSTED"; exit 1; }
+          gh run download "$issuer_run" -R "$GH_REPO" \
+            -n free-v610-issuer-common-risk-first-research -D issuer
+          name="$(gh api "repos/$GH_REPO/actions/runs/$evidence_run" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$evidence_run" --jq '.conclusion')"
+          [[ "$name" == '.github/workflows/sector_evidence_v18.yml' && "$conclusion" == success ]] ||
+            { echo "V613_V18_KRX_ORIGINAL_SOURCE_UNTRUSTED"; exit 1; }
+          gh run download "$evidence_run" -R "$GH_REPO" \
+            -n sector-evidence-v18-report -D v18
+          test -s issuer/issuer_entry_v610_status.json
+          test -s v18/diagnostics/collection_status.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          t=json.loads(Path('top/top20_quality_v612_status.json').read_text())
+          i=json.loads(Path('issuer/issuer_entry_v610_status.json').read_text())
+          v=json.loads(Path('v18/diagnostics/collection_status.json').read_text())
+          assert t['asof']==i['asof']==v['asof']
+          assert t['source_original_market_SHA256']==i['v68_market_sha256']
+          assert t['source_original_fi_flow_SHA256']==i['v69_flow_sha256']
+          assert t['regular_1530_verified'] is False
+          assert i['exact_regular_1530_prices_verified'] is False
+          print('V613_IDENTICAL_DATED_SOURCE_FROZEN',t['asof'])
+          PY
+
+      - name: Evaluate all Top20 3 entry methods vs structural stop and true first 2R
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/entry_readiness_v613.py \
+            --top top --issuer issuer --v18 v18 --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          from forward_ledger_v63 import digest
+          s=json.loads(Path('output/entry_readiness_v613_status.json').read_text(encoding='utf-8'))
+          assert s['schema']=='C3_K100_FIRST_ENTRY_INDEPENDENT_READINESS_V613'
+          assert s['asof_top20_count']==20
+          assert s['method_evaluations']==60
+          assert s['verified_1530_session'] is False
+          assert s['verified_historic_financials'] is False
+          assert s['verified_80point_buy_score'] is False
+          assert s['current_account_capital_verified'] is False
+          assert s['five_session_forward_results_observed']==0
+          assert s['trade_approved'] is False and s['orders_enabled'] is False
+          assert s['decision']=='CASH'
+          with Path('output/entry_readiness_v613_all.csv').open(
+              encoding='utf-8-sig',newline='') as f:
+              allrows=list(csv.DictReader(f))
+          with Path('output/entry_readiness_v613_methods.csv').open(
+              encoding='utf-8-sig',newline='') as f:
+              methods=list(csv.DictReader(f))
+          assert len(allrows)==20 and len(methods)==60
+          assert all(r['trade_approved']=='False' and
+              r['account_cash_verified']=='False' for r in allrows)
+          assert all(r['research_only_no_buy']=='True'
+              and r['trade_approved']=='False' for r in methods)
+          for fn,sha in s['artifact_file_sha256'].items():
+              assert digest(Path('output',fn).read_bytes())==sha
+          print('V613_REAL_READINESS_COUNT',s['asof'],
+                'technical_triggers',s['confirmed_technical_method_count'],
+                'first_only_or_first_2R',s['confirmed_first_cost_2r_reference_method_count'],
+                'second_optional_count',s['optional_second_2r_reference_method_count'],
+                'CASH')
+          PY
+
+      - name: Upload visible blockers, conditional 20-row monitoring and 60-entry diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v613-first-entry-risk-readiness-not-buy
+          path: |
+            output/entry_readiness_v613_all.csv
+            output/entry_readiness_v613_methods.csv
+            output/entry_readiness_v613_status.json
+            output/entry_readiness_v613_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
