@@ -38,7 +38,7 @@ class FusionTests(unittest.TestCase):
         self.assertFalse(r["domestic_source_same_expected_date"])
         self.assertEqual(r["recommendation"],"CASH_DOMESTIC_SOURCE_PENDING")
     def test_missing_global_never_cash_to_buy(self):
-        r=fuse(macro("GLOBAL_DATA_INCOMPLETE_RESEARCH_ONLY",None),dom(),watch(),now())
+        r=fuse(macro("GLOBAL_DATA_INCOMPLETE_RESEARCH_ONLY",None),dom(risk="GREEN_RESEARCH_ONLY"),watch(),now())
         self.assertEqual(r["recommendation"],"CASH_GLOBAL_SOURCE_PENDING")
         self.assertFalse(r["trade_approved"])
     def test_market_green_and_global_supportive_still_need_final_gates(self):
@@ -48,7 +48,7 @@ class FusionTests(unittest.TestCase):
         self.assertFalse(r["fee_adjusted_two_R_verified"])
         self.assertEqual(r["schema"],SCHEMA)
     def test_no_future_macro_or_false_order_input(self):
-        r=fuse(macro(day="2026-10-26"),dom(),watch(),now())
+        r=fuse(macro(day="2026-10-26"),dom(risk="GREEN_RESEARCH_ONLY"),watch(),now())
         self.assertEqual(r["recommendation"],"CASH_GLOBAL_SOURCE_PENDING")
         bad=macro();bad["trade_approved"]=True
         with self.assertRaisesRegex(ValueError,"NO_TRADE"):
