@@ -148,11 +148,21 @@ def calculate(v18,issuer):
                 t=z["ticker"]
                 if t in market:raise ValueError("V615_DUPLICATE_MARKET_TICKER")
                 market[t]=(mk,z)
+        # Exclude health/pharma by date-stamped ETF membership as well as names.
+        # A retrospective ETF snapshot is an exclusion hint, never proof
+        # of historical sector membership or future returns.
+        health_codes=set()
+        for sector_row in sectors[day]:
+            if sector_row["sector_id"]!="HEALTH":continue
+            snap=sector_row["snapshot_date"]
+            if (snap<=day and
+                (date.fromisoformat(day)-date.fromisoformat(snap)).days<=10):
+                health_codes.update(members.get(("HEALTH",snap),set()))
         clean=[];watched=0
         for t,(mk,rawday) in sorted(market.items()):
             info=basic.get(t)
             if not is_common(info) or info["market"]!=mk:continue
-            if blocked_issuer(info["name"],False):continue
+            if blocked_issuer(info["name"],t in health_codes):continue
             hist=history(t)
             if len(hist)<120:continue
             truncated=[x for x in hist if x["Date"]<=day]
