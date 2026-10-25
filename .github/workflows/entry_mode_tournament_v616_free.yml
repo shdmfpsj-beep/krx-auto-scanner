@@ -8,6 +8,8 @@ on:
       - '.github/workflows/entry_mode_tournament_v616_free.yml'
       - 'scripts/entry_mode_tournament_v616.py'
       - 'scripts/test_entry_mode_tournament_v616.py'
+      - 'scripts/profitability_attribution_v620.py'
+      - 'scripts/test_profitability_attribution_v620.py'
 
   pull_request:
     branches: [main]
@@ -15,6 +17,8 @@ on:
       - '.github/workflows/entry_mode_tournament_v616_free.yml'
       - 'scripts/entry_mode_tournament_v616.py'
       - 'scripts/test_entry_mode_tournament_v616.py'
+      - 'scripts/profitability_attribution_v620.py'
+      - 'scripts/test_profitability_attribution_v620.py'
 
 permissions:
   contents: read
@@ -40,6 +44,7 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/entry_mode_tournament_v616.py
           python -m unittest discover -s scripts -p test_entry_mode_tournament_v616.py -v
+          python -m unittest discover -s scripts -p test_profitability_attribution_v620.py -v
           python -m unittest discover -s scripts -p test_entry_opportunities_v615.py -q
           python -m unittest discover -s scripts -p test_entry_shadow_audit_v615.py -q
           python -m unittest discover -s scripts -p test_october_replay_v614.py -q
@@ -80,6 +85,43 @@ jobs:
           assert all(r['approved_live_buys']=='0' for r in rows)
           print('V616_FIVE_MODES_FROZEN_REPLAY_OK',x['study_candidates'],flush=True)
           PY
+      - name: Reuse v6.16 frozen results and run v6.20 attribution on v6.17 market labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v617 profit
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/40174980454" --jq '.conclusion')" == success ]] || exit 1
+          gh run download 40174980454 -R "$GH_REPO" \
+            -n c3-v617-market-regime-five-mode-risk-gate -D v617
+          python -u scripts/profitability_attribution_v620.py \
+            --v18 v18 --v615-status input/v615_status.json \
+            --v615-signals input/v615_all_setups.csv \
+            --v616-status output/v616_status.json \
+            --v616-cases output/v616_all_entry_modes.csv \
+            --v617-status v617/v617_status.json \
+            --v617-risk v617/v617_risk_days.csv \
+            --outdir profit
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('profit/v620_status.json').read_text())
+          assert x['case_count']==315 and x['comparison_count']==55
+          assert x['trade_approved'] is False and x['orders_enabled'] is False
+          assert x['profit_proven'] is False
+          print('V620_FROZEN_BASELINE_AUDIT_OK',x['comparison_count'])
+          PY
+      - name: Publish v6.20 market, stop, entry cause comparisons without orders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v620-profit-attribution-from-v616-replay
+          path: |
+            profit/v620_status.json
+            profit/v620_trade_attribution.csv
+            profit/v620_predeclared_cohorts.csv
+            profit/v620_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
       - name: Publish C3 mode-by-mode trade study without orders
         if: always()
         uses: actions/upload-artifact@v4
