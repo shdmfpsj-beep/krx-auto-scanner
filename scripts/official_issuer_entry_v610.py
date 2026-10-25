@@ -326,6 +326,7 @@ def calculate(scan,v69,basefolder):
         v68_market_sha256=v["market_v18_daily_source_sha256"],
         v69_flow_sha256=s["flow_source_sha256"],
         v68_source_run_id=v.get("source_v18_github_run_id",""),
+        v69_source_github_run_id=os.environ.get("V69_RUN",""),
         basic_api_error=bmeta["error"],
         official_basic_api_usable=bool(bmeta["official_base_usable"]),
         official_basic_market_rows=sum(bmeta["market_counts"].values()),
