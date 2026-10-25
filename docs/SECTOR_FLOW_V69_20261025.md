@@ -4,6 +4,7 @@
 
 ## 1. 실제 개발 완료
 
+- **[v6.8 성공 이후 v6.9 자동 후속 실행까지 실제 성공 #40163161571](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40163161571)**: 10/10 테스트 통과, v6.8 실행번호 #40163120843의 manifest에서 실제 원본 Sector Evidence v18 run #39948306433을 되찾아 10/23 날짜·시장전체 가격 SHA 교차검증. 동일하게 강세 연구 섹터 2개/콘텐츠 관찰/삼성E&A 1종목 연구결과, CASH.
 - [GitHub v6.9 실데이터 분석 성공 #40163002010](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40163002010): 10/10 오프라인 안전 테스트 통과. 저장된 KRX/PyKrx 원본에서 **2026-10-19,20,21,22,23 정확히 5개 시장일**의 외국인·기관합계 순매수를 재계산하고 **17개 ETF 구성종목 기반 대용 섹터**를 대조.
 - [v6.8 전체시장 2,764코드 / 기술 후보 52종목 / C3 유동성 17종목](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40160970463): 해당 날짜의 공식 KRX 일봉을 확인한 데이터. 기존 82개 복구스캔 후보에서 출발하지 않음.
 - 구현 파일: scripts/sector_flow_v69.py, scripts/test_sector_flow_v69.py, .github/workflows/sector_flow_v69_free.yml.
