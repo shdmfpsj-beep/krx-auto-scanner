@@ -7,7 +7,7 @@ on:
         description: 'Exact successful full KRX 100 to 20 to risk Top5 run'
         type: string
         required: false
-        default: '40168741669'
+        default: '40169609127'
   workflow_run:
     workflows: ['Free v6.12 balanced Top20 full-market 5-session quality research']
     types: [completed]
@@ -35,7 +35,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PYTHONPATH: scripts
-      V612_RUN: ${{ github.event.workflow_run.id || inputs.v612_run || '40168741669' }}
+      V612_RUN: ${{ github.event.workflow_run.id || inputs.v612_run || '40169609127' }}
     steps:
       - name: Fetch only read-only established historical methods and safety tests
         uses: actions/checkout@v4
@@ -45,6 +45,7 @@ jobs:
             /scripts/free_structural_v52.py
             /scripts/first_pullback_v55.py
             /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
             /scripts/forward_ledger_v63.py
             /scripts/source_consensus_v64.py
             /scripts/krx_official_eod_v65.py
