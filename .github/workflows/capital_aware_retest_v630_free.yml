@@ -1,0 +1,33 @@
+name: C3 v6.30 research capital gate tests (NO orders)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'scripts/capital_aware_retest_v630.py'
+      - 'scripts/test_capital_aware_retest_v630.py'
+      - '.github/workflows/capital_aware_retest_v630_free.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/capital_aware_retest_v630.py'
+      - 'scripts/test_capital_aware_retest_v630.py'
+      - '.github/workflows/capital_aware_retest_v630_free.yml'
+permissions:
+  contents: read
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test cash capacity with broker orders disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/capital_aware_retest_v630.py
+          python -m unittest discover -s scripts -p test_capital_aware_retest_v630.py -v
