@@ -12,7 +12,7 @@ classification and 80-point entry approval are NOT independently verified.
 Never place an order or silently promote 3rd weak sector into 3rd strong.
 """
 from __future__ import annotations
-import argparse,csv,json,math,re
+import argparse,csv,json,math,os,re
 from collections import Counter,defaultdict
 from datetime import date,datetime,timezone
 from pathlib import Path
@@ -340,6 +340,7 @@ def evaluate(v18,scan):
         v68_market_sha256=v["market_v18_daily_source_sha256"],
         v68_official_response_sha256=v["official_market_source_response_sha256"],
         v68_candidate_count=v["histories_screened"],
+        v68_github_run_id=os.environ.get("V68_RUN",""),
         v681_count=calc_status["candidates_observed"],
         total_proxy_sectors=len(all_sectors),
         strict_strong_proxy_sector_count=len(stricts),
