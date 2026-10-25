@@ -1,0 +1,135 @@
+name: Free v6.4 source quarantine gate for immutable 1st/2nd alternatives
+
+on:
+  workflow_dispatch:
+    inputs:
+      freeze_run:
+        description: 'Exact v6.3 frozen-plan run'
+        required: false
+        type: string
+        default: '40144815020'
+      consensus_run:
+        description: 'Exact v6.4 same-session source audit run'
+        required: false
+        type: string
+        default: '40151275009'
+      forward_run:
+        description: 'Exact v6.3 future-watch run'
+        required: false
+        type: string
+        default: '40145258020'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/forward_source_gate_v64_free.yml'
+      - 'scripts/forward_source_gate_v64.py'
+      - 'scripts/test_forward_source_gate_v64.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v64-readonly-gate-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  immutable-and-audited-forward-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      FREEZE_RUN: ${{ inputs.freeze_run || '40144815020' }}
+      CONSENSUS_RUN: ${{ inputs.consensus_run || '40151275009' }}
+      FORWARD_RUN: ${{ inputs.forward_run || '40145258020' }}
+    steps:
+      - name: Sparse checkout only verified zero-order code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/forward_source_gate_v64.py
+            /scripts/test_forward_source_gate_v64.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Test no fake profits on both matching and mismatched as-of sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_forward_source_gate_v64.py -v
+
+      - name: Fetch completed audited sources with exact original run IDs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p freeze source forward output
+          for spec in "$FREEZE_RUN:.github/workflows/forward_freeze_v63.yml" \
+            "$CONSENSUS_RUN:.github/workflows/source_consensus_v64_free.yml" \
+            "$FORWARD_RUN:.github/workflows/forward_watch_v63.yml"; do
+            runid="${spec%%:*}"; expected="${spec#*:}"
+            [[ "$runid" =~ ^[0-9]{8,14}$ ]] || { echo 'SOURCE_ID_INVALID'; exit 1; }
+            path="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.path')"
+            conclusion="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.conclusion')"
+            [[ "$path" == "$expected" && "$conclusion" == 'success' ]] ||
+              { echo "V64_UPSTREAM_WORKFLOW_OR_CONCLUSION_INVALID $runid"; exit 1; }
+          done
+          gh run download "$FREEZE_RUN" -R "$GH_REPO" -n free-v63-date-frozen-forward-seed -D freeze
+          gh run download "$CONSENSUS_RUN" -R "$GH_REPO" -n free-v64-asof-source-close-discrepancy -D source
+          gh run download "$FORWARD_RUN" -R "$GH_REPO" -n free-v63-multi-asof-7day-forward-observation -D forward
+          test -s freeze/frozen_v63_manifest.json
+          test -s freeze/frozen_v63_signals.json
+          test -s source/source_consensus_v64_status.json
+          test -s source/source_consensus_v64_all.csv
+          asof="$(python -c "import json;print(json.load(open('freeze/frozen_v63_manifest.json'))['asof'])")"
+          test -s "forward/$asof/forward_v63_status.json"
+          test -s "forward/$asof/forward_v63_all.csv"
+
+      - name: Date-lock all 34 alternatives and quarantine unproven prices
+        shell: bash
+        run: |
+          set -euo pipefail
+          asof="$(python -c "import json;print(json.load(open('freeze/frozen_v63_manifest.json'))['asof'])")"
+          python scripts/forward_source_gate_v64.py --freeze freeze \
+             --source-audit source --forward "forward/$asof" --outdir output
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          r=json.loads(Path('output/forward_source_gate_v64_status.json').read_text(encoding='utf-8'))
+          assert r['asof']=='2026-10-23'
+          assert r['frozen_alternative_count']==34
+          assert r['frozen_distinct_tickers']==16
+          assert r['asof_source_conflict_or_invalid_variants']==24
+          assert r['asof_source_concordant_but_uncertified_variants']==10
+          assert r['official_regular_session_price_certified'] is False
+          assert r['outcome_performance_published'] is False
+          assert r['decision']=='CASH' and r['trade_approved'] is False
+          with Path('output/forward_source_gate_v64_all.csv').open(encoding='utf-8-sig',newline='') as f:
+            rows=list(csv.DictReader(f))
+          assert len(rows)==34
+          assert all(x['net_return_pct']=='' for x in rows)
+          assert all(x['trade_approved']=='False' for x in rows)
+          assert all(x['orders_enabled']=='False' for x in rows)
+          print('V64_FROZEN_34_24_SOURCE_QUARANTINE_10_UNCERTIFIED',r['asof'],
+                r['asof_source_conflict_or_invalid_variants'],
+                r['asof_source_concordant_but_uncertified_variants'])
+          PY
+
+      - name: Upload audited mobile veto and complete original prices
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v64-forward-risk-gate-20261023
+          path: |
+            output/forward_source_gate_v64_status.json
+            output/forward_source_gate_v64_all.csv
+            output/forward_source_gate_v64_mobile.md
+          if-no-files-found: warn
+          retention-days: 90
