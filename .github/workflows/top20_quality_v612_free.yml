@@ -105,6 +105,7 @@ jobs:
         run: |
           set -euo pipefail
           issuer="$(cat issuer_parent.txt)"
+          echo "SOURCE_V610_RUN_ID=$issuer" >> "$GITHUB_ENV"
           name="$(gh api "repos/$GH_REPO/actions/runs/$issuer" --jq '.path')"
           result="$(gh api "repos/$GH_REPO/actions/runs/$issuer" --jq '.conclusion')"
           [[ "$name" == '.github/workflows/official_issuer_entry_v610_free.yml' && "$result" == success ]] ||
