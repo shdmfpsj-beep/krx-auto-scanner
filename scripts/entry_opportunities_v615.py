@@ -102,13 +102,15 @@ def inspect(b,m,asof,code,name,market,fi5,rank=0):
         clean_breakout=(method=="FRESH_20D_BREAKOUT" and
              c>max(z["high"] for z in b[-61:-1]))
         plausible=(risk is not None and 1.5<=risk<=10
-                   and distance<=.8 and
+                   and distance<=1.25 and
                    m["return_20d_pct"]<=30 and
                    m["distance_from_sma20_pct"]<=15 and
                    m["atr14_pct"]<=10)
         if plausible and rr is not None and rr>=1.5:
             stage="A_CONDITIONAL_GEOMETRY_1P5R_RESEARCH"
-        elif plausible and clean_breakout and ceiling is None:
+        elif (risk is not None and 1.5<=risk<=12 and distance<=1.0
+              and m["return_20d_pct"]<=30 and m["atr14_pct"]<=12
+              and clean_breakout and ceiling is None):
             stage="B_PRICE_DISCOVERY_NO_PROVEN_TARGET_WATCH"
         else:
             stage="C_SIGNAL_NOT_READY_RISK_OR_HEADROOM"
@@ -208,7 +210,7 @@ def calculate(v18,issuer):
             with_next.append(e)
         shortlisted=[];seen=set()
         for e in with_next:
-            if e["classification"].startswith("C_") or e["ticker"] in seen:continue
+            if e["ticker"] in seen:continue
             if len(shortlisted)==5:break
             shortlisted.append(e);seen.add(e["ticker"])
         top5.extend(shortlisted);events.extend(with_next)
@@ -236,7 +238,7 @@ def calculate(v18,issuer):
        C3_new_candidates_only=True,K100_new_candidates_allowed=False,
        reviewed_flow_positive_stocks=sum(d["market_liquid_valid_flow_positive"] for d in daily),
        dates_with_A=sum(d["geometry_1p5R_candidates"]>0 for d in daily),
-       dates_with_A_or_B=sum(d["top5_research_candidates"]>0 for d in daily),
+       dates_with_A_or_B=sum((d["geometry_1p5R_candidates"]+d["open_air_breakout_watches"])>0 for d in daily),
        total_A_signals=sum(d["geometry_1p5R_candidates"] for d in daily),
        total_B_signals=sum(d["open_air_breakout_watches"] for d in daily),
        unique_event_count=len(events),top5_event_count=len(top5),
@@ -257,15 +259,15 @@ def save(out,meta,daily,events,top5):
     (out/"v615_status.json").write_text(json.dumps(meta,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     lines=["# C3 v6.15 — 실전 매수보다 한 단계 앞선 조건부 연구후보","",
        "2026-10-01~23 완료 15거래일. 10/23 기준 수집 자료를 과거에 적용한 연구로 독립 PIT/정규장 종가 재검증이 없습니다.",
-       "**A: 구조손절+비용 후 1.5R 이상 가상 타점, 2R 실전승인 아님.**",
-       "**B: 윗저항 미검증 돌파 관찰, 2R 수익기대 검증 안 됨.**",
-       "**C: 신호만 관찰, 손익비/구조 탈락.**",
+       "**A: 피벗 구조손절+비용 후 1.5R 이상이며 종가 대비 최대 1.25 ATR 이내의 대기 지정가 연구. 2R 실전승인 아님.**",
+       "**B: 피벗 구조손절 최대 12% 및 윗저항 미검증 돌파 관찰. 2R 기대수익 검증 안 됨.**",
+       "**C: 신호만 관찰. 조건부 대기조차 불가; 매수 승인 아님.**",
        "**실제 매수승인 0건, 주문 0건.**", "",
        "| 일자 | 수급통과 | 패턴 종목 | A연구 | B관찰 | 연구 Top5 | 다음날 가격접촉(체결아님) |",
        "|---|---:|---:|---:|---:|---:|---:|"]
     for d in daily:
         lines.append("| {asof} | {market_liquid_valid_flow_positive} | {setup_stocks} | {geometry_1p5R_candidates} | {open_air_breakout_watches} | {top5_research_candidates} | {next_session_study_limit_touches} |".format(**d))
-    lines.extend(["","## 10/23 시점 연구 예비 상위후보 (10/26 실제 시세가 아님)","",
+    lines.extend(["","## 10/23 시점 기술 감시 Top5 (A/B 없으면 C도 표기; 10/26 매수 지시가 아님)","",
        "| 종목 | 패턴 | 단계 | 1차 참고가 | 일봉 구조손절 | 1.5R 저항 검증 |",
        "|---|---|---|---:|---:|---|"])
     for e in [x for x in top5 if x["asof"]=="2026-10-23"]:
@@ -273,7 +275,7 @@ def save(out,meta,daily,events,top5):
             e["name"],e["ticker"],e["method"],e["classification"],
             e["first_limit_study"],e["structure_stop_study"],
             e["net_R_to_ceiling"] if e["net_R_to_ceiling"]!="" else "저항 미확인"))
-    lines+=["","**다음 검증:** 각 신호 이후 5거래일의 미체결/갭/손절/목표 성과, 독립 정규장-only 가격, 과거 주식종류·공시 PIT, 별도 최종 80점, 실제 계좌. 비교평가에서 손익 열위이면 1.5R 실거래 채택 금지."]
+    lines+=["","**다음 검증:** 각 신호 이후 5거래일의 미체결/갭/손절/목표 성과, 독립 정규장-only 가격, 과거 주식종류·공시 PIT, 별도 최종 80점, 실제 계좌. A/B/C는 모두 연구단계이며, 수익 검증이 없으므로 1.5R을 실제 매수 허용선으로 바꾸지 않음."]
     (out/"v615_mobile.md").write_text("\n".join(lines)+"\n",encoding="utf-8")
 
 def main():
