@@ -1,0 +1,138 @@
+name: Free v6.5 optional KRX official EOD vs two unverified daily sources
+
+on:
+  workflow_dispatch:
+    inputs:
+      v64_source_run_id:
+        description: "Successful v6.4 daily run ID containing exact dated comparison"
+        required: false
+        type: string
+        default: '40151559797'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/krx_official_eod_v65_daily.yml'
+      - 'scripts/krx_official_eod_v65.py'
+      - 'scripts/test_krx_official_eod_v65.py'
+  schedule:
+    # Weekdays 08:45 KST: official daily EOD may publish after the close.
+    - cron: '45 23 * * 0-4'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: free-krx-official-v65-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  official-krx-eod-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      # Empty until the user obtains an approved KRX data API key and sets
+      # repository Actions secret KRX_AUTH_KEY. Never log the secret.
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+    steps:
+      - name: Sparse checkout audited price comparison code only
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/test_krx_official_eod_v65.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Compile and test official EOD contract without secret or Internet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_krx_official_eod_v65.py -v
+
+      - name: Download exact dated successful 2026 v6.4 source comparison
+        shell: bash
+        env:
+          SOURCE_INPUT: ${{ inputs.v64_source_run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p source output
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            runid="$(gh api "repos/$GH_REPO/actions/workflows/source_provenance_v64_daily.yml/runs?per_page=10" \
+                --jq '[.workflow_runs[] | select(.conclusion == "success") | .id][0]')"
+          else
+            runid="${SOURCE_INPUT:-40151559797}"
+          fi
+          [[ "$runid" =~ ^[0-9]{8,14}$ ]] || { echo "V64_SOURCE_RUN_NOT_AVAILABLE"; exit 1; }
+          path="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.path')"
+          outcome="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.conclusion')"
+          [[ "$path" == ".github/workflows/source_provenance_v64_daily.yml" && "$outcome" == "success" ]] ||
+            { echo "V64_SOURCE_WORKFLOW_OR_STATUS_UNVERIFIED"; exit 1; }
+          gh run download "$runid" -R "$GH_REPO" -n free-v64-daily-source-audit-and-forward-gate -D source
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import date
+          matches=[]
+          for p in Path('source').glob('*/consensus/source_consensus_v64_status.json'):
+              q=json.loads(p.read_text(encoding='utf-8'))
+              day=q.get('asof')
+              assert date.fromisoformat(day).isoformat()==p.parent.parent.name==day
+              assert q['trade_approved'] is False and q['orders_enabled'] is False
+              assert q['kst_regular_session_0900_1530_independently_certified'] is False
+              assert (p.parent/'source_consensus_v64_all.csv').is_file()
+              matches.append(day)
+          if not matches:
+              raise SystemExit('NO_DATED_V64_SOURCE_DATA_YET')
+          latest=max(matches)
+          Path('official_asof.txt').write_text(latest,encoding='utf-8')
+          print('V65_SOURCE_ASOF_LOCKED',latest)
+          PY
+
+      - name: Collect optional official KOSPI and KOSDAQ daily API then compare
+        shell: bash
+        run: |
+          set -euo pipefail
+          day="$(cat official_asof.txt)"
+          python scripts/krx_official_eod_v65.py \
+            --asof "$day" --v64 "source/$day/consensus" \
+            --outdir "output/$day" --collect
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          files=list(Path('output').glob('*/krx_v65_source_comparison_status.json'))
+          assert len(files)==1
+          q=json.loads(files[0].read_text(encoding='utf-8'))
+          assert q['candidates_evaluated']>0
+          assert q['authenticated_eod_is_not_proven_regular_1530'] is True
+          assert q['official_1530_close_eligible_for_signal'] is False
+          assert q['trade_approved'] is False and q['orders_enabled'] is False
+          assert q['decision']=='CASH'
+          with (files[0].parent/'krx_v65_source_comparison_all.csv').open(
+              encoding='utf-8-sig',newline='') as f:
+              r=list(csv.DictReader(f))
+          assert len(r)==q['candidates_evaluated']
+          assert all(x['krx_1530_regular_session_certified']=='False' for x in r)
+          assert all(x['source_price_ready_for_trading']=='False' for x in r)
+          assert all(x['trade_approved']=='False' for x in r)
+          print('V65_OFFICIAL_EOD_VERIFICATION_COMPLETE',
+                q['asof'],q['official_source_status'],q['candidates_evaluated'])
+          PY
+
+      - name: Retain separate official response hashes and unapproved mobile report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v65-official-eod-vs-v64-regular-session-uncertain
+          path: output/
+          retention-days: 90
+          if-no-files-found: warn
