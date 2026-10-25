@@ -97,7 +97,7 @@ def load_verified(v616status,v616cases,v615status,v615signals,v617status,v617day
     if len(risk_by_date)!=15:raise ValueError("V620_INCOMPLETE_DOMESTIC_RISK")
     return study,bykey,risk_by_date
 
-def strict_reference(c,stock,etf_by_date):
+def strict_reference(c,stock,etf_by_date,signal_atr):
     """Re-evaluate old touch as a standing next-session order with no chase.
 
     v6.16 single-bar stop-first outcome preserved *only* when strict contact.
@@ -134,9 +134,9 @@ def strict_reference(c,stock,etf_by_date):
         plan={"proposed_limit_krw":entry,"day_structure_stop_krw":stop}
         # Keep original study-limit float precision to compare exact parent
         # assumptions. v6.19 tick rounding must happen before any real order.
-        label=next_session_touch(plan,close,
-            max(num(c["distance_below_close_atr"]) or 0, .01) and
-            _infer_atr(c,close,entry),
+        if signal_atr is None or signal_atr<=0:
+            raise ValueError("V620_MISSING_ORIGINAL_ASOF_ATR")
+        label=next_session_touch(plan,close,signal_atr,
             float(nextday["Open"]),float(nextday["High"]),float(nextday["Low"]))
     out["strict_contact_status"]=label
     if label not in ("STUDY_PRICE_CONTACT_NOT_BROKER_FILL",
@@ -164,16 +164,6 @@ def strict_reference(c,stock,etf_by_date):
                 out["market_relative_proxy_net_pp"]=round(
                    float(out["strict_shadow_net_pct_0p65_cost"])-market,3)
     return out
-
-def _infer_atr(c,close,entry):
-    # v6.16 only stored distance in ATR, rounded to .001;
-    # reconstructing from rounded distance would magnify 0-distance errors.
-    # Caller is required to use v6.15 original ATR source instead.
-    raise ValueError("V620_REQUIRE_ORIGINAL_ATR_NOT_RECONSTRUCTION")
-
-def strict_with_original_atr(c,signal,stock,etf):
-    out=strict_reference.__wrapped__(c,stock,etf) if hasattr(strict_reference,"__wrapped__") else None
-    raise NotImplementedError("OVERRIDE")
 
 def qualifies(c,cohort):
     if cohort=="ALL":return True
