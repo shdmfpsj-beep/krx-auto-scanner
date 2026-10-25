@@ -1,0 +1,188 @@
+name: Free v6.7 120-session same-source candidate history replay
+
+on:
+  workflow_dispatch:
+    inputs:
+      v18_run:
+        description: 'Exact market-wide historic daily source v18 run'
+        required: false
+        default: '39948306433'
+        type: string
+      official_run:
+        description: 'Exact KRX official API 10/23 successful collection'
+        required: false
+        default: '40156628275'
+        type: string
+      recovery_run:
+        description: 'Exact 10/23 legacy per-ticker recovery'
+        required: false
+        default: '39923708922'
+        type: string
+      v58_run:
+        description: 'Exact immutable 3-entry method baseline'
+        required: false
+        default: '40095818288'
+        type: string
+      freeze_run:
+        description: 'Exact SHA-frozen alternative references'
+        required: false
+        default: '40144815020'
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/unified_market_history_v67_free.yml'
+      - 'scripts/unified_market_history_v67.py'
+      - 'scripts/test_unified_market_history_v67.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: free-v67-uniform-history-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  full-history-source-sensitivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      V18_RUN: ${{ inputs.v18_run || '39948306433' }}
+      V65_RUN: ${{ inputs.official_run || '40156628275' }}
+      RECOVERY_RUN: ${{ inputs.recovery_run || '39923708922' }}
+      V58_RUN: ${{ inputs.v58_run || '40095818288' }}
+      FREEZE_RUN: ${{ inputs.freeze_run || '40144815020' }}
+      ASOF: '2026-10-23'
+    steps:
+      - name: Checkout only required no-order signal and historic data guards
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/recovery_price_rootcause_v66.py
+            /scripts/test_recovery_price_rootcause_v66.py
+            /scripts/unified_market_history_v67.py
+            /scripts/test_unified_market_history_v67.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Offline time-lock, full-history and source-integrity regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p 'test_unified_market_history_v67.py' -v
+
+      - name: Download five strict successful dated archives, including 55MB v18 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery v58 freeze v18 official output
+          for pair in "$V18_RUN:.github/workflows/sector_evidence_v18.yml" \
+                      "$V65_RUN:.github/workflows/krx_official_eod_v65_daily.yml" \
+                      "$RECOVERY_RUN:.github/workflows/krx_recovery_scan.yml" \
+                      "$V58_RUN:.github/workflows/entry_strategy_v58_daily.yml" \
+                      "$FREEZE_RUN:.github/workflows/forward_freeze_v63.yml"; do
+            runid="${pair%%:*}"
+            expected="${pair#*:}"
+            [[ "$runid" =~ ^[0-9]{8,14}$ ]] || { echo "INVALID_SOURCE_RUN_ID"; exit 1; }
+            path="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.path')"
+            outcome="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.conclusion')"
+            [[ "$path" == "$expected" && "$outcome" == success ]] ||
+              { echo "ARCHIVE_PROVENANCE_NOT_VERIFIED"; exit 1; }
+          done
+          gh run download "$V18_RUN" -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          gh run download "$V65_RUN" -R "$GH_REPO" \
+              -n free-v65-official-eod-vs-v64-regular-session-uncertain -D official
+          gh run download "$RECOVERY_RUN" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          gh run download "$V58_RUN" -R "$GH_REPO" \
+              -n free-v58-daily-entry-research -D v58
+          gh run download "$FREEZE_RUN" -R "$GH_REPO" \
+              -n free-v63-date-frozen-forward-seed -D freeze
+          test -s v18/diagnostics/collection_status.json
+          test -s v18/market/prices/011200.csv
+          test -s official/$ASOF/official/krx_v65_collect_status.json
+          test -s official/$ASOF/official/KOSPI_official.csv
+          test -s official/$ASOF/official/KOSDAQ_official.csv
+          test -s recovery/candidate_daily_history_v52.csv
+          test -s recovery/candidates.csv
+          test -s v58/output/entry_strategy_v58_all.csv
+          test -s freeze/frozen_v63_manifest.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          day=os.environ['ASOF']
+          a=json.loads(Path('v18/diagnostics/collection_status.json').read_text(encoding='utf-8'))
+          b=json.loads(Path('official/'+day+'/official/krx_v65_collect_status.json').read_text(encoding='utf-8'))
+          c=json.loads(Path('freeze/frozen_v63_manifest.json').read_text(encoding='utf-8'))
+          assert a['asof']==b['asof']==c['asof']==day
+          assert a['datasets']['prices']['status']=='OK'
+          assert a['orders_enabled'] is False
+          assert b['official_dataset_usable'] is True
+          assert b['independent_1530_regular_session_certified'] is False
+          assert c['source_run_ids']['recovery_run_id']==os.environ['RECOVERY_RUN']
+          assert c['source_run_ids']['v58_run_id']==os.environ['V58_RUN']
+          print('V67_ARCHIVE_AND_COMPLETE_UNIFIED_DAY_VERIFIED',day)
+          PY
+
+      - name: Rebuild 82 entire 120-bar histories and compare 246 original setups
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/unified_market_history_v67.py \
+            --recovery recovery --v58 v58/output --freeze freeze \
+            --v18 v18 --official official/$ASOF/official --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          s=json.loads(Path('output/uniform_history_v67_status.json').read_text(encoding='utf-8'))
+          assert s['asof']=='2026-10-23'
+          assert s['selected_recovery_tickers']==82
+          assert s['aligned_tickers']==82
+          assert s['market_history_session_days_per_ticker']==120
+          assert s['official_krx_eod_count']==2764
+          assert s['full_120_session_valid_stock_count']==70
+          assert s['full_120_session_invalid_stock_count']==12
+          assert s['tickers_with_any_120day_field_difference']==78
+          assert s['historic_daily_ohlcv_mismatched_rows']=={
+            'open':599,'high':1119,'low':913,'close':2099,'volume':536}
+          assert s['newest_day_v18_official_ohlcv_all_82_match'] is True
+          assert s['analysis_method_rows']==246
+          assert s['original_technical_trigger_count']==17
+          assert s['old_method_replay_matches_archive'] is True
+          assert s['official_daily_api_regular_1530_certified'] is False
+          assert s['trade_approved'] is False and s['orders_enabled'] is False
+          assert s['decision']=='CASH'
+          with Path('output/uniform_history_v67_all.csv').open(
+              encoding='utf-8-sig',newline='') as f:
+            r=list(csv.DictReader(f))
+          assert len(r)==246
+          assert all(x['trade_approved']=='False' for x in r)
+          assert all(x['regular_1530_session_verified']=='False' for x in r)
+          print('V67_UNIFORM_120_DAY_REPLAY',s['asof'],
+                'OLD',s['original_technical_trigger_count'],
+                'NEW_RESEARCH',s['single_source_uniform_trigger_count'],
+                'METHOD_CHANGES',s['changed_technical_method_setups'],
+                'DECISION',s['decision'])
+          PY
+
+      - name: Upload reproducible source-consistent 120-day research (never orders)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v67-120session-full-reconstructed-20261023
+          path: |
+            output/uniform_history_v67_status.json
+            output/uniform_history_v67_all.csv
+            output/uniform_history_v67_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
