@@ -8,7 +8,7 @@ the freeze. Historic selected-universe backtests are never credited as forward
 results. Regular-only price, PIT universe, calendar, and orders remain UNVERIFIED.
 """
 from __future__ import annotations
-import argparse,csv,hashlib,json,math
+import argparse,csv,hashlib,json,math,re
 from collections import Counter,defaultdict
 from datetime import date,datetime,timezone
 from pathlib import Path
@@ -216,7 +216,7 @@ def load_daily(root,asof,frozen_at):
             if not rr:raise ValueError("DAILY_UNIVERSE_EMPTY")
             for r in rr:
                 ticker=r.get("ticker")
-                if (len(ticker or "")!=6 or not ticker.isdigit()
+                if (not re.fullmatch(r"[0-9A-Z]{6}",ticker or "")
                     or r.get("Date")!=str(trading) or ticker in todays):
                     raise ValueError("DUPLICATE_STOCK_OR_DAILY_DATE_MISMATCH")
                 fields={}
