@@ -52,6 +52,16 @@
 - v6.26 전체 CSV/코드 12개 로컬 검증 통과는 첨부 연구 ZIP에 별도 보관; GitHub CI에서 전체 백테스트가 성공했다고 주장하지 않음.
 
 
+## 2026-10-25 v6.28 MARKED MONTHLY RISK AUDIT (RESEARCH ONLY)
+
+- C3 월별 성과보고에서 **청산일 손익만 반영한 수치**와 **월말 아직 보유한 단일 가상 포지션의 시가평가손익을 포함한 수치**를 명확히 구분한다. 월말 가상 평가금액을 보유 주식의 해당 일자 완료 **정규장 종가(인증된 경우만)**와 현금에 합산하고 일별 평가잔고의 Peak-to-Trough 낙폭을 별도로 제시한다. 종목이 월을 넘겨 보유되면 청산월에 모든 손익을 몰아 적립하지 말 것.
+- 2026-10-25 v6.28 소급 연구: 과거 날짜가 있는 069500 ETF로 **전월 마지막 완료 거래일**의 월간 변화율/20일선/60일선과 **신호일 D의 완료 종가** 시장규칙을 4 후보선정·5 청산조합 등 90개 사후 기간별 결과로 재분석. HMA+Darvas 10% 익절 총 모의복리 기존 +12.70%(16건)지만 전월 ETF 상승일 때만 거래하면 -7.69%(11건), 전월 ETF MA20 위 기준 -2.91%(13건). WaveTrend 7% 추적은 +39.69%(10건)에서 전월 양수만 보면 +18.93%(6건). **이 시장 단순 필터는 검증된 수익 개선이 아니므로 신규 BUY 요건으로 강제 추가하지 않는다**. 원본 v18 regular-only/PIT/총수익 인증 미확보.
+- 종가 평가 일별 max drawdown은 HMA+Darvas 10% 연구 -13.72%(기존 청산 기준 -12.34%)이고 WaveTrend -7.09%(기존 -3.61%); 이는 과거 가상 월중 보유를 고려한 위험을 드러내지만 실제 키움 체결·계좌 손실과 구별할 것.
+- 순차 운용 월별 보고는 **① 해당 월 청산 거래 건수와 비용후 실현손익, ② 월말 보유 수량/평가손익, ③ 현금 포함 월말 총평가액 변화율, ④ 일별 평가잔고 최대 낙폭**을 함께 표기한다. 만약 실제 잔고/정규장-only 현물 가격 미확인 시 ③④는 연구가정으로만 표현한다.
+- v6.28 전체 코드/로컬 12개 검증/CSV는 해당 사용자 대화의 `C3_v628_profit_regime_research.zip`. 읽기 전용 순수 시장컨텍스트 CI는 연구 브랜치 `scripts/market_month_lag_guard_v628.py`, `scripts/test_market_month_lag_guard_v628.py`만이며 전체 90개 비교가 GitHub Actions에서 실행됐다고 주장하지 말 것. 2026-10-26 이후 새 완료 정규장 데이터를 고정된 가설의 독립 전진검증으로 누적할 것.
+- 기존 규칙: 개별주식 최종 검증 점수 80점 이상, 공식 정규장 전용 65봉/원본 기업공시, 주도 섹터, 보통주 및 비제약바이오, 실제 키움 가용현금/최소 1주/단일 C3, 확정 일봉 구조손절 우선, 확인된 저항 비용차감 2R 이상, 악장 시 CASH, 주문 자동실행 비활성. K100 운용과 혼동 금지.
+
+
 ## 2026-10-23 ACTIVE OVERRIDE — foreign/institution net buying is OPTIONAL
 
 - **Do not require investor-category foreign or institutional net buying to screen sectors, rank stocks or consider a conditional BUY.** No net-flow data is a neutral `NOT_PROVIDED` source field, not a quality failure, a zero net buy, proof of retail inflow, or an automatic CASH reason.
