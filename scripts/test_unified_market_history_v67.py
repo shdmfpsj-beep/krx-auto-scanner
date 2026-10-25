@@ -4,7 +4,7 @@ import csv,json,tempfile,unittest
 from pathlib import Path
 from test_recovery_price_rootcause_v66 import fixture,write,ASOF,CODE
 from unified_market_history_v67 import (
-    SCHEMA,analyze,market_history,mobile,parse_date)
+    SCHEMA,analyze,market_history,mobile)
 
 def setup(tmp):
     q=fixture(tmp)
