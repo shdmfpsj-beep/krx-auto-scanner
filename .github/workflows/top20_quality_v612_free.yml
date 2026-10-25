@@ -171,6 +171,18 @@ jobs:
               top=list(csv.DictReader(f))
           assert len(allrows)==report['v611_market_watched']
           assert len(top)==20
+          byticker={x['ticker']:x for x in top}
+          assert len(report['top5_risk_watch_only'])<=5
+          assert len(report['top5_risk_watch_only'])==5 or report['top5_risk_precheck_full_count']<5
+          for t in report['top5_risk_watch_only']:
+              row=byticker[t]
+              assert row['risk_priority_top5_eligible']=='True'
+              assert row['risk_priority_reason']=='RISK_PRECHECK_WATCH_NOT_ORDER'
+              assert row['heat_risk']=='False'
+              assert float(row['atr14_pct'])<=8
+              assert 0<float(row['return_20d_pct'])<=20
+              assert -4<=float(row['distance_from_sma20_pct'])<=10
+              assert float(row['sma20_slope_5d_pct'])>0
           assert all(r['buy_authorized']=='False' and
                      r['regular_1530_verified']=='False' and
                      r['positive_fundamental_numbers_verified']=='False'
