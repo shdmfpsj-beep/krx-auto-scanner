@@ -9,6 +9,7 @@
 - **[v6.10 공식 KRX 종목기본정보 실데이터 수집 성공 #40165008648](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40165008648)**: 오프라인 안전 테스트 **10/10**, KOSPI·KOSDAQ 공식 KRX 종목기본정보 **2,764건** 수집, 해당일 52개 기술예비후보와 17개 ETF 프록시 섹터 연구 및 손절가 3방법별 판정 연결.
 - **[v6.9 완료 → v6.10 자동 이어받기 성공 #40165164433](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40165164433)**: 같은 10개 안전 테스트 후 v6.9 날짜·원본 SHA 매칭과 KRX 공식 기본정보 수집을 다시 통과.
 - **[v6.10.1 DART 공시 16,790건 실데이터 안전검증 성공 #40165540151](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40165540151)**: 추가 8개 안전 테스트 통과, 전일 이전 30일 공시 제목·접수번호만 보존하고 당일 공시 시각을 임의로 채우지 않음.
+- **[v6.10 → v6.10.1 공시검증 자동 후속 실행 실제 성공 #40165651435](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40165651435)**: v6.10 성공 run **40165629373** 종료가 트리거, 날짜와 **KOSPI·KOSDAQ 시장 전체가격 SHA 2개, 외국인·기관 5거래일 파일 SHA 20개**를 다시 검증, 공시 원본 16,790건/전일 이전 79건/당일 시각 불명 6건 동일한 결과, 8/8 안전 테스트 통과.
 - 프로그램: scripts/official_issuer_entry_v610.py, scripts/dart_dated_evidence_v610.py. 검증: scripts/test_official_issuer_entry_v610.py, scripts/test_dart_dated_evidence_v610.py.
 - 모바일 GitHub 아티팩트: free-v610-issuer-common-risk-first-research, free-v6101-dart-date-only-catalyst-research (보존기간 90일).
 - 무료 실행 워크플로: .github/workflows/official_issuer_entry_v610_free.yml, .github/workflows/dart_dated_evidence_v610_free.yml.
