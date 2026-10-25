@@ -31,7 +31,7 @@ TOP_FIELDS=("rank","asof","ticker","name","market","selection_channel","discover
     "return_5d_pct","return_20d_pct","sma20","sma60",
     "sma20_slope_5d_pct","distance_from_sma20_pct",
     "drawdown_from_20d_high_pct","atr14_pct","relative_volume20",
-    "trend_state","heat_risk","discovery_index_100",
+    "trend_state","heat_risk","risk_priority_top5_eligible","risk_priority_reason","discovery_index_100",
     "money_score25","price_score25","persistence_score20",
     "liquidity_score15","risk_score15",
     "prior_30d_dart_receipts","prior_30d_earnings_titles",
@@ -129,6 +129,20 @@ def score(m, foreign5, inst5):
         price_score25=round(price_component,2),persistence_score20=round(persist,2),
         liquidity_score15=round(liq,2),risk_score15=risk,
         trend_state=state,heat_risk=heat)
+
+def risk_priority_reason(record):
+    """Further screen AFTER balanced Top20; never infer a buy timing."""
+    if record["heat_risk"]:
+        return "OVERHEATED_MOMENTUM_OR_DISTANCE"
+    if record["atr14_pct"]>8:
+        return "ATR14_TOO_WIDE_FOR_C3_PRECHECK"
+    if not 0<record["return_20d_pct"]<=20:
+        return "NEGATIVE_OR_EXCESSIVE_20DAY_TREND"
+    if not -4<=record["distance_from_sma20_pct"]<=10:
+        return "MA20_DISTANCE_EXCESSIVE_OR_BELOW_SUPPORT"
+    if record["sma20_slope_5d_pct"]<=0:
+        return "MA20_SLOPE_NOT_POSITIVE"
+    return "RISK_PRECHECK_WATCH_NOT_ORDER"
 
 def dart_prior(v18,tickers,asof):
     meta=read_json(v18/"diagnostics/collection_status.json")
@@ -292,6 +306,8 @@ def build(v18,watch,issuer):
             atr14_pct=round(m["atr14_pct"],3),
             relative_volume20=round(m["relative_volume20"],3),
             **scoredata,
+            risk_priority_top5_eligible=False,
+            risk_priority_reason="UNASSESSED",
             prior_30d_dart_receipts=len(types),
             prior_30d_earnings_titles=categories.count("EARNINGS_OR_FINANCIAL_TITLE"),
             prior_30d_contract_titles=categories.count("CONTRACT_OR_ORDER_TITLE"),
@@ -328,7 +344,12 @@ def build(v18,watch,issuer):
     for candidate in scored:
         if len(chosen)>=20:break
         add(candidate,"BACKFILL")
-    for i,row in enumerate(chosen,1):row["rank"]=i
+    for i,row in enumerate(chosen,1):
+        row["rank"]=i
+        row["risk_priority_reason"]=risk_priority_reason(row)
+        row["risk_priority_top5_eligible"]=(row["risk_priority_reason"]=="RISK_PRECHECK_WATCH_NOT_ORDER")
+    priority=sorted((r for r in chosen if r["risk_priority_top5_eligible"]),
+        key=key)[:5]
     outcome=dict(schema=SCHEMA,asof=day,
         v611_market_watched=len(rows),
         v611_total_market=w["full_market_universe"],
@@ -346,6 +367,10 @@ def build(v18,watch,issuer):
         queue_actual=dict(cohort_counts),different_market_symbols=len({r["ticker"] for r in chosen}),
         top20_tickers=[r["ticker"] for r in chosen],
         top5_watch_only=[r["ticker"] for r in chosen[:5]],
+        top5_risk_watch_only=[r["ticker"] for r in priority],
+        top5_risk_precheck_full_count=sum(r["risk_priority_top5_eligible"] for r in chosen),
+        top5_risk_precheck_thresholds=dict(atr14_pct_max=8,return20_positive_max=20,
+            max_ma20_above_pct=10,max_ma20_below_pct=4,ma20_slope_5d_positive=True),
         healthy_trend_total=len(pools["HEALTHY_TREND"]),
         both_investor_total=len(pools["DUAL_FI"]),
         strong_proxy_total=len(pools["STRONG_SECTOR"]),
