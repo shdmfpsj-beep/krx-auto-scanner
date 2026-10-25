@@ -17,9 +17,9 @@ from collections import Counter,defaultdict
 from pathlib import Path
 from datetime import date
 from forward_ledger_v63 import read_json,read_csv,digest
-from full_market_scanner_v68 import parse_days,valid_bar
+from full_market_scanner_v68 import SCHEMA as V68,parse_days,valid_bar
 from entry_strategy_v58 import evaluate as entry_eval,METHODS
-from official_issuer_entry_v610 import SCHEMA as V610,is_common,load_basic, risk_valid
+from official_issuer_entry_v610 import SCHEMA as V610,BASIC_SCHEMA,is_common,load_basic,risk_valid
 from sector_flow_v69 import SCHEMA as V69,load_flows,read_sector_evidence,read_memberships
 
 SCHEMA="C3_K100_BROAD_COVERAGE_RISK_FIRST_WATCH_V611"
@@ -61,7 +61,9 @@ def gate_archives(v18,scan,flows,issuer):
     b=read_json(issuer/"issuer_entry_v610_status.json")
     bm=read_json(issuer/"basic/krx_basic_v610_status.json")
     status=read_json(v18/"diagnostics/collection_status.json")
-    if (p["asof"]!=f["asof"] or f["asof"]!=b["asof"]
+    if (p.get("schema")!=V68 or f.get("schema")!=V69
+        or b.get("schema")!=V610 or bm.get("schema")!=BASIC_SCHEMA
+        or p["asof"]!=f["asof"] or f["asof"]!=b["asof"]
         or b["asof"]!=bm["asof"] or bm["asof"]!=status["asof"]
         or not p["official_krx_and_v18_latest_all_fields_match"]
         or p.get("trade_approved") is not False
