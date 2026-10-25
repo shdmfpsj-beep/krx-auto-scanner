@@ -1,0 +1,41 @@
+name: C3 v6.25 point-in-time corporate action guard tests (NO orders)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/corporate_action_guard_v625.py'
+      - 'scripts/test_corporate_action_guard_v625.py'
+      - '.github/workflows/corporate_action_guard_v625_free.yml'
+permissions:
+  contents: read
+jobs:
+  corporate-action-no-order-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/corporate_action_guard_v625.py
+            /scripts/test_corporate_action_guard_v625.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Validate D close and D+1 preopen event cutoff and total-return safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/corporate_action_guard_v625.py
+          python -m unittest discover -s scripts -p test_corporate_action_guard_v625.py -v
+          python - <<'PY'
+          import corporate_action_guard_v625 as q
+          assert q.SCHEMA == "C3_V625_CORPORATE_ACTION_PRICE_INTEGRITY_NO_ORDERS"
+          z=q.event_risk('005930','2026-10-23T15:30:00+09:00',
+            '2026-10-26T08:35:00+09:00',['2026-10-26'],[],False)
+          assert z['status']=='UNKNOWN_CORPORATE_ACTION_COVERAGE'
+          assert z['trade_approved'] is False
+          assert z['orders_enabled'] is False
+          print('V625_CORPORATE_ACTION_READ_ONLY_GUARD_TEST_PASSED')
+          PY
