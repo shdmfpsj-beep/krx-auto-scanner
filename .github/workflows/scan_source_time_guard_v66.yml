@@ -1,0 +1,47 @@
+name: Free KRX after-market source-day policy safety tests (no data download)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/scan_source_time_guard_v66.yml'
+      - 'scripts/market_session_policy_v66.py'
+      - 'scripts/test_market_session_policy_v66.py'
+
+permissions:
+  contents: read
+
+jobs:
+  after-market-date-protection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout only pure scanner time policy
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/market_session_policy_v66.py
+            /scripts/test_market_session_policy_v66.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Verify KST and strict 20:15 scan cutoff without API or credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/market_session_policy_v66.py
+          python -m unittest discover -s scripts -p test_market_session_policy_v66.py -v
+          python - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from scripts.market_session_policy_v66 import completed_scan_cutoff_date
+          kst=ZoneInfo("Asia/Seoul")
+          day="2026-10-23"
+          at17=completed_scan_cutoff_date(datetime(2026,10,23,17,18,tzinfo=kst))
+          at2045=completed_scan_cutoff_date(datetime(2026,10,23,20,45,tzinfo=kst))
+          assert at17.isoformat()=="2026-10-22"
+          assert at2045.isoformat()==day
+          print("V66_SCANNER_OLD_1718_NOT_FINAL",at17)
+          print("V66_SCANNER_NEW_2045_COMPLETED",at2045)
+          print("NO_FALSE_1530_CERTIFICATION_NO_BROKER_ORDERS")
+          PY
