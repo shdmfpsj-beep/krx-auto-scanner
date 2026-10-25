@@ -1,0 +1,94 @@
+name: C3 v6.17 independent market crash risk gate (NO orders)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v615-usable-entry-frontier-20261025
+    paths:
+      - '.github/workflows/market_regime_risk_v617_free.yml'
+      - 'scripts/market_regime_risk_v617.py'
+      - 'scripts/test_market_regime_risk_v617.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/market_regime_risk_v617_free.yml'
+      - 'scripts/market_regime_risk_v617.py'
+      - 'scripts/test_market_regime_risk_v617.py'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  asof-only-market-crash-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Compile, test risk gates and regression no-order safeguards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/market_regime_risk_v617.py
+          python -m unittest discover -s scripts -p test_market_regime_risk_v617.py -v
+          python -m unittest discover -s scripts -p test_entry_mode_tournament_v616.py -q
+          python -m unittest discover -s scripts -p test_entry_opportunities_v615.py -q
+      - name: Restore exact original Oct23 market price archive and v616 frozen study
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v18 previous output
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/39948306433" --jq '.conclusion')" == success ]] || exit 1
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/40174445460" --jq '.conclusion')" == success ]] || exit 1
+          gh run download 39948306433 -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          gh run download 40174445460 -R "$GH_REPO" -n c3-v616-5-entry-mode-tournament-research -D previous
+          test -s v18/market/etf_prices/069500.csv
+          test -s previous/v616_status.json
+          test -s previous/v616_all_entry_modes.csv
+      - name: Compute chronological 069500 risk regimes and honest filtered performance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u scripts/market_regime_risk_v617.py \
+            --v18 v18 --v616-status previous/v616_status.json \
+            --v616-cases previous/v616_all_entry_modes.csv --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          from forward_ledger_v63 import digest
+          s=json.loads(Path('output/v617_status.json').read_text())
+          assert s['schema']=='C3_V617_MARKET_CRASH_GATE_AUDIT_READ_ONLY'
+          assert s['source_asof']=='2026-10-23'
+          assert s['orders_enabled'] is False and s['trade_approved'] is False
+          assert s['final_buy_authorization_count']==0
+          assert s['KOSDAQ_independent_index_not_certified'] is True
+          assert s['session_dates']>=10
+          for fn,sha in s['file_sha256'].items():
+              assert digest(Path('output',fn).read_bytes())==sha
+          with Path('output/v617_entry_mode_risk_comparison.csv').open(encoding='utf-8-sig') as f:
+              rows=list(csv.DictReader(f))
+          assert len(rows)==5
+          assert all(x['approved_live_buys']=='0' for x in rows)
+          print('V617_RISK_AUDIT_COMPLETE_AND_ORDERS_DISABLED')
+          PY
+      - name: Upload mobile study report, risk dates and honest comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v617-market-regime-five-mode-risk-gate
+          path: |
+            output/v617_status.json
+            output/v617_risk_days.csv
+            output/v617_entry_mode_risk_comparison.csv
+            output/v617_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
