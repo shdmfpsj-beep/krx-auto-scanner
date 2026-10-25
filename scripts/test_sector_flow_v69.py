@@ -83,7 +83,9 @@ class SectorMoneyTests(unittest.TestCase):
             self.assertEqual(set(r["strict_strong_sectors"]),{"CONSTRUCTION","INSURANCE"})
             self.assertEqual(top3[-1]["strength_status"],"FLOW_POSITIVE_WEAK_TREND_WATCH")
             self.assertEqual(len(top3),3)
-            self.assertEqual(set(r["selected_strong_sector_and_liquid_tickers"]),{"010000","010001"})
+            # 010001 is a valid insurance-sector 5d inflow but has only
+            # KRW 4bn traded today, below C3's KRW 5bn gate.
+            self.assertEqual(set(r["selected_strong_sector_and_liquid_tickers"]),{"010000"})
             self.assertEqual(r["validated_flow_dates"],DAYS)
             self.assertEqual(r["decision"],"CASH")
             self.assertFalse(r["full_80_score_not_certified"] is False)
