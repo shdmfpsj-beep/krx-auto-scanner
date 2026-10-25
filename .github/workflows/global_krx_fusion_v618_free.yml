@@ -1,0 +1,94 @@
+name: C3 v6.18 dated World plus KRX frozen Sunday decision (NO orders)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/v615-usable-entry-frontier-20261025
+    paths:
+      - '.github/workflows/global_krx_fusion_v618_free.yml'
+      - 'scripts/global_krx_fusion_v618.py'
+      - 'scripts/test_global_krx_fusion_v618.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/global_krx_fusion_v618_free.yml'
+      - 'scripts/global_krx_fusion_v618.py'
+      - 'scripts/test_global_krx_fusion_v618.py'
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  archived-oct25-research-fusion-no-orders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Verify domestic and global dated fusion never creates BUY
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s scripts -p test_global_krx_fusion_v618.py -v
+          python -m unittest discover -s scripts -p test_global_macro_risk_v618.py -q
+      - name: Restore pinned historical Friday Oct23 domestic and Sunday Oct25 global sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p macro domestic watch output
+          for pair in "40177651213|.github/workflows/global_macro_risk_v618_free.yml" \
+                      "40174980454|.github/workflows/market_regime_risk_v617_free.yml" \
+                      "40173674034|.github/workflows/entry_opportunities_v615_free.yml"; do
+            id="${pair%%|*}";expected="${pair#*|}"
+            [[ "$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.conclusion')" == success ]] || exit 1
+            [[ "$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.path')" == "$expected" ]] || exit 1
+          done
+          gh run download 40177651213 -R "$GH_REPO" \
+            -n c3-k100-v618-global-macro-0835-no-trade -D macro
+          gh run download 40174980454 -R "$GH_REPO" \
+            -n c3-v617-market-regime-five-mode-risk-gate -D domestic
+          gh run download 40173674034 -R "$GH_REPO" \
+            -n c3-v615-conditional-opportunities-no-trades -D watch
+          test -s macro/v618_global_macro_status.json
+          test -s domestic/v617_risk_days.csv
+          test -s watch/v615_top5_per_day.csv
+      - name: Join asof Friday KRX and Friday US market for Sunday decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u scripts/global_krx_fusion_v618.py \
+            --macro macro/v618_global_macro_status.json \
+            --domestic domestic/v617_risk_days.csv \
+            --watch watch/v615_top5_per_day.csv \
+            --at-kst '2026-10-25T17:35:00+09:00' \
+            --outdir output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          o=json.loads(Path("output/v618_world_krx_fusion_status.json").read_text())
+          assert o["schema"]=="C3_K100_V618_WORLD_KRX_READ_ONLY_FUSION"
+          assert o["domestic_risk"]=="RED_MARKET_RISK_OFF"
+          assert o["US_macro_regime"]=="GLOBAL_CAUTION_RESEARCH_ONLY"
+          assert o["recommendation"]=="CASH_DOMESTIC_RISK"
+          assert o["domestic_source_date"]=="2026-10-23"
+          assert len(o["research_watch5"])==5
+          assert not o["orders_enabled"] and not o["trade_approved"]
+          print("V618_FUSED_RESEARCH_DONE",len(o["research_watch5"]),"CASH")
+          PY
+      - name: Upload smartphone-readable archived Sunday analysis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v618-frozen-world-krx-risk-decision
+          path: |
+            output/v618_world_krx_fusion_status.json
+            output/v618_world_krx_fusion_mobile.md
+          retention-days: 30
+          if-no-files-found: warn
