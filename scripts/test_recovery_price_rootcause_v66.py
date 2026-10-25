@@ -75,7 +75,7 @@ def fixture(tmp):
            ("open","high","low","close","volume")})
     write(v64/"source_consensus_v64_all.csv",list(prev),[prev])
     st=dict(schema=V65,asof=str(ASOF),
-        official_api_connected=True,
+        official_api_connected=True,candidates_evaluated=1,
         v64_frozen_manifest_sha256=fm["frozen_payload_sha256"],
         official_evidence_classes=dict(OFFICIAL_EOD_EQUALS_V18_ONLY=1))
     (v65/"krx_v65_source_comparison_status.json").write_text(json.dumps(st))
