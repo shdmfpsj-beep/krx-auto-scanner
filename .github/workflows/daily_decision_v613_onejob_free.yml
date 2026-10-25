@@ -11,6 +11,11 @@ on:
   workflow_run:
     workflows: ['Sector Evidence v18 (standalone)']
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/daily_decision_v613_onejob_free.yml'
+      - 'scripts/entry_readiness_v613.py'
   schedule:
     # Weekdays 08:50 KST: rerun when same-day official API was not available
     # after the evening v18 source finished; NOT an 08:35 market recommendation.
