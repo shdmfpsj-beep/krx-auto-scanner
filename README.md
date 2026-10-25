@@ -1,5 +1,14 @@
 # KRX C3 / K100 — 무료 주식분석 자동화
 
+## 최신 v6.10 + v6.10.1 — KRX 공식 보통주/구조손절·DART 공시 날짜 검증 (2026-10-25)
+
+- **[v6.10 KRX 종목기본정보 수집 성공 #40165008648](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40165008648)**: 승인된 기존 KRX_AUTH_KEY로 유가증권/코스닥 기본정보 **2,764개** 수집, 52개 기술 예비후보 중 **50개 '주권·보통주' 명시 확인**. 나머지 2개는 외국주권/예탁증권으로 일반 보통주 여부 미승인. KRX 기본정보 **SECT_TP_NM은 업종이 아닌 소속부**이므로 ETF 테마를 공식 업종으로 둔갑시키지 않음.
+- **[v6.9 → v6.10 자동후속 검증 성공 #40165164433](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40165164433)**: 건설·보험 ETF 대용 강세 연구/5일 수급·C3 50억 실측 거래대금 충족 **삼성E&A(028050) 1종목**. 정밀 기술패턴 0, 1차와 2차 대체 지정가 모두 2R 충족 0, 신규 BUY/주문 0. **10/10** 오프라인 안전테스트.
+- **[v6.10 → v6.10.1 공시검증 자동 연결까지 성공 #40165651435](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40165651435)**: OpenDART **16,790건**, 52개 후보의 전일 이전 30일 공시 제목 **79건** 발견, 당일 정확한 발표시각이 확인되지 않은 **6건 제외**. 삼성E&A 30일 제목 11건 중 실적·재무 관련 제목 3건. **8/8** 안전테스트. 제목만으로 실적 상승·긍정 촉매를 판정하지 않음.
+- **[v6.10–v6.10.1 개발·실행·데이터 한계 보고서](docs/KRX_COMMON_RISK_DART_V610_20261025.md)**, [v6.10 공식 KRX 종목정보와 구조손절](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/official_issuer_entry_v610_free.yml), [v6.10.1 OpenDART 공시 날짜 자동검증](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/workflows/dart_dated_evidence_v610_free.yml).
+- KRX 주식종류 확인은 **역사적 독립 PIT 업종분류·09:00~15:30 정규장 인증·실적 증가율·최종 80점·확정 구조손절·5거래일 실거래수익 인증이 아님**. **CASH / 매수 승인 0 / 자동주문 0**. 고정 IP 클라우드·상시 PC·추가 인증키 불필요.
+
+
 ## 최신 v6.9 실제 외국인·기관 5거래일 수급 + ETF 대용 강세 섹터 (2026-10-25)
 
 - **[v6.8→v6.9 자동 후속 실행도 성공 #40163161571](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40163161571)** (수동/소스 push 테스트 [#40163002010](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40163002010)), **10/10 안전 테스트 통과**. 정확한 2026-10-19~23 KOSPI·KOSDAQ 종목별 외국인/기관합계 실측 매수·매도 원화 20개 원본 재합산. **17개 ETF 구성종목 기반 섹터**, v18 보고 5일 원본합계와 일치함을 재검증.
