@@ -8,6 +8,10 @@ on:
       - '.github/workflows/entry_opportunities_v615_free.yml'
       - 'scripts/entry_opportunities_v615.py'
       - 'scripts/test_entry_opportunities_v615.py'
+      - 'scripts/entry_shadow_audit_v615.py'
+      - 'scripts/test_entry_shadow_audit_v615.py'
+      - 'scripts/entry_shadow_audit_v615.py'
+      - 'scripts/test_entry_shadow_audit_v615.py'
   pull_request:
     branches: [main]
     paths:
@@ -39,6 +43,7 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/entry_opportunities_v615.py
           python -m unittest discover -s scripts -p test_entry_opportunities_v615.py -v
+          python -m unittest discover -s scripts -p test_entry_shadow_audit_v615.py -v
           python -m unittest discover -s scripts -p test_october_replay_v614.py -q
       - name: Restore EXACT original Oct23 priced and investor flow archives
         shell: bash
@@ -75,6 +80,23 @@ jobs:
           print("V615_EXPERIMENT_DONE","A",x["total_A_signals"],"B",x["total_B_signals"],
                 "days_A_B",x["dates_with_A_or_B"],"orders",x["buy_authorizations"])
           PY
+      - name: Audit next five sessions with no-fill and stop-first convention
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u scripts/entry_shadow_audit_v615.py \
+            --v18 v18 --status output/v615_status.json \
+            --signals output/v615_all_setups.csv --outdir output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("output/v615_shadow_five_session_status.json").read_text())
+          assert x["schema"]=="C3_V615_FIVE_SESSION_SHADOW_AUDIT"
+          assert x["A_count"]>=0 and x["B_count"]>=0
+          assert x["orders_enabled"] is False and x["trade_approved"] is False
+          assert x["profit_expectancy_proven"] is False
+          print("SHADOW_AUDIT_RESEARCH_ONLY",x["observation_counts"])
+          PY
       - name: Publish clear evidence, including zero-case diagnosis
         if: always()
         uses: actions/upload-artifact@v4
@@ -86,5 +108,8 @@ jobs:
             output/v615_all_setups.csv
             output/v615_top5_per_day.csv
             output/v615_mobile.md
+            output/v615_shadow_five_session_status.json
+            output/v615_shadow_five_session_cases.csv
+            output/v615_shadow_mobile.md
           retention-days: 90
           if-no-files-found: warn
