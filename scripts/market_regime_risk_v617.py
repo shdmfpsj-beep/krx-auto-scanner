@@ -87,9 +87,17 @@ def evaluate(v18,statusfile,casesfile):
            or q["asof"]>"2026-10-23" for q in cases):
         raise ValueError("V617_UNEXPECTED_REAL_BUY_OR_FUTURE_STOCK_DATA")
     proxy,marketsha=market_asof(v18,"2026-10-23")
-    dates=sorted({r["asof"] for r in cases})
-    if not dates or dates[0]<"2026-10-01" or dates[-1]!="2026-10-23":
-        raise ValueError("V617_STUDY_DATE_RANGE_INVALID")
+    # Risk calendar must cover all 15 real exchange days even when v6.16
+    # generates zero stock signals (otherwise market-risk days disappear).
+    k1=v18/"market/daily_prices/KOSPI"
+    k2=v18/"market/daily_prices/KOSDAQ"
+    dates=sorted(p.stem for p in k1.glob("2026-10-*.csv")
+        if "2026-10-01"<=p.stem<="2026-10-23"
+        and (k2/p.name).is_file())
+    if (len(dates)!=15 or dates[0]!="2026-10-01" or
+        dates[-1]!="2026-10-23" or
+        any(r["asof"] not in set(dates) for r in cases)):
+        raise ValueError("V617_FULL_15_EXCHANGE_DAY_CALENDAR_NOT_VERIFIED")
     risk=[]
     for d in dates:
         q=proxy.get(d)
