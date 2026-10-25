@@ -1,0 +1,33 @@
+name: C3 v6.36 chronology regression -- research only
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'scripts/c3_trade_date_invariants_v636.py'
+      - 'scripts/test_c3_trade_date_invariants_v636.py'
+      - '.github/workflows/c3_date_chronology_v636_free.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/c3_trade_date_invariants_v636.py'
+      - 'scripts/test_c3_trade_date_invariants_v636.py'
+      - '.github/workflows/c3_date_chronology_v636_free.yml'
+permissions:
+  contents: read
+jobs:
+  reject_corrupted_asof_and_simultaneous_hold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test ISO dated sequential 1-stock trade invariant
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/c3_trade_date_invariants_v636.py
+          python -m unittest discover -s scripts -p test_c3_trade_date_invariants_v636.py -v
