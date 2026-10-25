@@ -1,0 +1,108 @@
+name: Free v6.18 US market and global macro risk brief (NO orders)
+on:
+  workflow_dispatch:
+    inputs:
+      cutoff:
+        description: 'Korean decision cutoff for US close'
+        type: choice
+        required: true
+        default: '08:35'
+        options:
+          - '08:35'
+          - '16:00'
+      provider:
+        description: 'Retrieve public ETF and FRED series or simulate missing sources'
+        type: choice
+        default: yahoo_and_fred
+        options:
+          - yahoo_and_fred
+          - none
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/global_macro_risk_v618_free.yml'
+      - 'scripts/global_macro_risk_v618.py'
+      - 'scripts/test_global_macro_risk_v618.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/global_macro_risk_v618_free.yml'
+      - 'scripts/global_macro_risk_v618.py'
+      - 'scripts/test_global_macro_risk_v618.py'
+  schedule:
+    # 08:25 KST Monday-Friday, best-effort GitHub Actions; not guaranteed on time.
+    - cron: '25 23 * * 0-4'
+    # 15:45 KST weekdays close-preview supplement; no off-hours KRX merging.
+    - cron: '45 6 * * 1-5'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: free-v618-world-market-observation
+  cancel-in-progress: false
+
+jobs:
+  us-macro-no-broker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TZ: Asia/Seoul
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate previous US-session close asof and reject false BUY
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/global_macro_risk_v618.py
+          python -m unittest discover -s scripts -p test_global_macro_risk_v618.py -v
+          python -m unittest discover -s scripts -p test_krx_global_leadership_v97.py -q
+      - name: Install free Yahoo reader for ETF context
+        if: github.event_name != 'workflow_dispatch' || inputs.provider == 'yahoo_and_fred'
+        run: python -m pip install 'yfinance>=0.2.60,<1'
+      - name: Collect public macro and stock ETF data, never broker orders
+        shell: bash
+        env:
+          RUN_CUTOFF: ${{ inputs.cutoff }}
+          RUN_PROVIDER: ${{ inputs.provider }}
+        run: |
+          set -euo pipefail
+          CUTOFF="${RUN_CUTOFF:-08:35}"
+          PROVIDER="${RUN_PROVIDER:-yahoo_and_fred}"
+          python -u scripts/global_macro_risk_v618.py \
+            --date "$(TZ=Asia/Seoul date +%F)" \
+            --cutoff "$CUTOFF" \
+            --provider "$PROVIDER" \
+            --cache output/v618_cache \
+            --outdir output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('output/v618_global_macro_status.json').read_text())
+          assert d['schema']=='C3_K100_GLOBAL_MACRO_US_EQUITIES_V618_RESEARCH'
+          assert d['trade_approved'] is False and d['orders_enabled'] is False
+          assert d['all_prices_regular_only_independently_verified'] is False
+          assert d['first_party_PIT_release_timestamps_verified'] is False
+          assert d['positive_signal_never_authorizes_buy'] is True
+          assert d['trade_action']=='CASH_UNTIL_DOMESTIC_PRICE_RISK_ACCOUNT_GATES'
+          print('V618_SAFE_GLOBAL_MARKET_DATA',d['regime'],d['coverage'])
+          PY
+      - name: Upload evidence and Korean phone-readable macro report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-k100-v618-global-macro-0835-no-trade
+          path: |
+            output/v618_global_macro_status.json
+            output/v618_global_macro_mobile.md
+          retention-days: 30
+          if-no-files-found: warn
