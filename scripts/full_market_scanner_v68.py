@@ -12,7 +12,7 @@ verification, adjusted/unadjusted correction or a PIT common-share audit.
 NEVER send orders or treat technical preliminary scores as final 80+.
 """
 from __future__ import annotations
-import argparse,csv,json,math,re
+import argparse,csv,json,math,os,re
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -302,6 +302,7 @@ def build(v18,official_root):
     triggers=[x for x in setups if x["setup"]=="RESEARCH_TRIGGER_CONFIRMED_ASOF"]
     report=dict(schema=SCHEMA,asof=str(asof),
         source_v18_run_asof=v18status["asof"],
+        source_v18_github_run_id=os.environ.get("SOURCE_V18_RUN_ID",""),
         krx_official_collection_timestamp=source["retrieval_utc"],
         official_market_stock_count=source["official_market_rows"],
         official_market_source_response_sha256=source["raw_response_sha256"],
