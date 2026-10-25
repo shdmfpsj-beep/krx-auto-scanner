@@ -29,7 +29,7 @@ def toy_paths(base):
         v68_market_sha256=daily,
         ETF_membership_not_independent_PIT=True,
         flow_source_sha256={},trade_approved=False)
-    e=dict(schema=V610,asof=DAY,
+    e=dict(schema=V610,asof=DAY,full_market_initial_codes=2,
         v68_market_sha256=daily,v69_flow_sha256={},
         exact_regular_1530_prices_verified=False,trade_approved=False)
     official=dict(schema=BASIC_SCHEMA,asof=DAY,
