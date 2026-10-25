@@ -11,6 +11,10 @@ on:
   workflow_run:
     workflows: ['Sector Evidence v18 (standalone)']
     types: [completed]
+  schedule:
+    # 08:50 KST weekdays: retry the previous completed after-market day
+    # if official same-day API was unavailable during the evening source run.
+    - cron: '50 23 * * 0-4'
   push:
     branches: [main]
     paths:
@@ -37,7 +41,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PYTHONPATH: scripts
-      V18_RUN: ${{ github.event.workflow_run.id || inputs.v18_source_run || '39948306433' }}
+      V18_RUN: ${{ github.event.workflow_run.id || inputs.v18_source_run || '' }}
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
     steps:
       - name: Read only pinned scanner and source verification modules
@@ -72,6 +76,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p v18 official output
+          if [[ -z "$V18_RUN" ]]; then
+            V18_RUN="$(gh api "repos/$GH_REPO/actions/workflows/sector_evidence_v18.yml/runs?per_page=12" \
+              --jq '[.workflow_runs[] | select(.conclusion=="success") | .id][0]')"
+          fi
           [[ "$V18_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "V18_EXACT_SOURCE_ID_REQUIRED"; exit 1; }
           path="$(gh api "repos/$GH_REPO/actions/runs/$V18_RUN" --jq '.path')"
           finish="$(gh api "repos/$GH_REPO/actions/runs/$V18_RUN" --jq '.conclusion')"
