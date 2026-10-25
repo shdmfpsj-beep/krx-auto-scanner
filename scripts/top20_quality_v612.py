@@ -176,6 +176,11 @@ def validate_source(v18,watch,issuer):
         b.get("official_base_usable") is not True or
         not w.get("broad_radar_universe_untouched_by_old_52_candidate_filter")):
         raise ValueError("V612_FROZEN_PREDECESSOR_ASOF_OR_BUY_POLICY_INVALID")
+    files=w.get("artifact_file_sha256",{})
+    for file in ("broad_watch_v611_all.csv","broad_watch_v611_full_audit.csv"):
+        loc=watch/file
+        if not loc.is_file() or files.get(file)!=digest(loc.read_bytes()):
+            raise ValueError("V612_FROZEN_WATCH_FILE_SHA256_CHANGED")
     info=load_basic(issuer/"basic",b)
     allrows=read_csv(watch/"broad_watch_v611_all.csv")
     if len(allrows)!=w["official_common_120day_liquid_5d_positive_FI"]:
