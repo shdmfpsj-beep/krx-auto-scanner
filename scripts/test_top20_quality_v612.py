@@ -126,12 +126,16 @@ class Top20V612Tests(unittest.TestCase):
             r=dict(schema=SCHEMA,asof=DAY,v611_market_watched=100,
                  v611_total_market=2764,queue_actual={"BACKFILL":0},
                  source_original_market_SHA256={},source_original_fi_flow_SHA256={},
-                 top20_count=0,top5_risk_watch_only=[],trade_approved=False,
-                 orders_enabled=False,decision="CASH")
+                 top20_count=0,top5_risk_watch_only=[],
+                 before_after_diagnostic=dict(prior_v611_broad_watch_total=0,
+                    balanced_top20_count=0,naive_first5_atr_over8_count=0,
+                    risk_filtered_top5_atr_over8_count=0),
+                 trade_approved=False,orders_enabled=False,decision="CASH")
             save(Path(tmp),r,[],[])
             m=json.loads((Path(tmp)/"top20_quality_v612_status.json").read_text())
             self.assertEqual(m["top20_count"],0)
             self.assertEqual(len(m["output_file_sha256"]),2)
+            self.assertTrue((Path(tmp)/"top20_quality_v612_improvement.json").exists())
             self.assertIn("CASH",(Path(tmp)/"top20_quality_v612_mobile.md").read_text())
 
     def test_overheated_high_score_is_not_top5_risk_prechecked(self):
