@@ -1,0 +1,110 @@
+name: C3 v6.19 executable tick price, D2 confirmation and cash gate (NO orders)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/practical_entry_v619_free.yml'
+      - 'scripts/practical_entry_quotes_v619.py'
+      - 'scripts/test_practical_entry_quotes_v619.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/practical_entry_v619_free.yml'
+      - 'scripts/practical_entry_quotes_v619.py'
+      - 'scripts/test_practical_entry_quotes_v619.py'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  research-only-practical-quotes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Run KRX tick, gap, 2R stop and broker-cash test guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/practical_entry_quotes_v619.py
+          python -m unittest discover -s scripts -p test_practical_entry_quotes_v619.py -v
+          python -m unittest discover -s scripts -p test_entry_mode_tournament_v616.py -q
+      - name: Restore pinned research-only Oct23 v6.15 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p input output
+          [[ "$(gh api "repos/$GH_REPO/actions/runs/40173674034" --jq '.conclusion')" == success ]] || exit 1
+          gh run download 40173674034 -R "$GH_REPO" \
+            -n c3-v615-conditional-opportunities-no-trades -D input
+          test -s input/v615_all_setups.csv
+      - name: Price conditional watch list without making trades
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          from practical_entry_quotes_v619 import quote_set
+          with Path('input/v615_all_setups.csv').open(encoding='utf-8-sig') as f:
+            data=list(csv.DictReader(f))
+          latest=[x for x in data if x['asof']=='2026-10-23']
+          latest.sort(key=lambda e:(-float(e['discovery_index_only']),e['ticker'],e['method']))
+          seen=set();output=[]
+          for e in latest:
+            if e['ticker'] in seen:continue
+            seen.add(e['ticker'])
+            if e['trade_approved']!='False' or e['orders_enabled']!='False':
+              raise ValueError('UNEXPECTED_HISTORICAL_BUY')
+            try:
+              plans=quote_set(float(e['asof_close']),float(e['atr14']),
+                 float(e['sma20']),float(e['structure_stop_study']),
+                 float(e['prior20_high']),
+                 float(e['nearby_confirmed_overhead']) if e['nearby_confirmed_overhead'] else None,
+                 e['method'])
+            except (ValueError,TypeError):
+              plans=[]
+            output.append(dict(ticker=e['ticker'],name=e['name'],
+                 source_asof=e['asof'],C3_regime='RED_MARKET_RISK_OFF',
+                 conditional_plans=plans,trade_approved=False,orders_enabled=False))
+          with Path('output/v619_oct23_research_quotes.json').open('w') as f:
+            json.dump(output,f,ensure_ascii=False,indent=2)
+          line=['# v6.19 C3 주문 호가 정합성 — 2026년 10월 23일 소급 연구',
+            '시장위험 RED, 신규매수 CASH. 10월 26일 시세가 아닌 23일 종가로 계산했으므로 **실전주문 불가**.',
+            '금액은 실제 KRX 보통주 호가단위로 내림 처리. 검증 손절선·계좌잔고·최종 80점 미확보시 구매승인 없음.',
+            '### 당시 관찰 후보 및 계산된 1차 가격', '',
+            '| 종목 | 일봉 구조참고 1차 가격 | 손절참고 | 상태 |',
+            '|---|---:|---:|---|']
+          for z in output[:8]:
+            a=z['conditional_plans'][:1]
+            if a:
+              x=a[0];line.append(f"| {z['name']} ({z['ticker']}) | {x['proposed_limit_krw']:,}원 | {x['day_structure_stop_krw']:,}원 | {x['research_tier']} |")
+            else:line.append(f"| {z['name']} ({z['ticker']}) | — | — | 피벗/손절폭/ATR/실제 가격조건 미충족 |")
+          line+=['','*실제 주문수량은 키움 주문가능 현금 검증 후에만 표시하며 가상 가격 접촉은 체결 인증이 아님.*']
+          Path('output/v619_mobile_quotes.md').write_text('\n'.join(line)+'\n',encoding='utf-8')
+          assert output and all(not x['trade_approved'] for x in output)
+          assert all(not x['orders_enabled'] for x in output)
+          print('V619_OCT23_QUOTE_STUDY',len(output),
+             'technical_plans',sum(bool(x['conditional_plans']) for x in output),
+             'REAL_BUYS',0)
+          PY
+      - name: Publish legal order grid study and missing-condition reasons
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v619-tick-price-reality-check-research
+          path: |
+            output/v619_oct23_research_quotes.json
+            output/v619_mobile_quotes.md
+          retention-days: 90
+          if-no-files-found: warn
