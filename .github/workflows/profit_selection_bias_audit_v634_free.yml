@@ -1,0 +1,32 @@
+name: C3 v6.34 research multiple-testing audit (NO ORDERS)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'scripts/profit_selection_bias_audit_v634.py'
+      - 'scripts/test_profit_selection_bias_audit_v634.py'
+      - '.github/workflows/profit_selection_bias_audit_v634_free.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/profit_selection_bias_audit_v634.py'
+      - 'scripts/test_profit_selection_bias_audit_v634.py'
+      - '.github/workflows/profit_selection_bias_audit_v634_free.yml'
+permissions:
+  contents: read
+jobs:
+  verify_nontrade_bias_math:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate bias illustration and prohibit trading
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/profit_selection_bias_audit_v634.py
+          python -m unittest discover -s scripts -p test_profit_selection_bias_audit_v634.py -v
