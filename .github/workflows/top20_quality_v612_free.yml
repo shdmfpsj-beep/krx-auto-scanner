@@ -7,7 +7,7 @@ on:
         description: 'Successful date-locked broad 2,764-market v6.11 scan'
         required: false
         type: string
-        default: '40166793595'
+        default: '40168054454'
   workflow_run:
     workflows: ['Free v6.11 broad 2764 stock watch separate from strict BUY gate']
     types: [completed]
@@ -35,7 +35,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PYTHONPATH: scripts
-      V611_RUN: ${{ github.event.workflow_run.id || inputs.v611_run || '40166793595' }}
+      V611_RUN: ${{ github.event.workflow_run.id || inputs.v611_run || '40168054454' }}
     steps:
       - name: Checkout exact asof-only quality and safety modules
         uses: actions/checkout@v4
