@@ -10,7 +10,7 @@ not a final 80-point investment grade, odds, future winner, or entry order.
 No future candle, undated sector membership or same-day DART publication.
 """
 from __future__ import annotations
-import argparse,csv,json,math,re
+import argparse,csv,json,math,os,re
 from collections import Counter,defaultdict
 from datetime import date,timedelta
 from pathlib import Path
@@ -354,6 +354,7 @@ def build(v18,watch,issuer):
         v611_market_watched=len(rows),
         v611_total_market=w["full_market_universe"],
         source_v18_run_id=u.get("v68_source_run_id") or "",
+        source_v610_run_id=os.environ.get("SOURCE_V610_RUN_ID",""),
         source_original_market_SHA256=u["v68_market_sha256"],
         source_original_fi_flow_SHA256=u["v69_flow_sha256"],
         source_dart_date_only_SHA256=disclosure_sha,
