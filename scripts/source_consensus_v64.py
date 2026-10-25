@@ -78,7 +78,7 @@ def records_from_v18(folder,asof):
                 raise ValueError("V18_TICKER_DUPLICATED_OR_MARKET_DAY_WRONG")
             values={}
             for k in ("open","high","low","close","volume"):
-                values[k]=num(row[k])
+                values[k]=num(row[k.capitalize()])
             values["turnover_krw"]=num(row["TurnoverKRW"])
             allrows[ticker]=(market,values)
     if meta.get("market_counts")!=counts or meta.get("total_covered_tickers")!=len(allrows):
