@@ -131,7 +131,7 @@ def evaluate(v18,statusfile,casesfile):
       market_proxy_not_a_sole_buy_authority=True,
       research_trade_outcomes_overlapping_not_independent=True,
       costed_trade_execution_not_verified=True,
-      20261026_and_after_not_observed=True,
+      future_after_20261023_not_observed=True,
       no_change_to_live_2R_or_80_point_gates=True,
       final_buy_authorization_count=0,
       orders_enabled=False,trade_approved=False,
