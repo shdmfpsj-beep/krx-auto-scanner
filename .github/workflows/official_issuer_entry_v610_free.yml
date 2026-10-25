@@ -1,0 +1,191 @@
+name: Free v6.10 official KRX common shares and strict risk-first 2R
+
+on:
+  workflow_dispatch:
+    inputs:
+      v69_run:
+        description: 'Completed date-locked sector flow v6.9 run'
+        type: string
+        required: false
+        default: '40163161571'
+      v68_run:
+        description: 'Exact v6.8 source run for legacy manual frozen replay'
+        type: string
+        required: false
+        default: '40163120843'
+  workflow_run:
+    workflows: ['Free v6.9 KRX five-session foreign institutional sector proxy audit']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/official_issuer_entry_v610_free.yml'
+      - 'scripts/official_issuer_entry_v610.py'
+      - 'scripts/test_official_issuer_entry_v610.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v610-basics-sector-entry-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  archived-sector-risk-first-classification:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+      V69_RUN: ${{ github.event.workflow_run.id || inputs.v69_run || '40163161571' }}
+      V68_MANUAL: ${{ inputs.v68_run || '40163120843' }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+    steps:
+      - name: Checkout read-only sector risk and KRX base issuer parsers
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/rank_candidates.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/full_market_scanner_v68.py
+            /scripts/test_full_market_scanner_v68.py
+            /scripts/liquidity_watch_v68.py
+            /scripts/test_liquidity_watch_v68.py
+            /scripts/sector_flow_v69.py
+            /scripts/test_sector_flow_v69.py
+            /scripts/official_issuer_entry_v610.py
+            /scripts/test_official_issuer_entry_v610.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Prove separate ordinary/preferred classes, strict double 2R, SHA and CASH
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_official_issuer_entry_v610.py -v
+
+      - name: Fetch immutable completed sector v6.9 manifest and exact v6.8 parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p flow scan output
+          [[ "$V69_RUN" =~ ^[0-9]{8,14}$ ]] ||
+            { echo 'V610_MISSING_EXACT_FLOW_RUN_ID'; exit 1; }
+          source="$(gh api "repos/$GH_REPO/actions/runs/$V69_RUN" --jq '.path')"
+          complete="$(gh api "repos/$GH_REPO/actions/runs/$V69_RUN" --jq '.conclusion')"
+          [[ "$source" == '.github/workflows/sector_flow_v69_free.yml' && "$complete" == success ]] ||
+            { echo 'V610_FLOW_WRONG_WORKFLOW_OR_NOT_COMPLETE'; exit 1; }
+          gh run download "$V69_RUN" -R "$GH_REPO" \
+            -n free-v69-5session-sector-foreign-institution-research -D flow
+          test -s flow/sector_money_v69_status.json || {
+            echo 'V610_FLOW_PENDING_AND_NO_ENTRY_DATA'
+            printf 'FLOW_PENDING_CASH\n' > output/waiting.txt
+            exit 0
+          }
+          test -s flow/sector_money_v69_candidates.csv
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads(Path('flow/sector_money_v69_status.json').read_text(encoding='utf-8'))
+          assert r['decision']=='CASH' and r['trade_approved'] is False
+          v68=str(r.get('v68_github_run_id',''))
+          if not v68:
+              if os.environ['GITHUB_EVENT_NAME']=='workflow_run':
+                  raise SystemExit('AUTOMATED_V610_REQUIRES_EXACT_V68_PARENT_ID')
+              v68=os.environ['V68_MANUAL']
+          assert v68.isdigit() and 8<=len(v68)<=14
+          Path('v68_parent.txt').write_text(v68,encoding='utf-8')
+          print('V610_FROZEN_V69_PARENT',v68,r['asof'])
+          PY
+          parent="$(cat v68_parent.txt)"
+          parentpath="$(gh api "repos/$GH_REPO/actions/runs/$parent" --jq '.path')"
+          ok="$(gh api "repos/$GH_REPO/actions/runs/$parent" --jq '.conclusion')"
+          [[ "$parentpath" == '.github/workflows/full_market_scan_v68_free.yml' && "$ok" == success ]] ||
+            { echo 'V610_SOURCE_V68_PARENT_INVALID'; exit 1; }
+          gh run download "$parent" -R "$GH_REPO" \
+            -n free-v68-all-market-dated-source-universe-research -D scan
+          test -s scan/output/full_market_v68_status.json
+          test -s scan/output/full_market_v68_method_research.csv
+          test -s scan/output/full_market_v68_candidates.csv
+          test -s scan/output/full_market_v68_candidate_120bars.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('flow/sector_money_v69_status.json').read_text())
+          b=json.loads(Path('scan/output/full_market_v68_status.json').read_text())
+          assert a['asof']==b['asof']
+          assert a['v68_market_sha256']==b['market_v18_daily_source_sha256']
+          assert a['v68_official_response_sha256']==b['official_market_source_response_sha256']
+          assert a['individual_ticker_flow_rows']==b['histories_screened']
+          assert a['official_regular_1530_not_certified'] is True
+          assert b['regular_1530_only_price_certified'] is False
+          print('V610_KRX_BASE_REQUEST_ASOF_LOCKED',a['asof'])
+          PY
+
+      - name: Retrieve separately approved KRX issuer basics and evaluate ALL gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f output/waiting.txt ]]; then
+            echo '# v6.10 수급 원본 대기 — CASH' > output/issuer_entry_v610_mobile.md
+            exit 0
+          fi
+          python scripts/official_issuer_entry_v610.py \
+            --scan scan/output --v69 flow --outdir output --collect
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          s=json.loads(Path('output/issuer_entry_v610_status.json').read_text(encoding='utf-8'))
+          assert s['schema']=='C3_K100_OFFICIAL_ISSUER_ENTRY_V610'
+          assert s['input_v68_candidates']==s['input_v69_candidates']
+          assert s['input_v68_candidates']>0
+          assert s['full_market_initial_codes']>=2000
+          assert s['shortlist_top20_actual_count']<=20
+          assert s['shortlist_top20_actual_count']<=s['strong_sector_research_shortlist_count']
+          assert s['in_strong_sector_with_common_2R']<=s['in_strong_sector_with_both_2R']
+          assert s['issuer_board_section_is_not_formal_sector_classification'] is True
+          assert s['independent_PIT_issuer_vintage_verified'] is False
+          assert s['exact_regular_1530_prices_verified'] is False
+          assert s['asof_earnings_and_catalyst_verified'] is False
+          assert s['final_80point_certified'] is False
+          assert s['trade_approved'] is False and s['orders_enabled'] is False
+          assert s['decision']=='CASH'
+          with Path('output/issuer_entry_v610_all.csv').open(encoding='utf-8-sig',newline='') as f:
+              stocks=list(csv.DictReader(f))
+          assert len(stocks)==s['input_v68_candidates']
+          assert all(x['trade_approved']=='False' and
+                     x['orders_enabled']=='False' and
+                     x['complete_80point_certified']=='False' for x in stocks)
+          print('V610_OFFICIAL_ISSUER_STRONG_SECTOR_NO_FAKE_BUY',
+                s['official_basic_api_usable'],s['official_basic_market_rows'],
+                'COMMON',s['candidates_basic_common_share_verified'],
+                'STRONG',s['strong_proxy_sectors'],
+                'SECTOR_2R',s['in_strong_sector_with_both_2R'],'CASH')
+          PY
+
+      - name: Publish date-locked issuer classification, strict stops and mobile research
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v610-issuer-common-risk-first-research
+          path: |
+            output/issuer_entry_v610_status.json
+            output/issuer_entry_v610_all.csv
+            output/issuer_entry_v610_sector_top20.csv
+            output/issuer_entry_v610_mobile.md
+            output/basic/krx_basic_v610_status.json
+            output/basic/KOSPI_basic_v610.csv
+            output/basic/KOSDAQ_basic_v610.csv
+            output/waiting.txt
+          retention-days: 90
+          if-no-files-found: warn
