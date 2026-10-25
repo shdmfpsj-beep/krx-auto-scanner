@@ -157,6 +157,12 @@ jobs:
           assert len(set(report['top20_tickers']))==20
           assert len(report['completed_fi_dates'])==5
           assert report['five_day_investor_reconciliation_complete'] is True
+          assert report['before_after_diagnostic']['risk_filtered_top5_atr_over8_count']==0
+          assert report['before_after_diagnostic']['risk_filtered_top5_heat_flags']==0
+          assert report['before_after_diagnostic']['demonstrated_improvement_is_risk_screen_coverage_not_future_returns'] is True
+          progress=json.loads(Path('output/top20_quality_v612_improvement.json').read_text())
+          assert progress['trade_approved'] is False
+          assert progress['measured_future_five_session_return'] is False
           assert report['missing_fundamentals_are_neither_zero_nor_positive'] is True
           assert report['backtest_5day_forward_evaluated'] is False
           assert report['financial_growth_verified'] is False
@@ -205,5 +211,6 @@ jobs:
             output/top20_quality_v612_selected.csv
             output/top20_quality_v612_status.json
             output/top20_quality_v612_mobile.md
+            output/top20_quality_v612_improvement.json
           retention-days: 90
           if-no-files-found: warn
