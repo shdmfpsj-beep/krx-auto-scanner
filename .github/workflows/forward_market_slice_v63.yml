@@ -1,0 +1,90 @@
+name: Free v6.3 dated full-market thin slice from Sector Evidence v18
+
+on:
+  workflow_dispatch:
+    inputs:
+      v18_run_id:
+        description: 'Exact successful Sector Evidence v18 report run'
+        required: false
+        default: '39948306433'
+        type: string
+  workflow_run:
+    workflows: ['Sector Evidence v18 (standalone)']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/forward_market_slice_v63.yml'
+      - 'scripts/market_slice_v63.py'
+      - 'scripts/test_market_slice_v63.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: krx-v63-market-slice-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  one-market-day:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      V18_RUN: ${{ github.event.workflow_run.id || inputs.v18_run_id || '39948306433' }}
+    steps:
+      - name: Sparse checkout dated source slice and offline tests
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/market_slice_v63.py
+            /scripts/test_market_slice_v63.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Test source provenance and format without network
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_market_slice_v63.py -v
+
+      - name: Fetch one specifically verified successful v18 report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p v18 output
+          [[ "$V18_RUN" =~ ^[0-9]{8,14}$ ]] || { echo "V18_ID_INVALID"; exit 1; }
+          path="$(gh api "repos/$GH_REPO/actions/runs/$V18_RUN" --jq '.path')"
+          finish="$(gh api "repos/$GH_REPO/actions/runs/$V18_RUN" --jq '.conclusion')"
+          [[ "$path" == '.github/workflows/sector_evidence_v18.yml' && "$finish" == 'success' ]] ||
+            { echo "V18_SOURCE_NOT_SUCCESSFUL_OR_WRONG_WORKFLOW"; exit 1; }
+          gh run download "$V18_RUN" -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          complete="$(gh api "repos/$GH_REPO/actions/runs/$V18_RUN" --jq '.updated_at')"
+          python scripts/market_slice_v63.py \
+            --report v18 --outdir output \
+            --v18-run-id "$V18_RUN" --completed-utc "$complete"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          metas=list(Path('output').glob('*/meta.json'))
+          assert len(metas)==1
+          q=json.loads(metas[0].read_text(encoding='utf-8'))
+          assert q['total_covered_tickers']>=200
+          assert q['regular_only_verified'] is False
+          assert q['trade_approved'] is False and q['orders_enabled'] is False
+          print('V63_MARKET_DAY_FINGERPRINTED',q['asof'],
+                q['total_covered_tickers'],q['sha256'])
+          PY
+
+      - name: Upload small immutable per-date two-market source for later use
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v63-one-day-full-market-slice
+          path: output/
+          if-no-files-found: warn
+          retention-days: 90
