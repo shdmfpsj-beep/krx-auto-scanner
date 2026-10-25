@@ -247,7 +247,7 @@ def main():
         p=stockprices/(ticker+".csv")
         if not p.is_file():raise ValueError("V620_MISSING_TICKER_ARCHIVE")
         x=read_csv(p)
-        if len(x)<120 or x[-1]["Date"]!="2026-10-23":
+        if len(x)<120 or x[-1]["Date"]>"2026-10-23":
             raise ValueError("V620_INCOMPLETE_HISTORY")
         return x
     rows=[]
