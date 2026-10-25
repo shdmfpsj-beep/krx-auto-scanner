@@ -22,7 +22,7 @@ from sector_flow_v69 import load_flows
 from dart_dated_evidence_v610 import SOURCE_FIELDS,report_categories
 
 SCHEMA="C3_K100_BALANCED_TOP20_FIVE_DAY_MONEY_QUALITY_V612"
-TOP_FIELDS=("rank","asof","ticker","name","market","discovery_cohort",
+TOP_FIELDS=("rank","asof","ticker","name","market","selection_channel","discovery_cohort",
     "sector_proxy_strong","last_close","last_turnover_krw",
     "foreign_5d_krw","institution_5d_krw","combined_fi_5d_krw",
     "both_fi_5d_positive","fi_positive_session_count",
@@ -305,7 +305,7 @@ def build(v18,watch,issuer):
     chosen=[];selected=set();cohort_counts=Counter()
     def add(item,slot):
         if item["ticker"] in selected:return False
-        chosen.append(dict(item));selected.add(item["ticker"])
+        chosen.append(dict(item,selection_channel=slot));selected.add(item["ticker"])
         cohort_counts[slot]+=1
         return True
     # Four queues: strong sector is allowed to be in a healthy uptrend too.
@@ -368,7 +368,7 @@ def save(folder,manifest,allrows,top20):
          "return_20d_pct","fi_positive_session_count","last_turnover_krw",
          "prior_30d_dart_receipts","buy_authorized"),allrows)
     shas["top20_quality_v612_selected.csv"]=csvout("top20_quality_v612_selected.csv",
-        ("rank",)+TOP_FIELDS,top20)
+        TOP_FIELDS,top20)
     manifest["output_file_sha256"]=shas
     (folder/"top20_quality_v612_status.json").write_text(
         json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
