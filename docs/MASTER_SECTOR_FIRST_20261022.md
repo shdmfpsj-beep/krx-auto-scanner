@@ -42,6 +42,16 @@
 - 현재 v6.25 실전 승인 **0건**. K100 보유/운영과 주식주문은 미변경.
 
 
+## 2026-10-25 v6.26 PROFIT CAPTURE RESEARCH — NO BUY SIGNAL
+
+- v6.25까지의 종목선정 조건은 고정하고 7%/5% 추적손절, 1.5R/2R, 10%/15% 전량익절, 10% 절반익절 후 7% 추적을 같은 시점/같은 종목으로 비교하는 **v6.26 읽기전용 후속연구**. `research/v615-usable-entry-frontier-20261025/docs/C3_V626_EXIT_CAPTURE_EVENT_CAUSALITY_20261025.md`에 재현 한계 및 결과 기록.
+- 804개 v6.25 종목-패턴 신호, 409개 고유 코드에서 8선정 ×2진입 ×7청산 ×2기간 = 224 소급 비교. 이전 검토 자료 재사용이므로 독립 재현 우위 아님. HMA+다바스 동일진입 16건 10% 전량익절은 기존 7% 추적 대비 +1.232%p 평균 개선이지만 16건 중 5건만 다른 결과, 단순 부트스트랩 95% [-0.438,+3.159]%p로 영점 포함. 최고손실 및 수익 지속성 개선 근거 부족. 두 기간 각각 충분한 표본/중앙값/거래비용/최대손실 적격 **0개**.
+- 원본 v6.25 기업행사 메모는 2026-08-26 공시만 최초 경고로 보아서는 안 됨. **코람코더원리츠 417310 배당락 2026-08-28은 2026-08-19 16:11:48의 DART 공시 미러(20260819800342)에서도 사전 확인 가능**: [공시 미러](https://awakeplus.co.kr/data/view/20260819800342). 판단은 단일 D 종가 뒤 **D+1 08:35**에 공시가 이미 있었는지로 한다. 실제 공시목록 전체가 확보됐다는 뜻은 아니므로 `UNKNOWN_EVENT_COVERAGE` 임의 해제 불가.
+- 진입 결정 뒤의 급락을 보고 동일일 더 좋은 종목으로 소급 바꾸지 않는다. 비정상 가격 점프 후 총수익/배당권 등이 미검증이면 그 관찰을 **수익 산정 불가**로 표시하고 원본 손익·미체결 건수도 함께 남긴다.
+- 10/26 이후만 이후 검증 신호이며 KRX regular 09:00–15:30 가격과 당시 종목종류/비제약바이오, 확정 피벗 구조손절, 유효 저항 비용차감 >=2R, C3 실제 키움 현금/단일 포지션, 최종 >=80 주식점수와 차트 이외 기업촉매의 모든 BUY 게이트는 그대로. 08:35/13:00/16:00/18:30 리포트에 v6.26은 '청산 연구 태그'로만 표시 가능, BUY 권한이나 자동주문 생성 금지.
+- v6.26 전체 CSV/코드 12개 로컬 검증 통과는 첨부 연구 ZIP에 별도 보관; GitHub CI에서 전체 백테스트가 성공했다고 주장하지 않음.
+
+
 ## 2026-10-23 ACTIVE OVERRIDE — foreign/institution net buying is OPTIONAL
 
 - **Do not require investor-category foreign or institutional net buying to screen sectors, rank stocks or consider a conditional BUY.** No net-flow data is a neutral `NOT_PROVIDED` source field, not a quality failure, a zero net buy, proof of retail inflow, or an automatic CASH reason.
