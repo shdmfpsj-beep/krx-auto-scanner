@@ -1,0 +1,168 @@
+name: Free v6.10.1 date-only OpenDART disclosures without lookahead
+
+on:
+  workflow_dispatch:
+    inputs:
+      v610_run:
+        description: 'Exact successful v6.10 official issuer and entry audit'
+        required: false
+        type: string
+        default: '40165164433'
+  workflow_run:
+    workflows: ['Free v6.10 official KRX common shares and strict risk-first 2R']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dart_dated_evidence_v610_free.yml'
+      - 'scripts/dart_dated_evidence_v610.py'
+      - 'scripts/test_dart_dated_evidence_v610.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v6101-dart-date-only-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  date-only-asof-disclosure-evidence:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+      V610_RUN: ${{ github.event.workflow_run.id || inputs.v610_run || '40165164433' }}
+    steps:
+      - name: Fetch research-only source parsers and offline DART tests
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/rank_candidates.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/full_market_scanner_v68.py
+            /scripts/test_full_market_scanner_v68.py
+            /scripts/liquidity_watch_v68.py
+            /scripts/test_liquidity_watch_v68.py
+            /scripts/sector_flow_v69.py
+            /scripts/test_sector_flow_v69.py
+            /scripts/official_issuer_entry_v610.py
+            /scripts/test_official_issuer_entry_v610.py
+            /scripts/dart_dated_evidence_v610.py
+            /scripts/test_dart_dated_evidence_v610.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: No-date-leakage disclosure and receipt integrity unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_dart_dated_evidence_v610.py -v
+
+      - name: Download trusted v6.10 source and its exact v18 ancestor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p issuer v18 output
+          [[ "$V610_RUN" =~ ^[0-9]{8,14}$ ]] || {
+            echo 'V6101_INVALID_V610_ANCESTOR'; exit 1;
+          }
+          source="$(gh api "repos/$GH_REPO/actions/runs/$V610_RUN" --jq '.path')"
+          result="$(gh api "repos/$GH_REPO/actions/runs/$V610_RUN" --jq '.conclusion')"
+          [[ "$source" == '.github/workflows/official_issuer_entry_v610_free.yml' && "$result" == success ]] ||
+            { echo 'V6101_UPSTREAM_UNSAFE_OR_NOT_COMPLETE'; exit 1; }
+          gh run download "$V610_RUN" -R "$GH_REPO" \
+             -n free-v610-issuer-common-risk-first-research -D issuer
+          test -s issuer/issuer_entry_v610_status.json
+          test -s issuer/issuer_entry_v610_all.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          s=json.loads(Path('issuer/issuer_entry_v610_status.json').read_text(encoding='utf-8'))
+          assert s['decision']=='CASH' and s['trade_approved'] is False
+          assert s['exact_regular_1530_prices_verified'] is False
+          assert s['asof_earnings_and_catalyst_verified'] is False
+          ref=str(s['v68_source_run_id'])
+          assert ref.isdigit() and 8<=len(ref)<=14
+          Path('v18_parent.txt').write_text(ref,encoding='utf-8')
+          print('V6101_REPLAY_V18_SOURCE_RUN',ref,'asof',s['asof'])
+          PY
+          parent="$(cat v18_parent.txt)"
+          actual="$(gh api "repos/$GH_REPO/actions/runs/$parent" --jq '.path')"
+          conclusion="$(gh api "repos/$GH_REPO/actions/runs/$parent" --jq '.conclusion')"
+          [[ "$actual" == '.github/workflows/sector_evidence_v18.yml' && "$conclusion" == success ]] ||
+            { echo 'V6101_DART_MARKET_ANCESTOR_INVALID'; exit 1; }
+          gh run download "$parent" -R "$GH_REPO" \
+             -n sector-evidence-v18-report -D v18
+          test -s v18/diagnostics/collection_status.json
+          test -s v18/catalysts/disclosures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          issuer=json.loads(Path('issuer/issuer_entry_v610_status.json').read_text(encoding='utf-8'))
+          v18=json.loads(Path('v18/diagnostics/collection_status.json').read_text(encoding='utf-8'))
+          assert v18['asof']==issuer['asof']
+          assert v18['datasets']['dart']['status']=='DATE_ONLY_COMPLETE'
+          assert v18['datasets']['dart']['exact_publication_time']=='UNAVAILABLE'
+          assert v18['orders_enabled'] is False
+          print('V6101_DART_DATED_SOURCE_MATCH',v18['asof'],
+                v18['datasets']['dart']['rows'])
+          PY
+
+      - name: Join 52 stocks to prior-day receipts, never use unverified same-day
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/dart_dated_evidence_v610.py \
+            --v18 v18 --v610 issuer --outdir output
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          r=json.loads(Path('output/dart_date_only_v610_status.json').read_text(encoding='utf-8'))
+          assert r['schema']=='C3_K100_DART_DATE_ONLY_DISCLOSURE_V6101'
+          assert r['asof']=='2026-10-23'
+          assert r['date_only_source_receipt_count']>=16000
+          assert r['upstream_v610_candidates']==52
+          assert r['strict_intraday_PIT_publication_time_available'] is False
+          assert r['title_keywords_are_not_positive_earnings_verification'] is True
+          assert r['fundamental_growth_checked'] is False
+          assert r['trade_approved'] is False and r['orders_enabled'] is False
+          assert r['decision']=='CASH'
+          with Path('output/dart_date_only_v610_all.csv').open(
+              encoding='utf-8-sig',newline='') as f:
+              stocks=list(csv.DictReader(f))
+          assert len(stocks)==52
+          assert all(x['actual_earnings_direction_verified']=='False'
+                     and x['trade_approved']=='False' for x in stocks)
+          with Path('output/dart_date_only_v610_prior_receipts.csv').open(
+              encoding='utf-8-sig',newline='') as f:
+              docs=list(csv.DictReader(f))
+          assert len(docs)==r['strictly_preceding_receipts_captured']
+          assert all(x['receipt_date']<r['asof'] for x in docs)
+          print('V6101_DAY_ONLY_CAUSAL_SOURCE_REPLAY_PASSED',r['asof'],
+                r['strictly_preceding_receipts_captured'],
+                'SAME_DAY_EXCLUDED',r['same_day_receipts_excluded'],'CASH')
+          PY
+
+      - name: Upload DART title records and smartphone-safe no BUY summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v6101-dart-date-only-catalyst-research
+          path: |
+            output/dart_date_only_v610_status.json
+            output/dart_date_only_v610_all.csv
+            output/dart_date_only_v610_prior_receipts.csv
+            output/dart_date_only_v610_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
