@@ -71,7 +71,7 @@ jobs:
           assert s['orders_enabled'] is False and s['trade_approved'] is False
           assert s['final_buy_authorization_count']==0
           assert s['KOSDAQ_independent_index_not_certified'] is True
-          assert s['session_dates']>=10
+          assert s['session_dates']==15
           for fn,sha in s['file_sha256'].items():
               assert digest(Path('output',fn).read_bytes())==sha
           with Path('output/v617_entry_mode_risk_comparison.csv').open(encoding='utf-8-sig') as f:
