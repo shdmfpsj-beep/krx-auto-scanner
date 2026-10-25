@@ -1,0 +1,184 @@
+name: Free v6.6 exact KRX recovery root-cause and last-bar sensitivity
+
+on:
+  workflow_dispatch:
+    inputs:
+      recovery_run:
+        description: 'Exact completed 2026-10-23 legacy recovery'
+        required: false
+        type: string
+        default: '39923708922'
+      freeze_run:
+        description: 'Exact completed immutable 2026-10-23 signals'
+        required: false
+        type: string
+        default: '40144815020'
+      v58_run:
+        description: 'Exact completed 2026-10-23 3-pattern baseline'
+        required: false
+        type: string
+        default: '40095818288'
+      v64_run:
+        description: 'Exact completed two-source conflict audit'
+        required: false
+        type: string
+        default: '40151275009'
+      v65_run:
+        description: 'Exact authenticated successful KRX EOD API artifact'
+        required: false
+        type: string
+        default: '40156628275'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/recovery_rootcause_v66_free.yml'
+      - 'scripts/recovery_price_rootcause_v66.py'
+      - 'scripts/test_recovery_price_rootcause_v66.py'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: free-v66-source-sensitivity-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  immutable-triple-source-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RECOVERY_RUN: ${{ inputs.recovery_run || '39923708922' }}
+      FREEZE_RUN: ${{ inputs.freeze_run || '40144815020' }}
+      V58_RUN: ${{ inputs.v58_run || '40095818288' }}
+      V64_RUN: ${{ inputs.v64_run || '40151275009' }}
+      V65_RUN: ${{ inputs.v65_run || '40156628275' }}
+      ASOF: '2026-10-23'
+    steps:
+      - name: Sparse checkout test-only sensitivity and source modules
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/recovery_price_rootcause_v66.py
+            /scripts/test_recovery_price_rootcause_v66.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Compile and run immutable-source/root-cause safety tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p 'test_recovery_price_rootcause_v66.py' -v
+
+      - name: Download all five successful dated provenance ancestors
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery freeze v58 v64 v65 output
+          for pair in "$RECOVERY_RUN:.github/workflows/krx_recovery_scan.yml" \
+                      "$FREEZE_RUN:.github/workflows/forward_freeze_v63.yml" \
+                      "$V58_RUN:.github/workflows/entry_strategy_v58_daily.yml" \
+                      "$V64_RUN:.github/workflows/source_consensus_v64_free.yml" \
+                      "$V65_RUN:.github/workflows/krx_official_eod_v65_daily.yml"; do
+            runid="${pair%%:*}"
+            expected="${pair#*:}"
+            [[ "$runid" =~ ^[0-9]{8,14}$ ]] || { echo "SOURCE_RUN_NOT_DECIMAL"; exit 1; }
+            actual="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.path')"
+            done="$(gh api "repos/$GH_REPO/actions/runs/$runid" --jq '.conclusion')"
+            [[ "$actual" == "$expected" && "$done" == 'success' ]] ||
+              { echo "SOURCE_PATH_OR_CONCLUSION_INVALID"; exit 1; }
+          done
+          gh run download "$RECOVERY_RUN" -R "$GH_REPO" -n krx-recovery-scan -D recovery
+          gh run download "$FREEZE_RUN" -R "$GH_REPO" -n free-v63-date-frozen-forward-seed -D freeze
+          gh run download "$V58_RUN" -R "$GH_REPO" -n free-v58-daily-entry-research -D v58
+          gh run download "$V64_RUN" -R "$GH_REPO" -n free-v64-asof-source-close-discrepancy -D v64
+          gh run download "$V65_RUN" -R "$GH_REPO" -n free-v65-official-eod-vs-v64-regular-session-uncertain -D v65
+          test -s recovery/candidates.csv
+          test -s recovery/candidate_daily_history_v52.csv
+          test -s freeze/frozen_v63_manifest.json
+          test -s freeze/frozen_v63_signals.json
+          test -s v58/output/entry_strategy_v58_status.json
+          test -s v58/output/entry_strategy_v58_all.csv
+          test -s v64/source_consensus_v64_status.json
+          test -s v64/source_consensus_v64_all.csv
+          test -s v65/$ASOF/krx_v65_source_comparison_status.json
+          test -s v65/$ASOF/official/krx_v65_collect_status.json
+          test -s v65/$ASOF/official/KOSPI_official.csv
+          test -s v65/$ASOF/official/KOSDAQ_official.csv
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          day=os.environ['ASOF']
+          frozen=json.loads(Path('freeze/frozen_v63_manifest.json').read_text(encoding='utf-8'))
+          v58=json.loads(Path('v58/output/entry_strategy_v58_status.json').read_text(encoding='utf-8'))
+          v64=json.loads(Path('v64/source_consensus_v64_status.json').read_text(encoding='utf-8'))
+          v65=json.loads(Path('v65/'+day+'/krx_v65_source_comparison_status.json').read_text(encoding='utf-8'))
+          assert day==frozen['asof']==v58['asof']==v64['asof']==v65['asof']
+          assert frozen['source_run_ids']['recovery_run_id']==os.environ['RECOVERY_RUN']
+          assert frozen['source_run_ids']['v58_run_id']==os.environ['V58_RUN']
+          assert v65['official_api_connected'] is True
+          assert v65['official_eod_rows']>=2000
+          assert v65['official_1530_close_eligible_for_signal'] is False
+          assert frozen['frozen_alternative_count']==34
+          print('V66_EXACT_ORIGINAL_DATE_SOURCE_IDS_VALID',day)
+          PY
+
+      - name: Measure all five OHLCV mismatch dimensions and 246 method sensitivities
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/recovery_price_rootcause_v66.py \
+             --recovery recovery --freeze freeze \
+             --v58 v58/output --v64 v64 --v65 "v65/$ASOF" \
+             --official "v65/$ASOF/official" --outdir output
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          s=json.loads(Path('output/recovery_rootcause_v66_status.json').read_text(encoding='utf-8'))
+          assert s['asof']=='2026-10-23'
+          assert s['candidates']==82
+          assert s['evaluated_method_rows']==246
+          assert s['archival_signals']==17
+          assert s['recovery_mismatch_counts']=={
+            'open':0,'high':20,'low':6,'close':59,'volume':64}
+          assert s['official_equals_v18_all_five_fields_for_all_candidates'] is True
+          assert s['original_v58_setup_reproduced_for_all_evaluations'] is True
+          assert s['previous_119_sessions_may_be_provider_inconsistent'] is True
+          assert s['official_daily_data_independently_certified_regular_1530'] is False
+          assert s['adjusted_close_vs_market_endpoint_causation_proven'] is False
+          assert s['trade_approved'] is False and s['orders_enabled'] is False
+          assert s['decision']=='CASH'
+          with Path('output/recovery_rootcause_v66_all.csv').open(
+              encoding='utf-8-sig',newline='') as f:
+              rs=list(csv.DictReader(f))
+          assert len(rs)==246
+          assert all(r['trade_approved']=='False' and r['orders_enabled']=='False'
+                     for r in rs)
+          assert all(r['regular_1530_verified']=='False' for r in rs)
+          print('V66_FULL_246_FORENSIC_METHODS_CAUSALITY_NOT_PROVEN',
+                s['recovery_mismatch_counts'],
+                s['one_final_bar_substitution_research_signals'],
+                s['method_setups_changed'],s['decision'])
+          PY
+
+      - name: Archive complete reproducible diagnostics and Android-readable report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-v66-source-path-and-signal-sensitivity-20261023
+          path: |
+            output/recovery_rootcause_v66_status.json
+            output/recovery_rootcause_v66_all.csv
+            output/recovery_rootcause_v66_mobile.md
+          retention-days: 90
+          if-no-files-found: warn
