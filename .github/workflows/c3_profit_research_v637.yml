@@ -1,0 +1,76 @@
+name: C3 v6.37 causal paper profitability research
+
+on:
+  push:
+    branches: ['research/v615-usable-entry-frontier-20261025', 'research/c3-v637-work-20261026']
+    paths:
+      - 'scripts/*v637.py'
+      - 'research/c3_v637/**'
+      - '.github/workflows/c3_profit_research_v637.yml'
+  pull_request:
+    paths:
+      - 'scripts/*v637.py'
+      - 'research/c3_v637/**'
+      - '.github/workflows/c3_profit_research_v637.yml'
+  workflow_dispatch:
+    inputs:
+      full_replay:
+        description: 'Also download frozen Oct23 archive and run 910 retrospective paper replays'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/c3_event_replay_v637.py
+            /scripts/c3_research_v637.py
+            /scripts/c3_eligibility_v637.py
+            /scripts/c3_forward_freeze_v637.py
+            /scripts/c3_structure_sensitivity_v637.py
+            /scripts/test_c3_event_replay_v637.py
+            /scripts/test_c3_research_v637.py
+            /scripts/test_c3_forward_freeze_v637.py
+            /research/c3_v637/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'numpy>=1.26,<3' 'pandas>=2.2,<3'
+      - name: Causal accounting and freeze checks
+        run: python -m unittest discover -s scripts -p 'test_c3_*v637.py' -v
+      - name: Download exact historical artifact only
+        if: github.event_name == 'workflow_dispatch' && inputs.full_replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p work
+          gh api "repos/$GH_REPO/actions/artifacts/12502033196/zip" > work/v18-source.zip
+      - name: Full retrospective replay; always no orders
+        if: github.event_name == 'workflow_dispatch' && inputs.full_replay
+        run: |
+          python scripts/c3_research_v637.py \
+            --source-zip work/v18-source.zip \
+            --candidates research/c3_v637/frozen_candidates_v633_NEAR60.csv \
+            --eligibility-csv research/c3_v637/eligibility_snapshot.csv \
+            --out work/v637
+          python scripts/c3_structure_sensitivity_v637.py \
+            --source-zip work/v18-source.zip \
+            --candidates research/c3_v637/frozen_candidates_v633_NEAR60.csv \
+            --eligibility-csv research/c3_v637/eligibility_snapshot.csv \
+            --out work/v637/structure_sensitivity
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.full_replay && always()
+        with:
+          name: c3-v637-repeated-history-paper-only-no-orders
+          path: work/v637
+          retention-days: 90
