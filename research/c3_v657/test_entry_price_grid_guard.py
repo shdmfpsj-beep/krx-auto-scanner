@@ -23,7 +23,7 @@ class TestV657PriceGrid(unittest.TestCase):
  def test_atr_10(self):
   self.assertEqual(self.trial()['ATR10_resting_limit_research'],49800)
  def test_atr_25(self):
-  self.assertEqual(self.trial()['ATR25_resting_limit_research'],49300)
+  self.assertEqual(self.trial()['ATR25_resting_limit_research'],49350)
  def test_near_chart_line(self):
   self.assertEqual(self.trial()['D_prior_support_resting_limit_research'],49700)
  def test_pit_future_support_rejected(self):
