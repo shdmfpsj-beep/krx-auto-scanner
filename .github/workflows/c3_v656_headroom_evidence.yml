@@ -1,0 +1,31 @@
+name: C3 v6.56 price headroom evidence guard (NO ORDERS)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'research/c3_v656/**'
+      - '.github/workflows/c3_v656_headroom_evidence.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/c3_v656/**'
+      - '.github/workflows/c3_v656_headroom_evidence.yml'
+permissions:
+  contents: read
+jobs:
+  no_orders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: research/c3_v656
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Enforce D-only structural stop and non-retroactive completed breakout logic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile research/c3_v656/chart_headroom_guard.py
+          python -m unittest discover -s research/c3_v656 -p test_chart_headroom_guard.py -v
