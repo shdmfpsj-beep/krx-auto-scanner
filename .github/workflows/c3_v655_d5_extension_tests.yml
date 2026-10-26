@@ -1,0 +1,31 @@
+name: C3 v6.55 read-only D5 continuation safe fixtures
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'research/c3_v655/**'
+      - '.github/workflows/c3_v655_d5_extension_tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/c3_v655/**'
+      - '.github/workflows/c3_v655_d5_extension_tests.yml'
+permissions:
+  contents: read
+jobs:
+  no_hindsight_D5_selection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONPATH: research/c3_v655
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure D5 is completed and no broker action possible
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile research/c3_v655/extension_guard.py
+          python -m unittest discover -s research/c3_v655 -p test_extension_guard.py -v
