@@ -52,6 +52,7 @@ jobs:
           python scripts/c3_research_v638.py --source-zip work/market.zip --eligibility-csv work/inputs/eligibility_snapshot.csv --legacy-candidates research/c3_v637/frozen_candidates_v633_NEAR60.csv --out work/primary
           python scripts/c3_followup_v638.py --primary-dir work/primary --source-zip work/market.zip --out work/followup
           python scripts/c3_ablation_v638.py --source-zip work/market.zip --candidates research/c3_v637/frozen_candidates_v633_NEAR60.csv --eligibility-csv research/c3_v637/eligibility_snapshot.csv --out work/ablation
+          python scripts/c3_rr_geometry_audit_v638.py --primary-dir work/primary --source-zip work/market.zip --protocol research/c3_v638/frozen_protocol_v1.json --out work/net2R
           python scripts/c3_protocol_v638.py --protocol research/c3_v638/frozen_protocol_v1.json --primary-dir work/primary --asof 2026-10-23 --out work/freeze_20261023.json
       - name: Reconcile remote results with frozen local reference
         run: |
@@ -79,5 +80,6 @@ jobs:
             work/primary
             work/followup
             work/ablation
+            work/net2R
             work/freeze_20261023.json
           retention-days: 90

@@ -12,7 +12,7 @@ The first publication is now authorized by the user's Oct26 followup. v6.37 is a
 - Three resting-entry protocols, three exits, market-trend/CASH filter, assumed costs, one-slot reservations, integer shares, gaps, missing candles, end-of-day equity and zero-order defaults.
 - Known-cash alternatives may be chosen **at D close**, never after D+1 gaps or missed fills. This optional intervention did not justify changing the default.
 - Whole-source scanning: 2,870 historical price files, 2,261 codes allowed by the common-stock/nonpharma snapshot; 267 D-only candidates from 195 tickers. NEAR60 has 142 signals / 64 D dates; first-pullback trend has 125 / 70.
-- 1,194 primary/control/stress replays, 923 disclosed adaptive followups, 24 controlled old-cohort ablations: **2,141 repeated historical portfolio replays**, not 2,141 independent trades. The data were already studied, and followups were adapted after seeing results.
+- 1,194 primary/control/stress replays, 923 disclosed adaptive followups, 24 controlled old-cohort ablations and 4 post-shortlist net2R geometry checks: **2,145 repeated historical portfolio replays**, not 2,145 independent trades. The data were already studied, and followups were adapted after seeing results.
 - 129 local tests pass. The new GitHub workflow rebuilds source eligibility, runs the full study and compares all 144 primary account/cost outcomes with the committed reference.
 
 **Controlled execution ablation, fixed old cohort**
@@ -32,9 +32,15 @@ Period Jan02–Oct23 2026, hypothetical KRW1m, planned account risk 1%, one inte
 | Research hypothesis | Closed proxies | Base ROI | 0.95% cost | 1.25% cost | Base daily marked MDD |
 |---|---:|---:|---:|---:|---:|
 | A: first trend pullback / setup score / one-day resting limit / benchmark trend / day5 close | 14 | +4.8900% | +4.4423% | +3.7219% | -1.2498% |
-| B: first trend pullback / actual-structure score / one-day resting limit / benchmark trend / 10% limit target, max12 | 11 | +3.8801% | +3.3655% | not the preselected 1.25% diagnostic | -1.1524% |
+| B: first trend pullback / actual-structure score / one-day resting limit / benchmark trend / 10% limit target, max12 | 11 | +3.8801% | +3.3655% | not tested | -1.1524% |
 
 A remains +1.6421% after its two strongest D signals are missed and the whole portfolio is replayed (+1.1594% at 0.95%, +0.7760% at 1.25%). Independently presampled 40% missed-order sensitivity has +2.4584% median, +0.4090% minimum across the twenty tested seeds; these are assumed miss rates, not measured broker probabilities. Leave-one-entry-month-out replays range +2.1753% to +5.6420% at base cost.
+
+**The user's net2R gate is not satisfied by the headline returns**
+
+The A/B frozen hypotheses are price-pattern research controls; they do not apply final80, company/sector/cash verification or the user's verified overhead net2R requirement. In particular, **all 14 A and all 11 B original base-cost closed proxies lack an automatic D-high resistance cluster above their D close**. Do not describe their headline ROI as the return of the fully eligible live strategy.
+
+The separate, post-shortlist `scripts/c3_rr_geometry_audit_v638.py` preserves the same D ranking and lowers the resting cap to the cost-adjusted net2R maximum derived from automatic D-high clusters, rejecting missing resistance. It yields only two closed proxies for A (+1.3781% base, +1.3074% stress) and two for B (+1.2388%, +1.1336%). These are different portfolio paths, **not a filtered subset of the original 14/11**, and two proxies provide no reliable profitability inference. Automatic clusters remain unverified real resistance. This audit does not change the frozen A/B protocol or authorize trades.
 
 **Material weaknesses remain**
 
