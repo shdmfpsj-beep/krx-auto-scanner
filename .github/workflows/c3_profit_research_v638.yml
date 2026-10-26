@@ -5,6 +5,7 @@ on:
     branches: ['research/v615-usable-entry-frontier-20261025']
     paths:
       - 'scripts/*v638.py'
+      - 'scripts/c3_prepare_v638_inputs.py'
       - 'scripts/c3_event_replay_v637.py'
       - 'research/c3_v638/**'
       - '.github/workflows/c3_profit_research_v638.yml'
@@ -25,6 +26,7 @@ jobs:
           sparse-checkout: |
             /scripts/*v637.py
             /scripts/*v638.py
+            /scripts/c3_prepare_v638_inputs.py
             /research/c3_v637/
             /research/c3_v638/
             /reports/kind_sector_master.csv
