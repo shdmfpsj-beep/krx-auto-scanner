@@ -1,0 +1,31 @@
+name: C3 v6.58 preopen limit caps safety (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'research/c3_v658/**'
+      - '.github/workflows/c3_v658_preopen_cap_guard.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/c3_v658/**'
+      - '.github/workflows/c3_v658_preopen_cap_guard.yml'
+permissions:
+  contents: read
+jobs:
+  safe_math:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: research/c3_v658
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Frozen-D caps, first overhead, no broker permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile research/c3_v658/preopen_cap_guard.py
+          python -m unittest discover -s research/c3_v658 -p 'test_preopen_cap_guard.py' -v
