@@ -1,0 +1,25 @@
+# C3 v6.39 — Work v6.38 continuation, prospective evidence gate (2026-10-26 10:24 KST)
+
+**Status: Research only / CASH / 1000000 KRW virtual capital, 1% planned risk, NO actual orders.** Preserves frozen v6.38 A/B hypotheses without retuning on repeatedly viewed 2026 Jan–Oct23 retrospective bars. The corresponding full independent v6.39 Python source, 23 local passing regression tests, full Korean mobile report and SHA256 release manifest are available in the user's conversation artifact `C3_v639_Work_이어가기_검증코드.zip`. This doc is a research ledger, **not an assertion of a new GitHub full CI run or full archived replay for v6.39**.
+
+## Latest Work baseline verified live on connected GitHub
+- v6.38 head commit `60cdff802bb61cf3dd15c981bd518e3d8784d01e`, PR #25 still draft, GitHub Action run [40250900699](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/40250900699): `completed/success`. `research/c3_v638/frozen_protocol_v1.json` exists on research branch and recorded 2026-10-26 **09:35 KST**.
+- Historical through Friday 2026-10-23 only, no post-Oct26 completed new KRX session nor independently confirmed broker fills. Trial count 2145 retrospective experiments / 129 tests / 144 reproduction checks belong to **v6.38**, not newly rerun as v6.39.
+- V638 A `A_TREND_PULLBACK_D5`, REST_1D/STRUCT_D5; B `B_TREND_PULLBACK_TARGET10`, REST_1D/TARGET10_D12. Both frozen at 1000000 KRW, 1% account risk, D-close preselection and no D+1 alternative rerank, stop structure determined before entry. Old historical research +4.8900% (A, 14), +3.8801% (B, 11), under assumed 0.65% combined costs; **neither was tested with all final stock >=80, independently evidenced net >=2R overhead, historically PIT eligibility/corporate action, certified KRX regular-only prices and broker fills**. The same study found no dated verifiable 2R overhead cluster for the original A/B simulated 14/11 exits. No live deployment.
+
+## New additional v6.39 validated locally: forward evidence audit
+- `c3_evidence_gate_v639.py`, `test_c3_evidence_gate_v639.py` are **new additive, read-only artifacts** shipped in ZIP, 23/23 local fixture tests green.
+- Validate canonical SHA256 of v6.38 immutable D freeze, protocol SHA256, market source manifest digest and original A/B settings. Reject altered date, corrupted ISO, timezone-naive date, proto before/after capture tampering, wrong next KRX session date, mismatched source, frozen candidate list substitution.
+- Reject evaluating a 2026-10-26 D candle at 10:24 KST: a valid complete D-session requires at least **15:30 KST**. New-time-eligibility needs D-closed candidate capture after 15:30 and strictly before next KRX regular 09:00, correctly handling holidays and weekends using an externally supplied next session date.
+- An internal JSON `captured_at_utc` plus SHA is **NOT an externally authenticated contemporaneous record**. Separate timing-eligible _claim_ from externally demonstrated GitHub timestamp and source verification. Thus no simulated price-touch is a broker fill and no submitted Boolean `broker_filled=True` automatically approves a trade.
+- Enforce paper-order minimum integer 1 share, limit>daily stop, buy cost 0.15% within paper cash and worst-planned loss against stop including 0.15% buy and 0.50% sell fees under 10000 KRW. **Gap risk can exceed plan**.
+- All v6.39 output gates remain `independent_verified_forward_completed_trades=0`, `broker_fills_claimed=0`, `trade_approved=False`, `orders_enabled=False`, `production_decision=CASH`, even when input flags assert source validation.
+- **What was not newly executed**: v6.38's 2145 whole-market replays, 129 GitHub original checks, 10/26 completed OHLC (market still open at work time), broker orders, PIT issuer validation. v6.39 contributes new tests and validation tooling only, not another fabricated positive ROI.
+
+## Next exact data contract
+1. After each **official 15:30 KRX close**, capture two frozen A/B D candidate choices from verified 09:00–15:30 common-stock ex-bio regular-only price and originally time-stamped announcements. Record source digest, canonical signal and independent GH publication timestamp.
+2. Before next 09:00, require model/date freeze immutable; if already open or missing original evidence classify late/unverifiable and **exclude from prospective verified n**. D+1 modeled limit price contact is not order execution.
+3. Apply actual broker cash/minimum 1 share/one C3 position, confirmed pivot, audited sector company catalyst, final stock >=80 and truly dated overhead net >=2R before **any human BUY review**. Absent this: CASH, no autoorders or K100 action.
+4. Track all rejected/missed/fill-proxy outcomes, closed 5/12-session net PnL, cash and daily marked open PnL, maximum drawdown, 0.95% fee/slippage stress, two largest winners removed, monthly results and index/cash/random comparator. Genuine new independent sample size currently **0**.
+
+This is an **additive evidence process** and must not alter `research/c3_v638/frozen_protocol_v1.json` or any of its implementation hashes. Keep PR #25 DRAFT. No live merge or K100 change.
