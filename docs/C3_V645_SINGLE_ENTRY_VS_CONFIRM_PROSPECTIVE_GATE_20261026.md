@@ -1,0 +1,30 @@
+# C3 v6.45 — stop forcing 2nd buys: single-entry vs D+1 confirmation / full account P&L (2026-10-26, 12:57 KST)
+
+**Decision: stop prioritizing mechanically reserved second entries; keep Work v6.38 A/B first-entry as research baselines, and concentrate on sector/stock quality, D-time chart resistance, no-lookahead order execution.** Not an approved profit model. CASH; zero new forward actual broker trades, no live orders or K100 modifications.
+
+## Reproduced experiments (not new out-of-sample trades)
+
+- Input: EXACT previously successful Work v6.38 full research GitHub run `40250900699` artifact `12621175343`, original A=14/B=11 shadow fills, full frozen 2026-10-23-vintage dated 18 ticker price members from v6.44 and 197 original daily mark-to-market cash/equity dates per model, 100만원 initial paper cash. Original stock/D-signal selection is unchanged, no lookahead alternate ticker chosen when a ticket is declined.
+- Four **research only** approaches × model A/B × fees 0.65% (buy 0.15%, sell 0.50%) or 0.95% (buy 0.30%, sell 0.65%) = **16 cash+daily marked-equity scenarios**, with 10 monthly closes, individual synthetic ledger and cancel reasons; all 197 A and 197 B original-model daily equity rows match the original Work archived numbers, 32 local tests pass. An extracted copy of final ZIP was *independently run in a fresh local directory*; 32/32 tests pass and the scenario CSV hash reproduces exactly. Zip in this conversation `C3_v645_단일진입_수익성검증_연구자료.zip`, report `c3_v645/C3_v645_단일진입_매매전략_실증보고서.md`. Contains code, tests, exact source, original archived Work artifact, CSV, SHA256. **No new full GitHub Actions CI for v6.45 is claimed.**
+- Base 0.65% simulated P&L comparison:
+
+| Historical fixed subset | A D5 n / result | B TARGET10_D12 n / result |
+|---|---|---|
+| Original Work one-shot | 14 / **+4.89001%** | 11 / **+3.88006%** |
+| Hypothetically reject first opening execution `entry<=original_D_stop` | 13 / +4.94162% | 10 / +3.93167% |
+| Reduce integer quantity if original planned stop+both fees exceeds 1% of 1m; also reject entry<=stop | 13 / +4.85503% | 10 / +3.68546% |
+| D+1 completed close **above D close and known D MA20**, D+1 low above D stop, wait D+2 open (no chase >D+1 close+2.5%), **new 5D or 12D stop-first exit from NEW entry** | 3 / **+0.68047%** | 1 / **+0.91354%** |
+
+- Fixed original account EOD worst drawdown A -1.2498%, B -1.1524%; risk-cap A -1.1234%, B -1.1519% roughly. Confirmation misses most old paper-winning opportunities; **not independently proof that same-day one-shot beats all delayed systems** because analyzed universe is only the original 25 already-filled Work tickets, not all D-signals/misses across market.
+- Estimated +0.05161 percentage-point (KRW **516.10**) change for gap veto A and B is *THE SAME 2026-01-06 ticker 328130 adverse stop-gap event*, duplicated across model variants. It is **NOT two independent successes** and more importantly may be **NON-EXECUTABLE**: if a resting limit was already live before the opening auction, observing the opening price and retroactively canceling the already-filled order is not permitted. Only advance-authorized broker order logic/pre-open observable quotations could possibly prevent it. Mark the result **UNPROVEN UPPER BOUND, NOT IMPLEMENTED EDGE**; do not automatically ship veto after seeing the opening price.
+- 0.95% reprice same 0.65%-selected cohorts (not whole-market reselection) gives A/B original +4.43554/+3.53122%; stop-gap hypothetical +4.51097/+3.60665%; risk cap +4.24701/+3.27738%; D1 confirm +0.58447/+0.84248%. **Different from old v6.38 full 0.95%-rescreened cohort** and not interchangeable.
+
+## What changes in research priority and what does NOT
+
+1. **ONE-SHOT FIRST PULLBACK + SECTOR-LEADER QUALITY** becomes priority; mandatory 2nd-leg reserve is demoted. v6.44 reserve without adds had reduced A/B paper return (+4.89 to +3.32, +3.88 to +2.99) so reserve cash opportunity cost is demonstrated in the matched old subset. C optional high-conviction second-entry is dormant unless independent completed price-by-volume/retest evidence supports it. -10% is NEVER an anchor and account 3-4% budget is NOT approved.
+2. No new indicator weights or rule thresholds are tuned to Jan–Oct23 hindsight. Original frozen A/B trading rules and `research/c3_v638/frozen_protocol_v1.json` remain unchanged. v6.45 is a separately named **non-production** research challenger.
+3. Before any actual human new BUY approval, require legitimate regular 09:00–15:30 bars (NOT afterhours/NXT blended), issuer common-share/non-pharma/bio PIT eligibility, timely known sector leadership/catalyst, current actual Kiwoom cash, completed D-known daily structural stop, verified final stock score >=80, contemporaneously documented overhead resistance giving net >=2R after cost, minimum one share, real broker fill/order timing. Otherwise **CASH / PENDING DATA**. Do not claim A/B old historical paper profits passed these gates.
+4. Next objective technical blocker is broker/market event chronology: model advance-resting order, auction gap, tick/lot, order cancellation cutoff and actual executed vs price touched. TradingView official broker emulator docs https://www.tradingview.com/support/solutions/43000786181-broker-emulator/ recommend fee+slippage and limit-order price 1-tick beyond with explicit fill delays; it still cannot attest actual Korean broker executions.
+5. Truly novel new official 2026-10-26 after 15:30 closing bars, frozen BEFORE next market 09:00, plus genuine brokerage fill evidence are required for OOS claims. Zero completed new independent fills today at midday. One-stock, no auto-orders, K100 unchanged. Study PR #25 remains DRAFT.
+
+**Execution caution:** The v6.45 'ONE_SHOT_GAP_VETO' and 'ONE_SHOT_RISK_CAP' both inspect ORIGINAL SHADOW FILL PRICES and are conditional unrealized **upper bounds**, not advance executable orders or approved strategy. D+2 OPEN proxy can also be optimistic because conditional human decisions cannot guarantee fill at opening auction. Study does not claim actual paper-trade forward execution or certified 2R.
