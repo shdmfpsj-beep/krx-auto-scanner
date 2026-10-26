@@ -1,0 +1,31 @@
+name: C3 v6.53 backfilled ETF PDF guard (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'research/c3_v653/**'
+      - '.github/workflows/c3_v653_historical_vintage_guard.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/c3_v653/**'
+      - '.github/workflows/c3_v653_historical_vintage_guard.yml'
+permissions:
+  contents: read
+jobs:
+  no-hindsight-membership-or-orders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: research/c3_v653
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Enforce point-in-time backfill caution and D-price-only guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile research/c3_v653/historical_vintage_and_price_guard.py
+          python -m unittest discover -s research/c3_v653 -p 'test_historical_vintage_and_price_guard.py' -v
