@@ -1,0 +1,31 @@
+name: C3 v6.50 evidence-only source gate (no broker)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'research/c3_v650/**'
+      - '.github/workflows/c3_v650_evidence_only.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/c3_v650/**'
+      - '.github/workflows/c3_v650_evidence_only.yml'
+permissions:
+  contents: read
+jobs:
+  research_guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONPATH: research/c3_v650
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run Python no-orders source-validation tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile research/c3_v650/evidence_gate.py
+          python -m unittest discover -s research/c3_v650 -p 'test_evidence_gate.py' -v
