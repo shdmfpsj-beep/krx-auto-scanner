@@ -1,0 +1,31 @@
+name: C3 v6.54 stock continuation D-only guard (NO ORDERS)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/v615-usable-entry-frontier-20261025]
+    paths:
+      - 'research/c3_v654/**'
+      - '.github/workflows/c3_v654_stock_entry_guard.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/c3_v654/**'
+      - '.github/workflows/c3_v654_stock_entry_guard.yml'
+permissions:
+  contents: read
+jobs:
+  research_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: research/c3_v654
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: D-only and no-orders regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile research/c3_v654/stock_gate_core_v654.py
+          python -m unittest discover -s research/c3_v654 -p 'test_stock_gate_core_v654.py' -v
