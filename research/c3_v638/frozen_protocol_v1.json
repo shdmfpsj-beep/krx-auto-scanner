@@ -1,0 +1,85 @@
+{
+  "schema": "C3_V638_1_FULL_RESEARCH_PROTOCOL",
+  "registered_at_utc": "2026-10-26T00:35:15.829043+00:00",
+  "earliest_fresh_D_signal": "2026-10-26",
+  "paper_cash": 1000000,
+  "account_risk_fraction": 0.01,
+  "evidence_layers": [
+    "REPEATED_HISTORICAL",
+    "NEW_UNVERIFIED_PRICE_PROXY",
+    "NEW_VERIFIED_PRICE_PAPER",
+    "BROKER_EXECUTION_VERIFIED"
+  ],
+  "hypotheses": [
+    {
+      "id": "A_TREND_PULLBACK_D5",
+      "pattern": "TREND_FIRST_PULLBACK",
+      "rank": "LEGACY_D_SCORE",
+      "entry": "REST_1D",
+      "exit": "STRUCT_D5",
+      "regime": "BENCH_TREND",
+      "full_policy": {
+        "entry": "REST_1D",
+        "exit": "STRUCT_D5",
+        "regime": "BENCH_TREND",
+        "initial_cash": 1000000.0,
+        "risk_fraction": 0.01,
+        "retest_atr": 0.25,
+        "confirmation_retest_atr": 0.15,
+        "trail_atr": 2.0,
+        "limit_penetration_ticks": 1,
+        "require_rr2": false,
+        "extra_stop_slippage": 0.0,
+        "D0_affordability_alternative": false,
+        "failure_close_exit": false,
+        "fixed_exit_sessions": 5
+      }
+    },
+    {
+      "id": "B_TREND_PULLBACK_TARGET10",
+      "pattern": "TREND_FIRST_PULLBACK",
+      "rank": "STRUCTURE_D_SCORE",
+      "entry": "REST_1D",
+      "exit": "TARGET10_D12",
+      "regime": "BENCH_TREND",
+      "full_policy": {
+        "entry": "REST_1D",
+        "exit": "TARGET10_D12",
+        "regime": "BENCH_TREND",
+        "initial_cash": 1000000.0,
+        "risk_fraction": 0.01,
+        "retest_atr": 0.25,
+        "confirmation_retest_atr": 0.15,
+        "trail_atr": 2.0,
+        "limit_penetration_ticks": 1,
+        "require_rr2": false,
+        "extra_stop_slippage": 0.0,
+        "D0_affordability_alternative": false,
+        "failure_close_exit": false,
+        "fixed_exit_sessions": 5
+      }
+    }
+  ],
+  "frozen_implementation_sha256": {
+    "c3_execution_v638.py": "1a2b731e8e075dd776e841feb24f858d922e39358323336b73253ca3efc9f0de",
+    "c3_event_replay_v637.py": "696b5e15961af6b3ba4898f3a096cf8eb327c7134f56417ca490451e178be01a",
+    "c3_research_v638.py": "b86c8e142f3ab303397e05afdaad7a47720e028a4e10114f91275b58b706e2b3",
+    "c3_protocol_v638.py": "474ae56ebdd75fd36decd05ad9b01dfd57a34afe2c607f929d507121880267f7"
+  },
+  "candidate_eligibility": "Unbroken confirmed daily pivot; D structural risk <=12%; turnover >= KRW5bn.",
+  "A_priority_feature": "Setup momentum/volume/3-day compactness score; actual stop uses the confirmed unbroken pivot.",
+  "B_priority_feature": "The same fixed formula with actual confirmed structural risk.",
+  "rejected_as_default": [
+    "profit-activated ATR on the NEAR60 cohort",
+    "after-open price-filtered opening fills",
+    "D0 affordability alternatives",
+    "relative-strength positive gate",
+    "extra failed-rebound exit"
+  ],
+  "parameter_change_requires_new_protocol_version": true,
+  "research_review_can_use_verified_new_paper_prices_without_actual_money_at_risk": true,
+  "real_trade_approval_still_requires_final80_net2R_current_cash_regular_source_and_company_checks": true,
+  "independent_verified_forward_samples": 0,
+  "trade_approved": false,
+  "orders_enabled": false
+}

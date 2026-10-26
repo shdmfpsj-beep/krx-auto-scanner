@@ -1,0 +1,81 @@
+name: C3 v6.38 full-source execution and robustness research
+
+on:
+  push:
+    branches: ['research/v615-usable-entry-frontier-20261025']
+    paths:
+      - 'scripts/*v638.py'
+      - 'scripts/c3_event_replay_v637.py'
+      - 'research/c3_v638/**'
+      - '.github/workflows/c3_profit_research_v638.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  full-paper-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/*v637.py
+            /scripts/*v638.py
+            /research/c3_v637/
+            /research/c3_v638/
+            /reports/kind_sector_master.csv
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy==2.3.5 pandas==2.2.3
+      - name: Causal order, cash, stop and freeze tests
+        run: python -m unittest discover -s scripts -p 'test_c3_*v63[78].py' -v
+      - name: Download exact frozen public artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p work
+          gh api "repos/$GH_REPO/actions/artifacts/12502033196/zip" > work/market.zip
+          gh api "repos/$GH_REPO/actions/artifacts/12587359806/zip" > work/issuer.zip
+      - name: Rebuild explicit common-stock and nonpharma snapshot
+        run: |
+          python scripts/c3_prepare_v638_inputs.py --market-zip work/market.zip --issuer-zip work/issuer.zip --sector-csv reports/kind_sector_master.csv --out work/inputs
+      - name: Whole-source primary and robustness study
+        run: |
+          python scripts/c3_research_v638.py --source-zip work/market.zip --eligibility-csv work/inputs/eligibility_snapshot.csv --legacy-candidates research/c3_v637/frozen_candidates_v633_NEAR60.csv --out work/primary
+          python scripts/c3_followup_v638.py --primary-dir work/primary --source-zip work/market.zip --out work/followup
+          python scripts/c3_ablation_v638.py --source-zip work/market.zip --candidates research/c3_v637/frozen_candidates_v633_NEAR60.csv --eligibility-csv research/c3_v637/eligibility_snapshot.csv --out work/ablation
+          python scripts/c3_protocol_v638.py --protocol research/c3_v638/frozen_protocol_v1.json --primary-dir work/primary --asof 2026-10-23 --out work/freeze_20261023.json
+      - name: Reconcile remote results with frozen local reference
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          import numpy as np,pandas as pd
+          a=pd.read_csv('research/c3_v638/expected_primary_metrics.csv').sort_values(['experiment','cost_pct']).reset_index(drop=True)
+          b=pd.read_csv('work/primary/scenario_comparison.csv').sort_values(['experiment','cost_pct']).reset_index(drop=True)
+          assert a[['experiment','cost_pct']].equals(b[['experiment','cost_pct']])
+          for k in ['closed_trades','account_roi_pct','daily_liquidation_mdd_pct']:
+              assert np.allclose(a[k],b[k],rtol=0,atol=1e-7,equal_nan=True),k
+          meta=json.loads(Path('work/primary/research_status.json').read_text())
+          assert meta['primary_cost_scenarios']==144 and meta['new_independent_completed_trades']==0
+          assert meta['orders_enabled'] is False and meta['trade_approved'] is False
+          source=json.loads(Path('research/c3_v638/source_manifest.json').read_text())
+          assert hashlib.sha256(Path('work/inputs/eligibility_snapshot.csv').read_bytes()).hexdigest()==source['expected_rebuilt_eligibility_sha256']
+          print('144/144 remote paper scenarios match frozen local reference; no orders')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v638-full-repeated-history-paper-no-orders
+          path: |
+            work/primary
+            work/followup
+            work/ablation
+            work/freeze_20261023.json
+          retention-days: 90

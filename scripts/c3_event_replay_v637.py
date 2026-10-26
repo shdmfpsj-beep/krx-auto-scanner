@@ -288,7 +288,12 @@ def exit_step(position, bar, idx, policy):
     return None, None, p
 
 
-def replay(sessions, prices, signals, policy=Policy(), costs=BASE_COST):
+def replay(sessions, prices, signals, policy=Policy(), costs=BASE_COST, *, handlers=None):
+    # Default handlers preserve the frozen v6.37 experiment. Later research
+    # protocols share bookkeeping without monkeypatching module globals.
+    order_builder = handlers.make_pending if handlers is not None else make_pending
+    order_step = handlers.pending_step if handlers is not None else pending_step
+    position_step = handlers.exit_step if handlers is not None else exit_step
     sessions = [iso_day(d) for d in sessions]
     if sessions != sorted(set(sessions)):
         raise ValueError('SESSIONS_NOT_STRICTLY_ORDERED')
@@ -318,7 +323,16 @@ def replay(sessions, prices, signals, policy=Policy(), costs=BASE_COST):
                 halted = True
                 events.append(dict(date=day, ticker=ticker, event='HALT_MISSING_BAR'))
             else:
-                _validate_bar(bar)
+                try:
+                    _validate_bar(bar)
+                except ValueError:
+                    if handlers is None:
+                        raise
+                    halted = True
+                    events.append(dict(date=day,ticker=ticker,event='HALT_INVALID_OHLC'))
+                    daily.append(dict(date=day,equity_krw=None,cash_krw=cash,
+                                      position_ticker=ticker if position else None,complete=False))
+                    break
                 if position:
                     prev = position['last_close']
                     if not .65 <= bar['open'] / prev <= 1.35:
@@ -327,8 +341,10 @@ def replay(sessions, prices, signals, policy=Policy(), costs=BASE_COST):
                     else:
                         mark = bar['close']
                 elif pending:
-                    fill, pending, reason = pending_step(pending, bar, idx, policy, costs, equity, cash)
+                    fill, pending, reason = order_step(pending, bar, idx, policy, costs, equity, cash)
                     events.append(dict(date=day, ticker=ticker, event=reason))
+                    if reason.startswith('HALT_'):
+                        halted = True
                     if fill:
                         debit = fill['price'] * fill['qty'] * (1 + costs.buy)
                         if debit > cash + 1e-8:
@@ -339,10 +355,11 @@ def replay(sessions, prices, signals, policy=Policy(), costs=BASE_COST):
                         position = dict(**fill, debit=debit, active_stop=active,
                                         peak_high=fill['price'], peak_close=fill['price'],
                                         trail_active=False, last_close=fill['price'],
-                                        planned_risk=debit - fill['qty'] * fill['stop'] * (1-costs.sell))
+                                        planned_risk=fill.get('precommitted_risk_krw',
+                                            debit - fill['qty'] * fill['stop'] * (1-costs.sell)))
                         mark = bar['close']
                 if position and not halted:
-                    px, reason, position = exit_step(position, bar, idx, policy)
+                    px, reason, position = position_step(position, bar, idx, policy)
                     position['last_close'] = bar['close']
                     if px is not None:
                         credit = position['qty'] * px * (1 - costs.sell)
@@ -378,9 +395,10 @@ def replay(sessions, prices, signals, policy=Policy(), costs=BASE_COST):
             elif policy.regime == 'BENCH_TREND' and signal.get('market_trend') is not True:
                 reason = 'BENCH_TREND_FILTER'
             else:
-                pending, reason = make_pending(signal, policy, costs, equity, cash, idx)
+                pending, reason = order_builder(signal, policy, costs, equity, cash, idx)
                 reason = reason or 'D_CLOSE_ORDER_FROZEN'
-            events.append(dict(date=day, ticker=signal['ticker'], event=reason))
+            chosen_ticker = pending['signal']['ticker'] if pending and reason.startswith('D0_') else signal['ticker']
+            events.append(dict(date=day, ticker=chosen_ticker, event=reason))
         daily.append(dict(date=day, equity_krw=equity, cash_krw=cash,
                           position_ticker=position['signal']['ticker'] if position else None,
                           pending_ticker=pending['signal']['ticker'] if pending else None,
