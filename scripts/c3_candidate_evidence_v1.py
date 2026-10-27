@@ -302,8 +302,24 @@ def write_outputs(outdir, rows, meta):
              '과거 공식 종목분류는 해당 날짜의 관찰 근거다. 현재 보통주 확인·정규장 가격·실제 거래대금·기업과 타점 검증을 대신하지 않는다.', '',
              '| 원순위 | 종목 | 유형 검토 | 사업 범위 | 결과 |',
              '|---|---|---|---|---|']
+    labels = {'COMMON_IN_PRIOR_SNAPSHOT': '과거 보통주 근거·현재 확인 필요',
+              'COMMON_IN_CURRENT_SNAPSHOT': '당일 보통주 원본 확인',
+              'EXCLUDE_SPECIAL': '스팩·리츠 등 제외',
+              'EXCLUDE_NON_DOMESTIC_COMMON': '국내 일반 보통주 범위 제외',
+              'UNKNOWN_REQUIRES_OFFICIAL_BASIC': '종목유형 원본 필요',
+              'EXCLUDE_PHARMA_BIOTECH': '제약·바이오 제외',
+              'BUSINESS_REVIEWED_NON_PHARMA': '주사업 검토·기업가치 별도',
+              'UNREVIEWED_BUSINESS': '사업 원문 검토 필요',
+              'BOUNDARY_REVIEW_REQUIRED': '사업 범위 추가 검토',
+              'EXCLUDE_FROM_C3': '선정 대상 제외',
+              'EVIDENCE_PENDING': '추가 검증 대기'}
+    def cell(value):
+        return str(value).replace('|', '\\|').replace('\n', ' ').replace('\r', ' ')
     for r in rows:
-        lines.append(f"| {r['raw_rank']} | {r['name']} {r['ticker']} | {r['instrument_review']} | {r['business_scope_status']} | {r['review_status']} |")
+        values = [r['raw_rank'], f"{r['name']} {r['ticker']}",
+                  labels[r['instrument_review']], labels[r['business_scope_status']],
+                  labels[r['review_status']]]
+        lines.append('| ' + ' | '.join(cell(v) for v in values) + ' |')
     lines.extend(['', '종가가 보유 당시 구조선 아래로 마감하면 다음 관측 시가 정리. 동일 종가와 장중 꼬리는 종가 이탈로 처리하지 않는다.'])
     md = outdir / 'c3_candidate_evidence_v1_mobile.md'
     md.write_text('\n'.join(lines) + '\n', encoding='utf-8')
