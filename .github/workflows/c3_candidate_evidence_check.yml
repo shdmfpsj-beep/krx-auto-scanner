@@ -1,0 +1,50 @@
+name: C3 candidate evidence regression
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_candidate_evidence_v1.py'
+      - 'scripts/test_c3_candidate_evidence_v1.py'
+      - 'config/c3_screening_evidence/**'
+      - '.github/workflows/c3_candidate_evidence_check.yml'
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_candidate_evidence_v1.py
+            /scripts/test_c3_candidate_evidence_v1.py
+            /config/c3_screening_evidence/**
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test stale sources, special securities, business exclusions and unchanged CASH
+        run: python -m unittest discover -s scripts -p 'test_c3_candidate_evidence_v1.py' -v
+      - name: Validate configured official bytes and reviewed business identities
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python - <<'PY'
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from c3_candidate_evidence_v1 import load_basic, load_scope, read_json
+          root = Path('config/c3_screening_evidence')
+          folder = root / 'basic_20261023'
+          clock = datetime.now(timezone.utc).isoformat()
+          source_day = read_json(folder / 'krx_basic_v610_status.json')['asof']
+          rows, source = load_basic(folder, source_day, clock)
+          scope, proof = load_scope(root / 'business_scope_review_v1.json', clock)
+          assert len(rows) == 2764
+          assert scope['234690']['status'] == 'EXCLUDE_PHARMA_BIOTECH'
+          assert scope['110020']['status'] == 'BOUNDARY_REVIEW_REQUIRED'
+          assert proof['historical_vintage_certified'] is False
+          print('C3_EVIDENCE_CONFIG_VERIFIED', len(rows), len(scope), source_day)
+          PY
