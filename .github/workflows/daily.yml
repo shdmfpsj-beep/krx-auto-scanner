@@ -158,7 +158,9 @@ jobs:
         id: collect
         if: github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84'
         continue-on-error: true
-        run: python scripts/run.py
+        run: |
+          python -m unittest discover -s scripts -p 'test_c3_premove_handoff_v1.py' -v
+          python scripts/run.py
 
       - name: Rank C3 and K100 candidates
         if: steps.collect.outcome != 'failure' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'rerank_only' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
@@ -931,3 +933,4 @@ jobs:
       - name: Fail job if collection failed
         if: steps.collect.outcome == 'failure'
         run: exit 1
+

@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 from pykrx import stock
 from market_session_policy_v66 import completed_scan_cutoff_date, source_policy_metadata
+from c3_premove_handoff_v1 import PremoveObserver, record_failure as record_premove_failure
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'reports'
@@ -220,6 +221,18 @@ def main():
     valid_rows = []
     candidate_daily_bars = []
     latest_dates = Counter()
+    premove = PremoveObserver(CUTOFF.isoformat())
+    premove_calendar = []
+    premove_calendar_source = {'ticker': '069500', 'status': 'UNAVAILABLE',
+                              'role': 'OBSERVED_SESSION_GRID_NOT_REGULAR_SCOPE_PROOF'}
+    try:
+        calendar_frame, calendar_provider = fetch_ohlcv('069500')
+        if calendar_frame is None or calendar_frame.empty:
+            raise ValueError('EMPTY_REFERENCE_CALENDAR')
+        premove_calendar = [pd.Timestamp(d).date().isoformat() for d in calendar_frame.index]
+        premove_calendar_source.update(status='CAPTURED', provider=calendar_provider)
+    except Exception as calendar_error:
+        premove_calendar_source['error'] = type(calendar_error).__name__ + ':' + str(calendar_error)
 
     for code in codes:
         status['download_attempted'] += 1
@@ -228,6 +241,14 @@ def main():
             if df is None or df.empty:
                 raise ValueError('empty OHLCV')
 
+            # Observe before the legacy setup gate, minimum150 rows, and
+            # legacy duplicate removal. The observer retains invalid-source
+            # evidence without repairing it and cannot approve trades.
+            try:
+                premove.observe(code, df, source)
+            except Exception as premove_error:
+                if code not in premove.received:
+                    premove.errors[code] = type(premove_error).__name__ + ':' + str(premove_error)
             df = df[~df.index.duplicated(keep='last')].sort_index()
             if len(df) < 150:
                 raise ValueError(f'only {len(df)} sessions')
@@ -278,6 +299,8 @@ def main():
                     })
 
         except Exception as e:
+            if code not in premove.received and code not in premove.errors:
+                premove.errors[code] = 'SOURCE_UNAVAILABLE:' + type(e).__name__ + ':' + str(e)
             status['failed'] += 1
             record_error(f'{code}: {type(e).__name__}: {e}')
 
@@ -297,6 +320,17 @@ def main():
         status['data_date_verified'] = (
             reference_count / max(1, sum(latest_dates.values())) >= 0.95
         )
+
+    try:
+        observed = premove.finish(OUT, status['reference_market_date'] or CUTOFF.isoformat(),
+                                  premove_calendar, premove_calendar_source)
+        status['premove_observation_audit_completed'] = observed['observation_audit_completed']
+        status['premove_price_stage_cases'] = observed['price_stage_case_count']
+        status['premove_source_count'] = observed['observed_source_count']
+    except Exception as premove_error:
+        record_premove_failure(OUT, CUTOFF.isoformat(), premove_error)
+        status['premove_observation_audit_completed'] = False
+        status['premove_price_stage_cases'] = 0
 
     rows = [
         rec for rec in valid_rows
@@ -376,3 +410,4 @@ if __name__ == '__main__':
         save_status()
         traceback.print_exc()
         raise
+
