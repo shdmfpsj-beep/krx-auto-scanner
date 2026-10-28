@@ -1,0 +1,69 @@
+{
+  "schema": "C3_CANDIDATE_EVIDENCE_V1",
+  "evidence_audit_completed": true,
+  "asof": "2026-10-28",
+  "evaluated_at_utc": "2026-10-28T12:27:04.697583+00:00",
+  "evaluated_at_kst": "2026-10-28T21:27:04.697583+09:00",
+  "candidate_rows": 95,
+  "all_raw_candidates_preserved": true,
+  "raw_scan_target": 2624,
+  "raw_valid_count": 2603,
+  "raw_score_not_final80": true,
+  "previous_results_not_rewritten": true,
+  "input_sha256": {
+    "status.json": "7d5422fee5ab9ab91f6636afb14ef556a3f967a05f5ecf82df8b13b8935dda62",
+    "c3_preliminary.csv": "5aabba64c6c3af90b14ec4e1cf43a1ea512633e914f1a44525e25ff1808559e3"
+  },
+  "basic_source": {
+    "status": "PRIOR_DATED_SNAPSHOT_REQUIRES_REFRESH",
+    "asof": "2026-10-23",
+    "received_utc": "2026-10-25T05:17:57.502411+00:00",
+    "historical_vintage_certified": false,
+    "file_sha256": {
+      "krx_basic_v610_status.json": "49f183d3f5d8984ffbd17335c6bc6cb9b055e3ecb875c9c42be177314a64c49e",
+      "KOSPI_basic_v610.csv": "43c3a35fc132b58201c5eba40b44aea47344b63ed240ef0f697f2ba56b5d2b65",
+      "KOSDAQ_basic_v610.csv": "9e8a4daf2ca07bd932849b7118dab8795f9a4979ff19ca0f4c9f44d6532c1ccb"
+    }
+  },
+  "business_scope_source": {
+    "status": "TARGETED_REVIEW_NOT_EXHAUSTIVE_TAXONOMY",
+    "historical_vintage_certified": false,
+    "file_sha256": {
+      "business_scope_review_v1.json": "ab474fbb570d618ddfc9248ac588c2e0dd5110152512ce4bc372eeccab16a060"
+    }
+  },
+  "actual_turnover_source": {
+    "status": "MISSING",
+    "file_sha256": {}
+  },
+  "instrument_counts": {
+    "COMMON_IN_PRIOR_SNAPSHOT": 78,
+    "EXCLUDE_NON_DOMESTIC_COMMON": 2,
+    "EXCLUDE_SPECIAL": 15
+  },
+  "business_counts": {
+    "UNREVIEWED_BUSINESS": 90,
+    "BUSINESS_REVIEWED_NON_PHARMA": 3,
+    "EXCLUDE_PHARMA_BIOTECH": 1,
+    "BOUNDARY_REVIEW_REQUIRED": 1
+  },
+  "decision_counts": {
+    "EVIDENCE_PENDING": 77,
+    "EXCLUDE_FROM_C3": 18
+  },
+  "actual_turnover_observed_count": 0,
+  "regular_session_certified_count": 0,
+  "approved_buy_count": 0,
+  "first_discovery_times_not_inferred": true,
+  "historical_vintage_certified": false,
+  "account_values_used": false,
+  "raw_ranking_changed": false,
+  "decision": "CASH",
+  "profitability_proven": false,
+  "trade_approved": false,
+  "orders_enabled": false,
+  "output_sha256": {
+    "c3_candidate_evidence_v1.csv": "88721f6cd23c5044f861bf3512973f4feeba7a238db7416f0c71077712b285bd",
+    "c3_candidate_evidence_v1_mobile.md": "2886d92be90d93f767dcacba133c9902df396951bcfb9a84d9dbbda24cbf8f30"
+  }
+}
