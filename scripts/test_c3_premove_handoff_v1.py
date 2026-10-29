@@ -4,6 +4,7 @@ import numpy as np,pandas as pd
 import sys,types,importlib.util
 from unittest.mock import patch
 from c3_premove_handoff_v1 import PremoveObserver,CSV_NAME,HISTORY_NAME,STATUS_NAME,record_failure
+from c3_premove_handoff_v1 import object_digest,validate_registered_watch,load_registered_watch,WATCH_HISTORY,WATCH_STATUS,WATCH_REGISTRY,registered_failure
 
 def frame(n=280):
     x=np.arange(n);c=100+np.sin(x*.5)*4
@@ -135,5 +136,67 @@ class SourceRouteTests(unittest.TestCase):
         with patch.dict('os.environ',{'C3_PRIVATE_SECRET':'must-not-appear'}):x=self.run.runtime_evidence()
         self.assertNotIn('must-not-appear',json.dumps(x));self.assertFalse(x['orders_enabled'])
 
+def registry_for(b,tickers=('005930',)):
+    day=b.index[-1].date().isoformat();clock=day+'T12:00:00+00:00';setups=[]
+    for t in tickers:
+        row=dict(ticker=t,name='TEST'+t,price_asof=day,registered_at_utc=clock,setup_id='a'*64 if t==tickers[0] else 'b'*64,
+                 source_snapshot_sha256='c'*64,source_key='TEST_LINEAGE')
+        row['record_id']=object_digest(row);setups.append(row)
+    r=dict(schema='C3_REGISTERED_RECLAIM_COHORT_V1',baseline_price_asof=day,registered_at_utc=clock,
+           registered_count=len(setups),setups=setups,baseline_exact_provider_unknown=True,orders_enabled=False,not_an_approved_buy_list=True)
+    r['registry_id']=object_digest(r);return r
+
+class RegisteredFollowupTests(unittest.TestCase):
+    def capture(self,b,registry=None,observe=True,calendar=None):
+        tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup);root=Path(tmp.name)
+        days=[x.date().isoformat() for x in b.index];obs=PremoveObserver(days[-1],captured_at_utc='2026-10-30T00:00:00+00:00',run_context={},registered_watch=registry)
+        if observe:obs.observe('005930',b,'TEST_SOURCE')
+        s=obs.finish(root,days[-1],days if calendar is None else calendar,{'status':'TEST'})
+        return root,s
+    def test_registered_failure_of_price_stage_still_has_entire_history(self):
+        b=frame();b.iloc[-1]=[198,202,197,200,1000]
+        root,s=self.capture(b,registry_for(b));legacy=pd.read_csv(root/CSV_NAME)
+        self.assertFalse(legacy.price_stage_pass.iloc[0]);self.assertEqual(s['price_stage_case_count'],0)
+        follow=json.loads((root/WATCH_STATUS).read_text());self.assertEqual(follow['observed_count'],1)
+        with gzip.open(root/WATCH_HISTORY,'rt',encoding='utf-8-sig') as f:h=pd.read_csv(f)
+        self.assertEqual(len(h),len(b));self.assertEqual(h.close.iloc[-1],200)
+    def test_unavailable_registered_issuer_is_not_dropped_or_zero_priced(self):
+        b=frame();root,s=self.capture(b,registry_for(b,('005930','000660')))
+        follow=json.loads((root/WATCH_STATUS).read_text());self.assertEqual(follow['registered_count'],2)
+        self.assertEqual(follow['unavailable_count'],1);missing=next(x for x in follow['rows'] if x['ticker']=='000660')
+        self.assertEqual(missing['state'],'REGISTERED_SOURCE_UNAVAILABLE');self.assertNotIn('close',missing)
+    def test_legacy_outputs_are_byte_identical_with_or_without_registry(self):
+        b=frame();a,sa=self.capture(b);c,sc=self.capture(b,registry_for(b))
+        self.assertEqual((a/CSV_NAME).read_bytes(),(c/CSV_NAME).read_bytes())
+        self.assertEqual((a/HISTORY_NAME).read_bytes(),(c/HISTORY_NAME).read_bytes())
+    def test_duplicate_bad_history_is_preserved_for_audit_not_repaired(self):
+        b=frame();r=registry_for(b);b=pd.concat([b.iloc[:-1],b.iloc[-2:]])
+        root,s=self.capture(b,r);follow=json.loads((root/WATCH_STATUS).read_text())
+        self.assertEqual(s['price_valid_count'],0);self.assertEqual(follow['history_rows'],len(b))
+        self.assertNotEqual(follow['rows'][0]['price_tail_state'],'PRICE_ONLY_OBSERVED')
+    def test_registry_tampering_and_duplicate_ticker_are_rejected(self):
+        from copy import deepcopy
+        r=registry_for(frame());bad=deepcopy(r);bad['setups'][0]['ticker']='000660'
+        with self.assertRaisesRegex(ValueError,'DIGEST'):validate_registered_watch(bad)
+        bad=deepcopy(r);bad['setups'].append(deepcopy(bad['setups'][0]));bad['registered_count']=2;bad.pop('registry_id');bad['registry_id']=object_digest(bad)
+        with self.assertRaisesRegex(ValueError,'DUPLICATE'):validate_registered_watch(bad)
+    def test_capture_never_certifies_session_or_trade(self):
+        b=frame();root,s=self.capture(b,registry_for(b));follow=json.loads((root/WATCH_STATUS).read_text())
+        self.assertFalse(follow['regular_only_scope_verified']);self.assertEqual(follow['approved_buy_count'],0)
+        self.assertFalse(follow['orders_enabled']);self.assertIsNone(follow['rows'][0]['source_response'])
+    def test_failure_marker_makes_old_followup_outputs_unusable(self):
+        b=frame();root,s=self.capture(b,registry_for(b));registered_failure(root,'2026-10-30',RuntimeError('not done'))
+        status=json.loads((root/WATCH_STATUS).read_text());self.assertFalse(status['capture_completed']);self.assertTrue(status['stale_previous_outputs_not_accepted'])
+    def test_reference_calendar_and_hashes_are_explicit(self):
+        b=frame();root,s=self.capture(b,registry_for(b));follow=json.loads((root/WATCH_STATUS).read_text())
+        self.assertEqual(len(follow['observed_reference_dates']),len(b));self.assertTrue(follow['reference_calendar_valid'])
+        import hashlib
+        for name,h in follow['output_sha256'].items():self.assertEqual(hashlib.sha256((root/name).read_bytes()).hexdigest(),h)
+        self.assertEqual(load_registered_watch(root/WATCH_REGISTRY)['registered_count'],1)
+    def test_invalid_reference_calendar_does_not_disappear_from_followup_status(self):
+        b=frame();root,s=self.capture(b,registry_for(b),calendar=[]);follow=json.loads((root/WATCH_STATUS).read_text())
+        self.assertFalse(follow['reference_calendar_valid']);self.assertTrue(follow['rows'][0]['observed'])
+
 if __name__=='__main__':unittest.main()
+
 
