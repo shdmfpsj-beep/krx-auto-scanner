@@ -1,4 +1,7 @@
 import csv, json, os, time, traceback
+import hashlib, inspect, sys
+from contextlib import contextmanager
+from importlib.metadata import version as package_version, PackageNotFoundError
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -63,6 +66,93 @@ def normalize_codes(series):
         if (s := str(x).strip()).isdigit() and len(s) == 6
     })
 
+# Collection evidence never changes the requested adjusted series or certifies
+# its market scope. Only the actual function/module paths are traced. Arguments,
+# environment values, credentials and response headers are never recorded.
+SOURCE_LOG = OUT / 'c3_source_observations_v1.jsonl'
+RUNTIME_FILE = OUT / 'c3_source_runtime_v1.json'
+CALENDAR_FILE = OUT / 'c3_reference_calendar_v1.json'
+UNIVERSE_FILE = OUT / 'c3_universe_capture_v1.json'
+
+def utc_now():
+    return datetime.now(ZoneInfo('UTC')).isoformat()
+
+def function_evidence(fn):
+    try:
+        unwrapped = inspect.unwrap(fn)
+        source = inspect.getsource(unwrapped)
+        return {'module': unwrapped.__module__, 'name': unwrapped.__name__,
+                'source_sha256': hashlib.sha256(source.encode()).hexdigest()}
+    except (AttributeError, OSError, TypeError):
+        return {'module': getattr(fn, '__module__', None),
+                'name': getattr(fn, '__name__', None), 'source_sha256': None}
+
+def runtime_evidence():
+    versions = {}
+    for name in ('pykrx', 'pandas', 'finance-datareader'):
+        try:
+            versions[name] = package_version(name)
+        except PackageNotFoundError:
+            versions[name] = None
+    return {'schema': 'C3_SOURCE_RUNTIME_V1', 'captured_at_utc': utc_now(),
+            'python_version': sys.version.split()[0], 'packages': versions,
+            'run_context': {key: os.getenv(key) for key in ('GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'GITHUB_SHA')},
+            'api_functions': {name: function_evidence(getattr(stock, name, None))
+                              for name in ('get_market_ohlcv_by_date', 'get_market_ohlcv_by_ticker')},
+            'regular_only_scope_verified': False, 'orders_enabled': False}
+
+@contextmanager
+def trace_price_route():
+    evidence = {'actual_provider_calls': [], 'trace_completed': False,
+                'trace_skipped_existing_profiler': False}
+    previous = sys.getprofile()
+    if previous is not None:
+        evidence['trace_skipped_existing_profiler'] = True
+        yield evidence
+        return
+    seen = set()
+    def profile(frame, event, arg):
+        if event != 'call':
+            return
+        module = str(frame.f_globals.get('__name__', ''))
+        name = frame.f_code.co_name
+        if module.startswith(('pykrx.website.naver', 'pykrx.website.krx')) and name == 'get_market_ohlcv_by_date':
+            identity = (module, name)
+            if identity not in seen:
+                seen.add(identity)
+                evidence['actual_provider_calls'].append({'module': module, 'function': name})
+    try:
+        sys.setprofile(profile)
+        yield evidence
+        evidence['trace_completed'] = True
+    finally:
+        sys.setprofile(previous)
+
+def record_source_response(code, df, label, api, request, started, route=None):
+    record = {'schema': 'C3_SOURCE_RESPONSE_V1', 'ticker': str(code),
+              'source_label': label, 'api': api, 'request': request,
+              'fetch_started_at_utc': started, 'response_received_at_utc': utc_now(),
+              'rows': len(df), 'response_columns': list(map(str, df.columns)),
+              'latest_observed_date': str(pd.Timestamp(df.index[-1]).date()),
+              'latest_raw_close': float(df['종가'].iloc[-1]) if '종가' in df and pd.notna(df['종가'].iloc[-1]) else None,
+              'raw_response_csv_sha256': hashlib.sha256(df.to_csv(index=True).encode()).hexdigest(),
+              'runtime_manifest': RUNTIME_FILE.name,
+              'runtime_manifest_sha256': hashlib.sha256(RUNTIME_FILE.read_bytes()).hexdigest() if RUNTIME_FILE.exists() else None,
+              'route': route, 'regular_only_scope_verified': False,
+              'source_reported_turnover_field_present': '거래대금' in df.columns,
+              'turnover_unit_and_regular_scope_verified': False, 'orders_enabled': False}
+    SOURCE_LOG.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with SOURCE_LOG.open('a', encoding='utf-8') as output:
+            output.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + '\n')
+    except (OSError, ValueError) as error:
+        # A diagnostic write failure must never silently select another price
+        # provider. The original response remains original and is still audited.
+        record['diagnostic_stream_write_error'] = type(error).__name__
+        record_error('SOURCE_EVIDENCE_WRITE_FAILED:' + type(error).__name__)
+    df.attrs['c3_source_response'] = record
+    return df, label
+
 def fetch_universe():
     for offset in (0, 1, 2, 3, 5, 7, 10):
         day = (CUTOFF - timedelta(days=offset)).strftime('%Y%m%d')
@@ -107,15 +197,19 @@ def fetch_universe():
 def fetch_ohlcv(code):
     errors = []
     try:
-        df = stock.get_market_ohlcv_by_date(START, END, code, adjusted=True)
+        started = utc_now()
+        with trace_price_route() as route:
+            df = stock.get_market_ohlcv_by_date(START, END, code, adjusted=True)
         if df is not None and not df.empty:
-            return df, 'pykrx'
+            return record_source_response(code, df, 'pykrx', 'get_market_ohlcv_by_date',
+                                          {'start': START, 'end': END, 'adjusted': True}, started, route)
         errors.append('pykrx empty')
     except Exception as e:
         errors.append(f'pykrx {type(e).__name__}: {str(e)[:80]}')
 
     try:
         import FinanceDataReader as fdr
+        started = utc_now()
         raw = fdr.DataReader(
             code,
             START[:4] + '-' + START[4:6] + '-' + START[6:],
@@ -130,7 +224,8 @@ def fetch_ohlcv(code):
             'Close': '종가',
             'Volume': '거래량'
         })
-        return df, 'FinanceDataReader'
+        return record_source_response(code, df, 'FinanceDataReader', 'DataReader',
+                                      {'start': START, 'end': END, 'adjusted': 'PROVIDER_DEFAULT_UNKNOWN'}, started)
     except Exception as e:
         errors.append(f'FDR {type(e).__name__}: {str(e)[:80]}')
     raise ValueError('; '.join(errors))
@@ -208,7 +303,16 @@ def special_type_from_name(name):
     return 'UNKNOWN'
 
 def main():
+    # Reset only this run's diagnostic stream; never append stale attempts.
+    SOURCE_LOG.unlink(missing_ok=True)
+    RUNTIME_FILE.write_text(json.dumps(runtime_evidence(), ensure_ascii=False, indent=2), encoding='utf-8')
+    CALENDAR_FILE.unlink(missing_ok=True)
     codes = fetch_universe()
+    UNIVERSE_FILE.write_text(json.dumps({'schema': 'C3_UNIVERSE_CAPTURE_V1',
+        'captured_at_utc': utc_now(), 'source': status.get('universe_source'),
+        'reference_date': status.get('universe_reference_date'), 'tickers': codes,
+        'total': len(codes), 'full_market_completeness_certified': False},
+        ensure_ascii=False, indent=2), encoding='utf-8')
     status['universe'] = len(codes)
     save_status()
 
@@ -231,6 +335,11 @@ def main():
             raise ValueError('EMPTY_REFERENCE_CALENDAR')
         premove_calendar = [pd.Timestamp(d).date().isoformat() for d in calendar_frame.index]
         premove_calendar_source.update(status='CAPTURED', provider=calendar_provider)
+        CALENDAR_FILE.write_text(json.dumps({'schema': 'C3_REFERENCE_CALENDAR_V1',
+            'ticker': '069500', 'dates': premove_calendar, 'source': premove_calendar_source,
+            'response': calendar_frame.attrs.get('c3_source_response'),
+            'official_exchange_calendar_certified': False, 'regular_only_scope_verified': False},
+            ensure_ascii=False, indent=2), encoding='utf-8')
     except Exception as calendar_error:
         premove_calendar_source['error'] = type(calendar_error).__name__ + ':' + str(calendar_error)
 
@@ -410,4 +519,5 @@ if __name__ == '__main__':
         save_status()
         traceback.print_exc()
         raise
+
 
