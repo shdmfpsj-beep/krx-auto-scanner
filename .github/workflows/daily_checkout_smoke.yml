@@ -24,6 +24,10 @@ jobs:
           sparse-checkout: |
             /scripts/*.py
             /config/*.csv
+            /config/krx_close_crosscheck_20261021.json
+            /config/c3_registered_reclaim_v1.json
+            /config/c3_screening_evidence/**
+            /.github/workflows/daily.yml
             /reports/**
             /requirements.txt
           sparse-checkout-cone-mode: false
@@ -36,14 +40,36 @@ jobs:
           test -s requirements.txt
           test -s scripts/run.py
           test -s scripts/rank_candidates.py
+          test -s config/c3_registered_reclaim_v1.json
           python - <<'PY'
           from pathlib import Path
           import py_compile
+          import hashlib, json, re
 
-          for name in ('scripts/run.py', 'scripts/rank_candidates.py'):
+          for name in ('scripts/run.py', 'scripts/rank_candidates.py',
+                       'scripts/c3_premove_handoff_v1.py', 'scripts/c3_premove_stage_v1.py'):
               py_compile.compile(name, doraise=True)
           py_files = list(Path('scripts').glob('*.py'))
           if len(py_files) < 10:
               raise SystemExit(f'Insufficient Python files after sparse checkout: {len(py_files)}')
+          registry = json.loads(Path('config/c3_registered_reclaim_v1.json').read_text())
+          key = registry.pop('registry_id')
+          def digest(value):
+              return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
+          if key != digest(registry):
+              raise SystemExit('REGISTERED_CONFIG_HASH_MISMATCH')
+          rows = registry['setups']
+          if not rows or len(rows) != registry['registered_count']:
+              raise SystemExit('REGISTERED_CONFIG_COUNT_MISMATCH')
+          tickers = set()
+          for record in rows:
+              expected = record.pop('record_id')
+              if expected != digest(record) or not re.fullmatch(r'\d{6}', record['ticker']) or record['ticker'] in tickers:
+                  raise SystemExit('REGISTERED_CONFIG_RECORD_INVALID')
+              tickers.add(record['ticker'])
+          if '/config/c3_registered_reclaim_v1.json' not in Path('.github/workflows/daily.yml').read_text():
+              raise SystemExit('SCHEDULED_CONFIG_PATH_NOT_INCLUDED')
+          print(f'REGISTERED_CHECKOUT_PASS: {len(rows)} immutable references; no market API calls')
           print(f'CHECKOUT_SMOKE_PASS: {len(py_files)} ordinary scripts; valid source compilation')
           PY
+
