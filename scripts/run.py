@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 from pykrx import stock
 from market_session_policy_v66 import completed_scan_cutoff_date, source_policy_metadata
-from c3_premove_handoff_v1 import PremoveObserver, record_failure as record_premove_failure
+from c3_premove_handoff_v1 import PremoveObserver, record_failure as record_premove_failure, load_registered_watch, registered_failure
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'reports'
@@ -307,6 +307,15 @@ def main():
     SOURCE_LOG.unlink(missing_ok=True)
     RUNTIME_FILE.write_text(json.dumps(runtime_evidence(), ensure_ascii=False, indent=2), encoding='utf-8')
     CALENDAR_FILE.unlink(missing_ok=True)
+    registered_failure(OUT,CUTOFF.isoformat(),RuntimeError('THIS_RUN_CAPTURE_NOT_COMPLETED'))
+    try:
+        registered_watch=load_registered_watch(ROOT/'config/c3_registered_reclaim_v1.json')
+        status['registered_followup_config_loaded']=True
+        status['registered_followup_required_count']=registered_watch['registered_count']
+    except (OSError,ValueError,KeyError,TypeError) as watch_error:
+        registered_watch=None
+        status['registered_followup_config_loaded']=False
+        record_error('REGISTERED_COHORT_CONFIG_UNAVAILABLE:'+type(watch_error).__name__)
     codes = fetch_universe()
     UNIVERSE_FILE.write_text(json.dumps({'schema': 'C3_UNIVERSE_CAPTURE_V1',
         'captured_at_utc': utc_now(), 'source': status.get('universe_source'),
@@ -325,7 +334,7 @@ def main():
     valid_rows = []
     candidate_daily_bars = []
     latest_dates = Counter()
-    premove = PremoveObserver(CUTOFF.isoformat())
+    premove = PremoveObserver(CUTOFF.isoformat(),registered_watch=registered_watch)
     premove_calendar = []
     premove_calendar_source = {'ticker': '069500', 'status': 'UNAVAILABLE',
                               'role': 'OBSERVED_SESSION_GRID_NOT_REGULAR_SCOPE_PROOF'}
@@ -440,6 +449,7 @@ def main():
         record_premove_failure(OUT, CUTOFF.isoformat(), premove_error)
         status['premove_observation_audit_completed'] = False
         status['premove_price_stage_cases'] = 0
+        registered_failure(OUT,CUTOFF.isoformat(),premove_error)
 
     rows = [
         rec for rec in valid_rows
@@ -519,5 +529,6 @@ if __name__ == '__main__':
         save_status()
         traceback.print_exc()
         raise
+
 
 
