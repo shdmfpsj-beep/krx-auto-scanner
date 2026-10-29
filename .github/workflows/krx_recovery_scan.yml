@@ -25,6 +25,9 @@ jobs:
         with:
           sparse-checkout: |
             /scripts/run.py
+            /scripts/c3_premove_handoff_v1.py
+            /scripts/c3_premove_stage_v1.py
+            /scripts/test_c3_premove_handoff_v1.py
             /scripts/market_session_policy_v66.py
             /scripts/test_market_session_policy_v66.py
             /scripts/rank_candidates.py
@@ -32,7 +35,6 @@ jobs:
             /scripts/free_structural_v52.py
             /scripts/test_free_structural_v52.py
             /requirements.txt
-            /reports/candidates.csv
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -43,6 +45,11 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Verify scanner imports and pre-move handoff offline
+        run: |
+          PYTHONPATH=scripts python -c "import run"
+          python -m unittest discover -s scripts -p 'test_c3_premove_handoff_v1.py' -v
 
       - name: Run offline ranking safety regression tests
         run: python -m unittest discover -s scripts -p 'test_rank_candidates.py' -v
@@ -83,6 +90,9 @@ jobs:
           name: krx-recovery-scan
           path: |
             reports/status.json
+            reports/c3_premove_observations_v1.csv
+            reports/c3_premove_history_v1.csv.gz
+            reports/c3_premove_observation_status_v1.json
             reports/candidates.csv
             reports/c3_preliminary.csv
             reports/k100_preliminary.csv
@@ -93,3 +103,4 @@ jobs:
             reports/free_structural_v52_mobile.md
           if-no-files-found: warn
           retention-days: 14
+
