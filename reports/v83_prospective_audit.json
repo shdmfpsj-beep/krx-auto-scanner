@@ -1,6 +1,6 @@
 {
   "version": "8.3",
-  "run_kst": "2026-10-28T21:27:05+09:00",
+  "run_kst": "2026-10-29T21:36:50+09:00",
   "research_only": true,
   "purpose": "Separate C3 prospective TOP3 / K100 Tactical prospective TOP3 / four-stock K100 Core review",
   "source_pool": "C3 and K100 Tactical: upstream prefiltered candidates; K100 Core: confirmed four-stock user screenshot",
@@ -9,24 +9,24 @@
     "new_cohorts": 6,
     "unchanged_cohorts": 0,
     "conflicting_cohorts": 0,
-    "asof": "2026-10-28",
-    "candidate_count": 95,
+    "asof": "2026-10-29",
+    "candidate_count": 72,
     "candidate_date_counts": {
-      "2026-10-28": 95
+      "2026-10-29": 72
     },
     "c3_status": "READY_C3",
     "k100_tactical_status": "READY_K100_TACTICAL",
     "k100_core_status": "EXISTING_FOUR_HOLDINGS_ONLY",
     "conflicts": [],
     "watchlist_C3": [
+      "477760",
       "478110",
-      "493790",
-      "069510"
+      "013580"
     ],
     "watchlist_K100_TACTICAL": [
-      "069510",
-      "140070",
-      "478110"
+      "477760",
+      "478110",
+      "013580"
     ],
     "k100_core_new_screen_candidates": 0,
     "k100_core_mode": "EXISTING_HOLDINGS_ONLY",
@@ -34,9 +34,9 @@
     "selection_scope": "UPSTREAM_PREFILTERED_NOT_EXHAUSTIVE_KRX",
     "archived_k100_legacy_cohorts": 3
   },
-  "cumulative_cohorts": 15,
-  "evaluations_completed": 16,
-  "pending_or_quarantined": 44,
+  "cumulative_cohorts": 21,
+  "evaluations_completed": 22,
+  "pending_or_quarantined": 62,
   "fetch_requested": true,
   "fetch_log": [
     {
@@ -50,6 +50,16 @@
       "revision_pct": 0.0
     },
     {
+      "ticker": "069510",
+      "status": "REFRESH_OK",
+      "revision_pct": 0.0
+    },
+    {
+      "ticker": "140070",
+      "status": "REFRESH_OK",
+      "revision_pct": 0.0
+    },
+    {
       "ticker": "192400",
       "status": "REFRESH_OK",
       "revision_pct": 0.0
@@ -58,19 +68,29 @@
       "ticker": "228340",
       "status": "REFRESH_OK",
       "revision_pct": 0.0
+    },
+    {
+      "ticker": "478110",
+      "status": "REFRESH_OK",
+      "revision_pct": 0.0
+    },
+    {
+      "ticker": "493790",
+      "status": "REFRESH_OK",
+      "revision_pct": 0.0
     }
   ],
   "scorecard": [
     {
       "account": "C3",
       "horizon": 1,
-      "observed_rows": 1,
-      "unique_cohort_dates": 1,
-      "mean_gross_pct": -0.9042,
-      "median_gross_pct": -0.9042,
-      "positive_row_pct": 0.0,
-      "date_balanced_mean_pct": -0.9042,
-      "positive_date_pct": 0.0,
+      "observed_rows": 4,
+      "unique_cohort_dates": 2,
+      "mean_gross_pct": 0.2881,
+      "median_gross_pct": 0.0,
+      "positive_row_pct": 25.0,
+      "date_balanced_mean_pct": -0.1093,
+      "positive_date_pct": 50.0,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
     {
@@ -112,12 +132,12 @@
     {
       "account": "K100_TACTICAL",
       "horizon": 1,
-      "observed_rows": 2,
-      "unique_cohort_dates": 1,
-      "mean_gross_pct": -1.1796,
-      "median_gross_pct": -1.1796,
-      "positive_row_pct": 50.0,
-      "date_balanced_mean_pct": -1.1796,
+      "observed_rows": 5,
+      "unique_cohort_dates": 2,
+      "mean_gross_pct": -0.68,
+      "median_gross_pct": 0.0,
+      "positive_row_pct": 40.0,
+      "date_balanced_mean_pct": -0.7632,
       "positive_date_pct": 0.0,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
