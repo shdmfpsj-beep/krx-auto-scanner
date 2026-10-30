@@ -25,6 +25,12 @@ class TestHistorical(unittest.TestCase):
         self.assertTrue(r['stop_hit'])
         self.assertLess(r['net_pct'],0)
 
+    def test_zero_price_trading_halt_is_not_a_realized_loss(self):
+        with self.assertRaisesRegex(ValueError,'UNTRADEABLE_ZERO_OHLC'):
+            model_return(np.array([100.,0.]),np.array([105.,0.]),
+                np.array([95.,0.]),np.array([101.,100.]),
+                0,100.,90.,120.,2)
+
     def test_gap_through_stop_exits_at_worse_open(self):
         r=model_return(np.array([83.]),np.array([104.]),np.array([80.]),
             np.array([100.]),0,100.,90.,120.,1)
@@ -40,7 +46,10 @@ class TestHistorical(unittest.TestCase):
         self.assertFalse(out['strategy_profitability_proven'])
         self.assertFalse(out['trade_approved'])
         self.assertFalse(out['orders_enabled'])
-        self.assertEqual(out['diagnostics']['loose_paper_d2_eligible'],156)
+        self.assertEqual(out['diagnostics']['loose_paper_d2_eligible'],155)
+        self.assertEqual(out['diagnostics']['invalid_asof_120bar_price_prefix'],140)
+        xs=[x for x in out['results'] if x['partition']=='ALL' and x['hold']==5]
+        self.assertEqual(next(x for x in xs if x['policy']=='CONTACT_ONLY')['simulated_cases'],154)
         self.assertEqual(out['diagnostics']['moderate_paper_d2_eligible'],20)
         self.assertEqual(out['diagnostics']['strict_paper_d2_eligible'],9)
         by={x['policy']:x for x in out['results']
