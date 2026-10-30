@@ -1,0 +1,29 @@
+{
+  "schema": "C3_SOURCE_RUNTIME_V1",
+  "captured_at_utc": "2026-10-30T11:57:26.207333+00:00",
+  "python_version": "3.11.17",
+  "packages": {
+    "pykrx": "1.2.9",
+    "pandas": "2.3.3",
+    "finance-datareader": "0.9.202"
+  },
+  "run_context": {
+    "GITHUB_RUN_ID": "41051723762",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "b59acc47a7959e6e1098dbceb42fb14eec659833"
+  },
+  "api_functions": {
+    "get_market_ohlcv_by_date": {
+      "module": "pykrx.stock.stock_api",
+      "name": "get_market_ohlcv_by_date",
+      "source_sha256": "e3507e69faffeeb5e9d9e33164e6b7ac54b31c003211d134b1386daf478d5a91"
+    },
+    "get_market_ohlcv_by_ticker": {
+      "module": "pykrx.stock.stock_api",
+      "name": "get_market_ohlcv_by_ticker",
+      "source_sha256": "9957bcaaa0c89d08e0937590650de5f562d9eb05d1c7f53f0d6d7f17b8bcb024"
+    }
+  },
+  "regular_only_scope_verified": false,
+  "orders_enabled": false
+}
