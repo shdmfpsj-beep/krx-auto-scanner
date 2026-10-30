@@ -1,9 +1,11 @@
-name: C3 v3 stock-first candidate and entry research (NO ORDERS)
+name: C3 v4 stock-first selection and entries (NO ORDERS)
 on:
   pull_request:
     branches: [main]
     paths:
       - 'scripts/c3_stock_first_v3.py'
+      - 'scripts/c3_stock_first_v4.py'
+      - 'scripts/test_c3_stock_first_v4.py'
       - 'scripts/test_c3_stock_first_v3.py'
       - '.github/workflows/c3_stock_first_v3.yml'
   workflow_dispatch:
@@ -39,7 +41,8 @@ jobs:
           source=Path(os.environ["C3_ARTIFACT_ROOT"])
           needed=['status.json','c3_premove_observations_v1.csv',
             'c3_premove_history_v1.csv.gz','kind_sector_master.csv',
-            'v65_sector_stock_map.csv','c3_candidate_evidence_v1.csv']
+            'v65_sector_stock_map.csv','c3_candidate_evidence_v1.csv',
+            'v68_investment_sector_members.csv','v71_sector_strength.csv']
           assert all((source/p).is_file() for p in needed)
           with zipfile.ZipFile(os.environ['C3_STOCK_FIRST_SOURCE_ZIP'],'w') as out:
               for p in needed:out.write(source/p,p)
@@ -61,8 +64,22 @@ jobs:
           assert x['orders_enabled'] is False
           assert x['no_performance_backtest'] is True
           PY
+      - name: New v4 stock-quality and price-first selection
+        run: |
+          python scripts/c3_stock_first_v4.py --input "$C3_STOCK_FIRST_SOURCE_ZIP" --output "$C3_REPORT_ROOT"
+          python -m unittest discover -s scripts -p 'test_c3_stock_first_v4.py' -v
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path(os.environ['C3_REPORT_ROOT'])/'c3_stock_first_v4_status.json'
+          x=json.loads(p.read_text())
+          assert (x['price_stage_total'],x['researched'])==(457,96)
+          assert [r['ticker'] for r in x['top2']]==['026960','006400']
+          assert x['trade_approved'] is False and x['orders_enabled'] is False
+          assert x['no_backtest_requested'] is True
+          PY
       - uses: actions/upload-artifact@v4
         with:
-          name: c3-stock-first-v3-oct30-no-orders
+          name: c3-stock-first-v4-oct30-research-no-orders
           path: ${{ runner.temp }}/stock-first-v3/
           retention-days: 30
