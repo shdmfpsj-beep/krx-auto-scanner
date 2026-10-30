@@ -74,6 +74,7 @@ jobs:
         env:
           OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
           REQUESTED_TICKERS: ${{ github.event.inputs.tickers || '' }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           test -n "$OPENDART_API_KEY" || { echo 'Missing OPENDART_API_KEY'; exit 1; }
@@ -82,6 +83,8 @@ jobs:
             sanitized="${REQUESTED_TICKERS//,/ }"
             read -r -a codes <<< "$sanitized"
             extra=(--tickers "${codes[@]}")
+          elif [[ "$EVENT_NAME" == 'schedule' && -f config/c3_financial_priority_v1.csv ]]; then
+            extra=(--priority-file config/c3_financial_priority_v1.csv)
           fi
           python scripts/krx_opendart_financial_v91.py \
             --cache-dir reports/v36_ohlcv_cache --outdir reports \
@@ -271,3 +274,4 @@ jobs:
           else
             echo '::warning::Automatic dispatch unavailable. Run bulk_collect manually; progress is saved.'
           fi
+
