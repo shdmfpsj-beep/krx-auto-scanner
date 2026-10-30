@@ -7,6 +7,8 @@ on:
       - 'scripts/c3_stock_first_v4.py'
       - 'scripts/c3_stock_first_v5.py'
       - 'scripts/c3_top2_candle_chart_v1.py'
+      - 'scripts/c3_confirmed_target_ladder_v2.py'
+      - 'scripts/test_c3_confirmed_target_ladder_v2.py'
       - 'scripts/c3_top2_action_sheet_v1.py'
       - 'scripts/test_c3_top2_action_sheet_v1.py'
       - 'scripts/test_c3_top2_candle_chart_v1.py'
@@ -110,12 +112,15 @@ jobs:
             --output "$C3_REPORT_ROOT/v5/charts" \
             --bars 45
           python -m unittest discover -s scripts -p 'test_c3_top2_candle_chart_v1.py' -v
+          python -m unittest discover -s scripts -p 'test_c3_confirmed_target_ladder_v2.py' -v
           python - <<'PY'
           import json,os,pathlib
           root=pathlib.Path(os.environ['C3_REPORT_ROOT'])/'v5/charts'
           data=json.loads((root/'c3_top2_chart_v1_manifest.json').read_text())
           assert [x['ticker'] for x in data['charts']]==['271560','026960']
           assert [x['last_close'] for x in data['charts']]==[114200,28400]
+          assert [x['second_historical_resistance'] for x in data['charts']]==[141700,30550]
+          assert [x['second_target']['pivot_date'] for x in data['strategy_prices']]==['2026-08-11','2026-02-23']
           assert all((root/x['chart_file']).stat().st_size>5000 for x in data['charts'])
           assert data['trade_approved'] is False and data['orders_enabled'] is False
           PY
@@ -134,6 +139,7 @@ jobs:
           assert x["trade_approved"] is False
           assert x["orders_enabled"] is False
           assert [z["ticker"] for z in x["top2"]]==["271560","026960"]
+          assert [z['second_target_krw'] for z in x['top2']]==[141700,30550]
           PY
       - uses: actions/upload-artifact@v4
         with:
