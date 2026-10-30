@@ -36,9 +36,11 @@ jobs:
         run: |
           python -m unittest discover -s scripts -p 'test_c3_entry_corridor_v1.py' -v
           python -m unittest discover -s scripts -p 'test_c3_corridor_replay_v1.py' -v
+          python -m unittest discover -s scripts -p 'test_c3_registered_next_session_shadow_v1.py' -v
       - name: Generate research-only price corridors
         run: |
           python scripts/c3_corridor_replay_v1.py --input "$C3_REPLAY_ARTIFACT_PATH" --output "$RUNNER_TEMP/c3-output"
+          python scripts/c3_registered_next_session_shadow_v1.py --input "$C3_REPLAY_ARTIFACT_PATH" --output "$RUNNER_TEMP/c3-output"
           python - <<'PY'
           import json,os,pathlib
           p=pathlib.Path(os.environ['RUNNER_TEMP'])/'c3-output'/'c3_corridor_replay_v1_status.json'
