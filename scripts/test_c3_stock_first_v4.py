@@ -21,18 +21,23 @@ class TestV4(unittest.TestCase):
         row=dict(close=28400,atr14=892.86,stop=26900,support=27100,
                  first_resistance=29550,second_resistance=None,
                  r20_pct=11.59,r60_pct=11.37,rvol20=.82)
-        b=pd.DataFrame({'high':[26000]*19+[29550]+[28000]})
+        b=pd.DataFrame({'high':[26000]*19+[29550]+[28000],
+            'low':[25500]*21,'close':[25900]*21,'volume':[100000]*21,
+            'date':[f'2026-10-{i+1:02d}' for i in range(21)]})
         p=design_entries(row,b)
         self.assertEqual((p['pullback_low'],p['pullback_high']),(27600,27950))
         self.assertIsNone(p['breakout_trigger'])
         self.assertFalse(p['buy_approved'])
         self.assertFalse(p['orders_enabled'])
+        self.assertIn(p['overhead_supply'],('LOW_CONFIRMED_SELL_PRESSURE','MODERATE_SUPPLY','HIGH_SUPPLY'))
 
     def test_orion_breakout_needs_future_confirmation(self):
         row=dict(close=114200,atr14=3564.29,stop=109600,support=110300,
                  first_resistance=131500,second_resistance=141700,
                  r20_pct=6.73,r60_pct=-13.35,rvol20=.57)
-        b=pd.DataFrame({'high':[111000]*19+[115200]+[114200]})
+        b=pd.DataFrame({'high':[111000]*19+[115200]+[114200],
+            'low':[100000]*21,'close':[110000]*21,'volume':[100000]*21,
+            'date':[f'2026-10-{i+1:02d}' for i in range(21)]})
         p=design_entries(row,b)
         self.assertEqual(p['breakout_trigger'],115700)
         self.assertIn('FUTURE_COMPLETED_CLOSE',p['breakout_rule'])
