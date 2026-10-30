@@ -1,0 +1,55 @@
+name: C3 frozen price-corridor replay (research only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Completed original KRX scan Actions run (October 30 frozen study)"
+        required: true
+        default: "41051723762"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  research-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: scripts
+      C3_REPLAY_ARTIFACT_PATH: ${{ runner.temp }}/c3-source
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install analysis runtime only
+        run: python -m pip install --disable-pip-version-check numpy pandas
+      - name: Download the immutable source scan artifact
+        run: |
+          mkdir -p "$C3_REPLAY_ARTIFACT_PATH"
+          gh run download "${{ inputs.source_run_id }}" --repo "$GITHUB_REPOSITORY" --name krx-scan-report --dir "$C3_REPLAY_ARTIFACT_PATH"
+      - name: Run deterministic tests on source cohort and entry geometry
+        run: |
+          python -m unittest discover -s scripts -p 'test_c3_entry_corridor_v1.py' -v
+          python -m unittest discover -s scripts -p 'test_c3_corridor_replay_v1.py' -v
+      - name: Generate research-only price corridors
+        run: |
+          python scripts/c3_corridor_replay_v1.py --input "$C3_REPLAY_ARTIFACT_PATH" --output "$RUNNER_TEMP/c3-output"
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'c3-output'/'c3_corridor_replay_v1_status.json'
+          x=json.loads(p.read_text())
+          assert x['trade_approved'] is False
+          assert x['orders_enabled'] is False
+          assert x['regular_only_source_certified'] is False
+          assert x['observed_broker_fills']==0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c3-oct30-conditional-entry-research-only
+          path: ${{ runner.temp }}/c3-output/
+          retention-days: 30
