@@ -7,6 +7,8 @@ on:
       - 'scripts/c3_stock_first_v4.py'
       - 'scripts/c3_stock_first_v5.py'
       - 'scripts/c3_top2_candle_chart_v1.py'
+      - 'scripts/c3_top2_action_sheet_v1.py'
+      - 'scripts/test_c3_top2_action_sheet_v1.py'
       - 'scripts/test_c3_top2_candle_chart_v1.py'
       - 'scripts/test_c3_stock_first_v5.py'
       - 'scripts/test_c3_stock_first_v4.py'
@@ -116,6 +118,22 @@ jobs:
           assert [x['last_close'] for x in data['charts']]==[114200,28400]
           assert all((root/x['chart_file']).stat().st_size>5000 for x in data['charts'])
           assert data['trade_approved'] is False and data['orders_enabled'] is False
+          PY
+      - name: Export TOP2 mobile decision table from dated ranked prices
+        env:
+          C3_V5_RANKED_CSV: ${{ runner.temp }}/stock-first-v3/v5/c3_stock_first_v5_ranked.csv
+        run: |
+          python scripts/c3_top2_action_sheet_v1.py \
+            --ranked "$C3_V5_RANKED_CSV" \
+            --output "$C3_REPORT_ROOT/v5/charts"
+          python -m unittest discover -s scripts -p 'test_c3_top2_action_sheet_v1.py' -v
+          python - <<'PY'
+          import json,os,pathlib
+          f=pathlib.Path(os.environ["C3_REPORT_ROOT"])/"v5/charts/c3_top2_action_sheet_v1.json"
+          x=json.loads(f.read_text())
+          assert x["trade_approved"] is False
+          assert x["orders_enabled"] is False
+          assert [z["ticker"] for z in x["top2"]]==["271560","026960"]
           PY
       - uses: actions/upload-artifact@v4
         with:
