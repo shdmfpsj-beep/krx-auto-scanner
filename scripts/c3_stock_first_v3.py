@@ -155,7 +155,11 @@ def evaluate(ticker,bar,ob,name,sector,evidence,sectors):
     elif r20>35 or ma20_dist>2:label='EXTENDED_NO_CHASE'
     else:label='ACTIONABLE_RESEARCH_ZONE'
     breakout=price_grid_down(max(prior_high+.08*atr,c+.1*atr))
-    if breakout>c+1.15*atr or (breakout-stop)/breakout>.09:breakout=None
+    breakout_R=((resistance-breakout-.0065*breakout)/
+       (breakout-stop+.0065*breakout)) if resistance and breakout>stop else None
+    # Momentum continuation is only a future-candle WATCH, never a stop-chase.
+    if (breakout>c+1.15*atr or (breakout-stop)/breakout>.09 or
+        breakout_R is None or breakout_R<2):breakout=None
     return dict(ticker=ticker,name=name,sector=sector,track=str(ob['track']),
       research_priority_score=score,trend=trend,
       volume_proxy_score=round(float(volscore),2),sector_score=round(float(sector_score),2),
@@ -171,7 +175,11 @@ def evaluate(ticker,bar,ob,name,sector,evidence,sectors):
       second_resistance_krw=int(rr[1][0]) if len(rr)>1 else None,
       max_2r_entry_krw=price_grid_down(max_for_2r) if max_for_2r else None,
       first_resistance_net_R=round(float(modelR),2) if modelR else None,
-      conditional_breakout_krw=breakout,sector_members=int(sector_row['count']) if sector_known else 0,
+      conditional_breakout_krw=breakout,
+      continuation_requires_completed_daily_close=True,
+      continuation_min_rvol20=1.2,
+      continuation_requires_recheck_of_structure_and_resistance=True,
+      sector_members=int(sector_row['count']) if sector_known else 0,
       entry_status=label,regular_only_verified=False,
       exchange_turnover_verified=False,foreign_institution_flow_verified=False,
       trade_approved=False,orders_enabled=False)
