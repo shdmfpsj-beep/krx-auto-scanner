@@ -54,7 +54,7 @@ def build_corridors(*, asof, close, atr14, confirmed_support,
     risk_caps = [('PRIMARY_UP_TO_5PCT', stop / .95, .05),
                  ('FLEX_UP_TO_8PCT', stop / .92, .08)]
     modes = [('SUPPORT_RETEST', confirmed_support - .25 * atr14,
-              confirmed_support + .60 * atr14, 'NEXT_SESSION_LIMIT_TOUCH_NOT_FILL'),
+              confirmed_support + .60 * atr14, 'REQUIRE_COMPLETED_RECLAIM_THEN_FOLLOWING_SESSION'),
              ('STRENGTH_CONFIRMATION', max(close - .20 * atr14,
                                            confirmed_support + .30 * atr14),
               close + .30 * atr14, 'FUTURE_CONFIRMED_CLOSE_AND_NEXT_SESSION_ONLY')]
