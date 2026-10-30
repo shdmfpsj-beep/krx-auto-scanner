@@ -84,6 +84,25 @@ def score_strength(row,peer20,peer5):
        impulse=round(impulse,2),participation=round(participation,2),sector=round(sector,2),
        stage=stage,penalty=round(penalty,2))
 
+def overhead_supply_pressure(resistance, history):
+    """Last dated 120-bar pivot supply evidence, not order-book flow."""
+    blank=dict(overhead_supply='UNKNOWN',pivot_relative_volume=None,
+        pivot_close_position=None,resistance_pivot_date=None)
+    if not resistance:return blank
+    b=history.tail(120).reset_index(drop=True)
+    exact=b.index[b.high.astype(float)==float(resistance)].tolist()
+    if not exact:return dict(blank,overhead_supply='PIVOT_NOT_IN_RECENT120')
+    j=exact[-1];p=b.iloc[j];h=float(p.high);l=float(p.low)
+    prev=b.volume.iloc[max(0,j-20):j].astype(float)
+    med=float(prev.median()) if len(prev) else 0
+    rv=float(p.volume)/med if med>0 else None
+    pos=(float(p.close)-l)/(h-l) if h>l else .5
+    flag=('HIGH_SUPPLY' if rv is not None and rv>=1.6 and pos<.4
+          else 'MODERATE_SUPPLY' if rv is not None and rv>=1.2 and pos<.55
+          else 'LOW_CONFIRMED_SELL_PRESSURE')
+    return dict(overhead_supply=flag,pivot_relative_volume=round(rv,2) if rv is not None else None,
+                pivot_close_position=round(pos,2),resistance_pivot_date=str(p.date))
+
 def design_entries(row,history):
     """Two ALTERNATIVE lanes, never simultaneous averaging orders.
 
@@ -130,8 +149,10 @@ def design_entries(row,history):
     # No breakout direction if price has a nearby overhead wall without projected space.
     breakout_trigger=breakout if breakout_ok else None
     if row['r20_pct']<-7:breakout_trigger=None
+    pressure=overhead_supply_pressure(first,history)
     return dict(price_lane=price_grade,reason='FIRST_RESISTANCE_1_15R_OBSTACLE_NOT_MANDATORY_2R_TARGET',
       pullback_low=low,pullback_high=high,first_obstacle_net_r_at_high=contact_r,
+      **pressure,
       pullback_width_atr=round((high-low)/atr,2) if high is not None else None,
       pullback_below_close_pct=round(100*(c-high)/c,2) if high is not None else None,
       breakout_trigger=breakout_trigger,
