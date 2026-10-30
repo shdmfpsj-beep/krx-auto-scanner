@@ -63,7 +63,8 @@ def build_corridors(*, asof, close, atr14, confirmed_support,
         for tier, max_by_risk, max_risk in risk_caps:
             floor = max(lo, stop + tick(stop))
             cap = min(hi, max_entry_2r, max_by_risk,
-                      close + .30 * atr14, overhead - tick(overhead))
+                      close if mode == 'SUPPORT_RETEST' else close + .30 * atr14,
+                      overhead - tick(overhead))
             if floor > cap:
                 continue
             low = krx_round(floor, 'up')
