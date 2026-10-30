@@ -51,10 +51,12 @@ class TestV4(unittest.TestCase):
         self.assertEqual(z['price_stage_total'],457)
         self.assertEqual(z['researched'],96)
         self.assertTrue(-30<z['market_median_20d_pct']<30)
-        self.assertEqual([i['ticker'] for i in z['top2']],['026960','006400'])
+        self.assertEqual([i['ticker'] for i in z['top2']],['026960','271560'])
         self.assertFalse(z['trade_approved'])
         self.assertFalse(z['orders_enabled'])
         self.assertTrue(z['no_backtest_requested'])
+        self.assertEqual(z['readiness_counts']['C_SHARP_REBOUND_NOT_CONFIRMED'],3)
+        self.assertEqual(z['top2'][1]['breakout_trigger'],115300)
         for row in z['top2']:
             self.assertLess(row['stop'],row['pullback_low'])
             self.assertLessEqual(row['pullback_low'],row['pullback_high'])
