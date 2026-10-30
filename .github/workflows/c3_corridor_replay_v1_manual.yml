@@ -68,6 +68,14 @@ jobs:
           python scripts/c3_historical_reclaim_diagnostic_v1.py \
             --input "$C3_REPLAY_ARTIFACT_PATH" \
             --output "$C3_REPLAY_OUTPUT_DIR"
+      - name: Compare intraday with closing stop and next-session gap
+        run: |
+          python scripts/c3_close_stop_comparison_v1.py \
+            --input "$C3_REPLAY_ARTIFACT_PATH" \
+            --diagnostic-csv "$C3_REPLAY_OUTPUT_DIR/c3_historical_reclaim_diagnostic_v1.csv" \
+            --diagnostic-status "$C3_REPLAY_OUTPUT_DIR/c3_historical_reclaim_diagnostic_v1_status.json" \
+            --output "$C3_REPLAY_OUTPUT_DIR"
+          python -m unittest discover -s scripts -p 'test_c3_close_stop_comparison_v1.py' -v
       - name: Assert no order authorizations or claimed profitable backtests
         run: |
           python - <<'PY'
@@ -84,6 +92,10 @@ jobs:
           assert reports[2]["strategy_profitability_proven"] is False
           assert reports[2]["regular_only_source_verified"] is False
           assert reports[2]["actual_broker_fills"]==0
+          paired=json.loads((root/"c3_close_stop_comparison_v1_status.json").read_text())
+          assert paired["trade_approved"] is False and paired["orders_enabled"] is False
+          assert paired["actual_fills"]==0
+          assert paired["hindsight_selected_universe_bias"] is True
           PY
       - uses: actions/upload-artifact@v4
         with:
