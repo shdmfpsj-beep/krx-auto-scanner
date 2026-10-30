@@ -193,6 +193,10 @@ def analyze(source,output):
         if b is None:skips['MISSING_DATED_HISTORY']+=1;continue
         v3=score_one(t,x,b,namemap.get(t,t),sectors.get(t,''),ev.get(t,{}),sector_table)
         if v3 is None:skips['V3_LIQUIDITY_INSTRUMENT_OR_STRUCTURE']+=1;continue
+        # A strong 5-day bounce after a sharp 12-session decline remains a
+        # rebound WATCH, not an established rising-leader classification.
+        r12=100*(float(b.close.iloc[-1])/float(b.close.iloc[-13])-1)
+        v3['return12_pct']=round(r12,2)
         strength,components=score_strength(v3,peer20,peer5)
         theme,exposure_verified=themes.get(t,(None,False))
         theme_row=theme_stats.get(theme) if theme else None
@@ -203,12 +207,20 @@ def analyze(source,output):
             strength=round(clip(strength+thematic_bonus,0,100),1)
         entry=design_entries(v3,b)
 
-        if strength>=65 and entry['price_lane']=='PULLBACK_WATCH':grade='A_HIGH_PRIORITY_RETEST'
+        if r12<=-8 and v3['r5_pct']>=6:
+            grade='C_SHARP_REBOUND_NOT_CONFIRMED'
+        elif strength>=65 and entry['price_lane']=='PULLBACK_WATCH':grade='A_HIGH_PRIORITY_RETEST'
         elif strength>=50 and entry['price_lane']=='PULLBACK_WATCH':grade='B_RETEST_WAIT'
         elif entry['breakout_trigger'] is not None and strength>=55:grade='C_CONDITIONAL_BREAKOUT'
         else:grade='D_OBSERVATION_ONLY'
         # Two transparent ranks; stock strength isn't entry quality.
-        v3.update(stock_strength_score100=strength,stock_factor_components=components,
+        rr=entry.get('first_obstacle_net_r_at_high') or 0
+        entry_edge=min(8,max(0,rr-1.10)*3)
+        if entry.get('breakout_trigger') is not None:entry_edge+=4
+        if entry.get('overhead_supply')=='HIGH_SUPPLY' and rr<1.50:entry_edge-=3
+        combined=round(strength+entry_edge,1)
+        v3.update(stock_strength_score100=strength,entry_priority_score=combined,
+            stock_factor_components=components,
             investment_theme_provisional=theme,
             theme_exposure_verified=exposure_verified,
             theme_breadth5_pct=round(float(theme_row['breadth_5d_pct']),2) if theme_row else None,
@@ -217,8 +229,9 @@ def analyze(source,output):
             v4_priority=grade,**entry,price_asof=asof,source_run_id='41051723762')
         out.append(v3)
     priority={'A_HIGH_PRIORITY_RETEST':0,'B_RETEST_WAIT':1,
+             'C_SHARP_REBOUND_NOT_CONFIRMED':2,
              'C_CONDITIONAL_BREAKOUT':2,'D_OBSERVATION_ONLY':3}
-    out.sort(key=lambda z:(priority[z['v4_priority']],-z['stock_strength_score100'],
+    out.sort(key=lambda z:(priority[z['v4_priority']],-z['entry_priority_score'],
           -float(z['r20_pct']),z['ticker']))
     dest=Path(output);dest.mkdir(parents=True,exist_ok=True)
     columns=[k for k in out[0] if k!='stock_factor_components']
