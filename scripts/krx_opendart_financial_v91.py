@@ -233,6 +233,24 @@ def tickers_from_cache(folder):
     return sorted({p.stem for p in path.glob('*.csv') if re.fullmatch(r'\d{6}',p.stem)})
 
 
+def validated_tickers(values):
+    """Preserve requested order; never silently drop an uncached issuer."""
+    result=[]
+    for value in values:
+        if not isinstance(value,str) or not re.fullmatch(r'\d{6}',value):
+            raise ValueError('Invalid six-digit ticker in request or priority file')
+        if value not in result:result.append(value)
+    return result
+
+
+def priority_tickers(path):
+    if not path:return []
+    rows=read_csv(Path(path))
+    if not Path(path).is_file():raise FileNotFoundError('Missing explicit priority file')
+    if len(rows)>50:raise ValueError('Priority queue must contain at most 50 rows')
+    return validated_tickers([r.get('ticker') for r in rows])
+
+
 def collect(args, getj=get_json, getcodes=get_corp_codes, fetch=None):
     out=Path(args.outdir);out.mkdir(parents=True,exist_ok=True)
     provisional=out/'v91_financial_pit_provisional.csv'
@@ -244,16 +262,20 @@ def collect(args, getj=get_json, getcodes=get_corp_codes, fetch=None):
         prior_state=json.loads(progressfile.read_text(encoding='utf-8'))
         completed=set(prior_state.get('completed_tickers',[]))
         last_checked=prior_state.get('last_checked_dates',{})
-    targets=tickers_from_cache(args.cache_dir)
-    if args.tickers:targets=[t for t in targets if t in set(args.tickers)]
+    # An explicit subset is authoritative even if the old OHLCV cache lacks it.
+    priority=[] if args.tickers else priority_tickers(getattr(args,'priority_file',None))
+    targets=validated_tickers(args.tickers) if args.tickers else validated_tickers(priority+tickers_from_cache(args.cache_dir))
     # Refresh older companies after 28 days so new quarterly reports are not missed.
     cutoff=date.today()-timedelta(days=args.refresh_days)
     todo=[t for t in targets if t not in completed]
     refresh=[t for t in targets if t in completed and (not last_checked.get(t) or date.fromisoformat(last_checked[t])<=cutoff)]
-    selected=(todo+refresh)[:args.max_tickers]
+    eligible=todo+refresh
+    selected=([t for t in priority if t in eligible]+[t for t in eligible if t not in priority])[:args.max_tickers]
     base={'version':'9.1','research_only':True,'strict_pit_approved':False,
           'source_status':'API_SNAPSHOT_NOT_ARCHIVED_ORIGINAL','mode':'dry-run' if args.dry_run else 'collect',
           'target_universe_size':len(targets),'selected_tickers':selected,
+          'priority_tickers':priority,'is_explicit_subset':bool(args.tickers),
+          'incomplete_tickers':sum(t not in completed for t in targets),
           'prior_completed_tickers':len(completed),'warnings':[
               'OpenDART API latest historical financial snapshots may include later corrections.',
               'Provisional data MUST NOT be substituted for config/v90_financial_pit.csv.',
@@ -273,7 +295,10 @@ def collect(args, getj=get_json, getcodes=get_corp_codes, fetch=None):
         cc=corp_map.get(ticker)
         if not cc:
             audit.append({'ticker':ticker,'status':'NO_CORP_MAPPING','details':'Not in current OpenDART listed-company map'})
-            completed.add(ticker);continue
+            completed.add(ticker);last_checked[ticker]=date.today().isoformat()
+            atomic_csv(auditfile,audit,AUDIT_COLS)
+            atomic_json(progressfile,{'completed_tickers':sorted(completed),'last_checked_dates':last_checked,'last_run_utc':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()})
+            continue
         failed=False
         for year in args.years:
             try:
@@ -328,7 +353,7 @@ def collect(args, getj=get_json, getcodes=get_corp_codes, fetch=None):
         atomic_csv(auditfile,audit,AUDIT_COLS)
         atomic_json(progressfile,{'completed_tickers':sorted(completed),'last_checked_dates':last_checked,'last_run_utc':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()})
     base.update({'total_provisional_rows':len(index),'newly_completed_tickers':len(completed)-base['prior_completed_tickers'],
-                 'incomplete_tickers':len(targets)-len(completed),'errors':hard_errors,
+                 'incomplete_tickers':sum(t not in completed for t in targets),'errors':hard_errors,
                  'financial_file':str(provisional),'sector_pit_status':'NOT_POPULATED',
                  'strict_pit_approved':False})
     atomic_json(out/'v91_financial_collection_status.json',base)
@@ -343,6 +368,7 @@ def main():
     ap.add_argument('--max-tickers',type=int,default=12)
     ap.add_argument('--refresh-days',type=int,default=28)
     ap.add_argument('--tickers',nargs='*')
+    ap.add_argument('--priority-file',help='Optional bounded ticker CSV; explicit --tickers takes precedence')
     ap.add_argument('--dry-run',action='store_true')
     a=ap.parse_args()
     if not (1<=a.max_tickers<=50):ap.error('max-tickers must be between 1 and 50')
@@ -369,3 +395,4 @@ def main():
     print(json.dumps(status,ensure_ascii=False))
 
 if __name__=='__main__':main()
+
