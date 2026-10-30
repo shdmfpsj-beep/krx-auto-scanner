@@ -43,6 +43,10 @@ def first_overhead_high(high,close,i):
     return float(min(values)) if values else None
 
 def model_return(opens,highs,lows,closes,entry_i,entry,stop,target,hold):
+
+    if any(opens[j]<=0 or highs[j]<=0 or lows[j]<=0 or closes[j]<=0
+           for j in range(entry_i,entry_i+hold)):
+        raise ValueError('UNTRADEABLE_ZERO_OHLC_IN_EXIT_HORIZON')
     stop_hit=False;target_hit=False;exit_price=None;reason='TIME_EXIT'
     for j in range(entry_i,entry_i+hold):
         o,h,l=opens[j],highs[j],lows[j]
@@ -90,10 +94,15 @@ def run(source,output,from_date='2025-11-01',through_date='2026-09-30'):
         n=len(b);last_taken=-100
         prev=np.r_[c[0],c[:-1]]
         tr=np.maximum(h-l,np.maximum(abs(h-prev),abs(l-prev)))
+        invalid=((o<=0)|(h<=0)|(l<=0)|(c<=0)|(v<=0)
+            |(l>np.minimum(o,c))|(h<np.maximum(o,c)))
         for i in range(125,n-12):
             date=dates[i]
             if date<from_date or date>through_date or i<=last_taken:continue
             diagnostics['signals_evaluated']+=1
+            if np.any(invalid[max(0,i-119):i+1]):
+                diagnostics['invalid_asof_120bar_price_prefix']+=1
+                continue
             floor=pivot_floor(l,dates,i)
             if floor is None:continue
             overhead=first_overhead_high(h,c[i],i)
@@ -115,6 +124,9 @@ def run(source,output,from_date='2025-11-01',through_date='2026-09-30'):
                     or overhead/high_zone-1<.05):continue
             diagnostics['historic_near_watch']+=1
             d1=i+1;d2=i+2
+            if invalid[d1] or invalid[d2]:
+                diagnostics['untradeable_d1_or_d2_ohlcv_censored']+=1
+                continue
             if (l[d1]<=stop or o[d1]<=stop or
                 o[d1]<primary['low_krw'] or
                 o[d1]>c[i]+min(.5*atr,.035*c[i])):
@@ -148,6 +160,9 @@ def run(source,output,from_date='2025-11-01',through_date='2026-09-30'):
             if confirmed:diagnostics['strict_paper_d2_eligible']+=1
             if moderate:diagnostics['moderate_paper_d2_eligible']+=1
             for hold in (5,10):
+                if np.any(invalid[d2:d2+hold]):
+                    diagnostics['untradeable_exit_horizon_censored_'+str(hold)]+=1
+                    continue
                 z=model_return(o,h,l,c,d2,entry,stop,overhead,hold)
                 models=['CONTACT_ONLY']
                 if moderate:models.append('MODERATE_RECOVERY')
