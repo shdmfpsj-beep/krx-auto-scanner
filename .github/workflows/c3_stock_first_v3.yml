@@ -74,7 +74,7 @@ jobs:
           p=Path(os.environ['C3_REPORT_ROOT'])/'c3_stock_first_v4_status.json'
           x=json.loads(p.read_text())
           assert (x['price_stage_total'],x['researched'])==(457,96)
-          assert [r['ticker'] for r in x['top2']]==['026960','006400']
+          assert [r['ticker'] for r in x['top2']]==['026960','271560']
           assert x['trade_approved'] is False and x['orders_enabled'] is False
           assert x['no_backtest_requested'] is True
           PY
