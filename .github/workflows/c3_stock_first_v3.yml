@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/c3_stock_first_v3.py'
       - 'scripts/c3_stock_first_v4.py'
+      - 'scripts/c3_stock_first_v5.py'
+      - 'scripts/test_c3_stock_first_v5.py'
       - 'scripts/test_c3_stock_first_v4.py'
       - 'scripts/test_c3_stock_first_v3.py'
       - '.github/workflows/c3_stock_first_v3.yml'
@@ -77,6 +79,22 @@ jobs:
           assert [r['ticker'] for r in x['top2']]==['026960','271560']
           assert x['trade_approved'] is False and x['orders_enabled'] is False
           assert x['no_backtest_requested'] is True
+          PY
+      - name: C3 v5 opportunity-ranked, non-chasing TWO research watches
+        run: |
+          python scripts/c3_stock_first_v5.py --input "$C3_STOCK_FIRST_SOURCE_ZIP" --output "$C3_REPORT_ROOT/v5"
+          python -m unittest discover -s scripts -p 'test_c3_stock_first_v5.py' -v
+          python - <<'PY'
+          import json,os,pathlib
+          root=pathlib.Path(os.environ["C3_REPORT_ROOT"])/"v5"
+          z=json.loads((root/"c3_stock_first_v5_status.json").read_text())
+          assert (z['scanned'],z['price_stage_cases'],z['structured_candidates'])==(2625,457,96)
+          assert [x['ticker'] for x in z['top2']]==['271560','026960']
+          assert z['category_counts']['PRIORITY_PULLBACK']==1
+          assert z['top2'][1]['pullback_state']=='PIVOT_HEAVY_SUPPLY_WAIT'
+          assert z['top2_approved_buy_count']==0
+          assert z['trade_approved'] is False and z['orders_enabled'] is False
+          assert z['no_profitability_backtests'] is True
           PY
       - uses: actions/upload-artifact@v4
         with:
