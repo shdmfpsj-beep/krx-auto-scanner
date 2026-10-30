@@ -147,4 +147,56 @@ class TestDartV91(unittest.TestCase):
             self.assertEqual(r['total_provisional_rows'],0)
             self.assertTrue(any(x['status']=='RECEIPT_MISMATCH' for x in v.read_csv(Path(d,'v91_financial_collection_audit.csv'))))
 
+class TestFinancialPriority(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.root=Path(self.temp.name);cache=self.root/'cache';cache.mkdir()
+        (cache/'083450.csv').touch();(cache/'005930.csv').touch()
+        self.a=Namespace(cache_dir=str(cache),outdir=str(self.root),years=[2025],refresh_days=28,max_tickers=2,tickers=None,priority_file=None,dry_run=True)
+
+    def queue(self,codes):
+        p=self.root/'priority.csv';p.write_text('ticker\n'+'\n'.join(codes)+'\n');self.a.priority_file=str(p)
+
+    def test_explicit_uncached_ticker_retained_and_deduplicated(self):
+        self.a.tickers=['099320','099320'];r=v.collect(self.a)
+        self.assertEqual(r['selected_tickers'],['099320']);self.assertEqual(r['target_universe_size'],1)
+
+    def test_priority_uncached_issuers_precede_cache(self):
+        self.queue(['099320','189300']);r=v.collect(self.a)
+        self.assertEqual(r['selected_tickers'],['099320','189300']);self.assertEqual(r['target_universe_size'],4)
+
+    def test_recent_priority_does_not_starve_normal_backfill(self):
+        self.queue(['099320']);v.atomic_json(self.root/'v91_financial_collection_state.json',
+            {'completed_tickers':['099320'],'last_checked_dates':{'099320':v.date.today().isoformat()}})
+        self.assertEqual(v.collect(self.a)['selected_tickers'],['005930','083450'])
+
+    def test_stale_priority_precedes_new_normal_cache(self):
+        self.queue(['099320']);v.atomic_json(self.root/'v91_financial_collection_state.json',
+            {'completed_tickers':['099320'],'last_checked_dates':{'099320':'2020-01-01'}})
+        self.assertEqual(v.collect(self.a)['selected_tickers'],['099320','005930'])
+
+    def test_explicit_subset_overrides_priority_and_unrelated_completion(self):
+        self.queue(['189300']);self.a.tickers=['099320']
+        v.atomic_json(self.root/'v91_financial_collection_state.json',{'completed_tickers':['005930','083450'],'last_checked_dates':{}})
+        r=v.collect(self.a);self.assertEqual(r['selected_tickers'],['099320']);self.assertEqual(r['incomplete_tickers'],1)
+
+    def test_malformed_missing_and_oversized_queue_rejected(self):
+        self.queue(['99320'])
+        with self.assertRaises(ValueError):v.collect(self.a)
+        self.queue(['099320']*51)
+        with self.assertRaises(ValueError):v.collect(self.a)
+        self.a.priority_file=str(self.root/'missing.csv')
+        with self.assertRaises(FileNotFoundError):v.collect(self.a)
+
+    def test_no_mapping_persisted_and_no_immediate_retry(self):
+        self.a.tickers=['099320'];self.a.dry_run=False
+        with patch.dict(os.environ,{'OPENDART_API_KEY':'x'*40}):
+            r=v.collect(self.a,getcodes=lambda *a,**k:{})
+        self.assertEqual(r['incomplete_tickers'],0)
+        self.assertTrue((self.root/'v91_financial_collection_state.json').is_file())
+        self.a.dry_run=True;self.assertEqual(v.collect(self.a)['selected_tickers'],[])
+        self.assertFalse(r['strict_pit_approved'])
+
+
 if __name__=='__main__':unittest.main(verbosity=2)
+
