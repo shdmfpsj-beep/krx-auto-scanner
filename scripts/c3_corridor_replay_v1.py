@@ -19,7 +19,7 @@ INPUTS=['status.json','c3_premove_observation_status_v1.json',
         'c3_registered_followup_status_v1.json','c3_registered_reclaim_registry_v1.json']
 FIELDS=['ticker','name','asof','source_run_id','track','registered_cohort',
         'observed_close','floor_date','support_confirmed_at','support','atr14',
-        'model_stop','nearest_pivot_high','resistance_pivot_date','resistance_confirmed_at',
+        'model_stop','nearest_pivot_high','second_pivot_high','resistance_pivot_date','resistance_confirmed_at',
         'research_stage','research_reason','research_score_not_final80',
         'near_close_price_lane','first_resistance_upside_at_entry_pct',
         'primary_retest_low','primary_retest_high','flex_retest_low','flex_retest_high',
@@ -80,6 +80,18 @@ def observed_unbroken_pivot_high(b,close,asof,lookback=120):
         choices.append((high,str(b.date.iloc[i]),str(b.date.iloc[i+2])))
     return min(choices) if choices else (None,None,None)
 
+def observed_second_pivot_high(b,close,asof,lookback=120):
+    """Second distinct, previously confirmed and never-breached overhead high."""
+    if len(b)<5 or str(b.date.iloc[-1])!=asof:raise ValueError('UNVERIFIED_TAIL_DATE')
+    unique=set()
+    for i in range(max(2,len(b)-lookback-2),len(b)-2):
+        hi=float(b.high.iloc[i]);window=b.high.iloc[i-2:i+3]
+        if hi<=close or hi!=float(window.max()) or not (window<hi).any():continue
+        if float(b.high.iloc[i+1:].max())>hi:continue
+        unique.add(hi)
+    heights=sorted(unique)
+    return heights[1] if len(heights)>=2 else None
+
 def atr_14(b):
     prev=b.close.shift(1)
     tr=pd.concat([b.high-b.low,(b.high-prev).abs(),(b.low-prev).abs()],axis=1).max(axis=1)
@@ -129,6 +141,7 @@ def analyze(asof,stage,registered,obs,history,names):
             if not math.isfinite(atr) or atr<=0:raise ValueError('INVALID_ATR')
             ceiling,high_date,high_confirmed=observed_unbroken_pivot_high(b,close,asof)
             row['atr14']=round(atr,4);row['nearest_pivot_high']=ceiling
+            row['second_pivot_high']=observed_second_pivot_high(b,close,asof)
             row['resistance_pivot_date']=high_date;row['resistance_confirmed_at']=high_confirmed
             if ceiling is None:raise ValueError('NO_CONFIRMED_UNBROKEN_OVERHEAD')
             # Modelled stop = 0.15 ATR below confirmed floor; not a broker stop order.
