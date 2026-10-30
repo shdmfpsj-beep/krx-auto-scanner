@@ -9,7 +9,7 @@ on:
         description: 'Successful issuer base and risk-first v6.10 source'
         type: string
         required: false
-        default: '40165164433'
+        default: ''
   workflow_run:
     workflows: ['Free v6.10 official KRX common shares and strict risk-first 2R']
     types: [completed]
@@ -19,6 +19,9 @@ on:
       - '.github/workflows/broad_watch_v611_free.yml'
       - 'scripts/broad_watch_v611.py'
       - 'scripts/test_broad_watch_v611.py'
+
+      - 'scripts/pipeline_result_contract_v1.py'
+      - 'scripts/test_pipeline_result_contract_v1.py'
 
 permissions:
   contents: read
@@ -37,7 +40,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PYTHONPATH: scripts
-      V610_RUN: ${{ github.event.workflow_run.id || inputs.v610_run || '40165164433' }}
+      V610_RUN: ${{ github.event.workflow_run.id || inputs.v610_run || '' }}
     steps:
       - name: Checkout complete no-order reader chain
         uses: actions/checkout@v4
@@ -57,6 +60,8 @@ jobs:
             /scripts/official_issuer_entry_v610.py
             /scripts/broad_watch_v611.py
             /scripts/test_broad_watch_v611.py
+            /scripts/pipeline_result_contract_v1.py
+            /scripts/test_pipeline_result_contract_v1.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -65,6 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/*.py
+          python -m unittest discover -s scripts -p test_pipeline_result_contract_v1.py -v
           python -m unittest discover -s scripts -p test_broad_watch_v611.py -v
 
       - name: Download exact v610 issued basic classifications and ancestry
@@ -72,6 +78,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p issuer flow scan v18 output
+          if [[ -z "$V610_RUN" ]]; then
+            V610_RUN="$(gh api "repos/$GH_REPO/actions/workflows/official_issuer_entry_v610_free.yml/runs?status=success&branch=main&per_page=1" --jq '.workflow_runs[0].id // empty')"
+            echo "V610_RUN=$V610_RUN" >> "$GITHUB_ENV"
+          fi
           [[ "$V610_RUN" =~ ^[0-9]{8,14}$ ]] ||
             { echo "INVALID_V610_RUN_ID"; exit 1; }
           actual="$(gh api "repos/$GH_REPO/actions/runs/$V610_RUN" --jq '.path')"
@@ -173,36 +183,8 @@ jobs:
           python scripts/broad_watch_v611.py \
             --v18 v18 --scan scan/output --flow flow --issuer issuer \
             --outdir output
-          python - <<'PY'
-          import csv,json
-          from pathlib import Path
-          r=json.loads(Path('output/broad_watch_v611_status.json').read_text(encoding='utf-8'))
-          assert r['schema']=='C3_K100_BROAD_COVERAGE_RISK_FIRST_WATCH_V611'
-          assert r['full_market_universe']>=2000
-          assert r['official_common_120day_50e8_liquid']>100
-          assert r['official_common_120day_liquid_5d_positive_FI']>=30
-          assert r['strong_proxy_sector_5d_positive_liquid']>=1
-          assert r['both_investors_5d_net_buy_positive']>=1
-          assert r['official_common_120day_liquid_5d_positive_FI']>=r['strong_proxy_sector_5d_positive_liquid']
-          assert r['broad_radar_universe_untouched_by_old_52_candidate_filter'] is True
-          assert r['final_80_score_verified'] is False
-          assert r['regular_1530_session_certified'] is False
-          assert r['trade_approved'] is False and r['orders_enabled'] is False
-          assert r['decision']=='CASH'
-          with Path('output/broad_watch_v611_all.csv').open(encoding='utf-8-sig',newline='') as f:
-              rows=list(csv.DictReader(f))
-          assert len(rows)==r['official_common_120day_liquid_5d_positive_FI']
-          assert all(x['trade_approved']=='False' and x['orders_enabled']=='False' for x in rows)
-          with Path('output/broad_watch_v611_full_audit.csv').open(encoding='utf-8-sig',newline='') as f:
-              aud=list(csv.DictReader(f))
-          assert len(aud)==r['full_market_universe']
-          print('V611_BROAD_FUND_FLOW_UNIVERSE_REAL_RESULTS',
-                r['asof'],r['official_common_120day_50e8_liquid'],
-                r['official_common_120day_liquid_5d_positive_FI'],
-                r['both_investors_5d_net_buy_positive'],
-                r['strong_proxy_sector_5d_positive_liquid'],
-                r['confirmed_research_trigger_rows'],'CASH')
-          PY
+          python scripts/pipeline_result_contract_v1.py \
+            --kind broad --outdir output --issuer issuer
 
       - name: Publish complete ex-post KRX radar, transparent reasons, Android report
         if: always()
@@ -214,5 +196,7 @@ jobs:
             output/broad_watch_v611_all.csv
             output/broad_watch_v611_full_audit.csv
             output/broad_watch_v611_mobile.md
+            output/result_contract_v1.json
           retention-days: 90
           if-no-files-found: warn
+
