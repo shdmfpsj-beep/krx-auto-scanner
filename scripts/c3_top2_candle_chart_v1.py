@@ -104,7 +104,7 @@ def render(history,ticker,row,path,bars=45,levels=None):
     for (caption,value,color),y in zip(ladder,[.87,.69,.51,.33,.15]):
         label=(f'{value:,}' if isinstance(value,int) else str(value))
         rail.plot([.03,.24],[y,y],color=color,lw=3)
-        rail.text(.29,y,f'{caption}\\n{label}원',fontsize=9.1,
+        rail.text(.29,y,f'{caption}\n{label}원',fontsize=9.1,
                   ha='left',va='center',color=color,fontweight='bold')
     rail.set_title('4단계 전략',fontsize=12,pad=8)
 
