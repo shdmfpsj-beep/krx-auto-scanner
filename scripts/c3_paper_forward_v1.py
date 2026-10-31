@@ -113,6 +113,8 @@ def update_one(p,log,history,today,market_scan_asof):
     if market_scan_asof!=day:
         return "FULL_MARKET_SCAN_DATE_NOT_MATCHED_NO_PAPER_FILLS"
     if p["status"] in ("CLOSED_T2","CLOSED_STOP","EXPIRED",
+                       "CANCELLED_STOP_BEFORE_ENTRY",
+                       "CANCELLED_TARGET_BEFORE_ENTRY",
                        "STOP_OPEN_MISSED_UNVERIFIABLE"):
         return "TERMINAL_POSITION_UNCHANGED"
     if p["last_observed_date"]==day:return "ALREADY_PROCESSED_IDEMPOTENT"
@@ -160,6 +162,14 @@ def update_one(p,log,history,today,market_scan_asof):
             if row["close"]<stop:
                 p["status"]="STOP_PENDING"
                 event(log,p,day,"CLOSE_BELOW_STOP_EXIT_NEXT_OPEN_PENDING",row["close"])
+        if p["status"]=="WAITING" and row["close"]<stop:
+            p["status"]="CANCELLED_STOP_BEFORE_ENTRY"
+            event(log,p,day,"NO_FILL_CANCELLED_STRUCTURE_BROKEN",row["close"],
+                  "Never buy an expired thesis after daily close below the pre-registered structure stop")
+        if p["status"]=="WAITING" and row["high"]>=t1:
+            p["status"]="CANCELLED_TARGET_BEFORE_ENTRY"
+            event(log,p,day,"MISSED_NO_FILL_FIRST_RESISTANCE_VISITED",t1,
+                  "Price reached original first resistance before entering registered watch band; no retroactive fill")
         if p["status"]=="WAITING" and p["sessions_observed"]>=int(plan["expires_after_sessions"]):
             p["status"]="EXPIRED"
             event(log,p,day,"PAPER_PLAN_EXPIRED_NO_FILL",None,"No entry within allowed observed sessions")
