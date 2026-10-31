@@ -101,6 +101,30 @@ def run(source,output,now=None,fetch=None):
         weekend_news_not_weekend_prices=True,disclosed_news_not_a_required_buy_gate=True,
         price_source_regular_only_certified=False,actual_investor_flows_verified=False,
         trade_approved=False,orders_enabled=False)
+    # Store one read-only dated screening observation for EVERY source ticker.
+    # These are original per-stock price-stage findings, not newly traded
+    # 20:00 prices, and never trade permissions.
+    obsfile=Path(source)/'c3_premove_observations_v1.csv'
+    audit_fields=['ticker','source_price_asof','observation_status','early_stage_pass',
+        'observed_5d_return_pct','observed_20d_return_pct','rsi14',
+        'fresh_price_at_20k','trade_approved']
+    if meta['completed_market_universe_rescreened'] and obsfile.is_file():
+        with obsfile.open(encoding='utf-8-sig',newline='') as f:
+            original=list(csv.DictReader(f))
+        with (root/'c3_20k_all_market_rescreen.csv').open(
+             'w',encoding='utf-8-sig',newline='') as f:
+            writer=csv.DictWriter(f,fieldnames=audit_fields);writer.writeheader()
+            for v in original:
+                writer.writerow(dict(ticker=v['ticker'],source_price_asof=v['asof'],
+                    observation_status=v.get('observation_status',''),
+                    early_stage_pass=v.get('price_stage_pass',''),
+                    observed_5d_return_pct=v.get('ret5',''),
+                    observed_20d_return_pct=v.get('ret20',''),
+                    rsi14=v.get('rsi14',''),
+                    fresh_price_at_20k=False,trade_approved=False))
+        meta['all_market_rescreen_rows_written']=len(original)
+    else:
+        meta['all_market_rescreen_rows_written']=0
     (root/'c3_20k_full_market_status.json').write_text(
         json.dumps(meta,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     with (root/'c3_20k_domestic_news.csv').open('w',encoding='utf-8-sig',newline='') as stream:
