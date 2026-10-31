@@ -28,6 +28,7 @@ jobs:
         with:
           sparse-checkout: |
             /scripts/c3_daily_20k_review_v1.py
+            /scripts/test_c3_daily_20k_review_v1.py
             /scripts/global_sector_news.py
             /scripts/test_global_sector_news.py
           sparse-checkout-cone-mode: false
@@ -79,6 +80,7 @@ jobs:
 
       - name: Recheck all original market candidate records and collect domestic headlines
         run: |
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_daily_20k_review_v1.py -q
           python scripts/c3_daily_20k_review_v1.py --scan-source source --output output
           python - <<'PY'
           import json
