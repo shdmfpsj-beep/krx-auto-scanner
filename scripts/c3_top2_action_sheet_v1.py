@@ -39,11 +39,16 @@ def run(ranked,output):
     data=pd.read_csv(ranked,dtype={'ticker':str})
     if len(data)!=96 or data.ticker.duplicated().any():
         raise ValueError('ORIGINAL_96_RESEARCH_RANKING_MISSING')
-    cases=[]
-    for ticker in ('271560','026960'):
-        match=data[data.ticker==ticker]
-        if len(match)!=1:raise ValueError('CURRENT_TOP2_MISSING')
-        cases.append(prepare(match.iloc[0].to_dict()))
+    # Read the already ranked source rather than persisting specific names in
+    # downstream reports. Requires known first obstacle and usable entry band.
+    eligible=data[data.priority_class.isin(
+        ('PRIORITY_PULLBACK','SECONDARY_WATCH')) &
+        data.watch_low.notna() & data.watch_high.notna() &
+        data.first_obstacle_krw.notna()]
+    selected=eligible.head(2)
+    if len(selected)!=2 or selected.ticker.duplicated().any():
+        raise ValueError('TWO_MEASURED_TOP2_RESEARCH_SETUPS_NOT_AVAILABLE')
+    cases=[prepare(row) for row in selected.to_dict('records')]
     # Read chart manifest generated earlier from original dated OHLCV.
     # Never fabricate T2 by applying a fixed percentage to T1.
     manifest=Path(output)/'c3_top2_chart_v1_manifest.json'
