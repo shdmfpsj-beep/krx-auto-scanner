@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Read-only 20:00 KST C3 whole-market rescreen + fresh domestic news.
+"""Read-only 22:00 KST C3 whole-market rescreen + fresh domestic news.
 
-At 20:00 today's official-final price source may not yet be available (existing
+Before 20:15 today's official-final price source may not yet be available (existing
 collector waits until after 20:15). Use last verified completed scan, preserve
 data dates, and never claim a new same-day scan on weekends/holidays.
 """
@@ -75,7 +75,7 @@ def run(source,output,now=None,fetch=None):
     except ValueError:age=None
     weekend=now.weekday()>=5
     mode=('WEEKEND_NEWS_OVER_LAST_COMPLETED_DAY' if weekend else
-        'WEEKDAY_20K_NOT_YET_2015_SOURCE_FINAL' if now.hour==20 and now.minute<15
+        'SOURCE_NOT_YET_2015_KST' if now.hour==20 and now.minute<15
         else 'LAST_COMPLETED_SCAN_AND_NEWS_REVIEW')
     if age is None:mode='NO_FULL_MARKET_SOURCE_NEWS_ONLY'
     elif age<0:mode='FUTURE_SOURCE_REJECTED_NEWS_ONLY';early=[]
@@ -130,7 +130,7 @@ def run(source,output,now=None,fetch=None):
     with (root/'c3_20k_domestic_news.csv').open('w',encoding='utf-8-sig',newline='') as stream:
         w=csv.DictWriter(stream,fieldnames=['source','title','url','published_at','original_pubtime_present'])
         w.writeheader();w.writerows(news)
-    report=['# C3 20:00 KST 전 종목 및 뉴스 점검',
+    report=['# C3 22:00 KST 전 종목 및 뉴스 점검',
         f"- 실행시각: {now.isoformat()}",
         f"- 가격 기준거래일: {day or '원본 미확보'} (주말에도 새 일봉을 만들지 않음)",
         f"- 진행 상태: {mode}",
@@ -138,7 +138,7 @@ def run(source,output,now=None,fetch=None):
         f"- 새로운 국내 뉴스(72시간 제목 검색): {len(news)}건 / 국외 뉴스: 별도 수집",
         '- 가격·거래량 원본의 정규장 전용 인증, 외국인/기관 순매수는 아직 미완료',
         '- TOP2 손절·매수가·1차·2차 목표는 원본 새 완료 일봉 확인 후 별도 계산',
-        '- 새 20:00 가격수집 완료/자동주문/매수승인을 주장하지 않음']
+        '- 새 정규장 가격수집 완료/자동주문/매수승인을 주장하지 않음']
     (root/'c3_20k_mobile.md').write_text('\n'.join(report)+'\n',encoding='utf-8')
     return meta
 
