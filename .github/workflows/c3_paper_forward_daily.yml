@@ -1,0 +1,187 @@
+name: C3 TOP2 real-market paper-fill forward ledger (NO ORDERS)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c3_paper_forward_daily.yml'
+      - 'scripts/c3_paper_forward_v1.py'
+      - 'scripts/c3_paper_price_capture_v1.py'
+      - 'scripts/test_c3_paper_forward_v1.py'
+      - 'config/c3_paper_top2_plans.csv'
+  schedule:
+    # 22:12 KST = 13:12 UTC every day, after 20:20 full-market scan and
+    # 22:00 news collection; weekends read last observed session only.
+    - cron: '12 13 * * *'
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: c3-prospective-paper-forward-ledger
+  cancel-in-progress: false
+
+jobs:
+  paper-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          sparse-checkout: |
+            /scripts/c3_paper_forward_v1.py
+            /scripts/c3_paper_price_capture_v1.py
+            /scripts/test_c3_paper_forward_v1.py
+            /config/c3_paper_top2_plans.csv
+            /reports/c3_paper/**
+            /requirements.txt
+          sparse-checkout-cone-mode: false
+          persist-credentials: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set KST report date and test no-hindsight forward rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          import os
+          now=datetime.now(ZoneInfo('Asia/Seoul'))
+          with open(os.environ['GITHUB_ENV'],'a',encoding='utf-8') as f:
+              f.write('C3_PAPER_REPORT_DAY='+now.date().isoformat()+'\n')
+          print('PAPER_MODE_NO_ORDERS',now.isoformat())
+          PY
+          python -m unittest discover -s scripts -p test_c3_paper_forward_v1.py -v
+
+      - name: Install pykrx for supplemental observed OHLCV (read-only)
+        run: pip install -r requirements.txt
+
+      - name: Check most recent SUCCESSFUL and complete full-market scan date
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p scancheck capture
+          echo "C3_PAPER_SCAN_ASOF=" >> "$GITHUB_ENV"
+          runs="$(gh api "repos/$GH_REPO/actions/workflows/daily.yml/runs?per_page=25" \
+              --jq '.workflow_runs[] | select(.conclusion=="success") | .id' || true)"
+          for id in $runs; do
+            mkdir -p candidate
+            if gh run download "$id" -R "$GH_REPO" -n krx-scan-report -D candidate \
+                  >/dev/null 2>&1 && \
+                python - <<'PY'
+          import json
+          from pathlib import Path
+          try:
+              x=json.loads(Path('candidate/status.json').read_text())
+              assert x.get('scan_complete') is True
+              assert int(x.get('universe',0))>=2000
+              assert x.get('market_data_date')
+          except Exception as exc:
+              print('SOURCE_SCAN_INCOMPLETE',type(exc).__name__)
+              raise SystemExit(1)
+          PY
+            then
+              cp candidate/status.json scancheck/source_scan_status.json
+              echo "C3_PAPER_SOURCE_RUN_ID=$id" >> "$GITHUB_ENV"
+              break
+            fi
+            rm -rf candidate
+          done
+          if [[ -f scancheck/source_scan_status.json ]]; then
+            python - <<'PY'
+          import os,json
+          from pathlib import Path
+          x=json.loads(Path('scancheck/source_scan_status.json').read_text())
+          with open(os.environ['GITHUB_ENV'],'a',encoding='utf-8') as f:
+              f.write('C3_PAPER_SCAN_ASOF='+x['market_data_date']+'\n')
+          print('PAPER_SOURCE_SCAN_ASOF',x['market_data_date'],
+                'REGULAR_SCOPE_CERTIFIED',x.get('source_session_scope_certified',False))
+          PY
+          else
+            echo 'NO_SUCCESSFUL_FULL_MARKET_SOURCE_FAIL_CLOSED_PAPER_ENTRIES'
+          fi
+
+      - name: Capture specifically registered ticker price histories; never trade
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/c3_paper_price_capture_v1.py \
+              --plans config/c3_paper_top2_plans.csv \
+              --outdir capture
+
+      - name: Advance immutable C3 paper ledger using dated verified scan match
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports/c3_paper output
+          python scripts/c3_paper_forward_v1.py \
+            --plans config/c3_paper_top2_plans.csv \
+            --bars capture/c3_paper_price_capture.csv \
+            --ledger reports/c3_paper/paper_ledger.json \
+            --outdir output \
+            --today "$C3_PAPER_REPORT_DAY" \
+            --full-market-asof "$C3_PAPER_SCAN_ASOF"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path('output/c3_paper_daily_status.json').read_text())
+          assert x['buy_approved'] is False
+          assert x['orders_enabled'] is False
+          assert x['automatic_brokerage_orders'] is False
+          assert x['no_backfills_or_same_signal_day_fills'] is True
+          assert x['registered_plans']>=2
+          print('PAPER_FORWARD_SUMMARY',x['report_day_kst'],
+                x['full_market_price_asof'],x['status_counts'])
+          PY
+
+      - name: Persist no-lookahead ledger in GitHub (no credentials/data from brokerage)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A reports/c3_paper/paper_ledger.json
+          if git diff --cached --quiet; then
+            echo 'PAPER_LEDGER_UNCHANGED_NO_NEW_SESSION'
+            exit 0
+          fi
+          git commit -m "C3 paper-only ledger advance for $C3_PAPER_REPORT_DAY"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if git rebase origin/main && git push origin HEAD:main; then
+              echo 'PAPER_LEDGER_COMMITTED'
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 2))
+          done
+          echo 'PAPER_LEDGER_PERSISTENCE_FAILED'
+          exit 1
+
+      - name: Upload daily mobile paper performance and immutable evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-paper-forward-daily
+          path: |
+            reports/c3_paper/paper_ledger.json
+            scancheck/source_scan_status.json
+            capture/c3_paper_price_capture.csv
+            capture/c3_paper_price_source_status.json
+            output/c3_paper_daily_status.json
+            output/c3_paper_positions.csv
+            output/c3_paper_events.csv
+            output/c3_paper_daily_mobile.md
+          if-no-files-found: warn
+          retention-days: 60
