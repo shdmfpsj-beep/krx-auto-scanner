@@ -53,3 +53,16 @@ foreign/institution accumulation. Stop slippage/gaps can cause greater losses.
 The next development gate is **new dated observations plus verified sector-flow
 data**, not repeating tests of old portfolio returns or pretending media silence
 means a stock lacks a driver.
+
+
+## 2026-10-31: Daily large portrait charts and close-integrity guards
+
+- Existing ChatGPT C3 22:30 KST daily report task updated: display two large inline portrait charts (not side-by-side), source run ID, original trading date, TOP2 reasoning and final strategy table.
+- Each visual has real-price full-range map and a separately labeled zoomed 35-session OHLC chart, MA5/MA20, volume, structural stop, entry band, historical target 1 and 2.
+- Added scripts/c3_top2_large_portrait_v2.py plus test_c3_top2_large_portrait_v2.py; generic TOP2 selection from newly dated ranked input (no fixed Orion/Dongseo tickers). Output targets 1751x2618 pixel image per stock.
+- Added scripts/c3_regular_price_reconciliation_v1.py and test_c3_regular_price_reconciliation_v1.py: use declared regular close only as untrusted comparison. Missing, mismatched and future-date prices are visibly blocked; do not automatically move the structural stop and targets.
+- Research-only GitHub workflow extended to test/generate poster images and close-integrity audit as artifacts. The branch remains draft/unmerged.
+- Locally generated and visually inspected October 30 portrait previews: 271560 and 026960, 1751x2618; source close 114200 / 28400. The earlier externally checked regular-only close values 114800 / 28450 were labeled as a discrepancy, not substituted into study OHLCV.
+- Still pending: one successful GitHub remote workflow run for these new changes, authenticated regular KRX close + flow reconciliation, and a NEW dated v5-ranked TOP2 source from the production scan. The daily report prompt alone cannot guarantee an image when the source, renderer or run is missing.
+- Zero BUY approvals and zero brokerage orders. Historical user stops unchanged. Empty news/finance evidence remains neutral. No Telegram integration.
+
