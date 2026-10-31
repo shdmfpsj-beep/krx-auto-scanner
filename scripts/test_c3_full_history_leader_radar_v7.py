@@ -15,9 +15,28 @@ class TestFullHistoryRadar(unittest.TestCase):
                  low=[65]*9,close=[75]*9,volume=[100]*9))
 
     def test_early_pivot_needs_two_later_completed_sessions(self):
-        b=self.fixture()
-        with self.assertRaisesRegex(ValueError,'HISTORY_MISSING'):
-            full_pivots(b,'2026-10-29',75)
+        dates=pd.date_range('2026-06-01',periods=125,freq='D').strftime('%Y-%m-%d')
+        b=pd.DataFrame(dict(date=dates,open=[70]*125,high=[100]*125,
+                    low=[65]*125,close=[75]*125,volume=[100]*125))
+        # One later completed daily bar is NOT enough to confirm a peak.
+        b.loc[123,'high']=150
+        self.assertFalse(any(p['price']==150 for p in full_pivots(b,str(b.date.iloc[-1]),75)))
+        # Two later complete daily bars ARE sufficient.
+        b.loc[123,'high']=100
+        b.loc[122,'high']=150
+        x=full_pivots(b,str(b.date.iloc[-1]),75)
+        self.assertEqual(x[0]['price'],150)
+        self.assertEqual(x[0]['confirmed_at'],str(b.date.iloc[124]))
+
+    def test_old_peak_is_not_valid_after_new_higher_high(self):
+        dates=pd.date_range('2026-06-01',periods=125,freq='D').strftime('%Y-%m-%d')
+        b=pd.DataFrame(dict(date=dates,open=[70]*125,high=[100]*125,
+                  low=[65]*125,close=[75]*125,volume=[100]*125))
+        b.loc[32,'high']=150
+        b.loc[64,'high']=160
+        x=full_pivots(b,str(b.date.iloc[-1]),75)
+        self.assertFalse(any(y['price']==150 for y in x))
+        self.assertEqual(x[0]['price'],160)
 
     def test_no_future_data_and_old_peak_removed_if_broken(self):
         b=self.fixture()
