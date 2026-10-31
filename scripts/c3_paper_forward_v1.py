@@ -63,7 +63,8 @@ def init_state(plan):
       entry_date=None,entry_price=None,assumed_fill_method=None,
       remaining_fraction=0,realized_net_krw_per_unit=0,
       target1_date=None,target2_date=None,exit_date=None,exit_price=None,
-      held_sessions=0,net_return_after_5_sessions_pct=None,
+      held_sessions=0,forward_mark_uncertain_after_gap=False,
+      net_return_after_5_sessions_pct=None,
       net_return_after_10_sessions_pct=None,
       net_return_after_20_sessions_pct=None,
       last_close=None,last_mark_date=None,missed_after_entry=False,
@@ -97,6 +98,33 @@ def sell(p,log,day,price,portion,kind):
         p["remaining_fraction"]=0
         p["exit_date"]=day;p["exit_price"]=price
 
+def record_forward_horizons(p,log,day,close):
+    """Record both early EXITED and OPEN names at identical actual forward horizons.
+
+    Closing before 5 sessions must not exclude that result from the 5-session
+    cohort. A closed trade retains its realized net P/L, while an open trade
+    uses a close mark net of the assumed exit cost. No future prices.
+    """
+    if not p["entry_date"] or day<=p["entry_date"]:
+        return
+    if p.get("forward_mark_uncertain_after_gap",False):
+        return
+    base=p["entry_price"]*(1+BUY_COST)
+    for horizon in (5,10,20):
+        key=f"net_return_after_{horizon}_sessions_pct"
+        if p["held_sessions"]!=horizon or p.get(key) is not None:
+            continue
+        if p["remaining_fraction"]>0:
+            value=(p["realized_net_krw_per_unit"]+
+                   (close*(1-SELL_COST)-base)*p["remaining_fraction"])
+            method="OPEN_POSITION_CLOSE_MARK"
+        else:
+            value=p["realized_net_krw_per_unit"]
+            method="EARLY_CLOSED_REALIZED_RETURN_CARRIED_FORWARD"
+        p[key]=round(100*value/base,2)
+        event(log,p,day,f"FORWARD_{horizon}_SESSIONS_MARKED_AT_CLOSE",
+              close,f"hypothetical_net_mark_pct={p[key]};method={method}")
+
 def next_observed_session(prev,current,history_days):
     candidates=sorted(d for d in history_days if prev<d<=current)
     if not candidates or candidates[0]!=current:
@@ -119,7 +147,26 @@ def update_one(p,log,history,today,market_scan_asof):
                        "CANCELLED_STOP_BEFORE_ENTRY",
                        "CANCELLED_TARGET_BEFORE_ENTRY",
                        "STOP_OPEN_MISSED_UNVERIFIABLE"):
-        return "TERMINAL_POSITION_UNCHANGED"
+        if not p["entry_date"]:
+            return "TERMINAL_NO_ENTRY"
+        if p["last_observed_date"]==day:
+            return "TERMINAL_ALREADY_OBSERVED_IDEMPOTENT"
+        previous=p["last_observed_date"] or p["entry_date"]
+        if not next_observed_session(previous,day,dates):
+            p["forward_mark_uncertain_after_gap"]=True
+            p["last_observed_date"]=day
+            event(log,p,day,"TERMINAL_HORIZON_MISSING_SESSION_NO_BACKFILL",None,
+                  "Preserve actual exit but do not fabricate 5/10/20-session marks")
+            return "TERMINAL_HORIZON_GAP"
+        if p.get("forward_mark_uncertain_after_gap",False):
+            p["last_observed_date"]=day
+            return "TERMINAL_HORIZON_SUSPENDED_AFTER_GAP"
+        p["last_observed_date"]=day
+        p["last_close"]=history[day]["close"]
+        p["last_mark_date"]=day
+        p["held_sessions"]=p.get("held_sessions",0)+1
+        record_forward_horizons(p,log,day,p["last_close"])
+        return "CLOSED_REALIZED_RETURN_TRACKED_TO_FORWARD_HORIZON"
     if p["last_observed_date"]==day:return "ALREADY_PROCESSED_IDEMPOTENT"
     previous=p["last_observed_date"] or plan["selection_date"]
     if not next_observed_session(previous,day,dates):
@@ -139,8 +186,10 @@ def update_one(p,log,history,today,market_scan_asof):
     low=numeric(plan["watch_low"],"LOW");high=numeric(plan["watch_high"],"HIGH")
     t1=numeric(plan["target1"],"T1");t2=numeric(plan["target2"],"T2")
     if p["status"]=="STOP_PENDING":
+        p["held_sessions"]=p.get("held_sessions",0)+1
         sell(p,log,day,row["open"],p["remaining_fraction"],"NEXT_OPEN_STOP_EXIT_ASSUMED")
         p["status"]="CLOSED_STOP"
+        record_forward_horizons(p,log,day,row["close"])
         return "CLOSED_AT_NEXT_SESSION_OPEN_AFTER_PRIOR_CLOSE_STOP"
     if p["status"]=="WAITING":
         p["sessions_observed"]+=1
@@ -190,20 +239,12 @@ def update_one(p,log,history,today,market_scan_asof):
             sell(p,log,day,t2,p["remaining_fraction"],"SECOND_TARGET_REST_UNIT_ASSUMED")
             p["target2_date"]=day
             p["status"]="CLOSED_T2"
+            record_forward_horizons(p,log,day,row["close"])
             return "BOTH_TARGETS_RECORDED"
     if row["close"]<stop and p["remaining_fraction"]>0:
         p["status"]="STOP_PENDING"
         event(log,p,day,"CLOSE_BELOW_STOP_EXIT_NEXT_OPEN_PENDING",row["close"])
-    # Only after genuinely completed observed sessions, not synthetic horizons.
-    for horizon in (5,10,20):
-        key=f"net_return_after_{horizon}_sessions_pct"
-        if p["held_sessions"]==horizon and p.get(key) is None:
-            value=(p["realized_net_krw_per_unit"]+
-                  (row["close"]*(1-SELL_COST)-p["entry_price"]*(1+BUY_COST))*
-                   p["remaining_fraction"])
-            p[key]=round(100*value/(p["entry_price"]*(1+BUY_COST)),2)
-            event(log,p,day,f"FORWARD_{horizon}_SESSIONS_MARKED_AT_CLOSE",row["close"],
-                  f"hypothetical_net_mark_pct={p[key]}")
+    record_forward_horizons(p,log,day,row["close"])
     return p["status"]
 
 def run(plans_csv,prices_csv,ledger_json,outdir,report_day,market_scan_asof):
@@ -260,6 +301,7 @@ def run(plans_csv,prices_csv,ledger_json,outdir,report_day,market_scan_asof):
           stop_exit_date=p["exit_date"] if p["status"]=="CLOSED_STOP" else None,
           observed_sessions_waited=p["sessions_observed"],
           held_sessions=p.get("held_sessions",0),
+          forward_horizon_data_gap=p.get("forward_mark_uncertain_after_gap",False),
           net_return_after_5_sessions_pct=p.get("net_return_after_5_sessions_pct"),
           net_return_after_10_sessions_pct=p.get("net_return_after_10_sessions_pct"),
           net_return_after_20_sessions_pct=p.get("net_return_after_20_sessions_pct"),
