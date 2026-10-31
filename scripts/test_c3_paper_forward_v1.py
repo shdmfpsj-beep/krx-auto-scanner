@@ -34,6 +34,26 @@ class ForwardTest(unittest.TestCase):
     def view(self):
         return json.loads(self.ledger.read_text(encoding="utf-8"))
 
+    def test_five_forward_sessions_are_observed_not_invented(self):
+        first=mock("271560","2026-11-02",114000,114500,112000,113500)
+        rows=[first]
+        self.tick("2026-11-02",rows)
+        days=["2026-11-03","2026-11-04","2026-11-05",
+              "2026-11-06","2026-11-09"]
+        for k,day in enumerate(days):
+            rows.append(mock("271560",day,114000+k*100,
+                             115500+k*100,112000+k*100,114300+k*100))
+            x=self.tick(day,rows)
+        p=x["positions"][0]
+        self.assertEqual(p["held_sessions"],5)
+        self.assertIsNotNone(p["net_return_after_5_sessions_pct"])
+        self.assertIsNone(p["net_return_after_10_sessions_pct"])
+        self.assertIsNone(p["net_return_after_20_sessions_pct"])
+        self.assertEqual(sum(e["event"]=="FORWARD_5_SESSIONS_MARKED_AT_CLOSE"
+           for e in self.view()["events"]),1)
+        again=self.tick("2026-11-09",rows)
+        self.assertEqual(x["events_total"],again["events_total"])
+
     def test_no_registration_day_hindsight_buy(self):
         b=mock("271560","2026-10-30",112000,115000,110000,114200)
         x=self.tick("2026-10-31",[b],"2026-10-30")
