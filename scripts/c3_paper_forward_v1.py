@@ -264,10 +264,23 @@ def run(plans_csv,prices_csv,ledger_json,outdir,report_day,market_scan_asof):
         w=csv.DictWriter(f,fieldnames=list(summary[0]))
         w.writeheader();w.writerows(summary)
     statuses=dict(Counter(p["status"] for p in positions.values()))
+    event_counts=dict(Counter(e["event"] for e in events))
+    factual_counts=dict(
+       plan_registrations=len(positions),
+       observed_entry_assumptions=sum(p["entry_date"] is not None for p in positions.values()),
+       first_target_assumptions=sum(p["target1_date"] is not None for p in positions.values()),
+       second_target_assumptions=sum(p["target2_date"] is not None for p in positions.values()),
+       fully_closed_paper_exits=sum(p["status"] in ("CLOSED_T2","CLOSED_STOP") for p in positions.values()),
+       missed_without_entry=sum(p["status"]=="CANCELLED_TARGET_BEFORE_ENTRY" for p in positions.values()),
+       invalidated_before_entry=sum(p["status"]=="CANCELLED_STOP_BEFORE_ENTRY" for p in positions.values()),
+       expired_without_entry=sum(p["status"]=="EXPIRED" for p in positions.values()),
+       next_session_open_missing=sum(p["status"]=="STOP_OPEN_MISSED_UNVERIFIABLE" for p in positions.values()))
     status=dict(schema=VERSION,report_day_kst=report_day,
       full_market_price_asof=market_scan_asof,price_source_scope=PRICE_SCOPE,
       registered_plans=len(plans),events_total=len(events),
-      status_counts=statuses,positions=summary,
+      status_counts=statuses,event_type_counts=event_counts,
+      prospective_outcome_counts=factual_counts,
+      empirical_win_probability_not_claimed=True,positions=summary,
       no_backfills_or_same_signal_day_fills=True,
       buy_cost_bps=15,sell_cost_bps=50,
       first_target_fraction=0.5,second_target_fraction=0.5,
