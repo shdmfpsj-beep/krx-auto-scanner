@@ -87,7 +87,7 @@ def parse_preview(html,channel,now=None,hours=72):
     for m in parser.messages:
         identifier=m["data_post"]
         prefix=channel+"/"
-        if not identifier.startswith(prefix):continue
+        if not identifier.lower().startswith(prefix.lower()):continue
         suffix=identifier[len(prefix):]
         if not suffix.isdigit() or identifier in seen:continue
         seen.add(identifier)
