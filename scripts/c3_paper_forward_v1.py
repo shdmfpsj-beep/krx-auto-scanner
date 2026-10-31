@@ -63,6 +63,9 @@ def init_state(plan):
       entry_date=None,entry_price=None,assumed_fill_method=None,
       remaining_fraction=0,realized_net_krw_per_unit=0,
       target1_date=None,target2_date=None,exit_date=None,exit_price=None,
+      held_sessions=0,net_return_after_5_sessions_pct=None,
+      net_return_after_10_sessions_pct=None,
+      net_return_after_20_sessions_pct=None,
       last_close=None,last_mark_date=None,missed_after_entry=False,
       registered_without_retroactive_fill=True,
       source_regular_only_certified=False,trade_approved=False,orders_enabled=False)
@@ -175,6 +178,8 @@ def update_one(p,log,history,today,market_scan_asof):
             event(log,p,day,"PAPER_PLAN_EXPIRED_NO_FILL",None,"No entry within allowed observed sessions")
         return "FILL_ASSUMED" if p["entry_date"]==day else p["status"]
     if p["status"]!="OPEN":return p["status"]
+    if day>p["entry_date"]:
+        p["held_sessions"]=p.get("held_sessions",0)+1
     # Targets are historical price levels, resting sell limits assumed active
     # on sessions strictly FOLLOWING the hypothetical entry session.
     if day>p["entry_date"]:
@@ -189,6 +194,16 @@ def update_one(p,log,history,today,market_scan_asof):
     if row["close"]<stop and p["remaining_fraction"]>0:
         p["status"]="STOP_PENDING"
         event(log,p,day,"CLOSE_BELOW_STOP_EXIT_NEXT_OPEN_PENDING",row["close"])
+    # Only after genuinely completed observed sessions, not synthetic horizons.
+    for horizon in (5,10,20):
+        key=f"net_return_after_{horizon}_sessions_pct"
+        if p["held_sessions"]==horizon and p.get(key) is None:
+            value=(p["realized_net_krw_per_unit"]+
+                  (row["close"]*(1-SELL_COST)-p["entry_price"]*(1+BUY_COST))*
+                   p["remaining_fraction"])
+            p[key]=round(100*value/(p["entry_price"]*(1+BUY_COST)),2)
+            event(log,p,day,f"FORWARD_{horizon}_SESSIONS_MARKED_AT_CLOSE",row["close"],
+                  f"hypothetical_net_mark_pct={p[key]}")
     return p["status"]
 
 def run(plans_csv,prices_csv,ledger_json,outdir,report_day,market_scan_asof):
@@ -244,6 +259,10 @@ def run(plans_csv,prices_csv,ledger_json,outdir,report_day,market_scan_asof):
           target1_date=p["target1_date"],target2_date=p["target2_date"],
           stop_exit_date=p["exit_date"] if p["status"]=="CLOSED_STOP" else None,
           observed_sessions_waited=p["sessions_observed"],
+          held_sessions=p.get("held_sessions",0),
+          net_return_after_5_sessions_pct=p.get("net_return_after_5_sessions_pct"),
+          net_return_after_10_sessions_pct=p.get("net_return_after_10_sessions_pct"),
+          net_return_after_20_sessions_pct=p.get("net_return_after_20_sessions_pct"),
           remaining_fraction=remaining,sim_net_mark_to_market_pct=pct,
           next_open_exit_pending=p["status"]=="STOP_PENDING",
           fill_is_hypothetical_from_ohlc=True,
