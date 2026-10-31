@@ -7,6 +7,8 @@ on:
       - 'scripts/c3_stock_first_v4.py'
       - 'scripts/c3_stock_first_v5.py'
       - 'scripts/c3_light_fundamental_catalyst_v6.py'
+      - 'scripts/c3_full_history_leader_radar_v7.py'
+      - 'scripts/test_c3_full_history_leader_radar_v7.py'
       - 'scripts/test_c3_light_fundamental_catalyst_v6.py'
       - 'scripts/c3_top2_candle_chart_v1.py'
       - 'scripts/c3_confirmed_target_ladder_v2.py'
@@ -52,7 +54,8 @@ jobs:
           needed=['status.json','c3_premove_observations_v1.csv',
             'c3_premove_history_v1.csv.gz','kind_sector_master.csv',
             'v65_sector_stock_map.csv','c3_candidate_evidence_v1.csv',
-            'v68_investment_sector_members.csv','v71_sector_strength.csv']
+            'v68_investment_sector_members.csv','v71_sector_strength.csv',
+            'v91_financial_pit_provisional.csv','v95_event_quality_audit.csv']
           assert all((source/p).is_file() for p in needed)
           with zipfile.ZipFile(os.environ['C3_STOCK_FIRST_SOURCE_ZIP'],'w') as out:
               for p in needed:out.write(source/p,p)
@@ -161,6 +164,27 @@ jobs:
           assert [z['combined_research_score'] for z in x['top2']]==[64.58,63.05]
           assert x['news_absence_not_a_hard_gate'] is True
           assert x['fundamental_absence_not_a_hard_gate'] is True
+          assert x['trade_approved'] is False and x['orders_enabled'] is False
+          PY
+      - name: C3 v7 full-history target recovery and realistic challenger radar
+        env:
+          C3_V5_RANKED_CSV: ${{ runner.temp }}/stock-first-v3/v5/c3_stock_first_v5_ranked.csv
+        run: |
+          python scripts/c3_full_history_leader_radar_v7.py \
+            --input "$C3_STOCK_FIRST_SOURCE_ZIP" \
+            --ranked "$C3_V5_RANKED_CSV" \
+            --output "$C3_REPORT_ROOT/v7"
+          python -m unittest discover -s scripts -p 'test_c3_full_history_leader_radar_v7.py' -v
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['C3_REPORT_ROOT'])/'v7/c3_v7_full_history_leader_radar_status.json'
+          x=json.loads(p.read_text())
+          assert x['researched']==96 and x['resistance_newly_recovered_count']==18
+          assert [v['ticker'] for v in x['top2_preserved_until_new_completed_date']]==['271560','026960']
+          nice=x['recovered_early_leader_challengers']
+          assert len(nice)==1 and nice[0]['ticker']=='030190'
+          assert (nice[0]['watch_low'],nice[0]['watch_high'])==(16780,17070)
+          assert (nice[0]['first_historical_target_krw'],nice[0]['second_historical_target_krw'])==(18000,18140)
           assert x['trade_approved'] is False and x['orders_enabled'] is False
           PY
       - uses: actions/upload-artifact@v4
