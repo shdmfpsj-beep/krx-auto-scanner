@@ -89,6 +89,14 @@ jobs:
           assert status['full_market_scanned_fresh_now'] is False
           assert status['weekend_news_not_weekend_prices'] is True
           assert status['disclosed_news_not_a_required_buy_gate'] is True
+          if status['completed_market_universe_rescreened']:
+              import csv
+              with Path('output/c3_20k_all_market_rescreen.csv').open(
+                   encoding='utf-8-sig',newline='') as stream:
+                  actual=sum(1 for _ in csv.DictReader(stream))
+              assert actual==status['source_market']['universe']
+              assert actual>=2000
+              print('FULL_MARKET_RESCREEN_AUDIT',actual,status['price_data_asof'])
           print('EVENING_RESEARCH_GATE',status['mode'],status['price_data_asof'])
           PY
 
@@ -126,6 +134,7 @@ jobs:
           name: c3-daily-20k-market-and-weekend-news
           path: |
             output/c3_20k_full_market_status.json
+            output/c3_20k_all_market_rescreen.csv
             output/c3_20k_domestic_news.csv
             output/c3_20k_mobile.md
             output/global/global_sector_articles.csv
