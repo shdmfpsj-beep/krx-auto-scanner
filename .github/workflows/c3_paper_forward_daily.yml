@@ -39,6 +39,7 @@ jobs:
             /scripts/c3_paper_forward_v1.py
             /scripts/c3_paper_price_capture_v1.py
             /scripts/test_c3_paper_forward_v1.py
+            /scripts/test_c3_early_exit_cohort_v2.py
             /config/c3_paper_top2_plans.csv
             /reports/c3_paper/**
             /requirements.txt
@@ -63,6 +64,7 @@ jobs:
           print('PAPER_MODE_NO_ORDERS',now.isoformat())
           PY
           python -m unittest discover -s scripts -p test_c3_paper_forward_v1.py -v
+          python -m unittest discover -s scripts -p test_c3_early_exit_cohort_v2.py -v
 
       - name: Install pykrx for supplemental observed OHLCV (read-only)
         run: pip install -r requirements.txt
