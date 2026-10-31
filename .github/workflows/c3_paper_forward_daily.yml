@@ -25,6 +25,7 @@ concurrency:
 
 jobs:
   paper-only:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
