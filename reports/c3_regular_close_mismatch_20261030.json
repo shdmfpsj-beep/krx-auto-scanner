@@ -1,0 +1,52 @@
+{
+  "schema": "C3_EXTERNAL_CLOSE_MISMATCH_AUDIT_20261031_V1",
+  "asof": "2026-10-30",
+  "reviewed_kst": "2026-10-31",
+  "original_scan_run_id": 41051723762,
+  "scan_status": "success_2603_of_2625",
+  "scan_provider": "pykrx_adjusted_true",
+  "official_krx_regular_only_certified": false,
+  "method": "Compare archived 2026-10-30 scanner OHLCV against 2026-10-30 15:32 KST external media market pages. External media is not official KRX certification.",
+  "items": [
+    {
+      "ticker": "271560",
+      "name": "오리온",
+      "scan_close": 114200,
+      "scan_volume": 56828,
+      "external_close_1532": 114800,
+      "external_volume_1532": 56473,
+      "delta_external_minus_scan": 600,
+      "close_equal": false,
+      "external_sources": [
+        "https://stock11.mk.co.kr/price/report/KR7271560005",
+        "https://kr.investing.com/equities/orion-corp-historical-data"
+      ],
+      "research_plan_id": "C3-20261030-271560"
+    },
+    {
+      "ticker": "026960",
+      "name": "동서",
+      "scan_close": 28400,
+      "scan_volume": 66996,
+      "external_close_1532": 28450,
+      "external_volume_1532": 65250,
+      "delta_external_minus_scan": 50,
+      "close_equal": false,
+      "external_sources": [
+        "https://stock.mk.co.kr/price/home/KR7026960005",
+        "https://markets.hankyung.com/stock/026960"
+      ],
+      "research_plan_id": "C3-20261030-026960"
+    }
+  ],
+  "decision": "RESEARCH_ONLY_CASH_NO_NEW_BUY_APPROVAL",
+  "warnings": [
+    "DO_NOT_ASSERT_CAUSE_OF_MISMATCH",
+    "POSSIBLE_AFTER_HOURS_OR_SOURCE_BASIS_DIFFERENCE_UNCONFIRMED",
+    "NO_REWRITE_OF_REGISTERED_PAPER_PLANS",
+    "NO_RETROACTIVE_PAPER_FILLS",
+    "FUTURE_PAPER_MARKS_PROVISIONAL_UNTIL_KRX_REGULAR_ONLY_RECONCILED"
+  ],
+  "buy_approved": false,
+  "orders_enabled": false
+}
