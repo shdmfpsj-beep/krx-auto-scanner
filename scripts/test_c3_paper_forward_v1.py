@@ -74,6 +74,22 @@ class ForwardTest(unittest.TestCase):
         self.assertEqual(y["positions"][0]["stop_exit_date"],"2026-11-03")
         self.assertEqual(self.view()["positions"][PLAN["plan_id"]]["exit_price"],104000)
 
+    def test_missed_target_before_band_entry_cancels_new_buy(self):
+        # A rally that does not descend into the pre-registered buy band
+        # is a missed opportunity, never rewritten as a filled winner.
+        b=mock("271560","2026-11-02",126000,134000,124000,132000)
+        x=self.tick("2026-11-02",[b])
+        self.assertEqual(x["positions"][0]["status"],"CANCELLED_TARGET_BEFORE_ENTRY")
+        self.assertIsNone(x["positions"][0]["sim_entry_date"])
+        self.assertIn("MISSED_NO_FILL_FIRST_RESISTANCE_VISITED",
+                      [e["event"] for e in self.view()["events"]])
+
+    def test_stop_breached_before_first_buy_cancels_plan(self):
+        b=mock("271560","2026-11-02",108000,109000,107000,108000)
+        x=self.tick("2026-11-02",[b])
+        self.assertEqual(x["positions"][0]["status"],"CANCELLED_STOP_BEFORE_ENTRY")
+        self.assertIsNone(x["positions"][0]["sim_entry_date"])
+
     def test_gap_below_band_skips_even_if_high_reaches_band(self):
         b=mock("271560","2026-11-02",108000,112000,106000,111000)
         x=self.tick("2026-11-02",[b])
