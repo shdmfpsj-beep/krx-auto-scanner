@@ -146,8 +146,16 @@ def render(history,ticker,row,path,bars=45,levels=None):
 def run(source,ranked,output,bars=45):
     choose_font()
     hist,ranked,source_sha=load(source,ranked)
-    # Explicit current model Top2, not automatically arbitrary high score alone.
-    tickers=['271560','026960']
+    # Dynamically derive the two usable model-ranked setups from the dated
+    # v5 ranking. Never freeze stock tickers in the presentation layer.
+    eligible=ranked.reset_index()
+    eligible=eligible[eligible.priority_class.isin(
+       ('PRIORITY_PULLBACK','SECONDARY_WATCH')) &
+       eligible.watch_low.notna() & eligible.watch_high.notna() &
+       eligible.first_obstacle_krw.notna()]
+    tickers=eligible.ticker.astype(str).head(2).tolist()
+    if len(tickers)!=2 or len(set(tickers))!=2:
+        raise ValueError('TWO_MEASURED_TOP2_RESEARCH_SETUPS_NOT_AVAILABLE')
     if not set(tickers)<=set(ranked.index):
         raise ValueError('EXPECTED_TWO_RESEARCH_STOCKS_NOT_PRESENT')
     root=Path(output)
