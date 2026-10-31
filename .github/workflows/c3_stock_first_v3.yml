@@ -11,6 +11,8 @@ on:
       - 'scripts/test_c3_full_history_leader_radar_v7.py'
       - 'scripts/test_c3_light_fundamental_catalyst_v6.py'
       - 'scripts/c3_top2_candle_chart_v1.py'
+      - 'scripts/c3_top2_large_portrait_v2.py'
+      - 'scripts/test_c3_top2_large_portrait_v2.py'
       - 'scripts/c3_confirmed_target_ladder_v2.py'
       - 'scripts/test_c3_confirmed_target_ladder_v2.py'
       - 'scripts/c3_top2_action_sheet_v1.py'
@@ -128,6 +130,35 @@ jobs:
           assert [x['second_target']['pivot_date'] for x in data['strategy_prices']]==['2026-08-11','2026-02-23']
           assert all((root/x['chart_file']).stat().st_size>5000 for x in data['charts'])
           assert data['trade_approved'] is False and data['orders_enabled'] is False
+          PY
+      - name: Render TWO smartphone-sized 1751x2618 TOP2 strategy charts
+        env:
+          C3_V5_RANKED_CSV: ${{ runner.temp }}/stock-first-v3/v5/c3_stock_first_v5_ranked.csv
+        run: |
+          python -m unittest discover -s scripts -p 'test_c3_top2_large_portrait_v2.py' -v
+          python scripts/c3_top2_large_portrait_v2.py \
+            --source "$C3_STOCK_FIRST_SOURCE_ZIP" \
+            --ranked "$C3_V5_RANKED_CSV" \
+            --output "$C3_REPORT_ROOT/v5/large-charts" \
+            --bars 35
+          python - <<'PY'
+          import json,os,pathlib,struct
+          root=pathlib.Path(os.environ['C3_REPORT_ROOT'])/'v5/large-charts'
+          manifest=json.loads((root/'c3_large_portrait_manifest.json').read_text())
+          assert manifest['asof']=='2026-10-30'
+          assert manifest['scanned']==2625
+          assert [x['ticker'] for x in manifest['candidates']]==['271560','026960']
+          assert [x['t1'] for x in manifest['candidates']]==[131500,29550]
+          assert [x['t2'] for x in manifest['candidates']]==[141700,30550]
+          for candidate in manifest['candidates']:
+              path=root/candidate['file']
+              with path.open('rb') as f:header=f.read(24)
+              assert header[:8]==bytes([137,80,78,71,13,10,26,10])
+              assert struct.unpack('>II',header[16:24])==(1751,2618)
+              assert candidate['trade_approved'] is False
+          assert manifest['buy_approved'] is False
+          assert manifest['orders_enabled'] is False
+          print('C3_BIG_MOBILE_TOP2_SUCCESS',manifest['asof'])
           PY
       - name: Export TOP2 mobile decision table from dated ranked prices
         env:
