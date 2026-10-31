@@ -6,6 +6,8 @@ on:
       - 'scripts/c3_stock_first_v3.py'
       - 'scripts/c3_stock_first_v4.py'
       - 'scripts/c3_stock_first_v5.py'
+      - 'scripts/c3_light_fundamental_catalyst_v6.py'
+      - 'scripts/test_c3_light_fundamental_catalyst_v6.py'
       - 'scripts/c3_top2_candle_chart_v1.py'
       - 'scripts/c3_confirmed_target_ladder_v2.py'
       - 'scripts/test_c3_confirmed_target_ladder_v2.py'
@@ -140,6 +142,26 @@ jobs:
           assert x["orders_enabled"] is False
           assert [z["ticker"] for z in x["top2"]]==["271560","026960"]
           assert [z['second_target_krw'] for z in x['top2']]==[141700,30550]
+          PY
+      - name: C3 v6 financial and catalyst LIGHT annotation without disqualifying no-news leaders
+        env:
+          C3_V5_RANKED_CSV: ${{ runner.temp }}/stock-first-v3/v5/c3_stock_first_v5_ranked.csv
+        run: |
+          python scripts/c3_light_fundamental_catalyst_v6.py \
+            --input "$C3_STOCK_FIRST_SOURCE_ZIP" \
+            --ranked "$C3_V5_RANKED_CSV" \
+            --output "$C3_REPORT_ROOT/v6"
+          python -m unittest discover -s scripts -p 'test_c3_light_fundamental_catalyst_v6.py' -v
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['C3_REPORT_ROOT'])/'v6/c3_v6_light_context_status.json'
+          x=json.loads(p.read_text())
+          assert x['candidate_count']==96
+          assert [z['ticker'] for z in x['top2']]==['271560','026960']
+          assert [z['combined_research_score'] for z in x['top2']]==[64.58,63.05]
+          assert x['news_absence_not_a_hard_gate'] is True
+          assert x['fundamental_absence_not_a_hard_gate'] is True
+          assert x['trade_approved'] is False and x['orders_enabled'] is False
           PY
       - uses: actions/upload-artifact@v4
         with:
