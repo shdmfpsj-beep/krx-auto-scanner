@@ -1,0 +1,35 @@
+name: C3 paper-forward offline safety tests (no market API)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_paper_forward_v1.py'
+      - 'scripts/test_c3_paper_forward_v1.py'
+      - 'scripts/test_c3_early_exit_cohort_v2.py'
+      - '.github/workflows/c3_paper_forward_tests.yml'
+permissions:
+  contents: read
+jobs:
+  test-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_paper_forward_v1.py
+            /scripts/test_c3_paper_forward_v1.py
+            /scripts/test_c3_early_exit_cohort_v2.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check paper entry chronology, early-closed trade horizons and missing-data safety
+        run: |
+          python -m unittest discover -s scripts -p test_c3_paper_forward_v1.py -v
+          python -m unittest discover -s scripts -p test_c3_early_exit_cohort_v2.py -v
+          echo 'NO LIVE PRICE COLLECTION OR PAPER TRADES ON CODE CHANGE'
