@@ -1,0 +1,134 @@
+name: C3 20:00 KST daily full-market archive and weekend news (research only)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 20:00 Asia/Seoul = 11:00 UTC. Every day including Sat/Sun.
+    # Full price collector waits until 20:15 KST, so this safely reads the
+    # last finished full-market scan, without inventing today's OHLCV.
+    - cron: '0 11 * * *'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: c3-daily-20k-news-research
+  cancel-in-progress: false
+
+jobs:
+  market-and-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_daily_20k_review_v1.py
+            /scripts/global_sector_news.py
+            /scripts/test_global_sector_news.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Load most recent SUCCESSFUL dated full-universe scan archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p source output
+          # Saturday/Sunday normally reuse Friday's original completed scan.
+          runs="$(gh api "repos/$GH_REPO/actions/workflows/daily.yml/runs?per_page=35" \
+            --jq '.workflow_runs[] | select(.conclusion=="success") | .id' || true)"
+          for id in $runs; do
+            mkdir -p candidate
+            if gh run download "$id" -R "$GH_REPO" -n krx-scan-report -D candidate \
+                 >/dev/null 2>&1 && \
+               python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          root=Path('candidate')
+          try:
+              state=json.loads((root/'status.json').read_text(encoding='utf-8'))
+              with (root/'c3_premove_observations_v1.csv').open(
+                  encoding='utf-8-sig',newline='') as f:
+                  count=sum(1 for _ in csv.DictReader(f))
+              assert state.get('scan_complete') is True
+              assert state.get('market_data_date')
+              assert isinstance(state.get('universe'),int)
+              assert state['universe']>=2000
+              assert count==state['universe']
+          except Exception as exc:
+              print('SKIP_INCOMPLETE_SCANNER_ARTIFACT',type(exc).__name__)
+              raise SystemExit(1)
+          PY
+            then
+              mv candidate/status.json candidate/c3_premove_observations_v1.csv source/
+              echo "SCAN_ARCHIVE_RUN_ID=$id" >> "$GITHUB_ENV"
+              echo "FOUND_FINISHED_FULL_UNIVERSE run=$id"
+              break
+            fi
+            rm -rf candidate
+          done
+          [[ -f source/status.json ]] || echo "FULL_MARKET_ARCHIVE_NOT_AVAILABLE_NEWS_ONLY"
+
+      - name: Recheck all original market candidate records and collect domestic headlines
+        run: |
+          python scripts/c3_daily_20k_review_v1.py --scan-source source --output output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status=json.loads(Path('output/c3_20k_full_market_status.json').read_text())
+          assert status['trade_approved'] is False
+          assert status['orders_enabled'] is False
+          assert status['full_market_scanned_fresh_now'] is False
+          assert status['weekend_news_not_weekend_prices'] is True
+          assert status['disclosed_news_not_a_required_buy_gate'] is True
+          print('EVENING_RESEARCH_GATE',status['mode'],status['price_data_asof'])
+          PY
+
+      - name: Discover recent global macro and industry news even on weekends
+        continue-on-error: true
+        run: |
+          python -m unittest discover -s scripts -p test_global_sector_news.py -q
+          python scripts/global_sector_news.py --out output/global --sleep 0.5
+
+      - name: Include global news collection status in mobile report
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('output')
+          root.mkdir(exist_ok=True)
+          report=root/'c3_20k_mobile.md'
+          if not report.exists():
+              report.write_text('# C3 20:00 KST 점검\n시장 원본 확인 실패, 뉴스만 별도 확인\n',encoding='utf-8')
+          status=root/'global/global_sector_news_status.json'
+          if status.is_file():
+              x=json.loads(status.read_text())
+              line=f"\n- 글로벌 뉴스 관측: {x.get('articles_observed',0)}건 / 검색 성공 {x.get('queries_succeeded',0)}/{x.get('requests_attempted',0)}개"
+          else:
+              line='\n- 글로벌 뉴스 수집 실패 또는 미확인, 호재 없음으로 간주하지 않음'
+          with report.open('a',encoding='utf-8') as f:f.write(line+'\n')
+          PY
+
+      - name: Save dated whole-market and domestic/global news proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-daily-20k-market-and-weekend-news
+          path: |
+            output/c3_20k_full_market_status.json
+            output/c3_20k_domestic_news.csv
+            output/c3_20k_mobile.md
+            output/global/global_sector_articles.csv
+            output/global/global_sector_news_status.json
+          retention-days: 30
+          if-no-files-found: warn
