@@ -1,12 +1,12 @@
-name: C3 20:00 KST daily full-market archive and weekend news (research only)
+name: C3 22:00 KST daily full-market archive and weekend news (research only)
 
 on:
   workflow_dispatch:
   schedule:
-    # 20:00 Asia/Seoul = 11:00 UTC. Every day including Sat/Sun.
+    # 22:00 Asia/Seoul = 13:00 UTC. Every day including Sat/Sun.
     # Full price collector waits until 20:15 KST, so this safely reads the
     # last finished full-market scan, without inventing today's OHLCV.
-    - cron: '0 11 * * *'
+    - cron: '0 13 * * *'
 
 permissions:
   contents: read
