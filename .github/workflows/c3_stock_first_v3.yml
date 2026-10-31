@@ -12,6 +12,8 @@ on:
       - 'scripts/test_c3_light_fundamental_catalyst_v6.py'
       - 'scripts/c3_top2_candle_chart_v1.py'
       - 'scripts/c3_top2_large_portrait_v2.py'
+      - 'scripts/c3_regular_price_reconciliation_v1.py'
+      - 'scripts/test_c3_regular_price_reconciliation_v1.py'
       - 'scripts/test_c3_top2_large_portrait_v2.py'
       - 'scripts/c3_confirmed_target_ladder_v2.py'
       - 'scripts/test_c3_confirmed_target_ladder_v2.py'
@@ -130,6 +132,24 @@ jobs:
           assert [x['second_target']['pivot_date'] for x in data['strategy_prices']]==['2026-08-11','2026-02-23']
           assert all((root/x['chart_file']).stat().st_size>5000 for x in data['charts'])
           assert data['trade_approved'] is False and data['orders_enabled'] is False
+          PY
+      - name: Audit declared regular close vs scanner price (NO automatic reprice)
+        env:
+          C3_V5_RANKED_CSV: ${{ runner.temp }}/stock-first-v3/v5/c3_stock_first_v5_ranked.csv
+        run: |
+          python -m unittest discover -s scripts -p 'test_c3_regular_price_reconciliation_v1.py' -v
+          python scripts/c3_regular_price_reconciliation_v1.py \
+            --ranked "$C3_V5_RANKED_CSV" \
+            --output "$C3_REPORT_ROOT/v5/regular-price"
+          python - <<'PY'
+          import json,os,pathlib
+          root=pathlib.Path(os.environ['C3_REPORT_ROOT'])/'v5/regular-price'
+          status=json.loads((root/'c3_regular_price_reconciliation_status.json').read_text())
+          assert status['candidate_count']==96
+          assert status['missing_reference_count']==96
+          assert status['regular_session_price_authoritatively_certified'] is False
+          assert status['trade_approved'] is False
+          assert status['orders_enabled'] is False
           PY
       - name: Render TWO smartphone-sized 1751x2618 TOP2 strategy charts
         env:
