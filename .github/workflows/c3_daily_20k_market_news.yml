@@ -31,8 +31,6 @@ jobs:
             /scripts/test_c3_daily_20k_review_v1.py
             /scripts/global_sector_news.py
             /scripts/test_global_sector_news.py
-            /scripts/c3_telegram_public_preview_v1.py
-            /scripts/test_c3_telegram_public_preview_v1.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -110,24 +108,6 @@ jobs:
           python -m unittest discover -s scripts -p test_global_sector_news.py -q
           python scripts/global_sector_news.py --out output/global --sleep 0.5
 
-      - name: Collect two user-selected public Telegram channel previews (research only)
-        continue-on-error: true
-        run: |
-          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_telegram_public_preview_v1.py -v
-          python scripts/c3_telegram_public_preview_v1.py --out output/telegram
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p=Path('output/telegram/c3_telegram_public_status.json')
-          d=json.loads(p.read_text())
-          assert d['buy_approved'] is False
-          assert d['orders_enabled'] is False
-          assert d['no_private_groups_read'] is True
-          assert d['not_full_channel_history'] is True
-          print('TELEGRAM_PUBLIC_RESEARCH_GATE',d['dated_72h_posts'],
-                [(k,v['status']) for k,v in d['channels'].items()])
-          PY
-
       - name: Include global news collection status in mobile report
         if: always()
         shell: bash
@@ -146,13 +126,7 @@ jobs:
               line=f"\n- 글로벌 뉴스 관측: {x.get('articles_observed',0)}건 / 검색 성공 {x.get('queries_succeeded',0)}/{x.get('requests_attempted',0)}개"
           else:
               line='\n- 글로벌 뉴스 수집 실패 또는 미확인, 호재 없음으로 간주하지 않음'
-          with report.open('a',encoding='utf-8') as f:
-              f.write(line+'\n')
-              summary=root/'telegram/c3_telegram_mobile_summary.md'
-              if summary.exists():
-                  f.write('\n'+summary.read_text(encoding='utf-8')+'\n')
-              else:
-                  f.write('\n- 텔레그램 2개 공개채널: 수집 실패 또는 미확인 (호재 없음 아님)\n')
+          with report.open('a',encoding='utf-8') as f:f.write(line+'\n')
           PY
 
       - name: Save dated whole-market and domestic/global news proof
@@ -167,8 +141,5 @@ jobs:
             output/c3_20k_mobile.md
             output/global/global_sector_articles.csv
             output/global/global_sector_news_status.json
-            output/telegram/c3_telegram_public_posts_72h.csv
-            output/telegram/c3_telegram_public_status.json
-            output/telegram/c3_telegram_mobile_summary.md
           retention-days: 30
           if-no-files-found: warn
