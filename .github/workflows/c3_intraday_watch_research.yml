@@ -21,6 +21,8 @@ jobs:
             /scripts/test_c3_intraday_watch_v1.py
             /scripts/c3_kis_intraday_quotes_v1.py
             /scripts/test_c3_kis_intraday_quotes_v1.py
+            /scripts/c3_intraday_ledger_v1.py
+            /scripts/test_c3_intraday_ledger_v1.py
             /scripts/kis_regular_minute_cli.py
             /scripts/kis_regular_minute.py
             /config/c3_paper_top2_plans.csv
@@ -30,6 +32,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_watch_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_kis_intraday_quotes_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_ledger_v1.py -v
       - name: Optional read-only KIS quote probe (manual dispatch only)
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -38,6 +41,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python scripts/c3_kis_intraday_quotes_v1.py --out output/c3_intraday_quotes.json
           PYTHONPATH=scripts python scripts/c3_intraday_watch_v1.py --quotes output/c3_intraday_quotes.json --out output/c3_intraday_watch.json
+          PYTHONPATH=scripts python scripts/c3_intraday_ledger_v1.py --watch output/c3_intraday_watch.json --out output/c3_intraday_observations.csv
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
         with:
@@ -45,4 +49,5 @@ jobs:
           path: |
             output/c3_intraday_quotes.json
             output/c3_intraday_watch.json
+            output/c3_intraday_observations.csv
           retention-days: 7
