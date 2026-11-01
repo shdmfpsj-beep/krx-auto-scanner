@@ -43,9 +43,11 @@ def audit_one(ticker, raw, train_end='2024-12-31'):
         date=str(x.index[i].date())
         for h in (5,10,20):
             exit_price=float(x.Close.iloc[i+h])
+            peak=float(x.High.iloc[i+1:i+h+1].max())
+            peak_gain=peak/entry-1
             net=exit_price*(1-0.005)/(entry*(1+0.0015))-1
             for strategy in ('base','ema','kvf'):
-                rows.append({'ticker':ticker,'date':date,'split':'train' if date<=train_end else 'holdout','horizon':h,'strategy':strategy,'accepted':bool(x[strategy].iloc[i]),'net_return':net})
+                rows.append({'ticker':ticker,'date':date,'split':'train' if date<=train_end else 'holdout','horizon':h,'strategy':strategy,'accepted':bool(x[strategy].iloc[i]),'net_return':net,'peak_gain':peak_gain})
     return rows
 
 def summarize(rows):
@@ -61,6 +63,26 @@ def summarize(rows):
                     'avoided_negative':int((rejected.net_return<0).sum()),
                     'mean_net_return':float(sel.net_return.mean()) if len(sel) else None,
                     'win_rate':float((sel.net_return>0).mean()) if len(sel) else None})
+    for split in sorted(df.split.unique()):
+        sub=df[(df.split==split)&(df.horizon==20)]
+        pivot=sub.pivot_table(index=['ticker','date'],columns='strategy',values='accepted',aggfunc='first')
+        if not {'ema','kvf'}.issubset(pivot.columns):continue
+        disagree=int((pivot.ema!=pivot.kvf).sum())
+        base=sub[sub.strategy=='base']
+        for ticker,g in base.groupby('ticker'):
+            out.append({'split':split,'horizon':20,'strategy':'diagnostic','ticker':ticker,
+                        'base_events':int(len(g)),
+                        'peak_10pct_events':int((g.peak_gain>=0.10).sum()),
+                        'peak_20pct_events':int((g.peak_gain>=0.20).sum()),
+                        'ema_kvf_disagreements_all_tickers':disagree})
+        for strategy in ('ema','kvf'):
+            s=sub[sub.strategy==strategy]
+            missed=s[~s.accepted]
+            out.append({'split':split,'horizon':20,'strategy':strategy+'_opportunity',
+                        'missed_peak_10pct':int((missed.peak_gain>=0.10).sum()),
+                        'missed_peak_20pct':int((missed.peak_gain>=0.20).sum()),
+                        'accepted_peak_10pct':int((s[s.accepted].peak_gain>=0.10).sum()),
+                        'accepted_peak_20pct':int((s[s.accepted].peak_gain>=0.20).sum())})
     return out
 
 def main():
