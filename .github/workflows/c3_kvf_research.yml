@@ -23,7 +23,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
       - run: pip install 'numpy>=1.26,<3' 'pandas>=2.2,<3' 'finance-datareader>=0.9.90,<1'
       - name: Validate compilation
         run: python -m py_compile scripts/kvf_isolated_audit.py
