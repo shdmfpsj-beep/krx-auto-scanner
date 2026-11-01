@@ -27,7 +27,13 @@ def signals(raw):
     base=(x.Close>x.Open)&(x.Close>x.ma20)&(x.Close>x.prevhigh20)&(x.rvol>=1.0)
     ema=np.log1p(v).ewm(span=10,adjust=False).mean()
     kvf=kalman_logvolume(v).set_axis(x.index)
+    # Scale-invariant alternative: both filters see the same normalized volume.
+    norm=(v/v.shift(1).rolling(20).median()).replace([np.inf,-np.inf],np.nan).fillna(1.0).clip(lower=0)
+    ema_norm=np.log1p(norm).ewm(span=10,adjust=False).mean()
+    kvf_norm=kalman_logvolume(norm).set_axis(x.index)
     x['base']=base
+    x['ema_norm']=base&(ema_norm>ema_norm.shift(1))&(ema_norm.shift(1)>ema_norm.shift(2))
+    x['kvf_norm']=base&(kvf_norm>kvf_norm.shift(1))&(kvf_norm.shift(1)>kvf_norm.shift(2))
     x['ema']=base&(ema>ema.shift(1))&(ema.shift(1)>ema.shift(2))
     x['kvf']=base&(kvf>kvf.shift(1))&(kvf.shift(1)>kvf.shift(2))
     return x
@@ -46,7 +52,7 @@ def audit_one(ticker, raw, train_end='2024-12-31'):
             peak=float(x.High.iloc[i+1:i+h+1].max())
             peak_gain=peak/entry-1
             net=exit_price*(1-0.005)/(entry*(1+0.0015))-1
-            for strategy in ('base','ema','kvf'):
+            for strategy in ('base','ema','kvf','ema_norm','kvf_norm'):
                 rows.append({'ticker':ticker,'date':date,'split':'train' if date<=train_end else 'holdout','horizon':h,'strategy':strategy,'accepted':bool(x[strategy].iloc[i]),'net_return':net,'peak_gain':peak_gain})
     return rows
 
@@ -75,7 +81,7 @@ def summarize(rows):
                         'peak_10pct_events':int((g.peak_gain>=0.10).sum()),
                         'peak_20pct_events':int((g.peak_gain>=0.20).sum()),
                         'ema_kvf_disagreements_all_tickers':disagree})
-        for strategy in ('ema','kvf'):
+        for strategy in ('ema','kvf','ema_norm','kvf_norm'):
             s=sub[sub.strategy==strategy]
             missed=s[~s.accepted]
             out.append({'split':split,'horizon':20,'strategy':strategy+'_opportunity',
