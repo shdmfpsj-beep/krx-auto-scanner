@@ -13,7 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Sparse checkout bypasses unrelated legacy repository paths that cannot
+      # be created on the runner (filename exceeds filesystem limits).
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/kvf_isolated_audit.py
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
