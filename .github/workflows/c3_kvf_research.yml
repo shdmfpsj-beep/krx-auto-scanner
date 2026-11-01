@@ -1,0 +1,31 @@
+name: C3 KVF isolated research (no orders)
+on:
+  push:
+    branches: [research/c3-kvf-validation-20261101]
+    paths:
+      - 'scripts/kvf_isolated_audit.py'
+      - '.github/workflows/c3_kvf_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  kvf_research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install 'numpy>=1.26,<3' 'pandas>=2.2,<3' 'finance-datareader>=0.9.90,<1'
+      - name: Validate compilation
+        run: python -m py_compile scripts/kvf_isolated_audit.py
+      - name: Run isolated real-market research
+        run: python scripts/kvf_isolated_audit.py --tickers 271560 026960 --start 2022-01-01 --end 2026-10-30 --output kvf_isolated_results.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-kvf-isolated-research
+          path: kvf_isolated_results.json
+          if-no-files-found: warn
