@@ -925,6 +925,18 @@ jobs:
             --output reports/c3_selection_research_v15.json
           test -s reports/c3_selection_research_v15.json
 
+      - name: C3 evidence-aware selection research v16
+        if: (github.event_name == 'schedule' || inputs.mode == 'full_scan') && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/c3_preliminary.csv
+          test -s reports/c3_candidate_evidence_v1.csv
+          python scripts/c3_selection_evidence_v16.py \
+            --preliminary reports/c3_preliminary.csv \
+            --evidence reports/c3_candidate_evidence_v1.csv \
+            --output reports/c3_selection_evidence_v16.json
+
       - name: Save reports
         if: steps.collect.outcome != 'failure' && !(github.event_name == 'workflow_dispatch' && inputs.mode == 'frozen_history_v8')
         shell: bash
