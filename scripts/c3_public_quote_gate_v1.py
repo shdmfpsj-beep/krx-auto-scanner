@@ -31,3 +31,14 @@ def validate_public_quote(record, now=None, max_delay_minutes=25):
         return True, "VERIFIED_OBSERVATION"
     except (KeyError, ValueError, TypeError, OverflowError):
         return False, "INVALID_RECORD"
+
+def validate_paper_entry_quote(record, now=None):
+    """Stricter gate for paper entries; delayed research observations never fill."""
+    ok, reason = validate_public_quote(record, now=now, max_delay_minutes=2)
+    if not ok:
+        return False, reason
+    if record.get("feed_delay_class") != "REALTIME_AUTHORIZED":
+        return False, "DELAYED_OR_UNCERTIFIED_FEED"
+    if record.get("execution_eligible") is not True:
+        return False, "EXECUTION_NOT_AUTHORIZED"
+    return True, "PAPER_ENTRY_ELIGIBLE"
