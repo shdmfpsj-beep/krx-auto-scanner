@@ -50,6 +50,7 @@ def collect(registry,outdir,asof,days=450):
             record["status"]="WAIT_FETCH_OR_VALIDATION"
             record["error"]=str(exc)[:160]
         results.append(record)
+        print(json.dumps({"ticker":t,"status":record["status"],"bars":record["bars"],"error":record.get("error")},ensure_ascii=False),flush=True)
         time.sleep(0.2)
     report={"schema":"C3_FROZEN_HISTORY_V8_RESEARCH_ONLY","asof":asof,
         "registry_sha256":hashlib.sha256(regpath.read_bytes()).hexdigest(),
