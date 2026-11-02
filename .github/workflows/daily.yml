@@ -69,6 +69,7 @@ on:
           - preignition_quality_v88
           - preignition_integrated_v90
           - diagnose_v363
+          - frozen_history_v8
 
   schedule:
     # 20:20 KST: current collector chooses today's date only after 20:15.
@@ -888,8 +889,20 @@ jobs:
             --fee-bps 15 \
             --slip-bps 10
 
+      - name: Collect frozen 36 setup daily history (manual research only)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'frozen_history_v8'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/c3_registered_reclaim_registry_v1.json
+          python scripts/c3_frozen_history_collect_v8.py \\
+            --registry reports/c3_registered_reclaim_registry_v1.json \\
+            --outdir reports/c3_frozen_history_v8 \\
+            --asof 2026-11-02
+          test -s reports/c3_frozen_history_v8/manifest.json
+
       - name: Save reports
-        if: steps.collect.outcome != 'failure'
+        if: steps.collect.outcome != 'failure' && !(github.event_name == 'workflow_dispatch' && inputs.mode == 'frozen_history_v8')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
