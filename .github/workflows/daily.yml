@@ -895,9 +895,9 @@ jobs:
         run: |
           set -euo pipefail
           test -s reports/c3_registered_reclaim_registry_v1.json
-          python scripts/c3_frozen_history_collect_v8.py \\
-            --registry reports/c3_registered_reclaim_registry_v1.json \\
-            --outdir reports/c3_frozen_history_v8 \\
+          python scripts/c3_frozen_history_collect_v8.py \
+            --registry reports/c3_registered_reclaim_registry_v1.json \
+            --outdir reports/c3_frozen_history_v8 \
             --asof 2026-11-02
           test -s reports/c3_frozen_history_v8/manifest.json
 
