@@ -49,7 +49,11 @@ def main():
     tickers=a.tickers.split(",")
     if not tickers or len(tickers)>5 or any(not re.fullmatch(r"\d{6}",x) for x in tickers):p.error("1-5 six-digit tickers")
     now=datetime.now(KST)
-    result=collect(tickers,now,os.getenv("KIS_APP_KEY",""),os.getenv("KIS_APP_SECRET",""))
+    key=os.getenv("KIS_APP_KEY","");secret=os.getenv("KIS_APP_SECRET","")
+    if not key or not secret:
+        result={"status":"PENDING_PROVIDER_CREDENTIALS","quotes":[]}
+    else:
+        result=collect(tickers,now,key,secret)
     result["checked_at"]=now.isoformat()
     path=Path(a.out);path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding="utf8")
