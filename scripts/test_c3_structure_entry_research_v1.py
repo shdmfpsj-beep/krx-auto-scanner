@@ -50,5 +50,17 @@ class StructuralEntryTests(unittest.TestCase):
         e=case(right_bar_dates=("2026-10-30","2026-10-31"))
         self.assertEqual(evaluate(e,tick=100)["state"],"INVALID_RIGHT_BAR_DATES")
 
+    def test_expected_next_session_mismatch(self):
+        plan=evaluate(case(),tick=100)
+        self.assertEqual(audit_next_open(plan,next_session_date="2026-11-04",next_open=10100,expected_next_session_date="2026-11-03")["event"],"NEXT_SESSION_MISMATCH")
+
+    def test_expected_next_session_matches(self):
+        plan=evaluate(case(),tick=100)
+        self.assertEqual(audit_next_open(plan,next_session_date="2026-11-03",next_open=10100,expected_next_session_date="2026-11-03")["event"],"OPEN_IN_RANGE")
+
+    def test_right_bar_count_mismatch(self):
+        e=case(right_bar_dates=("2026-10-31",))
+        self.assertEqual(evaluate(e,tick=100)["state"],"INVALID_RIGHT_BAR_DATES")
+
 if __name__=="__main__":
     unittest.main()
