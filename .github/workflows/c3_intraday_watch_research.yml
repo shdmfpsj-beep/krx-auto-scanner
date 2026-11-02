@@ -6,6 +6,10 @@ on:
     paths:
       - 'scripts/c3_intraday_watch_v1.py'
       - 'scripts/test_c3_intraday_watch_v1.py'
+      - 'scripts/c3_free_source_diagnostic_v1.py'
+      - 'scripts/test_c3_free_source_diagnostic_v1.py'
+      - 'scripts/c3_free_mobile_report_v1.py'
+      - 'scripts/test_c3_free_mobile_report_v1.py'
       - '.github/workflows/c3_intraday_watch_research.yml'
 permissions:
   contents: read
