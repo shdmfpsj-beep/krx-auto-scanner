@@ -1,6 +1,6 @@
 """Research-only daily structural entry geometry. No orders, alerts or holder-stop changes."""
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone, timedelta
 
 @dataclass(frozen=True)
 class EntryEvidence:
@@ -29,7 +29,8 @@ def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
         p = date.fromisoformat(e.price_date)
         s = date.fromisoformat(e.support_date)
         r = datetime.fromisoformat(e.registered_at)
-        if r.tzinfo is None or r.utcoffset() is None or s > p or p > r.date():
+        kst_date = r.astimezone(timezone(timedelta(hours=9))).date() if r.tzinfo is not None else None
+        if kst_date is None or s > p or p > kst_date:
             return {"state": "INVALID_DATE_OR_REGISTRATION", "range": None}
     except (TypeError, ValueError):
         return {"state": "INVALID_DATE_OR_REGISTRATION", "range": None}
@@ -45,7 +46,7 @@ def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
     if e.right_bar_dates:
         try:
             bars = [date.fromisoformat(x) for x in e.right_bar_dates]
-            if len(bars) < 2 or bars != sorted(set(bars)) or bars[0] <= s or bars[-1] > p:
+            if len(bars) < 2 or bars != sorted(set(bars)) or len(bars) != e.right_completed_bars or bars[0] <= s or bars[-1] > p:
                 return {"state": "INVALID_RIGHT_BAR_DATES", "range": None}
         except (TypeError, ValueError):
             return {"state": "INVALID_RIGHT_BAR_DATES", "range": None}
@@ -84,7 +85,7 @@ def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
     return result
 
 
-def audit_next_open(plan, *, next_session_date=None, next_open=None):
+def audit_next_open(plan, *, next_session_date=None, next_open=None, expected_next_session_date=None):
     """Open-only prospective observation, not a broker fill."""
     import math
     if plan.get("range") is None:
@@ -93,7 +94,11 @@ def audit_next_open(plan, *, next_session_date=None, next_open=None):
         return {"event": "NEXT_OPEN_MISSING", "fill": False}
     try:
         d = date.fromisoformat(next_session_date)
-        r = datetime.fromisoformat(plan["registered_at"]).date()
+        r = datetime.fromisoformat(plan["registered_at"]).astimezone(timezone(timedelta(hours=9))).date()
+        if expected_next_session_date is not None:
+            expected = date.fromisoformat(expected_next_session_date)
+            if d != expected:
+                return {"event": "NEXT_SESSION_MISMATCH", "fill": False}
         if d <= r or not math.isfinite(next_open) or next_open <= 0:
             return {"event": "INVALID_FORWARD_OBSERVATION", "fill": False}
     except (TypeError, ValueError, KeyError):
