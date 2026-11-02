@@ -4,6 +4,12 @@ LEDGER={"positions":{"a":{"plan":{"ticker":"271560","name":"오리온"},"status"
 class Test(unittest.TestCase):
  def reason(self,source=None,scan=None):
   return diagnose(LEDGER,source,scan)["positions"][0]["reason"]
+ def test_historical_observations_not_current(self):
+  ledger={"positions":{"a":{"plan":{"ticker":"271560","registered_day":"2026-10-31"},"status":"HOLDING","sessions_observed":2}}}
+  source={"ticker_states":{"271560":{"capture_status":"OHLCV_OBSERVED_UNVERIFIED_SCOPE","last_session":"2026-11-02"}}}
+  scan={"scan_complete":True,"market_data_date":"2026-11-02"}
+  x=diagnose(ledger,source,scan,"2026-11-03","POST_CLOSE")
+  self.assertEqual(x["positions"][0]["reason"],"HISTORICAL_OBSERVATIONS_ONLY")
  def test_future_ledger_date_is_flagged(self):
   ledger={"positions":{"a":{"plan":{"ticker":"271560"},"status":"WAITING","sessions_observed":1,"last_observed_date":"2026-11-05"}}}
   x=diagnose(ledger,None,None,"2026-11-02","PRE_CLOSE","41313440977")
