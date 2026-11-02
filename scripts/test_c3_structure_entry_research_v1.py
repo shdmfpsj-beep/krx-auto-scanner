@@ -25,9 +25,6 @@ class StructuralEntryTests(unittest.TestCase):
     def test_stop_breach(self):
         self.assertEqual(evaluate(case(close=9800), tick=100)["state"],"CANCEL_CLOSE_BELOW_STOP")
 
-if __name__=="__main__":
-    unittest.main()
-
     def test_missing_tick(self):
         self.assertEqual(evaluate(case())["state"], "WAIT_VERIFIED_TICK")
     def test_no_support_confirmation(self):
@@ -36,3 +33,6 @@ if __name__=="__main__":
         self.assertEqual(evaluate(case(registered_at="2026-10-30T22:00:00+09:00"),tick=100)["state"], "INVALID_DATE_OR_REGISTRATION")
     def test_equal_stop_is_not_breach(self):
         self.assertNotEqual(evaluate(case(close=9900),tick=100)["state"], "CANCEL_CLOSE_BELOW_STOP")
+
+if __name__=="__main__":
+    unittest.main()
