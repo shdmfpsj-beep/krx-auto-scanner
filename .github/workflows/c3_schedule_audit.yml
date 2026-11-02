@@ -1,7 +1,5 @@
 name: C3 30-minute schedule audit (NO LIVE QUOTES)
 on:
-  schedule:
-    - cron: '48 6 * * 1-5'
   workflow_dispatch:
   push:
     branches: [main]
