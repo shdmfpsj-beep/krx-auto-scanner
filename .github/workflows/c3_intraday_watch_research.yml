@@ -6,6 +6,8 @@ on:
     paths:
       - 'scripts/c3_intraday_watch_v1.py'
       - 'scripts/c3_kis_intraday_quotes_v1.py'
+      - 'scripts/c3_intraday_mobile_summary_v1.py'
+      - 'scripts/test_c3_intraday_mobile_summary_v1.py'
       - 'scripts/test_c3_kis_intraday_quotes_v1.py'
       - 'scripts/test_c3_intraday_watch_v1.py'
       - 'scripts/c3_free_source_diagnostic_v1.py'
@@ -25,6 +27,8 @@ jobs:
           sparse-checkout: |
             /scripts/c3_intraday_watch_v1.py
             /scripts/test_c3_intraday_watch_v1.py
+            /scripts/c3_intraday_mobile_summary_v1.py
+            /scripts/test_c3_intraday_mobile_summary_v1.py
             /scripts/c3_kis_intraday_quotes_v1.py
             /scripts/test_c3_kis_intraday_quotes_v1.py
             /scripts/c3_intraday_ledger_v1.py
@@ -52,6 +56,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_watch_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_kis_intraday_quotes_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_mobile_summary_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_ledger_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_persistent_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_episodes_v1.py -v
@@ -69,6 +74,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python scripts/c3_kis_intraday_quotes_v1.py --out output/c3_intraday_quotes.json
           PYTHONPATH=scripts python scripts/c3_intraday_watch_v1.py --quotes output/c3_intraday_quotes.json --out output/c3_intraday_watch.json
+          PYTHONPATH=scripts python scripts/c3_intraday_mobile_summary_v1.py --quotes output/c3_intraday_quotes.json --watch output/c3_intraday_watch.json --out output/c3_intraday_mobile.md
           PYTHONPATH=scripts python scripts/c3_intraday_ledger_v1.py --watch output/c3_intraday_watch.json --out output/c3_intraday_observations.csv
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
@@ -77,5 +83,6 @@ jobs:
           path: |
             output/c3_intraday_quotes.json
             output/c3_intraday_watch.json
+            output/c3_intraday_mobile.md
             output/c3_intraday_observations.csv
           retention-days: 7
