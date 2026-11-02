@@ -37,12 +37,26 @@ jobs:
           lines=['# C3 30-minute schedule audit',f'- Audit KST: {now.isoformat(timespec="seconds")}',f'- Scheduled events observed today: {len(runs)}','- This is an execution audit, not a live quote feed.']
           for created,run_id,conclusion in sorted(runs):
               lines.append(f'- {created:%H:%M} KST | run {run_id} | {conclusion}')
-          if not runs:
-              lines.append('- WARNING: no schedule-triggered run observed today. Investigate cron or GitHub scheduling.')
-          elif len(runs)<10:
-              lines.append('- WARNING: fewer than 10 scheduled events observed (expected up to 14 on weekdays; delays, holidays, and API limits can affect this).')
+          # Match each scheduled run to one expected slot within a 20-minute tolerance.
+          # A delayed run may be counted for the closest slot; this is not proof of on-time execution.
+          expected=[datetime.combine(today,datetime.min.time(),ZoneInfo('Asia/Seoul')).replace(hour=h,minute=m) for h in range(9,16) for m in (7,37)]
+          pending=list(runs)
+          matched=[]
+          missing=[]
+          for slot in expected:
+              choices=[(abs((created-slot).total_seconds()),i) for i,(created,_,_) in enumerate(pending) if 0<=(created-slot).total_seconds()<=20*60]
+              if choices:
+                  _,i=min(choices)
+                  matched.append((slot,pending.pop(i)))
+              else:
+                  missing.append(slot)
+          lines.append(f'- Expected slots: {len(expected)}; matched: {len(matched)}; missing: {len(missing)}')
+          for slot in missing:
+              lines.append(f'- MISSING/UNVERIFIED slot: {slot:%H:%M} KST')
+          if missing:
+              lines.append('- WARNING: missing slots may reflect holidays, delayed GitHub runs, or API truncation; investigate before asserting a service outage.')
           else:
-              lines.append('- Scheduled runs observed; exact slot completeness is not proven by event count alone.')
+              lines.append('- All expected weekday slots matched within 20 minutes (not exchange-holiday aware).')
           result='\n'.join(lines)+'\n'
           print(result)
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:f.write(result)
