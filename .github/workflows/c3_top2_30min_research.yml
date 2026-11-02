@@ -1,9 +1,5 @@
 name: C3 TOP2 30-minute research diagnostics (NO LIVE QUOTES)
 on:
-  schedule:
-    # UTC 00:07-06:37 weekdays; KST 09:07-15:37, avoiding top-of-hour load.
-    # 15:37 is a post-close status check, never an intraday quote signal.
-    - cron: '7,37 0-6 * * 1-5'
   workflow_dispatch:
   push:
     branches: [main]
