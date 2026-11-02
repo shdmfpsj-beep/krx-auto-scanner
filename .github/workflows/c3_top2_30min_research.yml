@@ -1,8 +1,9 @@
 name: C3 TOP2 30-minute research diagnostics (NO LIVE QUOTES)
 on:
   schedule:
-    # UTC 00:00-06:30 weekdays; KST 09:00-15:30. Cron may be delayed.
-    - cron: '0,30 0-6 * * 1-5'
+    # UTC 00:07-06:37 weekdays; KST 09:07-15:37, avoiding top-of-hour load.
+    # 15:37 is a post-close status check, never an intraday quote signal.
+    - cron: '7,37 0-6 * * 1-5'
   workflow_dispatch:
   push:
     branches: [main]
@@ -24,7 +25,7 @@ jobs:
           import os
           now=datetime.now(ZoneInfo('Asia/Seoul'))
           in_session=now.weekday()<5 and time(9)<=now.time()<=time(15,30)
-          lines=['# C3 TOP2 30-minute diagnostic',f'- Checked (KST): {now.isoformat(timespec="seconds")}',f'- Regular-session clock window: {in_session}', '- Provider: NOT_CONNECTED (no authorized automated intraday quote feed)', '- Verified intraday quotes: 0', '- Next step: evaluate permitted provider access; do not scrape undocumented endpoints without permission', '- 오리온(271560): NO_VERIFIED_QUOTE', '- 동서(026960): NO_VERIFIED_QUOTE', '- Trading: DISABLED', '- Paper fill: DISABLED', '- This job is a schedule/availability check, not a live quote feed.','- Korean holidays are not validated; calendar window is not proof of an open exchange.']
+          lines=['# C3 TOP2 30-minute diagnostic',f'- Checked (KST): {now.isoformat(timespec="seconds")}',f'- Regular-session clock window: {in_session}', '- Provider: NOT_CONNECTED (no authorized automated intraday quote feed)', '- Verified intraday quotes: 0', '- Next step: evaluate permitted provider access; do not scrape undocumented endpoints without permission', '- 오리온(271560): NO_VERIFIED_QUOTE', '- 동서(026960): NO_VERIFIED_QUOTE', '- Trading: DISABLED', '- Paper fill: DISABLED', '- This job is a schedule/availability check, not a live quote feed.', f'- GitHub trigger: {os.environ.get("GITHUB_EVENT_NAME", "UNKNOWN")}', f'- Run ID: {os.environ.get("GITHUB_RUN_ID", "UNKNOWN")}','- Korean holidays are not validated; calendar window is not proof of an open exchange.']
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f: f.write('\\n'.join(lines)+'\\n')
           print('\\n'.join(lines))
           with open('c3_top2_30min_status.md','w',encoding='utf-8') as f: f.write('\\n'.join(lines)+'\\n')
