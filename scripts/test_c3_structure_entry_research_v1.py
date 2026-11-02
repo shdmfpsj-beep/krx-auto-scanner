@@ -1,5 +1,5 @@
 import unittest
-from c3_structure_entry_research_v1 import EntryEvidence, evaluate
+from c3_structure_entry_research_v1 import EntryEvidence, evaluate, audit_next_open
 
 def case(**overrides):
     args=dict(price_date="2026-11-02", registered_at="2026-11-02T22:00:00+09:00",
@@ -33,6 +33,22 @@ class StructuralEntryTests(unittest.TestCase):
         self.assertEqual(evaluate(case(registered_at="2026-10-30T22:00:00+09:00"),tick=100)["state"], "INVALID_DATE_OR_REGISTRATION")
     def test_equal_stop_is_not_breach(self):
         self.assertNotEqual(evaluate(case(close=9900),tick=100)["state"], "CANCEL_CLOSE_BELOW_STOP")
+
+    def test_retest_vs_recovery(self):
+        retest=evaluate(case(),tick=100)
+        recovery=evaluate(case(entry_mode="CONFIRMED_RECOVERY"),tick=100)
+        self.assertLess(retest["range"][0],recovery["range"][0])
+
+    def test_forward_open_not_fill(self):
+        plan=evaluate(case(),tick=100)
+        self.assertEqual(audit_next_open(plan,next_session_date="2026-11-03",next_open=10100)["event"],"OPEN_IN_RANGE")
+        self.assertFalse(audit_next_open(plan,next_session_date="2026-11-03",next_open=10100)["fill"])
+        self.assertEqual(audit_next_open(plan)["event"],"NEXT_OPEN_MISSING")
+        self.assertEqual(audit_next_open(plan,next_session_date="2026-11-02",next_open=10100)["event"],"INVALID_FORWARD_OBSERVATION")
+
+    def test_right_bar_dates_invalid(self):
+        e=case(right_bar_dates=("2026-10-30","2026-10-31"))
+        self.assertEqual(evaluate(e,tick=100)["state"],"INVALID_RIGHT_BAR_DATES")
 
 if __name__=="__main__":
     unittest.main()
