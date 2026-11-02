@@ -1,6 +1,6 @@
 """Research-only daily structural entry geometry. No orders, alerts or holder-stop changes."""
 from dataclasses import dataclass
-from typing import Optional
+from datetime import date, datetime
 
 @dataclass(frozen=True)
 class EntryEvidence:
@@ -13,22 +13,37 @@ class EntryEvidence:
     close: float
     right_completed_bars: int
     source_regular_certified: bool = False
+    support_confirmed: bool = False
+    first_resistance_verified: bool = False
+    source_family: str = ""
 
 def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
-             min_net_r=2.0, tick=100, max_atr_distance=1.0):
+             min_net_r=2.0, tick=None, max_atr_distance=1.0):
     """No fabricated entry: conservative lower tick rounding for stop, upward for entry.
     Price bands are RESEARCH ONLY and require post-registration support confirmation.
     """
     import math
+    try:
+        p = date.fromisoformat(e.price_date)
+        s = date.fromisoformat(e.support_date)
+        r = datetime.fromisoformat(e.registered_at)
+        if r.tzinfo is None or r.utcoffset() is None or s > p or p > r.date():
+            return {"state": "INVALID_DATE_OR_REGISTRATION", "range": None}
+    except (TypeError, ValueError):
+        return {"state": "INVALID_DATE_OR_REGISTRATION", "range": None}
+    if tick is None or not math.isfinite(tick) or tick <= 0:
+        return {"state": "WAIT_VERIFIED_TICK", "range": None}
     if not all(math.isfinite(x) and x > 0 for x in
                (e.support_low, e.atr14, e.first_resistance, e.close)):
         return {"state": "DATA_INVALID", "range": None}
-    if e.right_completed_bars < 2:
-        return {"state": "WAIT_RIGHT_BARS", "range": None}
+    if e.right_completed_bars < 2 or not e.support_confirmed:
+        return {"state": "WAIT_SUPPORT_CONFIRMATION", "range": None}
+    if not e.first_resistance_verified or not e.source_family:
+        return {"state": "WAIT_SOURCE_OR_RESISTANCE_EVIDENCE", "range": None}
     stop = math.floor((e.support_low - 0.1 * e.atr14) / tick) * tick
     if stop <= 0:
         return {"state": "DATA_INVALID", "range": None}
-    if e.close <= stop:
+    if e.close < stop:
         return {"state": "CANCEL_CLOSE_BELOW_STOP", "range": None, "stop": stop}
     if e.close >= e.first_resistance:
         return {"state": "WAIT_FIRST_RESISTANCE_RECLAIM", "range": None, "stop": stop}
@@ -42,7 +57,7 @@ def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
     cap = ((e.first_resistance * (1-sell_cost)) +
            min_net_r * stop * (1-sell_cost)) / ((min_net_r+1)*(1+buy_cost))
     upper = math.floor(min(cap, e.first_resistance - tick) / tick) * tick
-    lower = math.ceil(max(e.support_low, stop + tick) / tick) * tick
+    lower = math.ceil(max(e.close, e.support_low, stop + tick) / tick) * tick
     if lower > upper:
         return {"state": "NO_COSTED_2R_RANGE", "range": None, "stop": stop,
                 "first_resistance": e.first_resistance}
@@ -50,5 +65,5 @@ def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
               "range": [lower, upper], "stop": stop,
               "first_resistance": e.first_resistance,
               "price_date": e.price_date, "registered_at": e.registered_at,
-              "support_date": e.support_date, "source_regular_certified": e.source_regular_certified}
+              "support_date": e.support_date, "source_regular_certified": e.source_regular_certified, "buy_approved": False, "source_family": e.source_family}
     return result
