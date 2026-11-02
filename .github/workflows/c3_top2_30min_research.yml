@@ -27,4 +27,11 @@ jobs:
           lines=['# C3 TOP2 30-minute diagnostic',f'- Checked (KST): {now.isoformat(timespec="seconds")}',f'- Regular-session clock window: {in_session}', '- Provider: NOT_CONNECTED (no authorized automated intraday quote feed)', '- Verified intraday quotes: 0', '- Next step: evaluate permitted provider access; do not scrape undocumented endpoints without permission', '- 오리온(271560): NO_VERIFIED_QUOTE', '- 동서(026960): NO_VERIFIED_QUOTE', '- Trading: DISABLED', '- Paper fill: DISABLED', '- This job is a schedule/availability check, not a live quote feed.','- Korean holidays are not validated; calendar window is not proof of an open exchange.']
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f: f.write('\\n'.join(lines)+'\\n')
           print('\\n'.join(lines))
+          with open('c3_top2_30min_status.md','w',encoding='utf-8') as f: f.write('\\n'.join(lines)+'\\n')
           PY
+      - name: Archive diagnostic report for mobile review
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-top2-30min-status
+          path: c3_top2_30min_status.md
+          retention-days: 7
