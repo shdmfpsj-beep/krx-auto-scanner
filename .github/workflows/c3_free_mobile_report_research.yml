@@ -39,9 +39,11 @@ jobs:
             "https://api.github.com/repos/${GH_REPO}/actions/workflows/c3_paper_forward_daily.yml/runs?per_page=15" \
             | python -c 'import sys,json; print("\n".join(str(x["id"]) for x in json.load(sys.stdin).get("workflow_runs",[]) if x.get("conclusion")=="success"))' \
             > input/run_ids.txt || true
+          source_run_id=""
           while read -r run_id; do
             [ -n "$run_id" ] || continue
             if gh run download "$run_id" -R "$GH_REPO" -n c3-paper-forward-daily -D input/artifact >/dev/null 2>&1; then
+              source_run_id="$run_id"
               echo "SOURCE_ARTIFACT_RUN=$run_id"
               break
             fi
@@ -58,6 +60,7 @@ jobs:
           phase=POST_CLOSE
           if (( 10#$report_hour < 16 )); then phase=PRE_CLOSE; fi
           args=(--ledger input/paper_ledger.json --report-date "$report_date" --report-phase "$phase" --out output/source_diagnostic.json)
+          [ -z "$source_run_id" ] || args+=(--source-run-id "$source_run_id")
           [ ! -f input/source.json ] || args+=(--source input/source.json)
           [ ! -f input/scan.json ] || args+=(--scan input/scan.json)
           python scripts/c3_free_source_diagnostic_v1.py "${args[@]}"
