@@ -20,7 +20,7 @@ jobs:
           TZ: Asia/Seoul
         run: |
           python - <<'PY'
-          from datetime import datetime, time
+          from datetime import datetime, time, timedelta
           from zoneinfo import ZoneInfo
           import os
           now=datetime.now(ZoneInfo('Asia/Seoul'))
@@ -31,9 +31,13 @@ jobs:
               from datetime import timedelta
               slot=(now-timedelta(hours=1)).replace(minute=37,second=0,microsecond=0)
           lag_minutes=round((now-slot).total_seconds()/60,1)
+          # The current run alone cannot prove missing scheduled runs; report only its own event.
+          event=os.environ.get('GITHUB_EVENT_NAME','UNKNOWN')
+          is_scheduled=(event=='schedule')
+          scheduled_late=is_scheduled and lag_minutes>15
           trigger=os.environ.get('GITHUB_EVENT_NAME','UNKNOWN')
           scheduled=(trigger=='schedule')
-          lines=['# C3 TOP2 30-minute diagnostic',f'- Most recent planned slot (KST, inferred): {slot.isoformat(timespec="minutes")}',f'- Elapsed since most recent slot: {lag_minutes} min (not definitive schedule latency)',f'- Checked (KST): {now.isoformat(timespec="seconds")}',f'- Regular-session clock window: {in_session}', '- Provider: NOT_CONNECTED (no authorized automated intraday quote feed)', '- Operational readiness: DIAGNOSTIC_ONLY', '- Verified intraday quotes: 0', '- Next step: evaluate permitted provider access; do not scrape undocumented endpoints without permission', '- 오리온(271560): NO_VERIFIED_QUOTE', '- 동서(026960): NO_VERIFIED_QUOTE', '- Trading: DISABLED', '- Paper fill: DISABLED', f'- This execution is a scheduled run: {scheduled} (event={trigger})', '- This job is a schedule/availability check, not a live quote feed.', f'- GitHub trigger: {os.environ.get("GITHUB_EVENT_NAME", "UNKNOWN")}', f'- Run ID: {os.environ.get("GITHUB_RUN_ID", "UNKNOWN")}','- Korean holidays are not validated; calendar window is not proof of an open exchange.']
+          lines=['# C3 TOP2 30-minute diagnostic',f'- Most recent planned slot (KST, inferred): {slot.isoformat(timespec="minutes")}',f'- Elapsed since most recent slot: {lag_minutes} min (not definitive schedule latency)',f'- Checked (KST): {now.isoformat(timespec="seconds")}',f'- Regular-session clock window: {in_session}', '- Provider: NOT_CONNECTED (no authorized automated intraday quote feed)', '- Operational readiness: DIAGNOSTIC_ONLY', '- Verified intraday quotes: 0', '- Next step: evaluate permitted provider access; do not scrape undocumented endpoints without permission', '- 오리온(271560): NO_VERIFIED_QUOTE', '- 동서(026960): NO_VERIFIED_QUOTE', '- Trading: DISABLED', '- Paper fill: DISABLED', f'- This execution is a scheduled run: {scheduled} (event={trigger})',f'- Schedule delay warning (approximate): {scheduled_late if is_scheduled else "NOT_APPLICABLE"}', '- This job is a schedule/availability check, not a live quote feed.', f'- GitHub trigger: {os.environ.get("GITHUB_EVENT_NAME", "UNKNOWN")}', f'- Run ID: {os.environ.get("GITHUB_RUN_ID", "UNKNOWN")}','- Korean holidays are not validated; calendar window is not proof of an open exchange.']
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f: f.write('\\n'.join(lines)+'\\n')
           print('\\n'.join(lines))
           with open('c3_top2_30min_status.md','w',encoding='utf-8') as f: f.write('\\n'.join(lines)+'\\n')
