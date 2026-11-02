@@ -21,6 +21,8 @@ def diagnose(ledger,source_status=None,scan_status=None):
             reason="SCAN_DATE_MISSING"
         elif source.get("last_session")!=scan.get("market_data_date"):
             reason="SOURCE_DATES_MISMATCH"
+        elif source.get("last_session") and p.get("plan",{}).get("registered_day") and source.get("last_session")<=p["plan"]["registered_day"]:
+            reason="NO_POST_REGISTRATION_SESSION_YET"
         elif observed==0:
             reason="CHECK_REGISTRATION_AND_FORWARD_ELIGIBILITY"
         else:
