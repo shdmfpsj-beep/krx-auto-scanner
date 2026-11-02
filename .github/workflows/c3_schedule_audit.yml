@@ -1,0 +1,52 @@
+name: C3 30-minute schedule audit (NO LIVE QUOTES)
+on:
+  schedule:
+    - cron: '48 6 * * 1-5'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Audit scheduled diagnostic runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          from datetime import datetime,timedelta,timezone
+          from zoneinfo import ZoneInfo
+          repo=os.environ['GH_REPOSITORY']
+          url=f'https://api.github.com/repos/{repo}/actions/workflows/c3_top2_30min_research.yml/runs?event=schedule&per_page=100'
+          req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'})
+          with urllib.request.urlopen(req,timeout=20) as resp: data=json.load(resp)
+          now=datetime.now(ZoneInfo('Asia/Seoul'))
+          today=now.date()
+          runs=[]
+          for x in data.get('workflow_runs',[]):
+              created=datetime.fromisoformat(x['created_at'].replace('Z','+00:00')).astimezone(ZoneInfo('Asia/Seoul'))
+              if created.date()==today:
+                  runs.append((created,x['id'],x['conclusion']))
+          lines=['# C3 30-minute schedule audit',f'- Audit KST: {now.isoformat(timespec="seconds")}',f'- Scheduled events observed today: {len(runs)}','- This is an execution audit, not a live quote feed.']
+          for created,run_id,conclusion in sorted(runs):
+              lines.append(f'- {created:%H:%M} KST | run {run_id} | {conclusion}')
+          if not runs:
+              lines.append('- WARNING: no schedule-triggered run observed today. Investigate cron or GitHub scheduling.')
+          elif len(runs)<10:
+              lines.append('- WARNING: fewer than 10 scheduled events observed (expected up to 14 on weekdays; delays, holidays, and API limits can affect this).')
+          else:
+              lines.append('- Scheduled runs observed; exact slot completeness is not proven by event count alone.')
+          result='\n'.join(lines)+'\n'
+          print(result)
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:f.write(result)
+          with open('c3_schedule_audit.md','w',encoding='utf-8') as f:f.write(result)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c3-schedule-audit
+          path: c3_schedule_audit.md
+          retention-days: 14
