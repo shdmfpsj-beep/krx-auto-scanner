@@ -32,7 +32,8 @@ def collect(registry,outdir,asof,days=450):
                 if d in seen or d>end.isoformat():raise ValueError("DUPLICATE_OR_FUTURE_DATE")
                 seen.add(d)
                 o,h,l,c,v=[int(row[k]) for k in ("시가","고가","저가","종가","거래량")]
-                if min(o,h,l,c)<=0 or v<0 or l>min(o,c) or max(o,c)>h:raise ValueError("INVALID_OHLCV")
+                if min(o,h,l,c)<=0 or v<0 or l>min(o,c) or max(o,c)>h:
+                    raise ValueError(f"INVALID_OHLCV date={d} open={o} high={h} low={l} close={c} volume={v}")
                 output.append((d,o,h,l,c,v))
             if output!=sorted(output,key=lambda x:x[0]):raise ValueError("UNSORTED_DATES")
             if len(output)<120 or output[-1][0]<s["price_asof"]:
