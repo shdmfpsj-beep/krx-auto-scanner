@@ -31,6 +31,8 @@ jobs:
             /scripts/test_c3_intraday_outcomes_v1.py
             /scripts/test_c3_intraday_integration_v1.py
             /scripts/test_c3_intraday_timestamp_safety_v1.py
+            /scripts/c3_free_paper_audit_v1.py
+            /scripts/test_c3_free_paper_audit_v1.py
             /scripts/kis_regular_minute_cli.py
             /scripts/kis_regular_minute.py
             /config/c3_paper_top2_plans.csv
@@ -46,6 +48,7 @@ jobs:
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_outcomes_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_integration_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_timestamp_safety_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_free_paper_audit_v1.py -v
       - name: Optional read-only KIS quote probe (manual dispatch only)
         if: github.event_name == 'workflow_dispatch'
         env:
