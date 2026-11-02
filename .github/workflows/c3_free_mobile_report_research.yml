@@ -53,7 +53,11 @@ jobs:
             cp input/artifact/scancheck/source_scan_status.json input/scan.json
           fi
           report_date=$(TZ=Asia/Seoul date +%F)
-          args=(--ledger input/paper_ledger.json --report-date "$report_date" --out output/source_diagnostic.json)
+          report_hour=$(TZ=Asia/Seoul date +%H)
+          report_minute=$(TZ=Asia/Seoul date +%M)
+          phase=POST_CLOSE
+          if (( 10#$report_hour < 16 )); then phase=PRE_CLOSE; fi
+          args=(--ledger input/paper_ledger.json --report-date "$report_date" --report-phase "$phase" --out output/source_diagnostic.json)
           [ ! -f input/source.json ] || args+=(--source input/source.json)
           [ ! -f input/scan.json ] || args+=(--scan input/scan.json)
           python scripts/c3_free_source_diagnostic_v1.py "${args[@]}"
