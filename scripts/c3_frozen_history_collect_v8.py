@@ -63,4 +63,6 @@ def main():
     p.add_argument("--registry",required=True);p.add_argument("--outdir",required=True);p.add_argument("--asof",required=True)
     a=p.parse_args();r=collect(a.registry,a.outdir,a.asof)
     print(json.dumps({"registered":r["registered_denominator"],"available_uncertified":r["available_uncertified"],"approved":0}))
+    if r["available_uncertified"] == 0:
+        raise SystemExit("COLLECTION_FAILED: zero valid dated ticker files; inspect manifest.json errors")
 if __name__=="__main__":main()
