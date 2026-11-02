@@ -901,6 +901,17 @@ jobs:
             --asof 2026-11-02
           test -s reports/c3_frozen_history_v8/manifest.json
 
+      - name: Daily C3 evidence gate (research only)
+        if: (github.event_name == 'schedule' || inputs.mode == 'full_scan') && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/candidates.csv
+          python scripts/c3_daily_evidence_gate_v14.py \
+            --source reports/candidates.csv \
+            --out reports/c3_daily_evidence_gate_v14.json
+          test -s reports/c3_daily_evidence_gate_v14.json
+
       - name: Save reports
         if: steps.collect.outcome != 'failure' && !(github.event_name == 'workflow_dispatch' && inputs.mode == 'frozen_history_v8')
         shell: bash
