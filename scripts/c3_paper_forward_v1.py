@@ -229,6 +229,15 @@ def update_one(p,log,history,today,market_scan_asof):
     if p["status"]!="OPEN":return p["status"]
     if day>p["entry_date"]:
         p["held_sessions"]=p.get("held_sessions",0)+1
+    # Daily OHLC cannot establish whether a target was reached before a
+    # structural-stop close. Fail conservatively: no assumed target profit.
+    if day>p["entry_date"] and row["close"]<stop and row["high"]>=t1:
+        event(log,p,day,"AMBIGUOUS_TARGET_VS_STOP_DAILY_PATH",None,
+              "Daily high touched target but close invalidated structure; no target fill credited")
+        p["status"]="STOP_PENDING"
+        event(log,p,day,"CLOSE_BELOW_STOP_EXIT_NEXT_OPEN_PENDING",row["close"])
+        record_forward_horizons(p,log,day,row["close"])
+        return "AMBIGUOUS_PATH_STOP_PENDING"
     # Targets are historical price levels, resting sell limits assumed active
     # on sessions strictly FOLLOWING the hypothetical entry session.
     if day>p["entry_date"]:
