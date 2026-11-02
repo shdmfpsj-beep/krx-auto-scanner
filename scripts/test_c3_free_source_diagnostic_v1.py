@@ -4,6 +4,11 @@ LEDGER={"positions":{"a":{"plan":{"ticker":"271560","name":"오리온"},"status"
 class Test(unittest.TestCase):
  def reason(self,source=None,scan=None):
   return diagnose(LEDGER,source,scan)["positions"][0]["reason"]
+ def test_future_ledger_date_is_flagged(self):
+  ledger={"positions":{"a":{"plan":{"ticker":"271560"},"status":"WAITING","sessions_observed":1,"last_observed_date":"2026-11-05"}}}
+  x=diagnose(ledger,None,None,"2026-11-02","PRE_CLOSE","41313440977")
+  self.assertEqual(x["positions"][0]["reason"],"LEDGER_DATE_IN_FUTURE")
+  self.assertEqual(x["source_run_id"],"41313440977")
  def test_pre_close_old_bar_is_expected(self):
   ledger={"positions":{"a":{"plan":{"ticker":"271560","registered_day":"2026-10-31"},"status":"WAITING","sessions_observed":0}}}
   source={"ticker_states":{"271560":{"capture_status":"OHLCV_OBSERVED_UNVERIFIED_SCOPE","last_session":"2026-10-30"}}}
