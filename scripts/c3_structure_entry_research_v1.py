@@ -16,6 +16,8 @@ class EntryEvidence:
     support_confirmed: bool = False
     first_resistance_verified: bool = False
     source_family: str = ""
+    right_bar_dates: tuple = ()
+    entry_mode: str = "RETEST"
 
 def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
              min_net_r=2.0, tick=None, max_atr_distance=1.0):
@@ -38,6 +40,15 @@ def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
         return {"state": "DATA_INVALID", "range": None}
     if e.right_completed_bars < 2 or not e.support_confirmed:
         return {"state": "WAIT_SUPPORT_CONFIRMATION", "range": None}
+    if e.entry_mode not in ("RETEST", "CONFIRMED_RECOVERY"):
+        return {"state": "INVALID_ENTRY_MODE", "range": None}
+    if e.right_bar_dates:
+        try:
+            bars = [date.fromisoformat(x) for x in e.right_bar_dates]
+            if len(bars) < 2 or bars != sorted(set(bars)) or bars[0] <= s or bars[-1] > p:
+                return {"state": "INVALID_RIGHT_BAR_DATES", "range": None}
+        except (TypeError, ValueError):
+            return {"state": "INVALID_RIGHT_BAR_DATES", "range": None}
     if not e.first_resistance_verified or not e.source_family:
         return {"state": "WAIT_SOURCE_OR_RESISTANCE_EVIDENCE", "range": None}
     stop = math.floor((e.support_low - 0.1 * e.atr14) / tick) * tick
@@ -57,7 +68,11 @@ def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
     cap = ((e.first_resistance * (1-sell_cost)) +
            min_net_r * stop * (1-sell_cost)) / ((min_net_r+1)*(1+buy_cost))
     upper = math.floor(min(cap, e.first_resistance - tick) / tick) * tick
-    lower = math.ceil(max(e.close, e.support_low, stop + tick) / tick) * tick
+    # A retest limit may be below the close; it is not a retrospective fill.
+    floor = max(e.support_low, stop + tick)
+    if e.entry_mode == "CONFIRMED_RECOVERY":
+        floor = max(floor, e.close)
+    lower = math.ceil(floor / tick) * tick
     if lower > upper:
         return {"state": "NO_COSTED_2R_RANGE", "range": None, "stop": stop,
                 "first_resistance": e.first_resistance}
@@ -65,5 +80,24 @@ def evaluate(e: EntryEvidence, *, buy_cost=0.0015, sell_cost=0.005,
               "range": [lower, upper], "stop": stop,
               "first_resistance": e.first_resistance,
               "price_date": e.price_date, "registered_at": e.registered_at,
-              "support_date": e.support_date, "source_regular_certified": e.source_regular_certified, "buy_approved": False, "source_family": e.source_family}
+              "support_date": e.support_date, "source_regular_certified": e.source_regular_certified, "buy_approved": False, "source_family": e.source_family, "entry_mode": e.entry_mode}
     return result
+
+
+def audit_next_open(plan, *, next_session_date=None, next_open=None):
+    """Open-only prospective observation, not a broker fill."""
+    import math
+    if plan.get("range") is None:
+        return {"event": "NO_VALID_RANGE", "fill": False}
+    if next_session_date is None or next_open is None:
+        return {"event": "NEXT_OPEN_MISSING", "fill": False}
+    try:
+        d = date.fromisoformat(next_session_date)
+        r = datetime.fromisoformat(plan["registered_at"]).date()
+        if d <= r or not math.isfinite(next_open) or next_open <= 0:
+            return {"event": "INVALID_FORWARD_OBSERVATION", "fill": False}
+    except (TypeError, ValueError, KeyError):
+        return {"event": "INVALID_FORWARD_OBSERVATION", "fill": False}
+    lo, hi = plan["range"]
+    event = "OPEN_IN_RANGE" if lo <= next_open <= hi else ("OPEN_ABOVE_RANGE" if next_open > hi else "OPEN_BELOW_RANGE")
+    return {"event": event, "fill": False}
