@@ -375,6 +375,9 @@ def run(plans_csv,prices_csv,ledger_json,outdir,report_day,market_scan_asof):
         json.dumps(status,ensure_ascii=False,indent=2,allow_nan=False)+"\n",encoding="utf-8")
     lines=["# C3 전 종목 TOP2 가상매매 추적",f"- 보고일: {report_day} / 매칭 원본 거래일: {market_scan_asof or '미확인'}",
       f"- 등록된 가상전략: {len(plans)}개 / 누적 사건: {len(events)}개",
+      f"- 매수구간 접촉 가정 {cohort['assumed_entries']}건 / 목표가 선도달 미진입 {cohort['target_missed_no_entry']}건 / 진입 전 구조 무효화 {cohort['invalidated_no_entry']}건",
+      f"- 일봉 경로 충돌 {cohort['ambiguous_target_stop_days']}건 / 5·10·20거래일 관측완료 {cohort['forward_5_observed']}·{cohort['forward_10_observed']}·{cohort['forward_20_observed']}건",
+      "- 표의 가상진입은 일봉 접촉 가정이며 실제 주문 체결로 확인된 값이 아닙니다.",
       "- **가상매수는 사전 등록 뒤 실제 다음 완료 일봉의 일중 가격 범위와 비교한 가정입니다. 실제 체결이 아닙니다.**",
       "- 가상 비용: 매수 0.15%, 매도 0.50%; 1차 절반·2차 잔여분; 종가 구조손절 후 다음 개장 시초가 청산 가정",
       "- 정규장 09:00~15:30 단독 데이터 검증 미완료 · 자동주문 없음",
