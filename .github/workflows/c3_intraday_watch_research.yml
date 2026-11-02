@@ -56,6 +56,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_watch_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_kis_intraday_quotes_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_public_quote_gate_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_mobile_summary_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_ledger_v1.py -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_persistent_v1.py -v
