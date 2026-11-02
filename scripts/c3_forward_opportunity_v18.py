@@ -1,6 +1,6 @@
 """C3 v18 prospective opportunity audit. Observed opens only; no fills inferred."""
 import argparse,csv,json
-from datetime import date,datetime,timezone
+from datetime import date,datetime,timezone,timedelta
 from pathlib import Path
 
 def audit(registry,observations):
@@ -25,7 +25,7 @@ def audit(registry,observations):
         for o in by_ticker.get(ticker,[]):
             try:day=date.fromisoformat(o.get("date",""))
             except ValueError:continue
-            if day>price_day and day>registration.astimezone(timezone.utc).date():
+            if day>price_day and day>registration.astimezone(timezone(timedelta(hours=9))).date():
                 later.append((day,o))
         later.sort(key=lambda x:x[0])
         if not later:
