@@ -83,6 +83,18 @@ class ForwardTest(unittest.TestCase):
         kinds=[e["event"] for e in self.view()["events"]]
         self.assertIn("SECOND_TARGET_REST_UNIT_ASSUMED",kinds)
 
+    def test_ambiguous_target_and_stop_same_day_never_credits_profit(self):
+        first=mock("271560","2026-11-02",114000,115000,112000,113500)
+        self.tick("2026-11-02",[first])
+        conflict=mock("271560","2026-11-03",115000,140000,105000,108000)
+        x=self.tick("2026-11-03",[first,conflict])
+        p=x["positions"][0]
+        self.assertEqual(p["status"],"STOP_PENDING")
+        self.assertIsNone(p["target1_date"])
+        kinds=[e["event"] for e in self.view()["events"]]
+        self.assertIn("AMBIGUOUS_TARGET_VS_STOP_DAILY_PATH",kinds)
+        self.assertNotIn("FIRST_TARGET_HALF_UNIT_ASSUMED",kinds)
+
     def test_close_stop_requires_next_real_observed_open(self):
         first=mock("271560","2026-11-02",114000,114000,108000,109000)
         x=self.tick("2026-11-02",[first])
