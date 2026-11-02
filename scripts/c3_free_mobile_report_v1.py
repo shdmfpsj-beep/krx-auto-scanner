@@ -1,7 +1,8 @@
 """Render source diagnostic to a mobile-friendly, no-order Markdown report."""
 import argparse,json
 from pathlib import Path
-LABELS={"PRICE_PROVIDER_FAILED_OR_SUSPENDED":"가격 공급원 실패·거래정지 여부 확인",
+LABELS={"SOURCE_DATE_IN_FUTURE":"보고일 이후의 미래 날짜 데이터(검증 필요)",
+"NO_CURRENT_REPORT_DATE_PRICE":"보고일 기준 최신 가격 없음(이전 거래일 자료)","PRICE_PROVIDER_FAILED_OR_SUSPENDED":"가격 공급원 실패·거래정지 여부 확인",
 "CAPTURE_ARTIFACT_NOT_AVAILABLE":"가격 수집 결과 파일 없음",
 "FULL_MARKET_SCAN_NOT_VERIFIED":"전 종목 스캔 완료 확인 불가",
 "SCAN_DATE_MISSING":"전 종목 스캔 기준일 없음",
