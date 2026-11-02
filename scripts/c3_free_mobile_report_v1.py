@@ -7,6 +7,7 @@ LABELS={"PRICE_PROVIDER_FAILED_OR_SUSPENDED":"가격 공급원 실패·거래정
 "SCAN_DATE_MISSING":"전 종목 스캔 기준일 없음",
 "SOURCE_DATES_MISMATCH":"가격 수집일과 스캔일 불일치",
 "CHECK_REGISTRATION_AND_FORWARD_ELIGIBILITY":"등록일·관찰 가능 거래일 검토 필요",
+"NO_POST_REGISTRATION_SESSION_YET":"계획 등록 이후 거래일 자료 없음(정상 대기)",
 "FORWARD_OBSERVATIONS_PRESENT":"후속 관찰 기록 존재"}
 def render(d):
     lines=["# C3 TOP2 무료 데이터 점검","",
