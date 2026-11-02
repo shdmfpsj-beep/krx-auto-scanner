@@ -5,6 +5,8 @@ on:
     branches: [research/c3-intraday-watch-20261102]
     paths:
       - 'scripts/c3_intraday_watch_v1.py'
+      - 'scripts/c3_public_quote_gate_v1.py'
+      - 'scripts/test_c3_public_quote_gate_v1.py'
       - 'scripts/c3_kis_intraday_quotes_v1.py'
       - 'scripts/c3_intraday_mobile_summary_v1.py'
       - 'scripts/test_c3_intraday_mobile_summary_v1.py'
@@ -29,6 +31,8 @@ jobs:
             /scripts/test_c3_intraday_watch_v1.py
             /scripts/c3_intraday_mobile_summary_v1.py
             /scripts/test_c3_intraday_mobile_summary_v1.py
+            /scripts/c3_public_quote_gate_v1.py
+            /scripts/test_c3_public_quote_gate_v1.py
             /scripts/c3_kis_intraday_quotes_v1.py
             /scripts/test_c3_kis_intraday_quotes_v1.py
             /scripts/c3_intraday_ledger_v1.py
