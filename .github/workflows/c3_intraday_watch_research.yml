@@ -76,6 +76,7 @@ jobs:
           PYTHONPATH=scripts python scripts/c3_intraday_watch_v1.py --quotes output/c3_intraday_quotes.json --out output/c3_intraday_watch.json
           PYTHONPATH=scripts python scripts/c3_intraday_mobile_summary_v1.py --quotes output/c3_intraday_quotes.json --watch output/c3_intraday_watch.json --out output/c3_intraday_mobile.md
           PYTHONPATH=scripts python scripts/c3_intraday_ledger_v1.py --watch output/c3_intraday_watch.json --out output/c3_intraday_observations.csv
+          cat output/c3_intraday_mobile.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
         with:
