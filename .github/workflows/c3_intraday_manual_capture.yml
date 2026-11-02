@@ -26,6 +26,7 @@ jobs:
             /scripts/c3_kis_intraday_quotes_v1.py
             /scripts/c3_intraday_ledger_v1.py
             /scripts/c3_intraday_persistent_v1.py
+            /scripts/c3_intraday_episodes_v1.py
             /scripts/kis_regular_minute_cli.py
             /scripts/kis_regular_minute.py
             /config/c3_paper_top2_plans.csv
@@ -50,6 +51,7 @@ jobs:
           python scripts/c3_kis_intraday_quotes_v1.py --out output/c3_intraday_quotes.json
           python scripts/c3_intraday_watch_v1.py --quotes output/c3_intraday_quotes.json --out output/c3_intraday_watch.json
           python scripts/c3_intraday_persistent_v1.py --watch output/c3_intraday_watch.json --previous history/c3_intraday_observations.csv --out output/c3_intraday_observations.csv --summary output/c3_intraday_summary.json
+          python scripts/c3_intraday_episodes_v1.py --ledger output/c3_intraday_observations.csv --out output/c3_intraday_episodes.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -59,4 +61,5 @@ jobs:
             output/c3_intraday_watch.json
             output/c3_intraday_observations.csv
             output/c3_intraday_summary.json
+            output/c3_intraday_episodes.json
           retention-days: 30
