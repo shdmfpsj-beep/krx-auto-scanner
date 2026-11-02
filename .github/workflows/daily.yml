@@ -944,6 +944,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s reports/c3_selection_evidence_v16.json
+          python -m unittest discover -s scripts -p 'test_c3_selection_forward_v17.py' -v
           python scripts/c3_selection_forward_v17.py \
             --source reports/c3_selection_evidence_v16.json \
             --output reports/c3_selection_forward_registry_v17.csv \
