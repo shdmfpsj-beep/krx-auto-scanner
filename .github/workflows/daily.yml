@@ -938,6 +938,18 @@ jobs:
             --evidence reports/c3_candidate_evidence_v1.csv \
             --output reports/c3_selection_evidence_v16.json
 
+      - name: Register prospective C3 research selections v17
+        if: (github.event_name == 'schedule' || inputs.mode == 'full_scan') && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/c3_selection_evidence_v16.json
+          python scripts/c3_selection_forward_v17.py \
+            --source reports/c3_selection_evidence_v16.json \
+            --output reports/c3_selection_forward_registry_v17.csv \
+            --run "${{ github.run_id }}" \
+            --attempt "${{ github.run_attempt }}"
+
       - name: Save reports
         if: steps.collect.outcome != 'failure' && !(github.event_name == 'workflow_dispatch' && inputs.mode == 'frozen_history_v8')
         shell: bash
