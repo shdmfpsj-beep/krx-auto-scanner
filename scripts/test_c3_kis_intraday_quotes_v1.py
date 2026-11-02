@@ -16,6 +16,12 @@ class TestKISQuote(unittest.TestCase):
   self.assertIsNone(parse_latest([{"stck_bsop_date":"20261030","stck_cntg_hour":"100800","stck_prpr":"112000"}],"271560",NOW))
  def test_no_credentials(self):
   self.assertEqual(collect(["271560"],NOW,"","")["status"],"PENDING_PROVIDER_CREDENTIALS")
+ def test_before_market(self):
+  self.assertEqual(collect(["271560"],datetime(2026,11,2,8,59,tzinfo=KST),"","")["status"],"OUTSIDE_REGULAR_SESSION")
+ def test_close_boundary(self):
+  self.assertEqual(collect(["271560"],datetime(2026,11,2,15,30,tzinfo=KST),"","")["status"],"OUTSIDE_REGULAR_SESSION")
+ def test_weekend(self):
+  self.assertEqual(collect(["271560"],datetime(2026,11,1,10,tzinfo=KST),"","")["status"],"OUTSIDE_REGULAR_SESSION")
  def test_aftermarket(self):
   self.assertEqual(collect(["271560"],datetime(2026,11,2,16,tzinfo=KST),"","")["status"],"OUTSIDE_REGULAR_SESSION")
 if __name__=="__main__":unittest.main()
