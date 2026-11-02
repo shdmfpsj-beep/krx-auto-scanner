@@ -33,8 +33,12 @@ jobs:
             -o input/paper_ledger.json
           # Optional source evidence: fetch last successful daily paper artifact.
           # If unavailable, diagnosis explicitly reports missing capture evidence.
-          gh api "repos/${GH_REPO}/actions/workflows/c3_paper_forward_daily.yml/runs?per_page=15" \\
-            --jq '.workflow_runs[] | select(.conclusion=="success") | .id' > input/run_ids.txt || true
+          curl -fsSL --retry 2 --max-time 30 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GH_REPO}/actions/workflows/c3_paper_forward_daily.yml/runs?per_page=15" \
+            | python -c 'import sys,json; print("\\n".join(str(x["id"]) for x in json.load(sys.stdin).get("workflow_runs",[]) if x.get("conclusion")=="success"))' \
+            > input/run_ids.txt || true
           while read -r run_id; do
             [ -n "$run_id" ] || continue
             if gh run download "$run_id" -R "$GH_REPO" -n c3-paper-forward-daily -D input/artifact >/dev/null 2>&1; then
