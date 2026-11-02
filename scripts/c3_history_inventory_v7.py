@@ -46,7 +46,7 @@ def _describe(bars,label,path,columns,asof):
             if min(o,h,l,c)<=0 or v<0 or l>min(o,c) or max(o,c)>h:valid=False
             dates.append(d.isoformat())
         except (ValueError,TypeError,KeyError):valid=False
-    valid=valid and bool(dates) and dates==sorted(set(dates))
+    valid=valid and bool(dates) and dates==sorted(set(dates)) and len(dates)==len(bars)
     return {"family":label,"path":str(path),"sha256":_sha(path) if label=="LEGACY_V36" else None,
             "rows":len(bars),"first_date":dates[0] if dates else None,"last_date":dates[-1] if dates else None,
             "shape_valid":valid,"covers_registration_date":bool(valid and dates[-1]>=asof),
