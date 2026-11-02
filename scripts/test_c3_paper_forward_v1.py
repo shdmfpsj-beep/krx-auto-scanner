@@ -54,6 +54,14 @@ class ForwardTest(unittest.TestCase):
         again=self.tick("2026-11-09",rows)
         self.assertEqual(x["events_total"],again["events_total"])
 
+    def test_entry_quality_cohort_counts(self):
+        b=mock("271560","2026-11-02",114000,114500,112000,113500)
+        x=self.tick("2026-11-02",[b])
+        q=x["entry_quality_cohort"]
+        self.assertEqual(q["registered_plans"],1)
+        self.assertEqual(q["assumed_entries"],1)
+        self.assertEqual(q["forward_5_observed"],0)
+
     def test_no_registration_day_hindsight_buy(self):
         b=mock("271560","2026-10-30",112000,115000,110000,114200)
         x=self.tick("2026-10-31",[b],"2026-10-30")
