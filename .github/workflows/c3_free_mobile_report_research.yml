@@ -9,6 +9,7 @@ on:
       - 'scripts/c3_free_mobile_report_v1.py'
 permissions:
   contents: read
+  actions: read
 jobs:
   report:
     runs-on: ubuntu-latest
@@ -24,12 +25,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export GH_TOKEN='${{ github.token }}'
+          export GH_REPO='${{ github.repository }}'
           mkdir -p input output
           curl -fsSL --retry 2 --max-time 30 \
             "https://raw.githubusercontent.com/${{ github.repository }}/main/reports/c3_paper/paper_ledger.json" \
             -o input/paper_ledger.json
-          python scripts/c3_free_source_diagnostic_v1.py \
-            --ledger input/paper_ledger.json --out output/source_diagnostic.json
+          # Optional source evidence: fetch last successful daily paper artifact.
+          # If unavailable, diagnosis explicitly reports missing capture evidence.
+          gh api "repos/${GH_REPO}/actions/workflows/c3_paper_forward_daily.yml/runs?per_page=15" \\
+            --jq '.workflow_runs[] | select(.conclusion=="success") | .id' > input/run_ids.txt || true
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            if gh run download "$run_id" -R "$GH_REPO" -n c3-paper-forward-daily -D input/artifact >/dev/null 2>&1; then
+              echo "SOURCE_ARTIFACT_RUN=$run_id"
+              break
+            fi
+          done < input/run_ids.txt
+          if [ -f input/artifact/capture/c3_paper_price_source_status.json ]; then
+            cp input/artifact/capture/c3_paper_price_source_status.json input/source.json
+          fi
+          if [ -f input/artifact/scancheck/source_scan_status.json ]; then
+            cp input/artifact/scancheck/source_scan_status.json input/scan.json
+          fi
+          args=(--ledger input/paper_ledger.json --out output/source_diagnostic.json)
+          [ ! -f input/source.json ] || args+=(--source input/source.json)
+          [ ! -f input/scan.json ] || args+=(--scan input/scan.json)
+          python scripts/c3_free_source_diagnostic_v1.py "${args[@]}"
           python scripts/c3_free_mobile_report_v1.py \
             --diagnostic output/source_diagnostic.json --out output/mobile_report.md
       - uses: actions/upload-artifact@v4
