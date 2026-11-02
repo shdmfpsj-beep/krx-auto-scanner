@@ -18,7 +18,10 @@ def evaluate(plans,quotes,now):
         item={"ticker":ticker,"name":p["name"],"status":"NO_VERIFIED_QUOTE","paper_filled":False}
         if q:
             try:
-                ts=datetime.fromisoformat(q["observed_at"]).astimezone(KST)
+                raw_ts=datetime.fromisoformat(q["observed_at"])
+                if raw_ts.tzinfo is None or raw_ts.utcoffset() is None:
+                    raise ValueError("UNZONED_QUOTE_TIMESTAMP")
+                ts=raw_ts.astimezone(KST)
                 price=float(q["price"])
                 age=(local-ts).total_seconds()
                 if q.get("source")=="verified_provider" and 0<=age<=900 and price>0 and ts.date()==local.date() and time(9)<=ts.time()<time(15,30):
