@@ -35,7 +35,7 @@ def diagnose(ledger,source_status=None,scan_status=None,report_date=None,report_
             reason="CHECK_REGISTRATION_AND_FORWARD_ELIGIBILITY"
         else:
             reason="FORWARD_OBSERVATIONS_PRESENT"
-        if observed>0 and reason in ("AWAIT_TODAY_CLOSE_PRICE","NO_CURRENT_REPORT_DATE_PRICE"):
+        if observed>0 and report_date and source.get("last_session") and source.get("last_session")<report_date and reason in ("AWAIT_TODAY_CLOSE_PRICE","NO_CURRENT_REPORT_DATE_PRICE","FORWARD_OBSERVATIONS_PRESENT"):
             reason="HISTORICAL_OBSERVATIONS_ONLY"
         rows.append({"ticker":ticker,"name":p.get("plan",{}).get("name"),
             "paper_status":p.get("status"),"observed_sessions":observed,
