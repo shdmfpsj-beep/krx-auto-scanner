@@ -26,7 +26,7 @@ def parse_latest(rows,ticker,now):
     return {"ticker":ticker,"price":price,"observed_at":stamp.isoformat(),"source":"verified_provider"}
 def collect(tickers,now,key,secret):
     local=now.astimezone(KST)
-    if local.weekday()>=5 or not (9<=local.hour<15 or local.hour==15 and local.minute<30):
+    if local.weekday()>=5 or not ((9<=local.hour<15) or (local.hour==15 and local.minute<30)):
         return {"status":"OUTSIDE_REGULAR_SESSION","quotes":[]}
     if not key or not secret:return {"status":"PENDING_PROVIDER_CREDENTIALS","quotes":[]}
     try:token=get_access_token(key,secret)
