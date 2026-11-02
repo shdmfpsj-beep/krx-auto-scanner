@@ -919,6 +919,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s reports/c3_preliminary.csv
+          python -m unittest discover -s scripts -p 'test_c3_selection_research_v15.py' -v
           python scripts/c3_selection_research_v15.py \
             --input reports/c3_preliminary.csv \
             --output reports/c3_selection_research_v15.json
