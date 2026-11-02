@@ -16,7 +16,8 @@ def render(quotes,watch):
                       "현재 연결된 키움 REST API는 이 KIS 수집기의 대체 인증정보가 아닙니다."])
     if status not in ("QUOTES_VERIFIED","PENDING_PROVIDER_CREDENTIALS"):
         lines.extend(["","**시세 검증 미완료:** 수집 상태를 확인한 후 관찰 결과를 사용하세요."])
-    lines.extend(["","장중 구조손절선 이탈은 종가 손절 확정이 아닙니다.",
+    lines.extend(["",f"검증된 시세 수: {len(quotes.get('quotes',[]))}건",
+                  "장중 구조손절선 이탈은 종가 손절 확정이 아닙니다.",
                   "시세 공급원·거래소 구분·시간이 검증되지 않은 경우 가상 매수를 기록하지 않습니다.",""])
     return "\n".join(lines)
 def main():
