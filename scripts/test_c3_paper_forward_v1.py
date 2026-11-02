@@ -61,6 +61,9 @@ class ForwardTest(unittest.TestCase):
         self.assertEqual(q["registered_plans"],1)
         self.assertEqual(q["assumed_entries"],1)
         self.assertEqual(q["forward_5_observed"],0)
+        report=(self.root/"out"/"c3_paper_daily_mobile.md").read_text(encoding="utf-8")
+        self.assertIn("매수구간 접촉 가정 1건",report)
+        self.assertIn("5·10·20거래일 관측완료 0·0·0건",report)
 
     def test_no_registration_day_hindsight_buy(self):
         b=mock("271560","2026-10-30",112000,115000,110000,114200)
