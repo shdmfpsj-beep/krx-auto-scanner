@@ -37,7 +37,7 @@ jobs:
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${GH_REPO}/actions/workflows/c3_paper_forward_daily.yml/runs?per_page=15" \
-            | python -c 'import sys,json; print("\\n".join(str(x["id"]) for x in json.load(sys.stdin).get("workflow_runs",[]) if x.get("conclusion")=="success"))' \
+            | python -c 'import sys,json; print("\n".join(str(x["id"]) for x in json.load(sys.stdin).get("workflow_runs",[]) if x.get("conclusion")=="success"))' \
             > input/run_ids.txt || true
           while read -r run_id; do
             [ -n "$run_id" ] || continue
