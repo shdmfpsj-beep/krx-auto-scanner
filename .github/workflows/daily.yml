@@ -913,6 +913,17 @@ jobs:
             --out reports/c3_daily_evidence_gate_v14.json
           test -s reports/c3_daily_evidence_gate_v14.json
 
+      - name: C3 provisional selection research v15
+        if: (github.event_name == 'schedule' || inputs.mode == 'full_scan') && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s reports/c3_preliminary.csv
+          python scripts/c3_selection_research_v15.py \
+            --input reports/c3_preliminary.csv \
+            --output reports/c3_selection_research_v15.json
+          test -s reports/c3_selection_research_v15.json
+
       - name: Save reports
         if: steps.collect.outcome != 'failure' && !(github.event_name == 'workflow_dispatch' && inputs.mode == 'frozen_history_v8')
         shell: bash
