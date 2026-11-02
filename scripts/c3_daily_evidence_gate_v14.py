@@ -1,18 +1,19 @@
 """Daily C3 research-only TOP2 and source-quality audit.
 Never generates an order, BUY approval, stop, or certified forward return.
 """
-import argparse,csv,json,datetime
+import argparse,csv,json,datetime,math
 from pathlib import Path
 
 def as_number(row,key):
-    try:return float(row[key])
+    try:
+        value=float(row[key]);return value if math.isfinite(value) else None
     except (KeyError,TypeError,ValueError):return None
 
 def run(source,dest):
     with open(source,encoding="utf-8-sig",newline="") as f:
         reader=csv.DictReader(f);rows=list(reader)
     today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).date()
-    evaluated=[];excluded={}
+    evaluated=[];excluded={};watchlist=[]
     for r in rows:
         ticker=str(r.get("ticker","")).zfill(6)
         close=as_number(r,"close");ma20=as_number(r,"ma20");ma60=as_number(r,"ma60")
@@ -23,21 +24,26 @@ def run(source,dest):
         if not ticker.isdigit() or len(ticker)!=6:reasons.append("INVALID_TICKER")
         if not dated or (today-dated).days>5 or dated>today:reasons.append("STALE_DATE")
         if any(v is None or v<=0 for v in (close,ma20,ma60,rvol,turnover)):reasons.append("INVALID_NUMERIC")
-        if r.get("instrument_type","").upper() in ("ETF","ETN","SPAC","REIT"):reasons.append("NON_COMMON_EQUITY")
+        kind=r.get("instrument_type","").strip().upper()
+        if kind not in ("COMMON","COMMON_STOCK","보통주"):reasons.append("COMMON_EQUITY_UNVERIFIED")
         if r.get("turnover_source")!="EXCHANGE_VERIFIED":reasons.append("TURNOVER_UNVERIFIED")
         if r.get("data_source")!="REGULAR_SESSION_CERTIFIED":reasons.append("REGULAR_SESSION_UNCERTIFIED")
         if reasons:
             for reason in reasons:excluded[reason]=excluded.get(reason,0)+1
-            continue
+        if any(v is None or v<=0 for v in (close,ma20,ma60,rvol,turnover)) or not dated or not ticker.isdigit():continue
         trend=close>ma20>ma60
         score=round(min(rvol,5)*8+(20 if trend else 0)+(15 if r.get("breakout")=="True" else 0)+(10 if r.get("first_pullback_proxy")=="True" else 0),2)
+        if reasons:
+            watchlist.append({"ticker":ticker,"name":r.get("name",""),"score_research":score,"warnings":reasons,"buy_approved":False})
+            continue
         evaluated.append({"ticker":ticker,"name":r.get("name",""),"close":close,"latest_date":str(dated),"score_research":score,
                           "rvol20":rvol,"trend_confirmed":trend,"buy_approved":False})
     evaluated.sort(key=lambda x:(-x["score_research"],x["ticker"]))
+    watchlist.sort(key=lambda x:(-x["score_research"],x["ticker"]))
     result={"schema":"C3_DAILY_EVIDENCE_GATE_V14","generated_kst":datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).isoformat(),
       "input_rows":len(rows),"evidence_pass":len(evaluated),"exclusion_counts":excluded,
-      "research_top2":evaluated[:2],"buy_approvals":0,"decision":"CASH_RESEARCH_ONLY",
-      "notes":"Candidate data cannot certify source/session or sector exclusions without independent evidence. Never place orders."}
+      "research_top2":evaluated[:2],"uncertified_watch_top2":watchlist[:2],"buy_approvals":0,"decision":"CASH_RESEARCH_ONLY",
+      "notes":"Uncertified watchlist is NOT approved; instrument/sector checks remain incomplete. Never place orders."}
     path=Path(dest);path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({"input":len(rows),"evidence_pass":len(evaluated),"decision":result["decision"]}))
