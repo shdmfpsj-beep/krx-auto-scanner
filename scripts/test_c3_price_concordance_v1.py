@@ -30,16 +30,16 @@ class ConcordanceTests(unittest.TestCase):
     def test_identical_reference_is_provisional_match(self):
         x = self.check()
         self.assertEqual(x["result_counts"]["MATCH"], 1)
-        self.assertTrue(x["regular_only_certified"])
+        self.assertTrue(x["regular_only_concordance_passed"])\n        self.assertFalse(x["regular_only_certified"])
 
     def test_close_mismatch_fails(self):
         x = self.check(dict(BASE, close=116500))
-        self.assertFalse(x["regular_only_certified"])
+        self.assertFalse(x["regular_only_concordance_passed"])
         self.assertEqual(x["results"][0]["fields"], ["close"])
 
     def test_volume_mismatch_fails(self):
         x = self.check(dict(BASE, volume=299999))
-        self.assertFalse(x["regular_only_certified"])
+        self.assertFalse(x["regular_only_concordance_passed"])
 
     def test_uncertified_reference_fails(self):
         self.assertFalse(self.check(regular=False)["regular_only_certified"])
@@ -54,7 +54,7 @@ class ConcordanceTests(unittest.TestCase):
         self.write(self.a, BASE)
         self.write(self.b, dict(BASE, date="2026-11-02"))
         x = compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
-        self.assertFalse(x["regular_only_certified"])
+        self.assertFalse(x["regular_only_concordance_passed"])
         self.assertEqual(x["results"][0]["result"], "MISSING_REFERENCE")
 
 if __name__ == "__main__":
