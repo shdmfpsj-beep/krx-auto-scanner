@@ -56,8 +56,8 @@ def evaluate(rows):
                       "entry_price":entry,"entry_limit":limit,
                       "fixed20":fixed,"trend60":trend,
                       "trend_minus_fixed_pct":round(trend["return_pct"]-fixed["return_pct"],3)})
-        i=max(j+1,max(rows.index(next(r for r in rows if r["date"]==fixed["exit_date"])),
-                      rows.index(next(r for r in rows if r["date"]==trend["exit_date"])))+1)
+        exit_dates={fixed["exit_date"],trend["exit_date"]}
+        i=max(j+1,max(k for k,row in enumerate(rows) if row["date"] in exit_dates)+1)
     complete=[p for p in pairs if not p["fixed20"]["censored"] and not p["trend60"]["censored"]]
     return {"signals":signals,"unfilled_signals":missed,"paired_count":len(pairs),
             "complete_pairs":len(complete),"pairs":pairs,
