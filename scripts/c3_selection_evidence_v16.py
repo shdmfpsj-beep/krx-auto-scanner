@@ -60,8 +60,8 @@ def select(preliminary,evidence):
     items.sort(key=lambda x:(-x["technical_priority"],x["ticker"]))
     return {"schema":"C3_SELECTION_EVIDENCE_V16","input_count":len(preliminary),
       "evidence_rows":len(evidence),"joined_count":len(items),"excluded":counts,
-      "provisional_watch_top2":items[:2],"buy_approvals":0,"decision":"CASH",
-      "limitations":"Research-only technical priority. No verified sector/financial/structural entry model. Not full-market eligible TOP2."}
+      "provisional_watch_top2":items[:2],"provisional_watch_top5":items[:5],"buy_approvals":0,"decision":"CASH",
+      "limitations":"Research-only technical priority. No verified sector/financial/structural entry model. Not full-market eligible TOP5."}
 
 def main():
     p=argparse.ArgumentParser()
