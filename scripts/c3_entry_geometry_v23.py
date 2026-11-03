@@ -59,8 +59,44 @@ def run(path,out):
     dest=Path(out);dest.parent.mkdir(parents=True,exist_ok=True)
     dest.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     return result
+def batch(selection_path,history_dir,output):
+    selection=json.loads(Path(selection_path).read_text(encoding="utf-8-sig"))
+    root=Path(history_dir)
+    items=[]
+    for pick in selection.get("provisional_watch_top2",[]):
+        ticker=str(pick.get("ticker","")).zfill(6)
+        entry={"ticker":ticker,"name":pick.get("name"),"selection_price_date":pick.get("price_date")}
+        source=root/(ticker+".csv")
+        if not source.is_file():
+            entry.update(status="HISTORY_MISSING",buy_approved=False)
+        else:
+            try:
+                with source.open(encoding="utf-8-sig",newline="") as f:
+                    bars=list(csv.DictReader(f))
+                if not bars or bars[-1].get("date")!=pick.get("price_date"):
+                    entry.update(status="HISTORY_DATE_MISMATCH",buy_approved=False)
+                else:
+                    entry.update(geometry(bars))
+            except (OSError,ValueError,UnicodeError):
+                entry.update(status="HISTORY_READ_ERROR",buy_approved=False)
+        items.append(entry)
+    result={"schema":"C3_ENTRY_GEOMETRY_BATCH_V23","items":items,
+            "research_geometry_count":sum(x["status"]=="RESEARCH_GEOMETRY_ONLY" for x in items),
+            "buy_approvals":0,"decision":"CASH",
+            "note":"History files require explicit OHLC/date schema; no automatic certification or orders."}
+    path=Path(output);path.parent.mkdir(parents=True,exist_ok=True)
+    path.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+    return result
+
 if __name__=="__main__":
     p=argparse.ArgumentParser()
-    p.add_argument("--ohlcv",required=True);p.add_argument("--output",required=True)
+    p.add_argument("--ohlcv");p.add_argument("--selection");p.add_argument("--history-dir")
+    p.add_argument("--output",required=True)
     a=p.parse_args()
-    print(json.dumps(run(a.ohlcv,a.output),ensure_ascii=False))
+    if a.selection and a.history_dir:
+        result=batch(a.selection,a.history_dir,a.output)
+    elif a.ohlcv and not (a.selection or a.history_dir):
+        result=run(a.ohlcv,a.output)
+    else:
+        p.error("provide --ohlcv or both --selection and --history-dir")
+    print(json.dumps(result,ensure_ascii=False))
