@@ -57,7 +57,8 @@ def compare(primary, reference, primary_provider, reference_provider,
                 reference_provider=reference_provider,
                 reference_regular_only_claimed=bool(reference_regular_only),
                 comparison_count=len(rows), result_counts=counts,
-                regular_only_certified=certified,
+                regular_only_concordance_passed=certified,
+                regular_only_certified=False,  # provider labels alone are not certification
                 trade_approved=False, orders_enabled=False,
                 results=rows)
 
@@ -76,7 +77,7 @@ def main():
                                   ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in result.items() if k != "results"},
                      ensure_ascii=False))
-    raise SystemExit(0 if result["regular_only_certified"] else 2)
+    raise SystemExit(0 if result["regular_only_concordance_passed"] else 2)
 
 if __name__ == "__main__":
     main()
