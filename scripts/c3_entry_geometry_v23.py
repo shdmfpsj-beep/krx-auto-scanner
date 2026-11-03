@@ -85,7 +85,7 @@ def batch(selection_path,history_dir,output):
             "buy_approvals":0,"decision":"CASH",
             "note":"History files require explicit OHLC/date schema; no automatic certification or orders."}
     path=Path(output);path.parent.mkdir(parents=True,exist_ok=True)
-    path.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+    path.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     return result
 
 if __name__=="__main__":
