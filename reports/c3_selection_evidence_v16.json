@@ -2,15 +2,18 @@
   "schema": "C3_SELECTION_EVIDENCE_V16",
   "input_count": 91,
   "evidence_rows": 91,
-  "joined_count": 91,
-  "excluded": {},
+  "joined_count": 76,
+  "excluded": {
+    "EXCLUDED_SPECIAL_NAME": 14,
+    "EXCLUDED_INSTRUMENT_EVIDENCE": 1
+  },
   "provisional_watch_top2": [
     {
-      "ticker": "145270",
-      "name": "케이탑리츠",
+      "ticker": "050120",
+      "name": "ES큐브",
       "price_date": "2026-11-02",
       "stage": "PULLBACK_PROXY",
-      "technical_priority": 85.0,
+      "technical_priority": 76.0,
       "business_scope": "UNREVIEWED_BUSINESS",
       "evidence_blockers": [
         "ACTUAL_SOURCE_TURNOVER_MISSING",
@@ -18,8 +21,8 @@
         "BUSINESS_SCOPE_REVIEW_REQUIRED",
         "BUSINESS_SCOPE_UNVERIFIED",
         "COMPANY_SECTOR_FLOW_FINAL_SCORE_AND_ENTRY_REVIEW_REQUIRED",
+        "CURRENT_COMMON_SHARE_PROOF_MISSING",
         "CURRENT_COMMON_UNVERIFIED",
-        "EXCLUDE_SPECIAL",
         "REGULAR_SESSION_PRICE_PROOF_MISSING",
         "REGULAR_SESSION_UNVERIFIED"
       ],
@@ -33,11 +36,11 @@
       "buy_approved": false
     },
     {
-      "ticker": "466690",
-      "name": "키움히어로제1호스팩",
+      "ticker": "006280",
+      "name": "녹십자",
       "price_date": "2026-11-02",
       "stage": "PULLBACK_PROXY",
-      "technical_priority": 78.92,
+      "technical_priority": 73.0,
       "business_scope": "UNREVIEWED_BUSINESS",
       "evidence_blockers": [
         "ACTUAL_SOURCE_TURNOVER_MISSING",
@@ -45,8 +48,8 @@
         "BUSINESS_SCOPE_REVIEW_REQUIRED",
         "BUSINESS_SCOPE_UNVERIFIED",
         "COMPANY_SECTOR_FLOW_FINAL_SCORE_AND_ENTRY_REVIEW_REQUIRED",
+        "CURRENT_COMMON_SHARE_PROOF_MISSING",
         "CURRENT_COMMON_UNVERIFIED",
-        "EXCLUDE_SPECIAL",
         "REGULAR_SESSION_PRICE_PROOF_MISSING",
         "REGULAR_SESSION_UNVERIFIED"
       ],
