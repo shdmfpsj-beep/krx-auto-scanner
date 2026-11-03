@@ -990,6 +990,10 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/c3_entry_geometry_v23.py
+          python -m py_compile scripts/c3_top2_history_v24.py
+          python scripts/c3_top2_history_v24.py \
+            --selection reports/c3_selection_evidence_v16.json \
+            --outdir reports/c3_v23_ohlcv
           python scripts/c3_entry_geometry_v23.py \
             --selection reports/c3_selection_evidence_v16.json \
             --history-dir reports/c3_v23_ohlcv \
