@@ -17,6 +17,11 @@ def select(preliminary,evidence):
         if not e:
             counts["MISSING_EVIDENCE_ROW"]=counts.get("MISSING_EVIDENCE_ROW",0)+1
             continue
+        # Name-based special-instrument guard is conservative and not a substitute for official instrument verification.
+        name=(r.get("name") or "").replace(" ","").upper()
+        if any(token in name for token in ("스팩","SPAC","리츠","REIT","ETF","ETN")):
+            counts["EXCLUDED_SPECIAL_NAME"]=counts.get("EXCLUDED_SPECIAL_NAME",0)+1
+            continue
         if e.get("business_scope_status") in ("EXCLUDE_FROM_C3","PHARMA_BIOTECH"):
             counts["EXCLUDED_BUSINESS"]=counts.get("EXCLUDED_BUSINESS",0)+1
             continue
