@@ -8,7 +8,7 @@ def collect(selection_path,outdir,lookback=450):
     obj=json.loads(Path(selection_path).read_text(encoding="utf-8-sig"))
     target=Path(outdir);target.mkdir(parents=True,exist_ok=True)
     results=[]
-    for item in obj.get("provisional_watch_top2",[]):
+    for item in obj.get("provisional_watch_top5",obj.get("provisional_watch_top2",[])):
         ticker=str(item.get("ticker","")).zfill(6)
         asof=str(item.get("price_date",""))
         result={"ticker":ticker,"price_date":asof,"status":"WAIT_FETCH",
