@@ -34,6 +34,7 @@ def geometry(rows):
     support=supports[-1]
     if not resistance:return {"status":"NO_CONFIRMED_OVERHEAD_RESISTANCE","support_reference":support,"buy_approved":False}
     first=resistance[0]
+    second=resistance[1] if len(resistance)>1 else None
     # ATR based on observed bars, not a fixed 3% stop gap.
     tr=[max(bars[i][1]-bars[i][2],abs(bars[i][1]-bars[i-1][3]),abs(bars[i][2]-bars[i-1][3]))
         for i in range(len(bars)-14,len(bars))]
@@ -43,14 +44,16 @@ def geometry(rows):
     # Entry is a study band near observed support, capped below first resistance.
     entry_low=support+0.25*atr
     entry_high=min(support+1.0*atr,first-0.5*atr)
-    if entry_low>=entry_high:return {"status":"NO_USABLE_ENTRY_BAND","buy_approved":False}
+    if entry_low>=entry_high:return {"status":"NO_USABLE_ENTRY_BAND","buy_approved":False,"support_reference":round(support,4),"first_resistance":round(first,4)}
     rr=(first-entry_high)/(entry_high-stop)
+    rr_second=(second-entry_high)/(entry_high-stop) if second is not None else None
     return {"status":"RESEARCH_GEOMETRY_ONLY","price_date":dates[-1],
             "reference_close":round(close,4),"support":round(support,4),
             "structural_stop":round(stop,4),"entry_low":round(entry_low,4),
-            "entry_high":round(entry_high,4),"first_resistance":round(first,4),
+            "entry_high":round(entry_high,4),"first_resistance":round(first,4),"second_resistance":round(second,4) if second is not None else None,
             "atr14":round(atr,4),"reward_risk_at_entry_high":round(rr,3),
-            "quality_gate":"PASS_RESEARCH" if rr>=1.5 else "LOW_REWARD_RISK",
+            "reward_risk_to_second":round(rr_second,3) if rr_second is not None else None,
+            "quality_gate":"FAVORABLE_FIRST_RR" if rr>=1.5 else "REVIEW_ENTRY_AND_BREAKOUT",
             "buy_approved":False,"note":"Raw research prices; source/session/tick-size/adjustment not certified."}
 def run(path,out):
     with open(path,encoding="utf-8-sig",newline="") as f:rows=list(csv.DictReader(f))
