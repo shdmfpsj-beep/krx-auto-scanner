@@ -24,4 +24,11 @@ class EvidenceSelectionTest(unittest.TestCase):
         result=select(prelim,evidence)
         self.assertEqual(result["excluded"]["EXCLUDED_SPECIAL_NAME"],2)
         self.assertEqual([r["ticker"] for r in result["provisional_watch_top2"]],["000003"])
+    def test_instrument_evidence_excludes_even_without_name_token(self):
+        prelim=[{"ticker":"000004","name":"특수상품","c3_preliminary_score":"95","extension_vs_ma20_pct":"1","rvol20":"1"}]
+        evidence=[{"ticker":"000004","instrument_review":"EXCLUDE_SPECIAL","business_scope_status":"UNREVIEWED_BUSINESS"}]
+        result=select(prelim,evidence)
+        self.assertEqual(result["joined_count"],0)
+        self.assertEqual(result["excluded"]["EXCLUDED_INSTRUMENT_EVIDENCE"],1)
+        self.assertEqual(result["provisional_watch_top2"],[])
 if __name__=="__main__":unittest.main()
