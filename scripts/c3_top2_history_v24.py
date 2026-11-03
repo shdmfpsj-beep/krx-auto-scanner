@@ -13,6 +13,8 @@ def collect(selection_path,outdir,lookback=450):
         asof=str(item.get("price_date",""))
         result={"ticker":ticker,"price_date":asof,"status":"WAIT_FETCH",
                 "regular_session_certified":False,"buy_approved":False}
+        # Never reuse a stale previous-run cache after a failed refresh.
+        (target/(ticker+".csv")).unlink(missing_ok=True)
         try:
             day=date.fromisoformat(asof)
             if day>datetime.now(timezone(timedelta(hours=9))).date():
