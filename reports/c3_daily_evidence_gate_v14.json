@@ -1,0 +1,40 @@
+{
+  "schema": "C3_DAILY_EVIDENCE_GATE_V14",
+  "generated_kst": "2026-11-03T10:23:50.177899+09:00",
+  "input_rows": 91,
+  "evidence_pass": 0,
+  "exclusion_counts": {
+    "COMMON_EQUITY_UNVERIFIED": 91,
+    "TURNOVER_UNVERIFIED": 91,
+    "REGULAR_SESSION_UNCERTIFIED": 91,
+    "INVALID_NUMERIC": 2
+  },
+  "research_top2": [],
+  "uncertified_watch_top2": [
+    {
+      "ticker": "010660",
+      "name": "화천기계",
+      "score_research": 75,
+      "warnings": [
+        "COMMON_EQUITY_UNVERIFIED",
+        "TURNOVER_UNVERIFIED",
+        "REGULAR_SESSION_UNCERTIFIED"
+      ],
+      "buy_approved": false
+    },
+    {
+      "ticker": "030530",
+      "name": "원익홀딩스",
+      "score_research": 75,
+      "warnings": [
+        "COMMON_EQUITY_UNVERIFIED",
+        "TURNOVER_UNVERIFIED",
+        "REGULAR_SESSION_UNCERTIFIED"
+      ],
+      "buy_approved": false
+    }
+  ],
+  "buy_approvals": 0,
+  "decision": "CASH_RESEARCH_ONLY",
+  "notes": "Uncertified watchlist is NOT approved; instrument/sector checks remain incomplete. Never place orders."
+}
