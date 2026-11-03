@@ -43,7 +43,7 @@ def geometry(rows):
     # Entry is a study band near observed support, capped below first resistance.
     entry_low=support+0.25*atr
     entry_high=support+1.0*atr
-    if entry_low>=entry_high:return {"status":"NO_USABLE_ENTRY_BAND","buy_approved":False,"support_reference":round(support,4),"first_resistance":round(first,4)}
+    if entry_low>=entry_high:return {"status":"NO_USABLE_ENTRY_BAND","buy_approved":False,"support_reference":round(support,4),"first_resistance":round(first,4) if first is not None else None}
     rr=(first-entry_high)/(entry_high-stop) if first is not None else None
     rr_second=(second-entry_high)/(entry_high-stop) if second is not None else None
     ma20=sum(b[3] for b in bars[-20:])/20
