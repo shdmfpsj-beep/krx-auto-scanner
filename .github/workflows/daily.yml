@@ -969,6 +969,21 @@ jobs:
           python -m unittest discover -s scripts -p 'test_c3_pipeline_readiness_v21.py' -v
           python scripts/c3_pipeline_readiness_v21.py --reports reports --out reports/c3_pipeline_readiness_v21.json
 
+      - name: Audit frozen C3 selections for special instruments v22
+        if: (github.event_name == 'schedule' || inputs.mode == 'full_scan') && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s scripts -p 'test_c3_registry_integrity_v22.py' -v
+          test -s reports/c3_selection_forward_registry_v17.csv
+          test -s reports/c3_preliminary.csv
+          test -s reports/c3_candidate_evidence_v1.csv
+          python scripts/c3_registry_integrity_v22.py \
+            --registry reports/c3_selection_forward_registry_v17.csv \
+            --preliminary reports/c3_preliminary.csv \
+            --evidence reports/c3_candidate_evidence_v1.csv \
+            --output reports/c3_registry_integrity_v22.json
+
       - name: Save reports
         if: steps.collect.outcome != 'failure' && !(github.event_name == 'workflow_dispatch' && inputs.mode == 'frozen_history_v8')
         shell: bash
