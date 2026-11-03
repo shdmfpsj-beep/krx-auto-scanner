@@ -999,6 +999,7 @@ jobs:
             --selection reports/c3_selection_evidence_v16.json \
             --history-dir reports/c3_v23_ohlcv \
             --output reports/c3_entry_geometry_batch_v23.json
+          python scripts/c3_exit_comparison_v26.py --selection reports/c3_selection_evidence_v16.json --history-dir reports/c3_v23_ohlcv --output reports/c3_exit_comparison_v26.json
           test -s reports/c3_entry_geometry_batch_v23.json
 
       - name: Save reports
