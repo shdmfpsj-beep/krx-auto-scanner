@@ -63,7 +63,7 @@ def batch(selection_path,history_dir,output):
     selection=json.loads(Path(selection_path).read_text(encoding="utf-8-sig"))
     root=Path(history_dir)
     items=[]
-    for pick in selection.get("provisional_watch_top2",[]):
+    for pick in selection.get("provisional_watch_top5",selection.get("provisional_watch_top2",[])):
         ticker=str(pick.get("ticker","")).zfill(6)
         entry={"ticker":ticker,"name":pick.get("name"),"selection_price_date":pick.get("price_date")}
         source=root/(ticker+".csv")
