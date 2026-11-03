@@ -16,4 +16,12 @@ class EvidenceSelectionTest(unittest.TestCase):
         self.assertFalse(result["provisional_watch_top2"][0]["buy_approved"])
         self.assertIn("BUSINESS_SCOPE_UNVERIFIED",result["provisional_watch_top2"][0]["evidence_blockers"])
         self.assertEqual(result["decision"],"CASH")
+    def test_special_instrument_names_excluded(self):
+        prelim=[{"ticker":"145270","name":"케이탑리츠","c3_preliminary_score":"99","extension_vs_ma20_pct":"1","rvol20":"1"},
+                {"ticker":"466690","name":"키움히어로제1호스팩","c3_preliminary_score":"98","extension_vs_ma20_pct":"1","rvol20":"1"},
+                {"ticker":"000003","name":"일반기업","c3_preliminary_score":"80","extension_vs_ma20_pct":"1","rvol20":"1"}]
+        evidence=[{"ticker":r["ticker"],"business_scope_status":"UNREVIEWED_BUSINESS"} for r in prelim]
+        result=select(prelim,evidence)
+        self.assertEqual(result["excluded"]["EXCLUDED_SPECIAL_NAME"],2)
+        self.assertEqual([r["ticker"] for r in result["provisional_watch_top2"]],["000003"])
 if __name__=="__main__":unittest.main()
