@@ -12,10 +12,10 @@ class ProfitProtectionTests(unittest.TestCase):
 
     def test_profit_lock_activates_only_after_close_gain(self):
         rows=self.make_rows([100]*70+[108,110,107,104,103,102,101,100])
-        result=exit_model(rows,70,108,90,"profit_lock",60)
+        result=exit_model(rows,70,100,90,"profit_lock",60)
         self.assertTrue(result["profit_lock_activated"])
         self.assertEqual(result["exit_reason"],"CLOSE_STOP_NEXT_OPEN")
-        self.assertEqual(result["exit_date"],rows[73]["date"])
+        self.assertEqual(result["exit_date"],rows[75]["date"])
 
     def test_censored_when_insufficient_future_bars(self):
         rows=self.make_rows([100]*75)
