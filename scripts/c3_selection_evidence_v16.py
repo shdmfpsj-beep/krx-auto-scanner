@@ -25,6 +25,11 @@ def select(preliminary,evidence):
         if e.get("instrument_review") in ("EXCLUDE_SPECIAL","EXCLUDE_NON_COMMON"):
             counts["EXCLUDED_INSTRUMENT_EVIDENCE"]=counts.get("EXCLUDED_INSTRUMENT_EVIDENCE",0)+1
             continue
+        # Explicit user exclusion: do not rank identifiable pharma/biotech names even when business evidence is unreviewed.
+        pharma_name_tokens=("녹십자","유한양행","한미약품","종근당","대웅제약","동아에스티","일동제약","보령","JW중외제약","삼성바이오","셀트리온","SK바이오","바이오시밀러")
+        if any(token.upper() in name for token in pharma_name_tokens):
+            counts["EXCLUDED_PHARMA_NAME"]=counts.get("EXCLUDED_PHARMA_NAME",0)+1
+            continue
         if e.get("business_scope_status") in ("EXCLUDE_FROM_C3","PHARMA_BIOTECH"):
             counts["EXCLUDED_BUSINESS"]=counts.get("EXCLUDED_BUSINESS",0)+1
             continue
