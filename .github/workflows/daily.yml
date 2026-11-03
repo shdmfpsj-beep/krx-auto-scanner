@@ -1007,6 +1007,10 @@ jobs:
           python -m py_compile scripts/c3_profit_protection_v28.py
           python scripts/c3_profit_protection_v28.py --selection reports/c3_selection_evidence_v16.json --history-dir reports/c3_v23_ohlcv --output reports/c3_profit_protection_v28.json
           test -s reports/c3_profit_protection_v28.json
+          python -m unittest discover -s scripts -p 'test_c3_adaptive_exit_v29.py' -v
+          python -m py_compile scripts/c3_adaptive_exit_v29.py
+          python scripts/c3_adaptive_exit_v29.py --selection reports/c3_selection_evidence_v16.json --history-dir reports/c3_v23_ohlcv --output reports/c3_adaptive_exit_v29.json
+          test -s reports/c3_adaptive_exit_v29.json
           test -s reports/c3_entry_geometry_batch_v23.json
 
       - name: Save reports
