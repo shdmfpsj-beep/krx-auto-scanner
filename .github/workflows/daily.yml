@@ -984,6 +984,18 @@ jobs:
             --evidence reports/c3_candidate_evidence_v1.csv \
             --output reports/c3_registry_integrity_v22.json
 
+      - name: Research v23 TOP2 structural entry geometry
+        if: (github.event_name == 'schedule' || inputs.mode == 'full_scan') && steps.collect.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/c3_entry_geometry_v23.py
+          python scripts/c3_entry_geometry_v23.py \
+            --selection reports/c3_selection_evidence_v16.json \
+            --history-dir reports/c3_v23_ohlcv \
+            --output reports/c3_entry_geometry_batch_v23.json
+          test -s reports/c3_entry_geometry_batch_v23.json
+
       - name: Save reports
         if: steps.collect.outcome != 'failure' && !(github.event_name == 'workflow_dispatch' && inputs.mode == 'frozen_history_v8')
         shell: bash
