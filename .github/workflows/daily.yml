@@ -115,6 +115,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: C3 v17-v21 regression smoke checks
+        if: github.event_name == 'schedule' || inputs.mode == 'full_scan'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q scripts/c3_selection_forward_v17.py scripts/c3_forward_opportunity_v18.py scripts/c3_forward_calendar_v19.py scripts/c3_forward_returns_v20.py scripts/c3_pipeline_readiness_v21.py
+          for version in c3_selection_forward_v17 c3_forward_opportunity_v18 c3_forward_calendar_v19 c3_forward_returns_v20 c3_pipeline_readiness_v21; do
+            python -m unittest discover -s scripts -p "test_${version}.py" -v
+          done
+
       - name: Verify saved candidate data for rerank
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'rerank_only'
         shell: bash
