@@ -27,6 +27,8 @@ def inspect(root):
         state[name]=item
     missing=[k for k,v in state.items() if not v["nonempty"] or v.get("parse_error")]
     registered=state["registry_v17"].get("records",0)
+    if registered==0:missing.append("registry_v17_no_selections")
+    if state["selection_v16"].get("records",0)==0:missing.append("selection_v16_no_candidates")
     return {"schema":"C3_PIPELINE_READINESS_V21","files":state,
       "missing_or_invalid":missing,"registered_rows":registered,
       "forward_evaluation_ready":not missing and registered>0,
