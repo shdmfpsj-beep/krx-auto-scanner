@@ -5,7 +5,9 @@ from pathlib import Path
 
 def audit(registry,calendar,prices,asof):
     sessions=sorted({date.fromisoformat(x) for x in calendar if x<=asof})
-    lookup={(r["ticker"].zfill(6),r["date"]):r for r in prices}
+    lookup={}
+    for r in prices:
+        lookup.setdefault((r["ticker"].zfill(6),r["date"]),[]).append(r)
     results=[]
     for plan in registry:
         ticker=plan.get("ticker","").zfill(6)
@@ -14,19 +16,21 @@ def audit(registry,calendar,prices,asof):
             registered=datetime.fromisoformat(plan["registered_utc"].replace("Z","+00:00"))
             origin=date.fromisoformat(plan["price_date"])
             start=max(origin,registered.astimezone(timezone(timedelta(hours=9))).date())
-            base=lookup.get((ticker,origin.isoformat()),{})
-            close=float(base["close"])
-            if close<=0 or start not in sessions:raise ValueError("bad base")
+            base=lookup.get((ticker,origin.isoformat()),[])
+            if len(base)!=1:raise ValueError("base missing or duplicate")
+            close=float(base[0]["close"])
+            if close<=0 or not __import__("math").isfinite(close) or start not in sessions:raise ValueError("bad base")
             for n in (5,10,20):
                 i=sessions.index(start)+n
                 if i>=len(sessions):
                     result["horizons"][str(n)]={"status":"PENDING"}
                 else:
                     day=sessions[i].isoformat()
-                    row=lookup.get((ticker,day),{})
+                    rows=lookup.get((ticker,day),[])
                     try:
-                        target=float(row["close"])
-                        if target<=0:raise ValueError()
+                        if len(rows)!=1:raise ValueError("missing or duplicate")
+                        target=float(rows[0]["close"])
+                        if target<=0 or not __import__("math").isfinite(target):raise ValueError()
                         result["horizons"][str(n)]={"status":"OBSERVED_UNCERTIFIED",
                             "date":day,"close_change_pct":round(100*(target/close-1),3)}
                     except (KeyError,ValueError):
