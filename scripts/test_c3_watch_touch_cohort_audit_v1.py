@@ -47,6 +47,19 @@ class CohortTests(unittest.TestCase):
                          results=[dict(events=events)]))
         self.assertEqual(r["first_touch_order_counts"]["5"],{"STOP_FIRST":1})
         self.assertEqual(r["first_touch_same_day_collision_count"],1)
+    def test_completed_first_touch_post_stop_rebound_counted_once(self):
+        h=lambda rebound: dict(horizon_sessions=5,observed_future_sessions=5,
+            complete=True,future_stop_touch_days=1,future_target_touch_days=0,
+            first_future_stop_touch_date="2026-11-03",
+            post_stop_rebound_observed=rebound,stop_target_touch_order="STOP_FIRST")
+        events=[dict(date="2026-11-02",status="WATCH_TOUCH_ONLY",verified_fill=False,
+                     outcomes=[h(True)]),
+                dict(date="2026-11-03",status="WATCH_TOUCH_ONLY",verified_fill=False,
+                     outcomes=[h(False)])]
+        r=summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",
+                         results=[dict(events=events)]))
+        self.assertEqual(r["first_touch_rebound_counts"]["5"],
+                         {"stop_then_rebound":1,"stop_no_rebound":0,"no_stop":0})
     def test_verified_fill_rejected(self):
         with self.assertRaisesRegex(ValueError,"UNEXPECTED_VERIFIED_FILL"):
             summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",
