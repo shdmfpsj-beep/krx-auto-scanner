@@ -35,6 +35,13 @@ def assess(plan,prices):
     target_reward_risk=round((target-entry)/entry_risk,3) if entry_risk>0 else None
     pivot_before_target=bool(pivot_price is not None and pivot_price<target)
     entry_geometry_valid=bool(stop<entry<target)
+    # Prior-only breakout evidence. A prior close above the pivot is necessary
+    # but insufficient to establish a sustained breakout or a trade signal.
+    pivot_breakout_closes=(sum(1 for _,bar in prior
+        if pivot_price is not None and float(bar["close"])>pivot_price))
+    last_prior_close=float(prior[-1][1]["close"]) if prior else None
+    last_close_above_pivot=bool(pivot_price is not None and last_prior_close>pivot_price)
+    breakout_retest_verified=False
     # Informational warning, not a trade gate or statistically validated cutoff.
     swing_rr_warning=("INVALID_ENTRY_GEOMETRY" if not entry_geometry_valid else
                       "NO_PRIOR_SWING_CANDIDATE" if pivot_reward_risk is None else
@@ -62,6 +69,9 @@ def assess(plan,prices):
                 prior_swing_reward_risk_at_watch_high=pivot_reward_risk,
                 prior_swing_before_planned_target=pivot_before_target,
                 pivot_is_confirmed_resistance=False,
+                prior_closes_above_swing_high=pivot_breakout_closes,
+                last_prior_close_above_swing_high=last_close_above_pivot,
+                breakout_retest_verified=breakout_retest_verified,
                 swing_rr_warning=swing_rr_warning,
                 research_triage=research_triage,
                 warning_threshold_is_research_only=True,
@@ -112,6 +122,9 @@ def main():
         "swing_rr":r["prior_swing_reward_risk_at_watch_high"],
         "target_rr":r["planned_target_reward_risk_at_watch_high"],
         "warning":r["swing_rr_warning"],
+        "prior_closes_above_swing_high":r["prior_closes_above_swing_high"],
+        "last_prior_close_above_swing_high":r["last_prior_close_above_swing_high"],
+        "breakout_retest_verified":r["breakout_retest_verified"],
         "research_triage":r["research_triage"]} for r in report["results"]],
         "trade_approved":False},ensure_ascii=False))
 if __name__=="__main__":main()
