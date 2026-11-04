@@ -32,7 +32,7 @@ def summarize(report):
                                              repeated_touch_count=len(dates)-1,
                                              forward_progress=[
                                                  dict(horizon_sessions=h["horizon_sessions"],
-                                                      observed_future_sessions=h["observed_future_sessions"],
+                                                      observed_future_sessions=h.get("observed_future_sessions",0),
                                                       remaining_sessions=max(0,h["horizon_sessions"]-h["observed_future_sessions"]),
                                                       complete=h["complete"])
                                                  for h in first_event["outcomes"]]))
