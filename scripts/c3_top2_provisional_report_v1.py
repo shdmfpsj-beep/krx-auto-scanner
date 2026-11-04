@@ -23,6 +23,24 @@ def validate_export(plans,prices,manifest):
         raise ValueError("MISSING_OR_UNEXPECTED_TICKER")
     if not prices:
         raise ValueError("EMPTY_PRICE_DATA")
+    coverage=manifest.get("ticker_date_coverage")
+    if coverage is not None:
+        if set(coverage)!=tickers:
+            raise ValueError("COVERAGE_TICKER_MISMATCH")
+        last_dates=set()
+        for ticker in sorted(tickers):
+            dates=sorted(day for code,day in prices if code==ticker)
+            rec=coverage[ticker]
+            if not isinstance(rec,dict) or rec.get("observed_rows")!=len(dates):
+                raise ValueError("COVERAGE_ROW_COUNT_MISMATCH")
+            if rec.get("first_observed_date")!=(dates[0] if dates else None):
+                raise ValueError("COVERAGE_FIRST_DATE_MISMATCH")
+            if rec.get("last_observed_date")!=(dates[-1] if dates else None):
+                raise ValueError("COVERAGE_LAST_DATE_MISMATCH")
+            last_dates.add(dates[-1] if dates else None)
+        aligned=(len(last_dates)==1 and None not in last_dates)
+        if manifest.get("latest_observed_dates_aligned") is not aligned:
+            raise ValueError("COVERAGE_ALIGNMENT_MISMATCH")
     end=manifest.get("end","")
     if not end or any(day>end for _,day in prices):
         raise ValueError("PRICE_AFTER_MANIFEST_END")
