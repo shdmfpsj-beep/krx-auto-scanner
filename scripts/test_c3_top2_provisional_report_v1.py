@@ -52,7 +52,7 @@ class ProvisionalReportTests(unittest.TestCase):
                       tickers=["271560","026960"],end="2026-11-03",failures={},
                       latest_observed_dates_aligned=True,
                       ticker_date_coverage={
-                          "271560":dict(observed_rows=1,first_observed_date="2026-11-02",last_observed_date="2026-11-02"),
+                          "271560":dict(observed_rows=1,first_observed_date="2026-11-02",last_observed_date="2026-11-02",calendar_days_from_last_to_end=1),
                           "026960":dict(observed_rows=1,first_observed_date="2026-11-03",last_observed_date="2026-11-03",calendar_days_from_last_to_end=0)})
         with self.assertRaisesRegex(ValueError,"COVERAGE_ALIGNMENT_MISMATCH"):
             validate_export([A,B],prices,manifest)
