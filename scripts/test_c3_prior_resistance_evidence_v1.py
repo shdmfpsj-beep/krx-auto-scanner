@@ -19,6 +19,7 @@ class PriorResistanceTests(unittest.TestCase):
         self.assertEqual(r["nearest_prior_high_above_watch_high"],111)
         self.assertEqual(r["prior_sessions"],20)
         self.assertEqual(r["status"],"PRIOR_HIGH_CANDIDATE_ONLY")
+        self.assertTrue(r["nearest_prior_high_may_limit_target"])
     def test_no_candidate_above_entry(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
         r=assess(PLAN,prices)
