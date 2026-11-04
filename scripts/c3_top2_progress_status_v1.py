@@ -1,18 +1,28 @@
 """C3 research status from existing machine-readable observations; no trade claims."""
-import argparse,json
+import argparse,json,math
 from pathlib import Path
 
 def build(entry,impact):
     plans=entry["plans"]
     if len(plans)!=2 or len(impact["results"])!=2:
         raise ValueError("TOP2_COUNT_MISMATCH")
+    if len({p["ticker"] for p in plans})!=2 or len({r["ticker"] for r in impact["results"]})!=2:
+        raise ValueError("DUPLICATE_TOP2_TICKER")
     impact_by={r["ticker"]:r for r in impact["results"]}
     if set(impact_by)!={p["ticker"] for p in plans}:
         raise ValueError("TICKER_MISMATCH")
     results=[]
     for p in plans:
         ticker=p["ticker"]
+        gap=float(impact_by[ticker]["max_provider_close_gap_pct"])
+        if not math.isfinite(gap) or gap<0:
+            raise ValueError("INVALID_PROVIDER_GAP:"+ticker)
         future=p.get("future_close_observations",{})
+        if not isinstance(future,dict):
+            raise ValueError("INVALID_FORWARD_OBSERVATIONS:"+ticker)
+        for rows in future.values():
+            if not isinstance(rows,list) or any(type(row.get("complete")) is not bool for row in rows):
+                raise ValueError("INVALID_FORWARD_OBSERVATIONS:"+ticker)
         completed=sum(row["complete"] for rows in future.values() for row in rows)
         total=sum(len(rows) for rows in future.values())
         results.append(dict(ticker=ticker,
@@ -24,7 +34,7 @@ def build(entry,impact):
             continuation_opportunities=p["breakout_without_pullback"]["opportunity_days"],
             forward_horizons_complete=completed,
             forward_horizons_total=total,
-            max_provider_gap_pct=impact_by[ticker]["max_provider_close_gap_pct"],
+            max_provider_gap_pct=gap,
             price_certified=False))
     return dict(schema="C3_TOP2_PROGRESS_STATUS_V1",
         status="RESEARCH_ONLY",implementation_ci_verified=None,
