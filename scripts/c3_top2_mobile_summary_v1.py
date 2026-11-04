@@ -29,6 +29,12 @@ def render(payload):
     for code,rec in sorted(coverage.items()):
         flag=lambda key:"관측" if rec.get(key) else "미완료"
         lines.append(f"| {code} | {rec.get('observed_sessions',0)} | {flag('five_session_complete')} | {flag('ten_session_complete')} | {flag('twenty_session_complete')} |")
+    dates=manifest.get("ticker_date_coverage",{})
+    if dates:
+        lines+=["","**종목별 마지막 수집일 (공식 거래일 검증 아님)**"]
+        for code,rec in sorted(dates.items()):
+            lines.append(f"- {code}: {rec.get('last_observed_date') or '미수집'} / 종료일까지 달력상 {rec.get('calendar_days_from_last_to_end')}일")
+        lines.append(f"- 두 종목의 마지막 관측일 일치: {'예' if manifest.get('latest_observed_dates_aligned') else '아니요'}")
     lines+=["","**주의:** 5·10·20행 충족은 실제 연속 거래일 수집을 보장하지 않습니다. 공식 거래소 영업일 달력 대조 전에는 수익률 검증 불가입니다.",
             "매수구간·구조손절·목표가는 과거 등록된 연구 계획 그대로 유지하며 이 보고서에서 새 주문을 생성하지 않습니다.",""]
     return "\n".join(lines)
