@@ -69,6 +69,9 @@ class ICTFeatureTests(unittest.TestCase):
         self.assertEqual(len(report["rows"]),1)
         self.assertEqual(report["observation_unit"],"FIRST_TOUCH_PER_PLAN")
         self.assertEqual(report["independent_plan_count"],1)
+        self.assertEqual(report["ict_filter_retention"]["eligible_first_touch_plans"],1)
+        self.assertEqual(report["ict_filter_retention"]["retained_with_prior_ict"],0)
+        self.assertEqual(report["ict_filter_retention"]["excluded_without_prior_ict"],1)
         self.assertIsNone(report["horizon_counts"]["5"]["no_prior_ict"]["mean_mfe_pct"])
     def test_warmup_and_lookback(self):
         bars=[b(str(i),100,110,90,100) for i in range(10)]
