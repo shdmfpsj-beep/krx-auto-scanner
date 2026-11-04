@@ -25,6 +25,18 @@ class EntryStyleTests(unittest.TestCase):
            ("271560","2026-11-03"):bar(111000,117000,113000)}
         x=evaluate(PLAN,p)
         self.assertIsNone(x["breakout_retest"]["first_opportunity"])
+    def test_breakout_continuation_without_pullback(self):
+        p={("271560","2026-11-02"):bar(114000,118000,117000),
+           ("271560","2026-11-03"):bar(115000,119000,118000)}
+        x=evaluate(PLAN,p)
+        self.assertEqual(x["breakout_without_pullback"]["first_opportunity"],"2026-11-03")
+        self.assertFalse(x["breakout_without_pullback"]["actual_fill_verified"])
+    def test_intraday_breakout_not_counted_as_prior_close(self):
+        p={("271560","2026-11-02"):bar(114000,118000,113000),
+           ("271560","2026-11-03"):bar(115000,119000,118000)}
+        x=evaluate(PLAN,p)
+        self.assertEqual(x["breakout_without_pullback"]["opportunity_days"],0)
+
     def test_registration_day_excluded(self):
         x=evaluate(PLAN,{("271560","2026-10-31"):bar(111000,116000,115000)})
         self.assertEqual(x["observed_sessions"],0)
