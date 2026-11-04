@@ -16,6 +16,17 @@ class WatchTouchForwardTests(unittest.TestCase):
         self.assertFalse(r["events"][0]["outcomes"][0]["complete"])
         self.assertIsNone(r["events"][0]["outcomes"][0]["strategy_return_pct"])
         self.assertEqual(r["verified_fills"],0)
+        self.assertEqual(r["events"][0]["outcomes"][0]["observed_future_sessions"],1)
+        self.assertEqual(r["events"][0]["outcomes"][0]["observed_max_favorable_excursion_pct"],4.808)
+        self.assertEqual(r["events"][0]["outcomes"][0]["observed_max_adverse_excursion_pct"],1.923)
+        self.assertTrue(r["events"][0]["outcomes"][0]["reference_is_touch_day_close"])
+    def test_zero_future_days_has_no_excursion(self):
+        prices={("271560","2026-11-02"):bar(106,108,102,104)}
+        r=analyze(PLAN,prices)
+        h=r["events"][0]["outcomes"][0]
+        self.assertIsNone(h["observed_max_favorable_excursion_pct"])
+        self.assertIsNone(h["observed_max_adverse_excursion_pct"])
+        self.assertFalse(h["complete"])
     def test_stop_collision_separate(self):
         prices={("271560","2026-11-02"):bar(103,108,94,99)}
         r=analyze(PLAN,prices)
