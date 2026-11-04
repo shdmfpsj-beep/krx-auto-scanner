@@ -61,6 +61,16 @@ def main():
         w=csv.writer(f)
         w.writerow(["date"])
         w.writerows([[d] for d in days])
+    # Date diagnostics are observations only; not an official exchange calendar.
+    by_ticker={code:sorted(r["date"] for r in rows if r["ticker"]==code)
+               for code in sorted({p["ticker"] for p in plans})}
+    ticker_date_coverage={code:dict(observed_rows=len(dates),
+                                    first_observed_date=dates[0] if dates else None,
+                                    last_observed_date=dates[-1] if dates else None,
+                                    calendar_days_from_last_to_end=(end-date.fromisoformat(dates[-1])).days if dates else None)
+                          for code,dates in by_ticker.items()}
+    last_dates={v["last_observed_date"] for v in ticker_date_coverage.values()}
+    latest_observed_dates_aligned=(len(last_dates)==1 and None not in last_dates)
     manifest=dict(schema="C3_TOP2_PYKRX_PROVISIONAL_EXPORT_V1",
                   provider="pykrx",upstream="KRX_UNVERIFIED",
                   price_adjustment="ADJUSTED",market_scope="UNKNOWN",
@@ -70,6 +80,8 @@ def main():
                   trade_approved=False,orders_enabled=False,
                   start=start.isoformat(),end=end.isoformat(),
                   rows=len(rows),tickers=sorted({r["ticker"] for r in rows}),
+                  ticker_date_coverage=ticker_date_coverage,
+                  latest_observed_dates_aligned=latest_observed_dates_aligned,
                   failures=failures)
     (out/"manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps(manifest,ensure_ascii=False))
