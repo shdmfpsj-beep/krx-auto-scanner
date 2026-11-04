@@ -34,6 +34,11 @@ class SessionCoverageTests(unittest.TestCase):
         x=validate(P,{},["2026-10-29","2026-10-30"])
         self.assertIn("CALENDAR_HAS_NO_POST_REGISTRATION_SESSIONS",x["errors"])
         self.assertFalse(x["input_complete"])
+    def test_calendar_truncated_before_price_rejected(self):
+        x=validate(P,prices(),D[:3])
+        self.assertIn("CALENDAR_ENDS_BEFORE_LAST_PRICE",x["errors"])
+        self.assertFalse(x["input_complete"])
+
     def test_duplicate_plan(self):
         self.assertIn("EXPECTED_TWO_UNIQUE_TICKERS",validate([P[0],P[0]],{},D)["errors"])
 
