@@ -50,6 +50,8 @@ class EntryStyleTests(unittest.TestCase):
         self.assertIn("CASH",table)
         self.assertIn(chr(10)+"|",table)
         self.assertIn("눌림 없는 돌파 지속",table)
+        self.assertIn("5일 | 10일 | 20일",table)
+        self.assertIn("대기",table)
     def test_future_observation_censored_and_not_pnl(self):
         p={("271560","2026-11-02"):bar(111000,116000,115000)}
         for day in range(3,9):
@@ -62,6 +64,9 @@ class EntryStyleTests(unittest.TestCase):
         self.assertIsNone(rows[1]["observation_close_return_pct"])
         self.assertIsNone(rows[0]["strategy_return_pct"])
         self.assertFalse(rows[0]["verified_fill"])
+        self.assertEqual(rows[0]["signal_day"],"2026-11-02")
+        self.assertEqual(rows[0]["horizon_day"],"2026-11-07")
+        self.assertIsNone(rows[1]["horizon_day"])
     def test_two_plans_required(self):
         with self.assertRaisesRegex(ValueError,"EXPECTED_EXACTLY_TWO"):
             build([PLAN],{})
