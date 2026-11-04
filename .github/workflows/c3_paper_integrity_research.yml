@@ -25,6 +25,15 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_paper_integrity_audit_v1.py
+            scripts/test_c3_paper_integrity_audit_v1.py
+            scripts/c3_price_concordance_v1.py
+            scripts/test_c3_price_concordance_v1.py
+            config/c3_paper_top2_plans.csv
+            reports/c3_paper/paper_ledger.json
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
