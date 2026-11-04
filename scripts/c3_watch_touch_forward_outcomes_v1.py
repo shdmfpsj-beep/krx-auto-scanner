@@ -78,6 +78,9 @@ def analyze(plan,prices):
                            touch_day_execution_ambiguous=touch_day_execution_ambiguous,
                            entry_reference_close=bar["close"],
                            actual_entry_price=None,verified_fill=False,outcomes=outcomes))
+    # An unexpired plan with no touch is pending, not a confirmed miss.
+    if not events and len(series)<watch_window:
+        raise ValueError("INCOMPLETE_WATCH_WINDOW")
     return dict(ticker=ticker,plan_id=plan["plan_id"],events=events,
                 watch_events=len(events),verified_fills=0,
                 trade_approved=False,orders_enabled=False)
