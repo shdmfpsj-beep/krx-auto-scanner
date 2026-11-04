@@ -105,5 +105,6 @@ def main():
     print(json.dumps({"schema":report["schema"],"rows":len(report["rows"]),
                       "raw_equal":sum(r.get("raw_equal") is True for r in report["rows"]),
                       "adjusted_equal":sum(r.get("adj_equal") is True for r in report["rows"]),
+                      "gap_summary":report["gap_summary"],"ratio_pattern":report["ratio_pattern"],
                       "trade_approved":False},ensure_ascii=False))
 if __name__=="__main__": main()
