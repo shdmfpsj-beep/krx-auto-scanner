@@ -263,7 +263,7 @@ jobs:
         shell: bash
         run: |
           if [ -s /tmp/c3-top2/yahoo_reference_experimental.csv ] && [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
-            python scripts/c3_yahoo_adjustment_diagnostic_v1.py --primary /tmp/c3-top2/top2_provisional_ohlcv.csv --yahoo /tmp/c3-top2/yahoo_reference_experimental.csv --output /tmp/c3-top2/yahoo_adjustment_diagnostics.json
+            python scripts/c3_yahoo_adjustment_diagnostic_v1.py --primary /tmp/c3-top2/top2_provisional_ohlcv.csv --yahoo /tmp/c3-top2/yahoo_reference_experimental.csv --output /tmp/c3-top2/yahoo_adjustment_diagnostics.json --markdown /tmp/c3-top2/yahoo_adjustment_daily_table.md
           fi
       - name: Publish mobile research summary in Actions
         if: always()
@@ -280,6 +280,10 @@ jobs:
               echo '보고서가 생성되지 않았습니다. 앞선 수집·무결성 단계의 오류를 확인하세요.'
             fi
             echo ''
+            if [ -s /tmp/c3-top2/yahoo_adjustment_daily_table.md ]; then
+              echo ''
+              cat /tmp/c3-top2/yahoo_adjustment_daily_table.md
+            fi
             echo '> 잠정 pykrx 데이터입니다. 공식 거래일·독립 가격 검증 미완료, 주문 비활성.'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Archive provisional data and failures
