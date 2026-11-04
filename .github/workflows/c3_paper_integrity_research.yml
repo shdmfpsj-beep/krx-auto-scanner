@@ -240,7 +240,12 @@ jobs:
           if [ -s /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json ]; then
             python scripts/c3_provider_difference_diagnostic_v1.py --input /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json --output /tmp/c3-top2/yahoo_pykrx_field_diagnostics.json
             echo '### 실험용 가격 비교 진단 (거래 인증 아님)' >> "$GITHUB_STEP_SUMMARY"
-            python -c 'import json; x=json.load(open("/tmp/c3-top2/yahoo_pykrx_field_diagnostics.json")); [print(f"- {k}: 비교 {v[chr(114)+chr(111)+chr(119)+chr(115)]}행, 일치 {v[chr(109)+chr(97)+chr(116)+chr(99)+chr(104)+chr(101)+chr(115)]}행, 불일치 {v[chr(109)+chr(105)+chr(115)+chr(109)+chr(97)+chr(116)+chr(99)+chr(104)+chr(101)+chr(115)]}행, 필드 {v[chr(102)+chr(105)+chr(101)+chr(108)+chr(100)+chr(95)+chr(109)+chr(105)+chr(115)+chr(109)+chr(97)+chr(116)+chr(99)+chr(104)+chr(101)+chr(115)]}") for k,v in x["tickers"].items()]' >> "$GITHUB_STEP_SUMMARY"
+            python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+            import json
+            data=json.load(open("/tmp/c3-top2/yahoo_pykrx_field_diagnostics.json"))
+            for ticker, record in data["tickers"].items():
+                print(f'- {ticker}: 비교 {record["rows"]}행, 일치 {record["matches"]}행, 불일치 {record["mismatches"]}행, 필드별 {record["field_mismatches"]}')
+            PY
           fi
       - name: Publish mobile research summary in Actions
         if: always()
