@@ -9,6 +9,14 @@ on:
       - 'scripts/c3_price_concordance_v1.py'
       - 'scripts/test_c3_price_concordance_v1.py'
       - '.github/workflows/c3_paper_integrity_research.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/c3_paper_integrity_audit_v1.py'
+      - 'scripts/test_c3_paper_integrity_audit_v1.py'
+      - 'scripts/c3_price_concordance_v1.py'
+      - 'scripts/test_c3_price_concordance_v1.py'
+      - '.github/workflows/c3_paper_integrity_research.yml'
   workflow_dispatch:
 jobs:
   integrity:
@@ -20,6 +28,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Compile research scripts before tests
+        run: python -m py_compile scripts/c3_paper_integrity_audit_v1.py scripts/test_c3_paper_integrity_audit_v1.py scripts/c3_price_concordance_v1.py scripts/test_c3_price_concordance_v1.py
       - name: Run synthetic regression tests
         run: python -m unittest discover -s scripts -p 'test_c3_paper_integrity_audit_v1.py' -v
       - name: Run synthetic independent-price regression tests
