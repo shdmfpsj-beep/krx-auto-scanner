@@ -52,7 +52,9 @@ def evaluate(plan, prices):
         for n in (5,10,20):
             complete=len(subsequent)>=n
             future_observations[style].append(dict(
+                signal_day=signal_day,signal_close=signal_close,
                 horizon_sessions=n,observed_sessions=min(len(subsequent),n),
+                horizon_day=subsequent[n-1][0] if complete else None,
                 complete=complete,
                 observation_close_return_pct=(round(100*(subsequent[n-1][1]["close"]/signal_close-1),4) if complete else None),
                 strategy_return_pct=None,verified_fill=False))
@@ -93,8 +95,17 @@ def markdown_table(report):
             p["ticker"],p["observed_sessions"],p["expected_sessions"],
             p["pullback"]["opportunity_days"],p["breakout_retest"]["opportunity_days"],
             p["breakout_without_pullback"]["opportunity_days"]))
+    lines.extend(["","### 최초 진입 신호 이후 종가 변화 (수익률 아님)",
+                  "| 종목 | 방식 | 신호일 | 5일 | 10일 | 20일 |",
+                  "|---|---|---|---:|---:|---:|"])
+    names={"pullback":"눌림","breakout_retest":"재시험","breakout_without_pullback":"돌파지속"}
+    for p in report["plans"]:
+        for style,rows in p["future_close_observations"].items():
+            values=[("{:+.2f}%".format(r["observation_close_return_pct"]) if r["complete"] else "대기") for r in rows]
+            lines.append("| {} | {} | {} | {} | {} | {} |".format(
+                p["ticker"],names[style],rows[0]["signal_day"],*values))
     lines.append("")
-    lines.append("> 일봉 가격 범위 관찰만으로 체결 순서·수익률을 확인할 수 없습니다. CASH / 주문 비활성.")
+    lines.append("> 관찰일 이후 완료된 종가만 사용. 매수 체결·실제 수익률 인증 아님. CASH / 주문 비활성.")
     return "\n".join(lines)+"\n"
 
 def main():
