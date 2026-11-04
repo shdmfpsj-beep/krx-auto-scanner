@@ -73,6 +73,12 @@ class ICTFeatureTests(unittest.TestCase):
         self.assertEqual(report["ict_filter_retention"]["retained_with_prior_ict"],0)
         self.assertEqual(report["ict_filter_retention"]["excluded_without_prior_ict"],1)
         self.assertIsNone(report["horizon_counts"]["5"]["no_prior_ict"]["mean_mfe_pct"])
+    def test_missing_ticker_price_history_fails_closed(self):
+        plan=dict(plan_id="missing_fixture",ticker="ABSENT",registered_day="2026-01-01",
+                  watch_low=20,watch_high=21,structure_stop=19,target1=25,
+                  expires_after_sessions=2)
+        with self.assertRaisesRegex(ValueError,"MISSING_TICKER_PRICE_HISTORY"):
+            compare([plan],{("OTHER","2026-01-02"):dict(open=30,high=31,low=29,close=30)})
     def test_warmup_and_lookback(self):
         bars=[b(str(i),100,110,90,100) for i in range(10)]
         self.assertFalse(any(x["sweep_reclaim"] for x in features(bars)))
