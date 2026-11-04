@@ -1,5 +1,6 @@
 import unittest
 from c3_ict_observable_features_v1 import features
+from c3_ict_sequence_research_v1 import detect
 
 def b(day,o,h,l,c):
     return dict(date=day,open=o,high=h,low=l,close=c)
@@ -24,6 +25,15 @@ class ICTFeatureTests(unittest.TestCase):
         self.assertTrue(x["bullish_fvg"])
         self.assertFalse(x["sweep_reclaim"])
 
+    def test_sequence_waits_for_break_then_later_retest(self):
+        bars=[b(str(i),100,110,90,100) for i in range(10)]
+        bars.append(b("10",94,105,89,95))
+        self.assertEqual(detect(bars),[])
+        bars.append(b("11",112,125,111,123))
+        self.assertEqual(detect(bars)[0]["event"],"DISPLACED_STRUCTURE_BREAK")
+        bars.append(b("12",115,117,110.5,114))
+        self.assertEqual(detect(bars)[-1]["event"],"FVG_RETEST_WATCH")
+        self.assertFalse(detect(bars)[-1]["trade_approved"])
     def test_warmup_and_lookback(self):
         bars=[b(str(i),100,110,90,100) for i in range(10)]
         self.assertFalse(any(x["sweep_reclaim"] for x in features(bars)))
