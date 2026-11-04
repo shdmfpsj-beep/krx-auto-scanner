@@ -30,6 +30,10 @@ class SessionCoverageTests(unittest.TestCase):
     def test_outside_calendar(self):
         x=validate(P,{**prices(),("271560","2026-11-07"):dict()},D)
         self.assertIn("PRICE_DAY_NOT_IN_SESSION_CALENDAR",x["errors"])
+    def test_calendar_ending_before_registration_rejected(self):
+        x=validate(P,{},["2026-10-29","2026-10-30"])
+        self.assertIn("CALENDAR_HAS_NO_POST_REGISTRATION_SESSIONS",x["errors"])
+        self.assertFalse(x["input_complete"])
     def test_duplicate_plan(self):
         self.assertIn("EXPECTED_TWO_UNIQUE_TICKERS",validate([P[0],P[0]],{},D)["errors"])
 
