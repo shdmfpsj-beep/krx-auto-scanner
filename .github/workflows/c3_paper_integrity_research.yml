@@ -244,12 +244,8 @@ jobs:
           if [ -s /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json ]; then
             python scripts/c3_provider_difference_diagnostic_v1.py --input /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json --output /tmp/c3-top2/yahoo_pykrx_field_diagnostics.json
             echo '### 실험용 가격 비교 진단 (거래 인증 아님)' >> "$GITHUB_STEP_SUMMARY"
-            python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
-            import json
-            data=json.load(open("/tmp/c3-top2/yahoo_pykrx_field_diagnostics.json"))
-            for ticker, record in data["tickers"].items():
-                print(f'- {ticker}: 비교 {record["rows"]}행, 일치 {record["matches"]}행, 불일치 {record["mismatches"]}행, 필드별 {record["field_mismatches"]}')
-            PY
+            cat /tmp/c3-top2/yahoo_pykrx_field_diagnostics.json
+            python -c 'import json; d=json.load(open("/tmp/c3-top2/yahoo_pykrx_field_diagnostics.json")); print("\\n".join("- {}: 비교 {}행, 일치 {}행, 불일치 {}행, 필드별 {}".format(k,v["rows"],v["matches"],v["mismatches"],v["field_mismatches"]) for k,v in d["tickers"].items()))' | tee -a "$GITHUB_STEP_SUMMARY"
           fi
       - name: Publish mobile research summary in Actions
         if: always()
