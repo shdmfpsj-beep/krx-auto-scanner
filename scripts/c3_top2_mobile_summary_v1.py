@@ -14,6 +14,8 @@ def render(payload):
            "**상태: CASH / 신규 매수 판단 보류**",
            "",
            "- 실제 독립 정규장 시세 검증: 미완료",
+           "- 공식 거래소 영업일 달력 대조: 미완료",
+           "- 중간 누락 거래일 여부: 검증 불가",
            "- 실제 체결 검증: 미완료",
            "- 전략 수익성 검증: 미완료",
            "- 실계좌 주문: 비활성",
@@ -22,12 +24,12 @@ def render(payload):
            f"- 수집 실패: {json.dumps(manifest.get('failures',{}),ensure_ascii=False)}",
            f"- 출처 검사 경고: {', '.join(errors) if errors else '메타데이터 일치만 확인'}",
            "",
-           "| 종목코드 | 관측 행 | 5일 | 10일 | 20일 |",
+           "| 종목코드 | 관측 행 | 5행 | 10행 | 20행 |",
            "|---|---:|:---:|:---:|:---:|"]
     for code,rec in sorted(coverage.items()):
         flag=lambda key:"관측" if rec.get(key) else "미완료"
         lines.append(f"| {code} | {rec.get('observed_sessions',0)} | {flag('five_session_complete')} | {flag('ten_session_complete')} | {flag('twenty_session_complete')} |")
-    lines+=["","**주의:** '관측'은 가격 행 개수 기준이며 공식 거래소 영업일 달력과 대조된 완결성을 의미하지 않습니다.",
+    lines+=["","**주의:** 5·10·20행 충족은 실제 연속 거래일 수집을 보장하지 않습니다. 공식 거래소 영업일 달력 대조 전에는 수익률 검증 불가입니다.",
             "매수구간·구조손절·목표가는 과거 등록된 연구 계획 그대로 유지하며 이 보고서에서 새 주문을 생성하지 않습니다.",""]
     return "\n".join(lines)
 
