@@ -270,7 +270,7 @@ jobs:
         shell: bash
         run: |
           if [ -f /tmp/c3-top2/manifest.json ]; then
-            python -m pip install FinanceDataReader
+            python -m pip install finance-datareader
             START_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["start"])')"
             END_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')"
             python scripts/c3_naver_reference_experiment_v1.py --plans config/c3_paper_top2_plans.csv --start "$START_DATE" --end "$END_DATE" --output /tmp/c3-top2/naver_reference_experimental.csv --status /tmp/c3-top2/naver_reference_status.json
