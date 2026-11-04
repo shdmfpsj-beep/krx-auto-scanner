@@ -19,7 +19,14 @@ def summarize(report):
     first_touch_order_counts={}
     first_touch_rebound_counts={}
     first_touch_same_day_collision_count=0
+    seen_plan_ids=set()
     for plan in report["results"]:
+        plan_id=plan.get("plan_id")
+        if not plan_id:
+            raise ValueError("MISSING_PLAN_ID")
+        if plan_id in seen_plan_ids:
+            raise ValueError("DUPLICATE_PLAN_ID")
+        seen_plan_ids.add(plan_id)
         dates=[event["date"] for event in plan["events"]]
         if dates!=sorted(dates):
             raise ValueError("UNSORTED_TOUCH_DATES")
