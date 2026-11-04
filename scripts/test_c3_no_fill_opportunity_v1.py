@@ -34,6 +34,15 @@ class OpportunityTests(unittest.TestCase):
         x=build([PLAN,dict(PLAN,plan_id="b",ticker="026960")],{})
         self.assertFalse(x["trade_approved"])
         self.assertFalse(x["orders_enabled"])
+    def test_gap_up_missed_upside_quantified(self):
+        x=evaluate(PLAN,{("271560","2026-11-02"):bar(115000,120000)})
+        self.assertEqual(x["no_touch_gap_above_band_sessions"],1)
+        self.assertEqual(x["max_missed_upside_pct"],5.08)
+    def test_touch_and_high_same_day_is_ambiguous(self):
+        x=evaluate(PLAN,{("271560","2026-11-02"):bar(111000,120000)})
+        self.assertEqual(x["ambiguous_touch_and_higher_high_sessions"],1)
+        self.assertEqual(x["no_touch_higher_high_sessions"],0)
+        self.assertIsNone(x["max_missed_upside_pct"])
     def test_invalid_horizon_rejected(self):
         with self.assertRaisesRegex(ValueError,"INVALID_HORIZON"):
             evaluate(dict(PLAN,expires_after_sessions="-1"),{})
