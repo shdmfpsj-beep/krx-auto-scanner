@@ -183,6 +183,23 @@ jobs:
         run: |
           python scripts/c3_top2_provisional_report_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --manifest /tmp/c3-top2/manifest.json --output /tmp/c3-top2/top2_provisional_research.json
           python scripts/c3_top2_mobile_summary_v1.py --input /tmp/c3-top2/top2_provisional_research.json --output /tmp/c3-top2/TOP2_mobile_summary.md
+      - name: Publish mobile research summary in Actions
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## C3 TOP2 잠정 연구 결과'
+            echo ''
+            if [ -s /tmp/c3-top2/TOP2_mobile_summary.md ]; then
+              cat /tmp/c3-top2/TOP2_mobile_summary.md
+            else
+              echo '**CASH / 신규 매수 판단 보류**'
+              echo ''
+              echo '보고서가 생성되지 않았습니다. 앞선 수집·무결성 단계의 오류를 확인하세요.'
+            fi
+            echo ''
+            echo '> 잠정 pykrx 데이터입니다. 공식 거래일·독립 가격 검증 미완료, 주문 비활성.'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Archive provisional data and failures
         if: always()
         uses: actions/upload-artifact@v4
