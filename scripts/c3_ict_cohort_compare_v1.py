@@ -19,7 +19,8 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
         # Use only signals completed strictly before touch date.
         signal_days={s["date"] for s in signals if s["event"]=="FVG_RETEST_WATCH"}
         day_index={day:i for i,(day,_) in enumerate(series)}
-        for event in result["events"]:
+        # Count only first touch per plan to avoid repeat-event sample inflation.
+        for event in result["events"][:1]:
             i=day_index[event["date"]]
             preceding=[d for d in signal_days if d in day_index
                        and 0<i-day_index[d]<=signal_max_age]
@@ -43,8 +44,12 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
             complete=[x for x in complete if x["complete"]]
             counts[str(h)][label]=dict(eligible_touch_events=len(cohort),
                                        completed_horizons=len(complete),
+                                       mean_mfe_pct=(round(sum(x["observed_max_favorable_excursion_pct"] for x in complete)/len(complete),3) if complete else None),
+                                       mean_mae_pct=(round(sum(x["observed_max_adverse_excursion_pct"] for x in complete)/len(complete),3) if complete else None),
                                        target_first=sum(x["stop_target_touch_order"]=="TARGET_FIRST" for x in complete),
                                        stop_first=sum(x["stop_target_touch_order"]=="STOP_FIRST" for x in complete),
                                        ambiguous_order=sum(x["stop_target_touch_order"]=="SAME_DAY_ORDER_UNKNOWN" for x in complete))
     return dict(schema="C3_ICT_MATCHED_COHORT_V1",rows=enriched,horizon_counts=counts,
+                observation_unit="FIRST_TOUCH_PER_PLAN",
+                independent_plan_count=len({e["plan_id"] for e in enriched}),
                 strategy_profitability_verified=False,trade_approved=False,orders_enabled=False)
