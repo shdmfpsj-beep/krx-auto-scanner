@@ -15,6 +15,7 @@ def summarize(report):
     plans_with_touch=0
     first_touch_status_counts={}
     first_touch_horizons={}
+    first_touch_per_plan=[]
     for plan in report["results"]:
         dates=[event["date"] for event in plan["events"]]
         if dates!=sorted(dates):
@@ -23,7 +24,12 @@ def summarize(report):
             raise ValueError("DUPLICATE_TOUCH_DATE")
         if dates:
             plans_with_touch+=1
-            first=plan["events"][0]["status"]
+            first_event=plan["events"][0]
+            first=first_event["status"]
+            first_touch_per_plan.append(dict(ticker=plan.get("ticker"),plan_id=plan.get("plan_id"),
+                                             first_touch_date=first_event["date"],
+                                             first_touch_status=first,
+                                             repeated_touch_count=len(dates)-1))
             first_touch_status_counts[first]=first_touch_status_counts.get(first,0)+1
             for item in plan["events"][0]["outcomes"]:
                 key=str(item["horizon_sessions"])
@@ -57,6 +63,7 @@ def summarize(report):
                 plans_with_touch=plans_with_touch,
                 first_touch_status_counts=first_touch_status_counts,
                 first_touch_horizons=first_touch_horizons,
+                first_touch_per_plan=first_touch_per_plan,
                 independent_event_sample_size_verified=False,
                 causal_edge_established=False,verified_fills=0,
                 strategy_profitability_verified=False,trade_approved=False,orders_enabled=False)
@@ -71,6 +78,10 @@ def main():
            f"- 전체 접촉 관찰: {result['events']}건"]
     lines.append("- 동일 계획의 반복 접촉: {}건 / {}개 계획 (독립 표본 아님)".format(result["clustered_events"],result["clustered_plans"]))
     lines.append("- 매수구간 접촉 계획 수(계획당 첫 접촉 1건): {}개".format(result["plans_with_touch"]))
+    lines.extend(["","| 종목 | 최초 접촉일 | 분류 | 후속 반복 접촉 |",
+                  "|---|---|---|---:|"])
+    for item in result["first_touch_per_plan"]:
+        lines.append("| {} | {} | {} | {} |".format(item["ticker"],item["first_touch_date"],item["first_touch_status"],item["repeated_touch_count"]))
     for status,n in sorted(result["status_counts"].items()):
         lines.append(f"- {status}: {n}건")
     lines.extend(["","| 후속 관찰 | 완료 표본 | 미완료 | 완료 표본 내 손절 접촉 | 완료 표본 내 목표 접촉 |",
