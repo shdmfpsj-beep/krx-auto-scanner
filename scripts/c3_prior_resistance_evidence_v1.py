@@ -29,6 +29,12 @@ def assess(plan,prices):
     nearest_pivot=min(pivots,key=lambda x:x[1]) if enough and pivots else None
     target_above_candidate=bool(nearest is not None and target>nearest)
     target_gap_pct=round(100*(target/nearest-1),3) if nearest else None
+    pivot_price=nearest_pivot[1] if nearest_pivot else None
+    entry_risk=entry-stop
+    pivot_reward_risk=round((pivot_price-entry)/entry_risk,3) if pivot_price is not None and entry_risk>0 else None
+    target_reward_risk=round((target-entry)/entry_risk,3) if entry_risk>0 else None
+    pivot_before_target=bool(pivot_price is not None and pivot_price<target)
+    entry_geometry_valid=bool(stop<entry<target)
     return dict(ticker=ticker,selection_date=cutoff,prior_sessions=len(prior),
                 minimum_prior_sessions=MIN_PRIOR_SESSIONS,
                 sufficient_history=enough,
@@ -39,6 +45,11 @@ def assess(plan,prices):
                 prior_swing_high_count=len(pivots),
                 swing_high_method="2_LEFT_2_RIGHT_PRIOR_BARS_ONLY",
                 planned_first_target=target,
+                entry_geometry_valid=entry_geometry_valid,
+                planned_target_reward_risk_at_watch_high=target_reward_risk,
+                prior_swing_reward_risk_at_watch_high=pivot_reward_risk,
+                prior_swing_before_planned_target=pivot_before_target,
+                pivot_is_confirmed_resistance=False,
                 target_vs_nearest_prior_high_pct=target_gap_pct,
                 planned_target_above_nearest_prior_high=target_above_candidate,
                 nearest_prior_high_may_limit_target=target_above_candidate,
@@ -66,14 +77,18 @@ def main():
         report=build(list(csv.DictReader(f)),read_rows(a.prices))
     Path(a.output).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     lines=["### 첫 저항 후보 근거 점검 (선정일 이전 데이터만)",
-           "| 종목 | 과거 일봉 | 단순 과거 고가 | 스윙고점 후보 | 기존 목표가 | 판정 |",
+           "| 종목 | 스윙고점 후보 | 목표가 | 스윙고점까지 손익비 | 목표가 손익비 | 판정 |",
            "|---|---:|---:|---:|---:|---|"]
     for r in report["results"]:
         nearest=r["nearest_prior_high_above_watch_high"]
         pivot=r["nearest_confirmed_prior_swing_high"]
-        lines.append("| {} | {} | {} | {} | {:,.0f} | {} |".format(r["ticker"],r["prior_sessions"],
-            "{:,.0f}".format(nearest) if nearest is not None else "미확인",
-            "{:,.0f}".format(pivot) if pivot is not None else "미확인",r["planned_first_target"],r["status"]))
+        lines.append("| {} | {} | {:,.0f} | {} | {} | {} |".format(
+            r["ticker"],
+            "{:,.0f}".format(pivot) if pivot is not None else "미확인",
+            r["planned_first_target"],
+            "{:.2f}".format(r["prior_swing_reward_risk_at_watch_high"]) if r["prior_swing_reward_risk_at_watch_high"] is not None else "미확인",
+            "{:.2f}".format(r["planned_target_reward_risk_at_watch_high"]) if r["planned_target_reward_risk_at_watch_high"] is not None else "미확인",
+            r["status"]))
     lines.extend(["","> 최소 20거래일의 선정일 이전 일봉 필요. 과거 고가 후보는 검증된 저항선이 아니며 데이터 출처도 미인증. 미래 데이터 사용 금지."])
     Path(a.markdown).write_text("\n".join(lines)+"\n",encoding="utf-8")
     print(json.dumps({"schema":report["schema"],"statuses":[x["status"] for x in report["results"]],"trade_approved":False}))
