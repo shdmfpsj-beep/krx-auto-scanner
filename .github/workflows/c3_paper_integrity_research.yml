@@ -351,6 +351,8 @@ jobs:
             fi
             if [ -s /tmp/c3-top2/naver_pykrx_concordance_experimental.json ]; then
               python -c 'import json; d=json.load(open("/tmp/c3-top2/naver_pykrx_concordance_experimental.json")); print("NAVER/pykrx: 비교 {}건, 일치 {}건, 불일치 {}건 (가격 인증 아님)".format(d["comparison_count"],d["result_counts"].get("MATCH",0),d["result_counts"].get("MISMATCH",0)))' >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo 'NAVER/pykrx: 미수집 또는 비교 미완료 — NAVER 데이터 연결 성공으로 간주하지 않음' >> "$GITHUB_STEP_SUMMARY"
             fi
             if [ -s /tmp/c3-top2/provider_gap_entry_impact.md ]; then
               echo ''
