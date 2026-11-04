@@ -32,6 +32,7 @@ class CohortTests(unittest.TestCase):
         r=summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",results=[dict(events=events)]))
         self.assertEqual(r["horizons"]["5"]["complete"],2)
         self.assertEqual(r["first_touch_horizons"]["5"]["complete"],1)
+        self.assertEqual(r["first_touch_per_plan"][0]["forward_progress"][0]["remaining_sessions"],5)
     def test_verified_fill_rejected(self):
         with self.assertRaisesRegex(ValueError,"UNEXPECTED_VERIFIED_FILL"):
             summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",
