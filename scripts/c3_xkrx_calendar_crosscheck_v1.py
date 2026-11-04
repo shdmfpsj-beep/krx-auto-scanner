@@ -57,6 +57,13 @@ def main():
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({k:v for k,v in result.items() if k!="results"},ensure_ascii=False))
+    for ticker,info in result["results"].items():
+        print("C3_XKRX_DATE_DIAGNOSTICS="+json.dumps(dict(
+            ticker=ticker,
+            missing_expected_dates=info["missing_expected_dates"][:30],
+            unexpected_observed_dates=info["unexpected_observed_dates"][:30],
+            missing_count=len(info["missing_expected_dates"]),
+            unexpected_count=len(info["unexpected_observed_dates"])),ensure_ascii=False))
     raise SystemExit(2 if result["discrepancies_found"] else 0)
 
 if __name__=="__main__":
