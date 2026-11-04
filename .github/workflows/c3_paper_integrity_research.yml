@@ -8,6 +8,7 @@ on:
       - 'scripts/test_c3_paper_integrity_audit_v1.py'
       - 'scripts/c3_price_concordance_v1.py'
       - 'scripts/c3_yahoo_reference_experiment_v1.py'
+      - 'config/c3_top2_yahoo_symbols_experimental.csv'
       - 'scripts/test_c3_yahoo_reference_experiment_v1.py'
       - 'scripts/c3_entry_geometry_research_v1.py'
       - 'scripts/c3_no_fill_opportunity_v1.py'
@@ -43,6 +44,7 @@ on:
       - 'scripts/test_c3_paper_integrity_audit_v1.py'
       - 'scripts/c3_price_concordance_v1.py'
       - 'scripts/c3_yahoo_reference_experiment_v1.py'
+      - 'config/c3_top2_yahoo_symbols_experimental.csv'
       - 'scripts/test_c3_yahoo_reference_experiment_v1.py'
       - 'scripts/c3_entry_geometry_research_v1.py'
       - 'scripts/c3_no_fill_opportunity_v1.py'
@@ -167,6 +169,8 @@ jobs:
         with:
           # Full checkout fails on an unrelated overlong tracked path.
           sparse-checkout: |
+            scripts/c3_yahoo_reference_experiment_v1.py
+            config/c3_top2_yahoo_symbols_experimental.csv
             scripts/c3_top2_pykrx_export_v1.py
             scripts/c3_top2_cross_ticker_gap_v1.py
             scripts/c3_top2_provisional_report_v1.py
@@ -186,7 +190,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install research-only provider
-        run: pip install pykrx==1.2.9 pandas==2.2.3 exchange-calendars==4.13.1
+        run: pip install pykrx==1.2.9 pandas==2.2.3 exchange-calendars==4.13.1 yfinance==0.2.66
       - name: Collect previous completed KST date
         run: |
           END_DATE="$(TZ=Asia/Seoul date -d yesterday +%F)"
@@ -207,6 +211,16 @@ jobs:
         run: |
           python scripts/c3_top2_provisional_report_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --manifest /tmp/c3-top2/manifest.json --output /tmp/c3-top2/top2_provisional_research.json
           python scripts/c3_top2_mobile_summary_v1.py --input /tmp/c3-top2/top2_provisional_research.json --calendar-check /tmp/c3-top2/xkrx_third_party_calendar_check.json --output /tmp/c3-top2/TOP2_mobile_summary.md
+      - name: Experiment with separate Yahoo reference feed (non-certifying)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -f /tmp/c3-top2/manifest.json ]; then
+            START_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["start"])')"
+            END_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')"
+            python scripts/c3_yahoo_reference_experiment_v1.py --plans config/c3_paper_top2_plans.csv --symbols config/c3_top2_yahoo_symbols_experimental.csv --start "$START_DATE" --end "$END_DATE" --output /tmp/c3-top2/yahoo_reference_experimental.csv --status /tmp/c3-top2/yahoo_reference_status.json
+          fi
       - name: Publish mobile research summary in Actions
         if: always()
         shell: bash
