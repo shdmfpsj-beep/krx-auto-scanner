@@ -24,6 +24,14 @@ class YahooReferenceTests(unittest.TestCase):
         rows=normalize(Frame(),"271560")
         self.assertEqual(rows[0]["ticker"],"271560")
         self.assertEqual(rows[0]["date"],"2026-11-03")
+        self.assertIsNone(rows[0]["adj_close"])
+    def test_adjusted_close_preserved(self):
+        class Frame:
+            empty=False
+            def iterrows(self):
+                from datetime import date
+                yield date(2026,11,3),{"Open":100,"High":110,"Low":90,"Close":105,"Adj Close":104.5,"Volume":100}
+        self.assertEqual(normalize(Frame(),"271560")[0]["adj_close"],104.5)
 
 if __name__=="__main__":
     unittest.main()
