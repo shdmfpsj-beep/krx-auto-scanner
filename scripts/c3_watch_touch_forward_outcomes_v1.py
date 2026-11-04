@@ -55,7 +55,18 @@ def analyze(plan,prices):
                                  future_stop_touch_days=sum(x["low"]<=stop for _,x in future),
                                  future_target_touch_days=sum(x["high"]>=target for _,x in future),
                                  strategy_return_pct=None,verified_fill=False))
-        events.append(dict(date=day,status=status,entry_reference_close=bar["close"],
+        # Touch-day low can breach the stop before, during or after the
+        # watch-zone touch. Daily OHLC cannot establish the intraday order.
+        touch_day_stop_breached=bool(bar["low"]<=stop)
+        touch_day_gap_below_stop=bool(bar["open"]<=stop)
+        touch_day_target_touched=bool(bar["high"]>=target)
+        touch_day_execution_ambiguous=bool(touch_day_stop_breached or touch_day_target_touched)
+        events.append(dict(date=day,status=status,
+                           touch_day_stop_breached=touch_day_stop_breached,
+                           touch_day_gap_below_stop=touch_day_gap_below_stop,
+                           touch_day_target_touched=touch_day_target_touched,
+                           touch_day_execution_ambiguous=touch_day_execution_ambiguous,
+                           entry_reference_close=bar["close"],
                            actual_entry_price=None,verified_fill=False,outcomes=outcomes))
     return dict(ticker=ticker,plan_id=plan["plan_id"],events=events,
                 watch_events=len(events),verified_fills=0,
@@ -92,6 +103,8 @@ def main():
     print(json.dumps({"schema":report["schema"],
         "watch_events":sum(x["watch_events"] for x in report["results"]),
         "outcomes":[{"ticker":r["ticker"],"date":e["date"],"status":e["status"],
+                     "touch_day_stop_breached":e["touch_day_stop_breached"],
+                     "touch_day_execution_ambiguous":e["touch_day_execution_ambiguous"],
                      "horizons":[{"sessions":h["horizon_sessions"],
                                   "observed":h["observed_future_sessions"],
                                   "complete":h["complete"],
