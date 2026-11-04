@@ -7,6 +7,7 @@ Passing OHLC equality does not itself certify 09:00-15:30 coverage.
 import argparse
 import csv
 import json
+import math
 from collections import Counter
 from pathlib import Path
 
@@ -26,6 +27,8 @@ def read_rows(path):
         if key in result:
             raise ValueError("DUPLICATE_TICKER_DATE")
         vals = {k: float(row[k]) for k in FIELDS}
+        if any(not math.isfinite(v) for v in vals.values()) or vals["volume"] < 0 or any(vals[k] <= 0 for k in FIELDS[:4]):
+            raise ValueError("INVALID_NONFINITE_OR_NONPOSITIVE_PRICE")
         if not (vals["low"] <= min(vals["open"], vals["close"]) <=
                 max(vals["open"], vals["close"]) <= vals["high"]):
             raise ValueError("INVALID_OHLC")
@@ -48,6 +51,10 @@ def compare(primary, reference, primary_provider, reference_provider,
         diffs = [field for field in FIELDS if a[key][field] != b[key][field]]
         rows.append(dict(ticker=key[0], date=key[1],
                          result="MISMATCH" if diffs else "MATCH", fields=diffs))
+    for key in sorted(set(b) - set(a)):
+        rows.append(dict(ticker=key[0], date=key[1],
+                         result="REFERENCE_ONLY", fields=[]))
+    rows.sort(key=lambda r: (r["ticker"], r["date"]))
     counts = dict(Counter(r["result"] for r in rows))
     # A reference with unclear after-hours scope cannot certify regular-only.
     certified = bool(reference_regular_only and rows and
