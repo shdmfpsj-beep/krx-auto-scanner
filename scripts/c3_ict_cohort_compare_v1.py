@@ -12,11 +12,15 @@ from c3_watch_touch_forward_outcomes_v1 import build
 def compare(plans, prices, ict_lookback=10, signal_max_age=10):
     if signal_max_age<1:
         raise ValueError("INVALID_SIGNAL_MAX_AGE")
+    if ict_lookback<3:
+        raise ValueError("LOOKBACK_TOO_SHORT")
     baseline=build(plans,prices,require_top2=False)
     enriched=[]
     for result in baseline["results"]:
         ticker=result["ticker"]
         series=sorted((day,bar) for (code,day),bar in prices.items() if code==ticker)
+        if not series:
+            raise ValueError("MISSING_TICKER_PRICE_HISTORY")
         bars=[dict(bar,date=day) for day,bar in series]
         signals=detect(bars,lookback=ict_lookback)
         # Use only signals completed strictly before touch date.
@@ -62,6 +66,8 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
                                        stop_first=sum(x["stop_target_touch_order"]=="STOP_FIRST" for x in complete),
                                        ambiguous_order=sum(x["stop_target_touch_order"]=="SAME_DAY_ORDER_UNKNOWN" for x in complete))
     return dict(schema="C3_ICT_MATCHED_COHORT_V1",rows=enriched,horizon_counts=counts,
+                history_coverage_certified=False,
+                regular_session_price_certified=False,
                 observation_unit="FIRST_TOUCH_PER_PLAN",
                 independent_plan_count=len({e["plan_id"] for e in enriched}),
                 ict_filter_retention=retention,
