@@ -51,12 +51,22 @@ def build(entry,impact):
             forward_horizons_total=total,
             max_provider_gap_pct=gap,
             price_certified=False))
+    observations_complete=all(r["observation_complete"] for r in results)
+    forward_complete=all(r["forward_horizons_total"]>0 and
+                         r["forward_horizons_complete"]==r["forward_horizons_total"]
+                         for r in results)
+    blockers=["INDEPENDENT_PRICE_UNVERIFIED","OFFICIAL_SESSION_CALENDAR_UNVERIFIED",
+              "STRATEGY_PROFITABILITY_UNVERIFIED"]
+    if not observations_complete:
+        blockers.append("INITIAL_FIVE_SESSION_OBSERVATION_INCOMPLETE")
+    if not forward_complete:
+        blockers.append("FORWARD_HORIZONS_INCOMPLETE")
     return dict(schema="C3_TOP2_PROGRESS_STATUS_V1",
         status="RESEARCH_ONLY",implementation_ci_verified=None,
         price_source_certified=False,official_session_calendar_verified=False,
         strategy_profitability_verified=False,trade_approved=False,orders_enabled=False,
         progress_percentage=None,
-        readiness_gate="BLOCKED_UNVERIFIED_PRICES_AND_INCOMPLETE_FORWARD_SAMPLE",
+        readiness_gate="BLOCKED",readiness_blockers=blockers,
         next_actions=["VERIFY_INDEPENDENT_REGULAR_SESSION_OHLCV","COMPLETE_5_10_20_SESSION_OBSERVATIONS","AUDIT_PAPER_FILL_ASSUMPTIONS"],
         note="PROGRESS_NOT_A_PERFORMANCE_SCORE",
         results=results)
