@@ -56,6 +56,8 @@ def build(entry,impact):
         price_source_certified=False,official_session_calendar_verified=False,
         strategy_profitability_verified=False,trade_approved=False,orders_enabled=False,
         progress_percentage=None,
+        readiness_gate="BLOCKED_UNVERIFIED_PRICES_AND_INCOMPLETE_FORWARD_SAMPLE",
+        next_actions=["VERIFY_INDEPENDENT_REGULAR_SESSION_OHLCV","COMPLETE_5_10_20_SESSION_OBSERVATIONS","AUDIT_PAPER_FILL_ASSUMPTIONS"],
         note="PROGRESS_NOT_A_PERFORMANCE_SCORE",
         results=results)
 
@@ -72,6 +74,7 @@ def markdown(report):
     lines.extend(["","- 구현: 진입기회·사후관찰·공급원 차이 분석",
                   "- 미완료: 공식 거래일·독립 가격 인증·수익성 검증",
                   "- 진행률: 수치 산정 보류 (기능 구현과 실전 신뢰도 분리)",
+                  "- 실전 전환: 차단 — 독립 가격 검증·사후 표본·가상체결 가정 검증 필요",
                   "> CASH / 신규매수 보류. 체결·주문·수익률 인증 아님."])
     return "\n".join(lines)+"\n"
 
