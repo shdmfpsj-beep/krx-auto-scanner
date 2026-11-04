@@ -12,6 +12,8 @@ on:
       - 'scripts/c3_free_provider_triangulation_v1.py'
       - 'scripts/c3_conservative_paper_touch_audit_v1.py'
       - 'scripts/c3_watch_touch_forward_outcomes_v1.py'
+      - 'scripts/c3_watch_touch_cohort_audit_v1.py'
+      - 'scripts/test_c3_watch_touch_cohort_audit_v1.py'
       - 'scripts/test_c3_watch_touch_forward_outcomes_v1.py'
       - 'scripts/test_c3_conservative_paper_touch_audit_v1.py'
       - 'scripts/test_c3_free_provider_triangulation_v1.py'
@@ -60,6 +62,8 @@ on:
       - 'scripts/c3_free_provider_triangulation_v1.py'
       - 'scripts/c3_conservative_paper_touch_audit_v1.py'
       - 'scripts/c3_watch_touch_forward_outcomes_v1.py'
+      - 'scripts/c3_watch_touch_cohort_audit_v1.py'
+      - 'scripts/test_c3_watch_touch_cohort_audit_v1.py'
       - 'scripts/test_c3_watch_touch_forward_outcomes_v1.py'
       - 'scripts/test_c3_conservative_paper_touch_audit_v1.py'
       - 'scripts/test_c3_free_provider_triangulation_v1.py'
@@ -115,6 +119,7 @@ jobs:
             scripts/c3_free_provider_triangulation_v1.py
             scripts/c3_conservative_paper_touch_audit_v1.py
             scripts/c3_watch_touch_forward_outcomes_v1.py
+            scripts/c3_watch_touch_cohort_audit_v1.py
             scripts/c3_yahoo_adjustment_diagnostic_v1.py
             scripts/c3_provider_gap_entry_impact_v1.py
             scripts/test_c3_yahoo_adjustment_diagnostic_v1.py
@@ -125,6 +130,7 @@ jobs:
             scripts/test_c3_free_provider_triangulation_v1.py
             scripts/test_c3_conservative_paper_touch_audit_v1.py
             scripts/test_c3_watch_touch_forward_outcomes_v1.py
+            scripts/test_c3_watch_touch_cohort_audit_v1.py
             scripts/c3_entry_geometry_research_v1.py
             scripts/c3_no_fill_opportunity_v1.py
             scripts/c3_entry_style_comparison_v1.py
@@ -171,6 +177,8 @@ jobs:
         run: python -m unittest discover -s scripts -p 'test_c3_yahoo_adjustment_diagnostic_v1.py' -v
       - name: Test provider discrepancy diagnostic
         run: python -m unittest discover -s scripts -p 'test_c3_provider_difference_diagnostic_v1.py' -v
+      - name: Test watch-touch cohort aggregation
+        run: python -m unittest discover -s scripts -p 'test_c3_watch_touch_cohort_audit_v1.py' -v
       - name: Test watch-touch forward benchmarks
         run: python -m unittest discover -s scripts -p 'test_c3_watch_touch_forward_outcomes_v1.py' -v
       - name: Test conservative paper entry-stop collision audit
@@ -229,6 +237,7 @@ jobs:
             scripts/c3_free_provider_triangulation_v1.py
             scripts/c3_conservative_paper_touch_audit_v1.py
             scripts/c3_watch_touch_forward_outcomes_v1.py
+            scripts/c3_watch_touch_cohort_audit_v1.py
             scripts/c3_yahoo_adjustment_diagnostic_v1.py
             scripts/c3_provider_gap_entry_impact_v1.py
             scripts/c3_provider_difference_diagnostic_v1.py
@@ -280,6 +289,13 @@ jobs:
         run: |
           if [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
             python scripts/c3_watch_touch_forward_outcomes_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/watch_touch_forward_outcomes.json --markdown /tmp/c3-top2/watch_touch_forward_outcomes.md
+          fi
+      - name: Aggregate completed watch-touch cohorts
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/watch_touch_forward_outcomes.json ]; then
+            python scripts/c3_watch_touch_cohort_audit_v1.py --source /tmp/c3-top2/watch_touch_forward_outcomes.json --output /tmp/c3-top2/watch_touch_cohort_audit.json --markdown /tmp/c3-top2/watch_touch_cohort_audit.md
           fi
       - name: Observe TOP2 forward 5-10-20 sessions without claiming fills
         if: always()
@@ -408,6 +424,9 @@ jobs:
               python -c 'import json; d=json.load(open("/tmp/c3-top2/naver_pykrx_concordance_experimental.json")); print("NAVER/pykrx: 비교 {}건, 일치 {}건, 불일치 {}건 (가격 인증 아님)".format(d["comparison_count"],d["result_counts"].get("MATCH",0),d["result_counts"].get("MISMATCH",0)))' >> "$GITHUB_STEP_SUMMARY"
             else
               echo 'NAVER/pykrx: 미수집 또는 비교 미완료 — NAVER 데이터 연결 성공으로 간주하지 않음' >> "$GITHUB_STEP_SUMMARY"
+            fi
+            if [ -s /tmp/c3-top2/watch_touch_cohort_audit.md ]; then
+              cat /tmp/c3-top2/watch_touch_cohort_audit.md
             fi
             if [ -s /tmp/c3-top2/watch_touch_forward_outcomes.md ]; then
               cat /tmp/c3-top2/watch_touch_forward_outcomes.md
