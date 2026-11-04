@@ -186,12 +186,9 @@ jobs:
         if: success()
         shell: bash
         run: |
-          python scripts/c3_xkrx_calendar_crosscheck_v1.py \\
-            --plans config/c3_paper_top2_plans.csv \\
-            --prices /tmp/c3-top2/top2_provisional_ohlcv.csv \\
-            --start "$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["start"])')" \\
-            --end "$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')" \\
-            --output /tmp/c3-top2/xkrx_third_party_calendar_check.json
+          START_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["start"])')"
+          END_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')"
+          python scripts/c3_xkrx_calendar_crosscheck_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --start "$START_DATE" --end "$END_DATE" --output /tmp/c3-top2/xkrx_third_party_calendar_check.json
       - name: Build provisional TOP2 analysis
         if: success()
         run: |
