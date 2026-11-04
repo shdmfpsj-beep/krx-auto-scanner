@@ -274,7 +274,7 @@ jobs:
         shell: bash
         run: |
           if [ -s /tmp/c3-top2/yahoo_adjustment_diagnostics.json ]; then
-            python scripts/c3_provider_gap_entry_impact_v1.py --plans config/c3_paper_top2_plans.csv --diagnostic /tmp/c3-top2/yahoo_adjustment_diagnostics.json --output /tmp/c3-top2/provider_gap_entry_impact.json
+            python scripts/c3_provider_gap_entry_impact_v1.py --plans config/c3_paper_top2_plans.csv --diagnostic /tmp/c3-top2/yahoo_adjustment_diagnostics.json --output /tmp/c3-top2/provider_gap_entry_impact.json --markdown /tmp/c3-top2/provider_gap_entry_impact.md
           fi
       - name: Publish mobile research summary in Actions
         if: always()
@@ -291,6 +291,10 @@ jobs:
               echo '보고서가 생성되지 않았습니다. 앞선 수집·무결성 단계의 오류를 확인하세요.'
             fi
             echo ''
+            if [ -s /tmp/c3-top2/provider_gap_entry_impact.md ]; then
+              echo ''
+              cat /tmp/c3-top2/provider_gap_entry_impact.md
+            fi
             if [ -s /tmp/c3-top2/yahoo_adjustment_daily_table.md ]; then
               echo ''
               cat /tmp/c3-top2/yahoo_adjustment_daily_table.md
