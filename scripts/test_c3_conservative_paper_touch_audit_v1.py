@@ -17,6 +17,20 @@ class ConservativeTouchTests(unittest.TestCase):
         r=audit(PLAN,prices)
         self.assertEqual(r["watch_touch_days"],0)
         self.assertEqual(r["same_bar_entry_stop_ambiguities"],0)
+    def test_gap_below_stop_is_not_intraday_order_ambiguity(self):
+        prices={("271560","2026-11-02"):dict(open=90,high=102,low=89,close=101)}
+        r=audit(PLAN,prices)
+        self.assertEqual(r["gap_below_stop_days"],1)
+        self.assertEqual(r["same_bar_entry_stop_ambiguities"],0)
+        self.assertEqual(r["observations"][0]["status"],"GAP_BELOW_STOP")
+    def test_watch_touch_without_stop(self):
+        prices={("271560","2026-11-02"):dict(open=108,high=109,low=102,close=104)}
+        r=audit(PLAN,prices)
+        self.assertEqual(r["watch_touch_without_stop_days"],1)
+        self.assertEqual(r["verified_fills"],0)
+    def test_nonfinite_plan_rejected(self):
+        with self.assertRaisesRegex(ValueError,"INVALID_PLAN_GEOMETRY"):
+            audit(dict(PLAN,watch_low="nan"),{})
     def test_bad_plan_fails(self):
         with self.assertRaisesRegex(ValueError,"INVALID_PLAN_GEOMETRY"):
             audit(dict(PLAN,structure_stop="101"),{})
