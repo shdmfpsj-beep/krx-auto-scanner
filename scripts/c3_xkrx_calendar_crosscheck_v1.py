@@ -7,7 +7,13 @@ from pathlib import Path
 
 def compare(plans, prices, start, end, sessions):
     expected=set(sessions)
+    if not expected:
+        raise ValueError("EMPTY_THIRD_PARTY_SESSION_CALENDAR")
+    if len(expected)!=len(sessions):
+        raise ValueError("DUPLICATE_THIRD_PARTY_SESSION_DATE")
     observed={p["ticker"]:set() for p in plans}
+    if len(observed)!=2 or len(plans)!=2:
+        raise ValueError("EXPECTED_TWO_UNIQUE_PLANS")
     for row in prices:
         if row["ticker"] in observed:
             observed[row["ticker"]].add(row["date"])
