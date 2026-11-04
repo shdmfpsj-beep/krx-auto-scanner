@@ -1,0 +1,69 @@
+name: C3 entry benchmark research
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_entry_benchmark_v1.py'
+      - 'scripts/test_c3_entry_benchmark_v1.py'
+      - 'scripts/c3_mobile_research_charts_v1.py'
+      - '.github/workflows/c3_entry_benchmark_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: pip install pandas==2.2.3 pykrx==1.2.9 'matplotlib>=3.8,<4'
+      - name: All C3 regression tests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: scripts
+        run: python -m unittest discover -s scripts -p 'test_c3_*.py' -q
+      - name: Capture separate market reference (non-certifying)
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          from pykrx import stock
+          from c3_top2_pykrx_export_v1 import collect,routing_probe
+          root=Path('/tmp/c3-entry');root.mkdir(parents=True,exist_ok=True)
+          status=json.loads(Path('reports/c3_premove_observation_status_v1.json').read_text())
+          rows,days,failures=collect([dict(ticker='069500'),dict(ticker='229200')],stock.get_market_ohlcv_by_date,'2025-05-02',status['asof'])
+          market=[r for r in rows if r['ticker']=='069500']
+          if market and '069500' not in failures:
+              with (root/'market_reference.csv').open('w',newline='') as f:
+                  w=csv.DictWriter(f,fieldnames=list(market[0]));w.writeheader();w.writerows(market)
+          probe=routing_probe(stock.get_market_ohlcv_by_date)
+          (root/'market_reference_manifest.json').write_text(json.dumps(dict(provider='pykrx',ticker='069500',start='2025-05-02',end=status['asof'],rows=len(market),failures=failures,source_routing_probe=probe,regular_only_certified=False,orders_enabled=False),indent=2))
+          PY
+      - name: Reproduce hash-audited five-ticker study
+        run: |
+          python scripts/c3_entry_benchmark_v1.py --history-dir reports/c3_v23_ohlcv --manifest reports/c3_v23_ohlcv/manifest.json --calendar reports/c3_reference_calendar_v1.json --outdir /tmp/c3-entry/five_ticker
+      - name: Reproduce curated non-biotech sensitivity study
+        shell: bash
+        run: |
+          market_args=()
+          if [ -s /tmp/c3-entry/market_reference.csv ]; then
+            market_args=(--market-csv /tmp/c3-entry/market_reference.csv)
+          fi
+          python scripts/c3_entry_benchmark_v1.py --archive reports/c3_premove_history_v1.csv.gz --archive-status reports/c3_premove_observation_status_v1.json --calendar reports/c3_reference_calendar_v1.json --members reports/v68_investment_sector_members.csv --basic-dir config/c3_screening_evidence/basic_20261023 --outdir /tmp/c3-entry/expanded "${market_args[@]}"
+      - name: Render frozen paper-plan charts (not current TOP2)
+        run: |
+          python scripts/c3_mobile_research_charts_v1.py --plans config/c3_paper_top2_plans.csv --prices reports/c3_work_20261104/inputs/top2_provisional_ohlcv.csv --outdir /tmp/c3-entry/charts
+      - name: Archive reproducible research results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-entry-benchmark-research
+          path: /tmp/c3-entry/
+          if-no-files-found: error
+          retention-days: 30
