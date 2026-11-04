@@ -18,6 +18,8 @@ def assess(plan,prices):
     enough=len(prior)>=MIN_PRIOR_SESSIONS
     resistance_candidates=sorted(set(float(bar["high"]) for _,bar in prior if float(bar["high"])>entry))
     nearest=resistance_candidates[0] if enough and resistance_candidates else None
+    target_nearest_gap_pct=round(100*(target/nearest-1),3) if nearest else None
+    target_above_candidate=bool(nearest is not None and target>nearest)
     target_gap_pct=round(100*(target/nearest-1),3) if nearest else None
     return dict(ticker=ticker,selection_date=cutoff,prior_sessions=len(prior),
                 minimum_prior_sessions=MIN_PRIOR_SESSIONS,
@@ -26,6 +28,8 @@ def assess(plan,prices):
                 nearest_prior_high_above_watch_high=nearest,
                 planned_first_target=target,
                 target_vs_nearest_prior_high_pct=target_gap_pct,
+                planned_target_above_nearest_prior_high=target_above_candidate,
+                nearest_prior_high_may_limit_target=target_above_candidate,
                 resistance_confirmed=False,
                 status=("INSUFFICIENT_PRIOR_HISTORY" if not enough else
                         "NO_PRIOR_HIGH_ABOVE_ENTRY" if nearest is None else
@@ -49,12 +53,13 @@ def main():
         report=build(list(csv.DictReader(f)),read_rows(a.prices))
     Path(a.output).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     lines=["### 첫 저항 후보 근거 점검 (선정일 이전 데이터만)",
-           "| 종목 | 과거 일봉 | 첫 저항 후보 | 판정 |",
-           "|---|---:|---:|---|"]
+           "| 종목 | 과거 일봉 | 첫 저항 후보 | 기존 목표가 | 목표가 전 저항 후보 | 판정 |",
+           "|---|---:|---:|---:|---|---|"]
     for r in report["results"]:
         nearest=r["nearest_prior_high_above_watch_high"]
-        lines.append("| {} | {} | {} | {} |".format(r["ticker"],r["prior_sessions"],
-            "{:,.0f}".format(nearest) if nearest is not None else "미확인",r["status"]))
+        lines.append("| {} | {} | {} | {:,.0f} | {} | {} |".format(r["ticker"],r["prior_sessions"],
+            "{:,.0f}".format(nearest) if nearest is not None else "미확인",r["planned_first_target"],
+            "있음" if r["nearest_prior_high_may_limit_target"] else "미확인",r["status"]))
     lines.extend(["","> 최소 20거래일의 선정일 이전 일봉 필요. 과거 고가 후보는 검증된 저항선이 아니며 데이터 출처도 미인증. 미래 데이터 사용 금지."])
     Path(a.markdown).write_text("\n".join(lines)+"\n",encoding="utf-8")
     print(json.dumps({"schema":report["schema"],"statuses":[x["status"] for x in report["results"]],"trade_approved":False}))
