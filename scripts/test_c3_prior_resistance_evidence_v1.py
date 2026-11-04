@@ -86,6 +86,14 @@ class PriorResistanceTests(unittest.TestCase):
         prices[("271560","2026-10-15")]=dict(bar(112),close=111,low=108)
         r=assess(PLAN,prices)
         self.assertFalse(r["breakout_retest_verified"])
+    def test_invalid_ohlcv_rejected_before_resistance_analysis(self):
+        prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
+        prices[("271560","2026-10-12")]=dict(bar(104),close=110)
+        with self.assertRaisesRegex(ValueError,"INVALID_OHLCV_BAR"):
+            assess(PLAN,prices)
+        prices[("271560","2026-10-12")]=dict(bar(104),volume=-1)
+        with self.assertRaisesRegex(ValueError,"INVALID_OHLCV_BAR"):
+            assess(PLAN,prices)
     def test_no_candidate_above_entry(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
         r=assess(PLAN,prices)
