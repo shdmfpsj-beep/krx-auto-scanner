@@ -10,6 +10,10 @@ class MobileSummaryTests(unittest.TestCase):
         s=render({"coverage":{"271560":{"observed_sessions":5,"five_session_complete":True,
                    "ten_session_complete":False,"twenty_session_complete":False}}})
         self.assertIn("| 271560 | 5 | 관측 | 미완료 | 미완료 |",s)
+    def test_missing_calendar_is_visible(self):
+        s=render({"coverage":{"271560":{"observed_sessions":20,"five_session_complete":True,"ten_session_complete":True,"twenty_session_complete":True}}})
+        self.assertIn("중간 누락 거래일 여부: 검증 불가",s)
+        self.assertIn("수익률 검증 불가",s)
     def test_missing_data_is_visible(self):
         s=render({"collector_manifest":{"failures":{"271560":"EMPTY_RESPONSE"}}})
         self.assertIn("EMPTY_RESPONSE",s)
