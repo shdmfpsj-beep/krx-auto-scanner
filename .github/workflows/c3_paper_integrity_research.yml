@@ -11,6 +11,8 @@ on:
       - 'scripts/c3_no_fill_opportunity_v1.py'
       - 'scripts/c3_entry_style_comparison_v1.py'
       - 'scripts/c3_forward_horizon_observation_v1.py'
+      - 'scripts/c3_price_provenance_gate_v1.py'
+      - 'scripts/test_c3_price_provenance_gate_v1.py'
       - 'scripts/test_c3_forward_horizon_observation_v1.py'
       - 'scripts/test_c3_entry_style_comparison_v1.py'
       - 'scripts/test_c3_no_fill_opportunity_v1.py'
@@ -27,6 +29,8 @@ on:
       - 'scripts/c3_no_fill_opportunity_v1.py'
       - 'scripts/c3_entry_style_comparison_v1.py'
       - 'scripts/c3_forward_horizon_observation_v1.py'
+      - 'scripts/c3_price_provenance_gate_v1.py'
+      - 'scripts/test_c3_price_provenance_gate_v1.py'
       - 'scripts/test_c3_forward_horizon_observation_v1.py'
       - 'scripts/test_c3_entry_style_comparison_v1.py'
       - 'scripts/test_c3_no_fill_opportunity_v1.py'
@@ -50,6 +54,8 @@ jobs:
             scripts/c3_no_fill_opportunity_v1.py
             scripts/c3_entry_style_comparison_v1.py
             scripts/c3_forward_horizon_observation_v1.py
+            scripts/c3_price_provenance_gate_v1.py
+            scripts/test_c3_price_provenance_gate_v1.py
             scripts/test_c3_forward_horizon_observation_v1.py
             scripts/test_c3_entry_style_comparison_v1.py
             scripts/test_c3_no_fill_opportunity_v1.py
@@ -62,7 +68,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Compile research scripts before tests
-        run: python -m py_compile scripts/c3_paper_integrity_audit_v1.py scripts/test_c3_paper_integrity_audit_v1.py scripts/c3_price_concordance_v1.py scripts/test_c3_price_concordance_v1.py scripts/c3_entry_geometry_research_v1.py scripts/test_c3_entry_geometry_research_v1.py scripts/c3_no_fill_opportunity_v1.py scripts/test_c3_no_fill_opportunity_v1.py scripts/c3_entry_style_comparison_v1.py scripts/test_c3_entry_style_comparison_v1.py scripts/c3_forward_horizon_observation_v1.py scripts/test_c3_forward_horizon_observation_v1.py
+        run: python -m py_compile scripts/c3_paper_integrity_audit_v1.py scripts/test_c3_paper_integrity_audit_v1.py scripts/c3_price_concordance_v1.py scripts/test_c3_price_concordance_v1.py scripts/c3_entry_geometry_research_v1.py scripts/test_c3_entry_geometry_research_v1.py scripts/c3_no_fill_opportunity_v1.py scripts/test_c3_no_fill_opportunity_v1.py scripts/c3_entry_style_comparison_v1.py scripts/test_c3_entry_style_comparison_v1.py scripts/c3_forward_horizon_observation_v1.py scripts/test_c3_forward_horizon_observation_v1.py scripts/c3_price_provenance_gate_v1.py scripts/test_c3_price_provenance_gate_v1.py
       - name: Run synthetic regression tests
         run: python -m unittest discover -s scripts -p 'test_c3_paper_integrity_audit_v1.py' -v
       - name: Run synthetic independent-price regression tests
@@ -75,5 +81,7 @@ jobs:
         run: python -m unittest discover -s scripts -p 'test_c3_entry_style_comparison_v1.py' -v
       - name: Run 5-10-20 session horizon research tests
         run: python -m unittest discover -s scripts -p 'test_c3_forward_horizon_observation_v1.py' -v
+      - name: Run source provenance gate research tests
+        run: python -m unittest discover -s scripts -p 'test_c3_price_provenance_gate_v1.py' -v
       - name: Audit committed read-only paper ledger
         run: python scripts/c3_paper_integrity_audit_v1.py --plans config/c3_paper_top2_plans.csv --ledger reports/c3_paper/paper_ledger.json
