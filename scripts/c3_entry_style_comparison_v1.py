@@ -25,21 +25,37 @@ def evaluate(plan, prices):
     retest=[]
     breakout_confirmed=False
     breakout_without_pullback=[]
+    first_signal_close={}
     prior_close_above=False
     for day,b in window:
         touches=b["low"]<=high and b["high"]>=low
         if touches:
             pullback.append(day)
+            first_signal_close.setdefault('pullback',(day,b['close']))
             if breakout_confirmed:
                 retest.append(day)
+                first_signal_close.setdefault('breakout_retest',(day,b['close']))
         # A prior completed close above the anchor plus a full session above
         # the watch band indicates missed pullback opportunity, not a fill.
         if prior_close_above and b["low"]>high:
             breakout_without_pullback.append(day)
+            first_signal_close.setdefault('breakout_without_pullback',(day,b['close']))
         # Confirmation uses completed close; same-day high cannot qualify.
         if b["close"]>breakout_level:
             breakout_confirmed=True
         prior_close_above=b["close"]>breakout_level
+    # Same-day OHLC ordering is unknown: use only later completed sessions.
+    future_observations={}
+    for style,(signal_day,signal_close) in first_signal_close.items():
+        subsequent=[(day,bar) for day,bar in dates if day>signal_day]
+        future_observations[style]=[]
+        for n in (5,10,20):
+            complete=len(subsequent)>=n
+            future_observations[style].append(dict(
+                horizon_sessions=n,observed_sessions=min(len(subsequent),n),
+                complete=complete,
+                observation_close_return_pct=(round(100*(subsequent[n-1][1]["close"]/signal_close-1),4) if complete else None),
+                strategy_return_pct=None,verified_fill=False))
     return dict(plan_id=plan["plan_id"],ticker=code,
                 observed_sessions=len(window),expected_sessions=horizon,
                 observation_complete=len(window)>=horizon,
@@ -54,6 +70,7 @@ def evaluate(plan, prices):
                                                opportunity_days=len(breakout_without_pullback),
                                                requires_prior_completed_close=True,
                                                actual_fill_verified=False),
+                future_close_observations=future_observations,
                 first_resistance_verified=False,
                 trade_approved=False,orders_enabled=False,
                 note="OPPORTUNITY_ONLY_NO_EXECUTION_OR_RETURN_CLAIMS")
