@@ -26,13 +26,14 @@ jobs:
           python -m unittest discover -s scripts -p 'test_c3_price_panel_v2.py' -v
           python -m unittest discover -s scripts -p 'test_krx_official_eod_v65.py' -q
       - name: Collect bounded dated whole-market EOD panel (not regular-session certification)
+        if: github.event_name == 'workflow_dispatch'
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
           PYTHONPATH: scripts
         run: |
           python scripts/c3_price_panel_v2.py --sessions reports/c3_reference_calendar_v1.json --start 2025-05-02 --end 2026-11-04 --interval 1.0 --outdir /tmp/c3-official-panel
       - name: Preserve panel and every source failure
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: c3-official-historical-panel-v2

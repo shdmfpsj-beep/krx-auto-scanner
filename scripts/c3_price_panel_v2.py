@@ -84,7 +84,7 @@ def reference_event(previous,current,tolerance=.000001):
         return None
     shares_before=previous.get("listed_shares");shares_after=current.get("listed_shares")
     shares_ratio=shares_after/shares_before if shares_before and shares_after else None
-    candidate=("SHARE_COUNT_REBASE_CANDIDATE" if shares_ratio and abs(factor*shares_ratio-1)<.02
+    candidate=("SHARE_COUNT_REBASE_CANDIDATE" if shares_ratio and abs(shares_ratio-1)>.01 and abs(factor*shares_ratio-1)<.02
                else "REFERENCE_PRICE_REBASE_UNRESOLVED")
     return dict(date=current["date"],ticker=current["ticker"],kind=candidate,
                 previous_close=previous["close"],implied_previous_reference=implied,

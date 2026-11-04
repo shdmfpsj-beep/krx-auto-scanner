@@ -1,0 +1,74 @@
+name: C3 official-price entry competition research
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_competition_v2.py'
+      - 'scripts/c3_source_reconcile_v2.py'
+      - 'scripts/c3_work2_mobile_report_v2.py'
+      - 'scripts/test_c3_*_v2.py'
+      - 'scripts/c3_entry_geometry_v23.py'
+      - 'scripts/c3_ict_sequence_research_v1.py'
+      - 'reports/c3_work2_20261105/inputs.json'
+      - 'reports/c3_work2_20261105/strategy_comparison.csv'
+      - '.github/workflows/c3_competition_v2_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  competition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated research dependencies
+        run: pip install pandas==2.2.3 pykrx==1.2.9 'matplotlib>=3.8,<4'
+      - name: Run C3 and adjacent regression tests
+        env:
+          PYTHONPATH: scripts
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python -m unittest discover -s scripts -p 'test_c3_*.py' -q
+          python -m unittest discover -s scripts -p 'test_krx_official_eod_v65.py' -q
+          python -m unittest discover -s scripts -p 'test_hma60_first_pullback_v11.py' -q
+      - name: Reuse pinned source artifacts without new market API calls
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p /tmp/c3-work2/panel /tmp/c3-work2/basis
+          gh api repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/13367962976/zip > /tmp/c3-work2/panel.zip
+          gh api repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/13368231880/zip > /tmp/c3-work2/basis.zip
+          python - <<'PY'
+          import hashlib,json,zipfile
+          from pathlib import Path
+          m=json.loads(Path('reports/c3_work2_20261105/inputs.json').read_text())
+          for kind in ('panel','basis'):
+              p=Path('/tmp/c3-work2')/(kind+'.zip')
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==m['source_artifacts'][kind]['zip_sha256'], 'PINNED_SOURCE_ARTIFACT_MISMATCH'
+              with zipfile.ZipFile(p) as z:
+                  assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in z.namelist())
+                  z.extractall(p.parent/kind)
+          PY
+      - name: Reconcile price bases and legacy cases
+        run: python scripts/c3_source_reconcile_v2.py --panel /tmp/c3-work2/panel/official_panel.csv.gz --audit /tmp/c3-work2/panel/quality_audit.json --basis-dir /tmp/c3-work2/basis --outdir /tmp/c3-work2/reconciliation
+      - name: Reproduce frozen competition and execution uncertainty
+        run: |
+          python scripts/c3_competition_v2.py --panel /tmp/c3-work2/panel/official_panel.csv.gz --audit /tmp/c3-work2/panel/quality_audit.json --outdir /tmp/c3-work2/competition
+          cmp reports/c3_work2_20261105/strategy_comparison.csv /tmp/c3-work2/competition/strategy_comparison.csv
+      - name: Render mobile research report and historical cases
+        run: python scripts/c3_work2_mobile_report_v2.py --competition /tmp/c3-work2/competition --panel /tmp/c3-work2/panel/official_panel.csv.gz --outdir /tmp/c3-work2/mobile
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-official-entry-competition-v2
+          path: |
+            /tmp/c3-work2/competition/
+            /tmp/c3-work2/reconciliation/
+            /tmp/c3-work2/mobile/
+          retention-days: 90
+          if-no-files-found: error

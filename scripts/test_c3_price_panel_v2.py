@@ -43,6 +43,9 @@ class PricePanelTests(unittest.TestCase):
         self.assertEqual(reference_event(p,c)['kind'],'REFERENCE_PRICE_REBASE_UNRESOLVED')
     def test_ordinary_negative_change_is_not_a_corporate_action(self):
         self.assertIsNone(reference_event(norm(raw(TDD_CLSPRC='100')),norm()))
+    def test_small_reference_discrepancy_with_unchanged_shares_is_not_a_split(self):
+        p=norm(raw(TDD_CLSPRC='10000'));c=norm(raw(TDD_CLSPRC='10005',CMPPREVDD_PRC='0'))
+        self.assertEqual(reference_event(p,c)['kind'],'REFERENCE_PRICE_REBASE_UNRESOLVED')
     def test_one_missing_market_blocks_complete_dataset(self):
         a=audit_panel([norm()],[DAY],[dict(date=DAY,market='KOSPI',status='OK')])
         self.assertEqual(a['missing_market_dates'],[dict(date=DAY,market='KOSDAQ')])
