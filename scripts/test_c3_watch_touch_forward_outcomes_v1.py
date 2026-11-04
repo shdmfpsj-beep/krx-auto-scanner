@@ -35,6 +35,21 @@ class WatchTouchForwardTests(unittest.TestCase):
         r=analyze(PLAN,prices)
         self.assertEqual(r["events"][0]["outcomes"][0]["stop_target_touch_order"],
                          "SAME_DAY_ORDER_UNKNOWN")
+    def test_stop_then_later_rebound_above_watch_low(self):
+        prices={("271560","2026-11-02"):bar(103,108,101,104),
+                ("271560","2026-11-03"):bar(99,102,94,97),
+                ("271560","2026-11-04"):bar(99,104,97,101)}
+        r=analyze(PLAN,prices)
+        h=r["events"][0]["outcomes"][0]
+        self.assertEqual(h["first_future_stop_touch_date"],"2026-11-03")
+        self.assertTrue(h["post_stop_rebound_observed"])
+        self.assertEqual(h["first_post_stop_rebound_date"],"2026-11-04")
+        self.assertIsNone(h["strategy_return_pct"])
+    def test_same_day_recovery_is_not_later_rebound(self):
+        prices={("271560","2026-11-02"):bar(103,108,101,104),
+                ("271560","2026-11-03"):bar(101,105,94,102)}
+        r=analyze(PLAN,prices)
+        self.assertFalse(r["events"][0]["outcomes"][0]["post_stop_rebound_observed"])
     def test_zero_future_days_has_no_excursion(self):
         prices={("271560","2026-11-02"):bar(106,108,102,104)}
         r=analyze(PLAN,prices)
