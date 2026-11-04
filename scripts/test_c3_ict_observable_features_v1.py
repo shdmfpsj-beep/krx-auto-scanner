@@ -57,6 +57,9 @@ class ICTFeatureTests(unittest.TestCase):
                 ("TEST","2026-01-03"):dict(open=30,high=31,low=29,close=30)}
         report=compare([plan],prices)
         self.assertEqual(report["rows"],[])
+        self.assertFalse(report["evidence_readiness_by_horizon"]["5"])
+        self.assertFalse(report["evidence_readiness_by_horizon"]["10"])
+        self.assertFalse(report["evidence_readiness_by_horizon"]["20"])
         self.assertEqual(report["ict_filter_retention"]["total_plans"],1)
         self.assertEqual(report["ict_filter_retention"]["no_touch_plans"],1)
         self.assertFalse(report["trade_approved"])
