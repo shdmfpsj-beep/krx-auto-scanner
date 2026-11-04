@@ -34,6 +34,20 @@ class ICTFeatureTests(unittest.TestCase):
         bars.append(b("12",115,117,110.5,114))
         self.assertEqual(detect(bars)[-1]["event"],"FVG_RETEST_WATCH")
         self.assertFalse(detect(bars)[-1]["trade_approved"])
+    def test_retest_after_sweep_invalidation_is_rejected(self):
+        bars=[b(str(i),100,110,90,100) for i in range(10)]
+        bars.append(b("10",94,105,89,95))
+        bars.append(b("11",112,125,111,123))
+        bars.append(b("12",88,112,85,87))
+        bars.append(b("13",110,115,110,112))
+        events=detect(bars)
+        self.assertEqual([e["event"] for e in events],["DISPLACED_STRUCTURE_BREAK"])
+    def test_sweep_invalidated_before_break(self):
+        bars=[b(str(i),100,110,90,100) for i in range(10)]
+        bars.append(b("10",94,105,89,95))
+        bars.append(b("11",87,100,85,86))
+        bars.append(b("12",112,125,111,123))
+        self.assertFalse(any(e["event"]=="DISPLACED_STRUCTURE_BREAK" for e in detect(bars)))
     def test_warmup_and_lookback(self):
         bars=[b(str(i),100,110,90,100) for i in range(10)]
         self.assertFalse(any(x["sweep_reclaim"] for x in features(bars)))
