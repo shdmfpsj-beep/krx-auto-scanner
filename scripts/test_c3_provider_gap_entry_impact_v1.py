@@ -1,6 +1,6 @@
 import csv,json,tempfile,unittest
 from pathlib import Path
-from c3_provider_gap_entry_impact_v1 import assess
+from c3_provider_gap_entry_impact_v1 import assess,markdown_table
 
 class GapEntryImpactTests(unittest.TestCase):
     def test_gap_flags_and_no_trading(self):
@@ -16,6 +16,9 @@ class GapEntryImpactTests(unittest.TestCase):
             self.assertTrue(row["gap_exceeds_10pct_of_stop_distance"])
             self.assertFalse(result["trade_approved"])
             self.assertFalse(row["entry_price_certified"])
+            table=markdown_table(result)
+            self.assertIn("CASH",table)
+            self.assertIn(chr(10)+"|",table)
     def test_missing_data_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/"plans.csv"
