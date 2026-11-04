@@ -83,6 +83,20 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
         bucket["prior_ict" if row["ict_prior_signal"] else "no_prior_ict"]+=1
     overlapping_months=sorted(m for m,v in month_groups.items()
                               if v["prior_ict"]>0 and v["no_prior_ict"]>0)
+    # Overlap must be rechecked for each completed horizon; a recent month
+    # may have touches but no 20-session outcomes yet.
+    completed_overlap={}
+    for horizon in (5,10,20):
+        per_month={}
+        for row in eligible:
+            outcome=next(x for x in row["outcomes"] if x["horizon_sessions"]==horizon)
+            if not outcome["complete"]:
+                continue
+            month=row["touch_date"][:7]
+            bucket=per_month.setdefault(month,{"prior_ict":0,"no_prior_ict":0})
+            bucket["prior_ict" if row["ict_prior_signal"] else "no_prior_ict"]+=1
+        completed_overlap[str(horizon)]=sorted(month for month,bucket in per_month.items()
+            if bucket["prior_ict"] and bucket["no_prior_ict"])
     # A small or one-sided cohort is descriptive, never evidence of edge.
     min_completed_per_group=30
     evidence_ready={str(h):all(counts[str(h)][group]["completed_horizons"]>=min_completed_per_group
@@ -94,6 +108,7 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
                 comparison_design="OBSERVATIONAL_UNMATCHED",
                 touch_month_counts=month_groups,
                 months_with_both_cohorts=overlapping_months,
+                completed_horizon_overlap_months=completed_overlap,
                 causal_effect_verified=False,
                 history_coverage_certified=False,
                 regular_session_price_certified=False,
