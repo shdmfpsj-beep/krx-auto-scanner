@@ -1,5 +1,5 @@
 import unittest
-from c3_entry_style_comparison_v1 import evaluate,build
+from c3_entry_style_comparison_v1 import evaluate,build,markdown_table
 
 PLAN=dict(plan_id="a",ticker="271560",name="오리온",
           selection_date="2026-10-30",registered_day="2026-10-31",
@@ -44,6 +44,12 @@ class EntryStyleTests(unittest.TestCase):
         x=evaluate(PLAN,{("271560","2026-11-02"):bar(111000,116000,115000)})
         self.assertFalse(x["pullback"]["actual_fill_verified"])
         self.assertFalse(x["trade_approved"])
+    def test_mobile_summary_has_no_fill_claim(self):
+        p=build([PLAN,{**PLAN,"plan_id":"b","ticker":"026960"}],{})
+        table=markdown_table(p)
+        self.assertIn("CASH",table)
+        self.assertIn(chr(10)+"|",table)
+        self.assertIn("눌림 없는 돌파 지속",table)
     def test_two_plans_required(self):
         with self.assertRaisesRegex(ValueError,"EXPECTED_EXACTLY_TWO"):
             build([PLAN],{})
