@@ -24,6 +24,13 @@ class ReadinessTests(unittest.TestCase):
         x=build([A,B],bars,M,N)
         self.assertTrue(x["coverage"]["271560"]["five_session_complete"])
         self.assertFalse(x["coverage"]["271560"]["ten_session_complete"])
+    def test_five_observed_rows_not_certified_calendar(self):
+        bars={("271560",f"2026-11-{i:02d}"):bar() for i in (2,3,5,6,9)}
+        x=build([A,B],bars,M,N)
+        self.assertTrue(x["coverage"]["271560"]["five_session_complete"])
+        self.assertFalse(x["coverage"]["271560"]["complete_for_certified_backtest"])
+        self.assertFalse(x["coverage"]["271560"]["contiguous_exchange_sessions_verified"])
+        self.assertFalse(x["calendar_completeness_verified"])
     def test_provenance_error_exposed(self):
         x=build([A,B],{},M,M)
         self.assertIn("SAME_PROVIDER",x["provenance"]["errors"])
