@@ -33,7 +33,7 @@ def compare(primary,yahoo):
     return {"schema":"C3_YAHOO_ADJUSTMENT_DIAGNOSTIC_V1",
             "adjustment_basis_verified":False,"upstream_independence_verified":False,
             "regular_only_certified":False,"trade_approved":False,"orders_enabled":False,
-            "rows":output}
+            "rows":output,"gap_summary":gap_summary({"rows":output})}
 def markdown_table(report):
     lines=["### 날짜별 종가 차이 (실험용·거래 인증 아님)",
            "| 종목 | 날짜 | pykrx | Yahoo 종가 | Yahoo 수정종가 | 일반 차이율 | 수정 차이율 |",
@@ -47,8 +47,28 @@ def markdown_table(report):
         lines.append("| {} | {} | {} | {} | {} | {:+.4f}% | {} |".format(
             r["ticker"],r["date"],r["pykrx_close"],r["yahoo_close"],adj,r["raw_gap_pct"],adj_gap))
     lines.append("")
+    lines.append("### 종목별 종가 차이 요약")
+    for ticker, stats in gap_summary(report).items():
+        lines.append("- {}: 양(+) {}일, 음(-) {}일, 일치 {}일, 평균 절대차 {:.4f}%, 최대 절대차 {:.4f}%".format(
+            ticker,stats["positive_gap_days"],stats["negative_gap_days"],stats["zero_gap_days"],
+            stats["mean_abs_gap_pct"],stats["max_abs_gap_pct"]))
+    lines.append("")
     lines.append("> 가격 공급원·수정주가 기준·정규장 범위 검증 전. CASH / 신규 매수 판단 보류.")
     return "\n".join(lines)+"\n"
+
+def gap_summary(report):
+    groups={}
+    for row in report["rows"]:
+        if row["status"]!="OBSERVED_NOT_CERTIFIED": continue
+        group=groups.setdefault(row["ticker"],[])
+        group.append(row["raw_gap_pct"])
+    return {ticker:{"observations":len(values),
+                    "zero_gap_days":sum(v==0 for v in values),
+                    "positive_gap_days":sum(v>0 for v in values),
+                    "negative_gap_days":sum(v<0 for v in values),
+                    "max_abs_gap_pct":round(max(abs(v) for v in values),6),
+                    "mean_abs_gap_pct":round(sum(abs(v) for v in values)/len(values),6)}
+            for ticker,values in sorted(groups.items())}
 
 def main():
     p=argparse.ArgumentParser()
