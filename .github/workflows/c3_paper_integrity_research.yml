@@ -8,6 +8,7 @@ on:
       - 'scripts/test_c3_paper_integrity_audit_v1.py'
       - 'scripts/c3_price_concordance_v1.py'
       - 'scripts/c3_yahoo_reference_experiment_v1.py'
+      - 'scripts/c3_provider_difference_diagnostic_v1.py'
       - 'config/c3_top2_yahoo_symbols_experimental.csv'
       - 'scripts/test_c3_yahoo_reference_experiment_v1.py'
       - 'scripts/c3_entry_geometry_research_v1.py'
@@ -44,6 +45,7 @@ on:
       - 'scripts/test_c3_paper_integrity_audit_v1.py'
       - 'scripts/c3_price_concordance_v1.py'
       - 'scripts/c3_yahoo_reference_experiment_v1.py'
+      - 'scripts/c3_provider_difference_diagnostic_v1.py'
       - 'config/c3_top2_yahoo_symbols_experimental.csv'
       - 'scripts/test_c3_yahoo_reference_experiment_v1.py'
       - 'scripts/c3_entry_geometry_research_v1.py'
@@ -87,6 +89,7 @@ jobs:
             scripts/test_c3_paper_integrity_audit_v1.py
             scripts/c3_price_concordance_v1.py
             scripts/c3_yahoo_reference_experiment_v1.py
+            scripts/c3_provider_difference_diagnostic_v1.py
             scripts/test_c3_yahoo_reference_experiment_v1.py
             scripts/c3_entry_geometry_research_v1.py
             scripts/c3_no_fill_opportunity_v1.py
@@ -228,6 +231,16 @@ jobs:
         run: |
           if [ -s /tmp/c3-top2/yahoo_reference_experimental.csv ] && [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
             python scripts/c3_price_concordance_v1.py --primary /tmp/c3-top2/top2_provisional_ohlcv.csv --reference /tmp/c3-top2/yahoo_reference_experimental.csv --primary-provider pykrx --reference-provider YahooFinance --output /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json
+          fi
+      - name: Diagnose Yahoo versus pykrx mismatch fields
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json ]; then
+            python scripts/c3_provider_difference_diagnostic_v1.py --input /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json --output /tmp/c3-top2/yahoo_pykrx_field_diagnostics.json
+            echo '### 실험용 가격 비교 진단 (거래 인증 아님)' >> "$GITHUB_STEP_SUMMARY"
+            python -c 'import json; x=json.load(open("/tmp/c3-top2/yahoo_pykrx_field_diagnostics.json")); [print(f"- {k}: 비교 {v[chr(114)+chr(111)+chr(119)+chr(115)]}행, 일치 {v[chr(109)+chr(97)+chr(116)+chr(99)+chr(104)+chr(101)+chr(115)]}행, 불일치 {v[chr(109)+chr(105)+chr(115)+chr(109)+chr(97)+chr(116)+chr(99)+chr(104)+chr(101)+chr(115)]}행, 필드 {v[chr(102)+chr(105)+chr(101)+chr(108)+chr(100)+chr(95)+chr(109)+chr(105)+chr(115)+chr(109)+chr(97)+chr(116)+chr(99)+chr(104)+chr(101)+chr(115)]}") for k,v in x["tickers"].items()]' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Publish mobile research summary in Actions
         if: always()
