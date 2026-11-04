@@ -104,6 +104,8 @@ def markdown_table(report):
             values=[("{:+.2f}%".format(r["observation_close_return_pct"]) if r["complete"] else "대기") for r in rows]
             lines.append("| {} | {} | {} | {} | {} | {} |".format(
                 p["ticker"],names[style],rows[0]["signal_day"],*values))
+    if not any(p["future_close_observations"] for p in report["plans"]):
+        lines.append("| 전체 | 신호 없음 | - | 대기 | 대기 | 대기 |")
     lines.append("")
     lines.append("> 관찰일 이후 완료된 종가만 사용. 매수 체결·실제 수익률 인증 아님. CASH / 주문 비활성.")
     return "\n".join(lines)+"\n"
