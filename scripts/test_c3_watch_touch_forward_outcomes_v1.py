@@ -20,6 +20,20 @@ class WatchTouchForwardTests(unittest.TestCase):
         self.assertEqual(r["events"][0]["outcomes"][0]["observed_max_favorable_excursion_pct"],4.808)
         self.assertEqual(r["events"][0]["outcomes"][0]["observed_max_adverse_excursion_pct"],1.923)
         self.assertTrue(r["events"][0]["outcomes"][0]["reference_is_touch_day_close"])
+    def test_stop_before_target_and_same_day_ambiguity(self):
+        prices={("271560","2026-11-02"):bar(103,108,101,104),
+                ("271560","2026-11-03"):bar(100,104,94,98),
+                ("271560","2026-11-04"):bar(108,121,105,119)}
+        r=analyze(PLAN,prices)
+        h=r["events"][0]["outcomes"][0]
+        self.assertEqual(h["stop_target_touch_order"],"STOP_FIRST")
+        self.assertEqual(h["first_future_stop_touch_date"],"2026-11-03")
+        self.assertEqual(h["first_future_target_touch_date"],"2026-11-04")
+        prices[("271560","2026-11-03")]=bar(105,121,94,106)
+        prices.pop(("271560","2026-11-04"))
+        r=analyze(PLAN,prices)
+        self.assertEqual(r["events"][0]["outcomes"][0]["stop_target_touch_order"],
+                         "SAME_DAY_ORDER_UNKNOWN")
     def test_zero_future_days_has_no_excursion(self):
         prices={("271560","2026-11-02"):bar(106,108,102,104)}
         r=analyze(PLAN,prices)
