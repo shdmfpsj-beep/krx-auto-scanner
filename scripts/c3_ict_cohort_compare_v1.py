@@ -36,6 +36,15 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
                                  touch_day_execution_ambiguous=event["touch_day_execution_ambiguous"],
                                  outcomes=event["outcomes"],
                                  verified_fill=False))
+    # Retention is measured on independent first-touch plans, not repeat
+    # touch events. A stricter filter may discard otherwise useful setups.
+    eligible=[e for e in enriched if not e["touch_day_execution_ambiguous"]]
+    with_ict=[e for e in eligible if e["ict_prior_signal"]]
+    retention=dict(eligible_first_touch_plans=len(eligible),
+                   retained_with_prior_ict=len(with_ict),
+                   excluded_without_prior_ict=len(eligible)-len(with_ict),
+                   retained_pct=(round(100*len(with_ict)/len(eligible),2)
+                                 if eligible else None))
     counts={}
     for h in (5,10,20):
         counts[str(h)]={}
@@ -55,6 +64,7 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
     return dict(schema="C3_ICT_MATCHED_COHORT_V1",rows=enriched,horizon_counts=counts,
                 observation_unit="FIRST_TOUCH_PER_PLAN",
                 independent_plan_count=len({e["plan_id"] for e in enriched}),
+                ict_filter_retention=retention,
                 strategy_profitability_verified=False,trade_approved=False,orders_enabled=False)
 
 def main():
