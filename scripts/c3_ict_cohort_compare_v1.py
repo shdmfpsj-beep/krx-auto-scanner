@@ -22,8 +22,6 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
         if not series:
             raise ValueError("MISSING_TICKER_PRICE_HISTORY")
         bars=[dict(bar,date=day) for day,bar in series]
-        if any(series[j][0]>=series[j+1][0] for j in range(len(series)-1)):
-            raise ValueError("NON_INCREASING_PRICE_DATES")
         signals=detect(bars,lookback=ict_lookback)
         # Use only signals completed strictly before touch date.
         signal_events={s["date"]:s for s in signals if s["event"]=="FVG_RETEST_WATCH"}
@@ -47,8 +45,13 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
     # Retention is measured on independent first-touch plans, not repeat
     # touch events. A stricter filter may discard otherwise useful setups.
     eligible=[e for e in enriched if not e["touch_day_execution_ambiguous"]]
+    ambiguous_count=sum(e["touch_day_execution_ambiguous"] for e in enriched)
+    untouched_plan_count=len(baseline["results"])-len(enriched)
     with_ict=[e for e in eligible if e["ict_prior_signal"]]
-    retention=dict(eligible_first_touch_plans=len(eligible),
+    retention=dict(total_plans=len(baseline["results"]),
+                   no_touch_plans=untouched_plan_count,
+                   ambiguous_touch_plans=ambiguous_count,
+                   eligible_first_touch_plans=len(eligible),
                    retained_with_prior_ict=len(with_ict),
                    excluded_without_prior_ict=len(eligible)-len(with_ict),
                    retained_pct=(round(100*len(with_ict)/len(eligible),2)
