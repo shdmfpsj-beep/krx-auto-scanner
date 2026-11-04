@@ -22,6 +22,8 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
         if not series:
             raise ValueError("MISSING_TICKER_PRICE_HISTORY")
         bars=[dict(bar,date=day) for day,bar in series]
+        if any(series[j][0]>=series[j+1][0] for j in range(len(series)-1)):
+            raise ValueError("NON_INCREASING_PRICE_DATES")
         signals=detect(bars,lookback=ict_lookback)
         # Use only signals completed strictly before touch date.
         signal_events={s["date"]:s for s in signals if s["event"]=="FVG_RETEST_WATCH"}
