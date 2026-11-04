@@ -33,12 +33,14 @@ class PriorResistanceTests(unittest.TestCase):
         self.assertEqual(r["planned_target_reward_risk_at_watch_high"],1.5)
         self.assertTrue(r["prior_swing_before_planned_target"])
         self.assertFalse(r["pivot_is_confirmed_resistance"])
+        self.assertEqual(r["swing_rr_warning"],"SWING_REWARD_1_TO_1_5R")
     def test_selection_day_cannot_confirm_pivot(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
         prices[("271560","2026-10-19")]=bar(118)
         prices[("271560","2026-11-01")]=bar(100)
         r=assess(PLAN,prices)
         self.assertIsNone(r["nearest_confirmed_prior_swing_high"])
+        self.assertEqual(r["swing_rr_warning"],"NO_PRIOR_SWING_CANDIDATE")
     def test_no_candidate_above_entry(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
         r=assess(PLAN,prices)
