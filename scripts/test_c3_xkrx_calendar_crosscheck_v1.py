@@ -15,6 +15,18 @@ class ThirdPartyCalendarTests(unittest.TestCase):
         self.assertTrue(r["discrepancies_found"])
         self.assertEqual(r["results"]["271560"]["missing_expected_dates"],["2026-11-03"])
         self.assertEqual(r["results"]["026960"]["missing_expected_dates"],["2026-11-03"])
+    def test_documented_2026_constitution_day_closure(self):
+        r=compare(PLANS,ROWS,"2026-07-17","2026-11-03",
+                  ["2026-07-17","2026-11-02","2026-11-03"])
+        self.assertFalse(r["discrepancies_found"])
+        self.assertEqual(r["documented_calendar_overrides"]["2026-07-17"],
+                         "CONSTITUTION_DAY_KRX_2026")
+        self.assertFalse(r["official_krx_calendar_verified"])
+    def test_unrelated_missing_day_still_fails(self):
+        r=compare(PLANS,ROWS,"2026-07-17","2026-11-03",
+                  ["2026-07-17","2026-10-30","2026-11-02","2026-11-03"])
+        self.assertTrue(r["discrepancies_found"])
+        self.assertEqual(r["results"]["271560"]["missing_expected_dates"],["2026-10-30"])
     def test_unexpected_ticker_rejected(self):
         with self.assertRaisesRegex(ValueError,"UNEXPECTED_PRICE_TICKER"):
             compare(PLANS,ROWS+[{"ticker":"005930","date":"2026-11-02"}],"2026-11-02","2026-11-03",["2026-11-02","2026-11-03"])
