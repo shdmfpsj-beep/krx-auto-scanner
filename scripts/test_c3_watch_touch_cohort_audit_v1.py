@@ -33,6 +33,20 @@ class CohortTests(unittest.TestCase):
         self.assertEqual(r["horizons"]["5"]["complete"],2)
         self.assertEqual(r["first_touch_horizons"]["5"]["complete"],1)
         self.assertEqual(r["first_touch_per_plan"][0]["forward_progress"][0]["remaining_sessions"],0)
+    def test_first_touch_only_order_counts_and_ambiguity(self):
+        h=lambda order: dict(horizon_sessions=5,observed_future_sessions=5,complete=True,
+                             future_stop_touch_days=1,future_target_touch_days=1,
+                             stop_target_touch_order=order)
+        events=[dict(date="2026-11-02",status="SAME_BAR_STOP_AMBIGUOUS",
+                     touch_day_execution_ambiguous=True,verified_fill=False,
+                     outcomes=[h("STOP_FIRST")]),
+                dict(date="2026-11-03",status="WATCH_TOUCH_ONLY",
+                     touch_day_execution_ambiguous=False,verified_fill=False,
+                     outcomes=[h("TARGET_FIRST")])]
+        r=summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",
+                         results=[dict(events=events)]))
+        self.assertEqual(r["first_touch_order_counts"]["5"],{"STOP_FIRST":1})
+        self.assertEqual(r["first_touch_same_day_collision_count"],1)
     def test_verified_fill_rejected(self):
         with self.assertRaisesRegex(ValueError,"UNEXPECTED_VERIFIED_FILL"):
             summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",
