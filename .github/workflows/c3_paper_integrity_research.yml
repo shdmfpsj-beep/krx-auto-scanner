@@ -198,7 +198,7 @@ jobs:
         if: success()
         run: |
           python scripts/c3_top2_provisional_report_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --manifest /tmp/c3-top2/manifest.json --output /tmp/c3-top2/top2_provisional_research.json
-          python scripts/c3_top2_mobile_summary_v1.py --input /tmp/c3-top2/top2_provisional_research.json --output /tmp/c3-top2/TOP2_mobile_summary.md
+          python scripts/c3_top2_mobile_summary_v1.py --input /tmp/c3-top2/top2_provisional_research.json --calendar-check /tmp/c3-top2/xkrx_third_party_calendar_check.json --output /tmp/c3-top2/TOP2_mobile_summary.md
       - name: Publish mobile research summary in Actions
         if: always()
         shell: bash
