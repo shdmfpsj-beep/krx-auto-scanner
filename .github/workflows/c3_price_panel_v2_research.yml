@@ -1,0 +1,41 @@
+name: C3 official historical price panel research
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_price_panel_v2.py'
+      - 'scripts/test_c3_price_panel_v2.py'
+      - '.github/workflows/c3_price_panel_v2_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  official-panel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test dated panel and corporate-action safeguards
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: scripts
+        run: |
+          python -m unittest discover -s scripts -p 'test_c3_price_panel_v2.py' -v
+          python -m unittest discover -s scripts -p 'test_krx_official_eod_v65.py' -q
+      - name: Collect bounded dated whole-market EOD panel (not regular-session certification)
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          PYTHONPATH: scripts
+        run: |
+          python scripts/c3_price_panel_v2.py --sessions reports/c3_reference_calendar_v1.json --start 2025-05-02 --end 2026-11-04 --interval 1.0 --outdir /tmp/c3-official-panel
+      - name: Preserve panel and every source failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-official-historical-panel-v2
+          path: /tmp/c3-official-panel/
+          if-no-files-found: error
+          retention-days: 90
