@@ -16,6 +16,8 @@ class ProgressTests(unittest.TestCase):
                                  {"ticker":"026960","max_provider_close_gap_pct":0.54}]})
         self.assertIsNone(report["progress_percentage"])
         self.assertFalse(report["trade_approved"])
+        self.assertEqual(report["readiness_gate"],"BLOCKED")
+        self.assertIn("FORWARD_HORIZONS_INCOMPLETE",report["readiness_blockers"])
         self.assertEqual(report["results"][0]["forward_horizons_complete"],0)
         self.assertIn("CASH",markdown(report))
     def test_duplicate_ticker_fails(self):
