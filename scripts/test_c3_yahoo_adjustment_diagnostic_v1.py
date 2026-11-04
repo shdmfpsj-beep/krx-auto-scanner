@@ -25,7 +25,7 @@ class AdjustmentDiagnosticTests(unittest.TestCase):
             self.assertIn("271560",table)
             self.assertIn("+1.0000%",table)
             self.assertIn("CASH",table)
-            self.assertIn("\\n|",table)
+            self.assertIn(chr(10)+"|",table)
             self.assertNotIn("\\\\n",table)
             self.assertEqual(result["gap_summary"]["271560"]["positive_gap_days"],1)
             self.assertEqual(result["gap_summary"]["271560"]["mean_abs_gap_pct"],1.0)
