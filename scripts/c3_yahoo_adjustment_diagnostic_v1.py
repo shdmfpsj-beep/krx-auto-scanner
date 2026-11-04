@@ -33,7 +33,26 @@ def compare(primary,yahoo):
     return {"schema":"C3_YAHOO_ADJUSTMENT_DIAGNOSTIC_V1",
             "adjustment_basis_verified":False,"upstream_independence_verified":False,
             "regular_only_certified":False,"trade_approved":False,"orders_enabled":False,
-            "rows":output,"gap_summary":gap_summary({"rows":output})}
+            "rows":output,"gap_summary":gap_summary({"rows":output}),"ratio_pattern":ratio_pattern({"rows":output})}
+def ratio_pattern(report):
+    grouped={}
+    for row in report["rows"]:
+        if row["status"]!="OBSERVED_NOT_CERTIFIED": continue
+        grouped.setdefault(row["ticker"],[]).append(row["raw_gap_pct"])
+    output={}
+    for ticker,values in sorted(grouped.items()):
+        nonzero=[v for v in values if v!=0]
+        if len(nonzero)<3:
+            label="INSUFFICIENT_NONZERO_OBSERVATIONS"
+            spread=None
+        else:
+            spread=round(max(nonzero)-min(nonzero),6)
+            # Heuristic only; a constant gap cannot establish its cause.
+            label="NEAR_CONSTANT_GAP_HEURISTIC" if spread<=0.05 else "VARIABLE_GAP"
+        output[ticker]={"nonzero_days":len(nonzero),"nonzero_gap_spread_pct_points":spread,
+                        "pattern":label,"cause_verified":False}
+    return output
+
 def markdown_table(report):
     lines=["### 날짜별 종가 차이 (실험용·거래 인증 아님)",
            "| 종목 | 날짜 | pykrx | Yahoo 종가 | Yahoo 수정종가 | 일반 차이율 | 수정 차이율 |",
@@ -52,6 +71,12 @@ def markdown_table(report):
         lines.append("- {}: 양(+) {}일, 음(-) {}일, 일치 {}일, 평균 절대차 {:.4f}%, 최대 절대차 {:.4f}%".format(
             ticker,stats["positive_gap_days"],stats["negative_gap_days"],stats["zero_gap_days"],
             stats["mean_abs_gap_pct"],stats["max_abs_gap_pct"]))
+    lines.append("")
+    lines.append("### 가격 차이 반복 패턴 (추정)")
+    for ticker,pattern in ratio_pattern(report).items():
+        spread=pattern["nonzero_gap_spread_pct_points"]
+        lines.append("- {}: {}, 불일치 {}일, 차이율 범위 {}%p".format(
+            ticker,pattern["pattern"],pattern["nonzero_days"],spread if spread is not None else "자료 부족"))
     lines.append("")
     lines.append("> 가격 공급원·수정주가 기준·정규장 범위 검증 전. CASH / 신규 매수 판단 보류.")
     return "\n".join(lines)+"\n"
