@@ -30,7 +30,8 @@ class ConcordanceTests(unittest.TestCase):
     def test_identical_reference_is_provisional_match(self):
         x = self.check()
         self.assertEqual(x["result_counts"]["MATCH"], 1)
-        self.assertTrue(x["regular_only_concordance_passed"])\n        self.assertFalse(x["regular_only_certified"])
+        self.assertTrue(x["regular_only_concordance_passed"])
+        self.assertFalse(x["regular_only_certified"])
 
     def test_close_mismatch_fails(self):
         x = self.check(dict(BASE, close=116500))
