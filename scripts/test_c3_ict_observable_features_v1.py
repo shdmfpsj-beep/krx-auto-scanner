@@ -60,6 +60,7 @@ class ICTFeatureTests(unittest.TestCase):
         self.assertFalse(report["evidence_readiness_by_horizon"]["5"])
         self.assertFalse(report["evidence_readiness_by_horizon"]["10"])
         self.assertFalse(report["evidence_readiness_by_horizon"]["20"])
+        self.assertEqual(report["overlap_readiness_by_horizon"],{"5":False,"10":False,"20":False})
         self.assertEqual(report["months_with_both_cohorts"],[])
         self.assertEqual(report["completed_horizon_overlap_months"],{"5":[],"10":[],"20":[]})
         self.assertEqual(report["ict_filter_retention"]["total_plans"],1)
