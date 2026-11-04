@@ -14,7 +14,7 @@ def compare(plans, prices, start, end, sessions):
     expected=raw_expected-set(DOCUMENTED_KRX_CLOSURES)
     if not expected:
         raise ValueError("EMPTY_THIRD_PARTY_SESSION_CALENDAR")
-    if len(expected)!=len(sessions):
+    if len(raw_expected)!=len(sessions):
         raise ValueError("DUPLICATE_THIRD_PARTY_SESSION_DATE")
     observed={p["ticker"]:set() for p in plans}
     if len(observed)!=2 or len(plans)!=2:
