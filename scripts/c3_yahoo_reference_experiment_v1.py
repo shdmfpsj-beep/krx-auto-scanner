@@ -26,9 +26,15 @@ def main():
     parser=argparse.ArgumentParser()
     for field in ("plans","start","end","output","status"):
         parser.add_argument("--"+field,required=True)
+    parser.add_argument("--symbols",required=True,help="Explicit experimental ticker-to-Yahoo mapping CSV")
     args=parser.parse_args()
     with open(args.plans,encoding="utf-8-sig",newline="") as f:
         plans=list(csv.DictReader(f))
+    with open(args.symbols,encoding="utf-8-sig",newline="") as f:
+        symbol_rows=list(csv.DictReader(f))
+    symbols={r["ticker"]:r["yahoo_symbol"] for r in symbol_rows}
+    if len(symbols)!=len(symbol_rows) or set(symbols)!={p["ticker"] for p in plans}:
+        raise ValueError("INVALID_EXPLICIT_YAHOO_SYMBOL_MAPPING")
     status=dict(schema="C3_YAHOO_REFERENCE_EXPERIMENT_V1",provider="Yahoo Finance via yfinance",
                 upstream_independence_verified=False,price_adjustment_comparable=False,
                 regular_only_certified=False,trade_approved=False,orders_enabled=False,
@@ -40,7 +46,7 @@ def main():
         for plan in plans:
             ticker=plan["ticker"]
             # No implicit exchange suffix: avoid mapping a KOSDAQ name to KOSPI.
-            symbol=plan.get("yahoo_symbol","").strip()
+            symbol=symbols.get(ticker,"").strip()
             if not symbol or symbol not in (ticker+".KS",ticker+".KQ"):
                 status["errors"][ticker]="YAHOO_SYMBOL_NOT_VERIFIED"
                 continue
