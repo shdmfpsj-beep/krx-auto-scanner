@@ -106,6 +106,13 @@ class ICTFeatureTests(unittest.TestCase):
         report=compare([plan],prices)
         self.assertEqual(len(report["rows"]),1)
         self.assertFalse(report["rows"][0]["ict_prior_signal"])
+    def test_no_prices_after_registration_fails_closed(self):
+        plan=dict(plan_id="future_fixture",ticker="TEST",registered_day="2026-01-10",
+                  watch_low=20,watch_high=21,structure_stop=19,target1=25,
+                  expires_after_sessions=2)
+        prices={("TEST","2026-01-09"):dict(open=22,high=22,low=20,close=21)}
+        with self.assertRaisesRegex(ValueError,"NO_POST_REGISTRATION_PRICE_BARS"):
+            compare([plan],prices)
     def test_warmup_and_lookback(self):
         bars=[b(str(i),100,110,90,100) for i in range(10)]
         self.assertFalse(any(x["sweep_reclaim"] for x in features(bars)))
