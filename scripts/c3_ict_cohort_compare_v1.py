@@ -24,13 +24,15 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
         bars=[dict(bar,date=day) for day,bar in series]
         signals=detect(bars,lookback=ict_lookback)
         # Use only signals completed strictly before touch date.
-        signal_days={s["date"] for s in signals if s["event"]=="FVG_RETEST_WATCH"}
+        signal_events={s["date"]:s for s in signals if s["event"]=="FVG_RETEST_WATCH"}
         day_index={day:i for i,(day,_) in enumerate(series)}
         # Count only first touch per plan to avoid repeat-event sample inflation.
         for event in result["events"][:1]:
             i=day_index[event["date"]]
-            preceding=[d for d in signal_days if d in day_index
-                       and 0<i-day_index[d]<=signal_max_age]
+            preceding=[d for d,s in signal_events.items() if d in day_index
+                       and 0<i-day_index[d]<=signal_max_age
+                       and all(series[j][1]["close"]>=s["sweep_invalidation_low"]
+                               for j in range(day_index[d]+1,i+1))]
             prior_signal=max(preceding) if preceding else None
             enriched.append(dict(ticker=ticker,plan_id=result["plan_id"],
                                  touch_date=event["date"],
