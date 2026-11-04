@@ -8,6 +8,8 @@ on:
       - 'scripts/test_c3_paper_integrity_audit_v1.py'
       - 'scripts/c3_price_concordance_v1.py'
       - 'scripts/c3_yahoo_reference_experiment_v1.py'
+      - 'scripts/c3_naver_reference_experiment_v1.py'
+      - 'scripts/test_c3_naver_reference_experiment_v1.py'
       - 'scripts/c3_yahoo_adjustment_diagnostic_v1.py'
       - 'scripts/c3_provider_difference_diagnostic_v1.py'
       - 'scripts/test_c3_provider_difference_diagnostic_v1.py'
@@ -48,6 +50,8 @@ on:
       - 'scripts/test_c3_paper_integrity_audit_v1.py'
       - 'scripts/c3_price_concordance_v1.py'
       - 'scripts/c3_yahoo_reference_experiment_v1.py'
+      - 'scripts/c3_naver_reference_experiment_v1.py'
+      - 'scripts/test_c3_naver_reference_experiment_v1.py'
       - 'scripts/c3_yahoo_adjustment_diagnostic_v1.py'
       - 'scripts/c3_provider_difference_diagnostic_v1.py'
       - 'scripts/test_c3_provider_difference_diagnostic_v1.py'
@@ -95,12 +99,14 @@ jobs:
             scripts/test_c3_paper_integrity_audit_v1.py
             scripts/c3_price_concordance_v1.py
             scripts/c3_yahoo_reference_experiment_v1.py
+            scripts/c3_naver_reference_experiment_v1.py
             scripts/c3_yahoo_adjustment_diagnostic_v1.py
             scripts/c3_provider_gap_entry_impact_v1.py
             scripts/test_c3_yahoo_adjustment_diagnostic_v1.py
             scripts/test_c3_provider_gap_entry_impact_v1.py
             scripts/c3_provider_difference_diagnostic_v1.py
             scripts/test_c3_yahoo_reference_experiment_v1.py
+            scripts/test_c3_naver_reference_experiment_v1.py
             scripts/c3_entry_geometry_research_v1.py
             scripts/c3_no_fill_opportunity_v1.py
             scripts/c3_entry_style_comparison_v1.py
@@ -147,6 +153,8 @@ jobs:
         run: python -m unittest discover -s scripts -p 'test_c3_yahoo_adjustment_diagnostic_v1.py' -v
       - name: Test provider discrepancy diagnostic
         run: python -m unittest discover -s scripts -p 'test_c3_provider_difference_diagnostic_v1.py' -v
+      - name: Run experimental NAVER reference normalization tests
+        run: python -m unittest discover -s scripts -p 'test_c3_naver_reference_experiment_v1.py' -v
       - name: Run experimental Yahoo reference normalization tests
         run: python -m unittest discover -s scripts -p 'test_c3_yahoo_reference_experiment_v1.py' -v
       - name: Run synthetic independent-price regression tests
@@ -193,6 +201,7 @@ jobs:
           # Full checkout fails on an unrelated overlong tracked path.
           sparse-checkout: |
             scripts/c3_yahoo_reference_experiment_v1.py
+            scripts/c3_naver_reference_experiment_v1.py
             scripts/c3_yahoo_adjustment_diagnostic_v1.py
             scripts/c3_provider_gap_entry_impact_v1.py
             scripts/c3_provider_difference_diagnostic_v1.py
@@ -255,6 +264,24 @@ jobs:
             END_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')"
             python scripts/c3_yahoo_reference_experiment_v1.py --plans config/c3_paper_top2_plans.csv --symbols config/c3_top2_yahoo_symbols_experimental.csv --start "$START_DATE" --end "$END_DATE" --output /tmp/c3-top2/yahoo_reference_experimental.csv --status /tmp/c3-top2/yahoo_reference_status.json
           fi
+      - name: Collect free NAVER reference (experimental only)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -f /tmp/c3-top2/manifest.json ]; then
+            python -m pip install FinanceDataReader
+            START_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["start"])')"
+            END_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')"
+            python scripts/c3_naver_reference_experiment_v1.py --plans config/c3_paper_top2_plans.csv --start "$START_DATE" --end "$END_DATE" --output /tmp/c3-top2/naver_reference_experimental.csv --status /tmp/c3-top2/naver_reference_status.json
+          fi
+      - name: Compare NAVER and pykrx prices (experimental only)
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/naver_reference_experimental.csv ] && [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_price_concordance_v1.py --primary /tmp/c3-top2/top2_provisional_ohlcv.csv --reference /tmp/c3-top2/naver_reference_experimental.csv --primary-provider pykrx --reference-provider FinanceDataReader_NAVER --observation-only --output /tmp/c3-top2/naver_pykrx_concordance_experimental.json
+          fi
       - name: Compare Yahoo and pykrx prices (experimental only)
         if: always()
         shell: bash
@@ -316,6 +343,11 @@ jobs:
             if [ -s /tmp/c3-top2/entry_style_opportunities.md ]; then
               echo ''
               cat /tmp/c3-top2/entry_style_opportunities.md
+            fi
+            if [ -s /tmp/c3-top2/naver_pykrx_concordance_experimental.json ]; then
+              echo ''
+              echo '### 무료 NAVER 가격 교차비교 (인증 아님)'
+              python -c 'import json; d=json.load(open("/tmp/c3-top2/naver_pykrx_concordance_experimental.json")); print("비교 {}건 / 일치 {}건 / 불일치 {}건".format(d["comparison_count"],d["result_counts"].get("MATCH",0),d["result_counts"].get("MISMATCH",0)))'
             fi
             if [ -s /tmp/c3-top2/provider_gap_entry_impact.md ]; then
               echo ''
