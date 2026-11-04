@@ -48,7 +48,7 @@ def markdown_table(report):
             r["ticker"],r["date"],r["pykrx_close"],r["yahoo_close"],adj,r["raw_gap_pct"],adj_gap))
     lines.append("")
     lines.append("> 가격 공급원·수정주가 기준·정규장 범위 검증 전. CASH / 신규 매수 판단 보류.")
-    return "\\n".join(lines)+"\\n"
+    return "\n".join(lines)+"\n"
 
 def main():
     p=argparse.ArgumentParser()
