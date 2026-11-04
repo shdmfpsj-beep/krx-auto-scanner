@@ -25,7 +25,18 @@ def analyze(plan,prices):
         for horizon in HORIZONS:
             future=series[i+1:i+1+horizon]
             complete=len(future)==horizon
+            # Descriptive post-touch excursion, anchored to touch-day close.
+            # Never call these executable entry returns or completed horizon
+            # metrics when fewer than horizon future sessions are observed.
+            future_max_high=max((x["high"] for _,x in future),default=None)
+            future_min_low=min((x["low"] for _,x in future),default=None)
+            mfe=round(100*(future_max_high/bar["close"]-1),3) if future_max_high is not None else None
+            mae=round(100*(future_min_low/bar["close"]-1),3) if future_min_low is not None else None
             outcomes.append(dict(horizon_sessions=horizon,observed_future_sessions=len(future),
+                                 observation_window_complete=complete,
+                                 reference_is_touch_day_close=True,
+                                 observed_max_favorable_excursion_pct=mfe,
+                                 observed_max_adverse_excursion_pct=mae,
                                  complete=complete,
                                  next_session_to_horizon_close_pct=(
                                      round(100*(future[-1][1]["close"]/bar["close"]-1),3)
@@ -67,5 +78,15 @@ def main():
             lines.append(f"| {r['ticker']} | {e['date']} | {e['status']} | "+" | ".join(outcomes)+" |")
     lines.extend(["","> 접촉일 종가 대비 이후 종가 변화율이며 실제 진입가·체결·손익률이 아닙니다."])
     Path(a.markdown).write_text("\n".join(lines)+"\n",encoding="utf-8")
-    print(json.dumps({"schema":report["schema"],"watch_events":sum(x["watch_events"] for x in report["results"]),"trade_approved":False},ensure_ascii=False))
+    print(json.dumps({"schema":report["schema"],
+        "watch_events":sum(x["watch_events"] for x in report["results"]),
+        "outcomes":[{"ticker":r["ticker"],"date":e["date"],"status":e["status"],
+                     "horizons":[{"sessions":h["horizon_sessions"],
+                                  "observed":h["observed_future_sessions"],
+                                  "complete":h["complete"],
+                                  "mfe_pct":h["observed_max_favorable_excursion_pct"],
+                                  "mae_pct":h["observed_max_adverse_excursion_pct"]}
+                                 for h in e["outcomes"]]}
+                    for r in report["results"] for e in r["events"]],
+        "trade_approved":False},ensure_ascii=False))
 if __name__=="__main__":main()
