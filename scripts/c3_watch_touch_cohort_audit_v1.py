@@ -14,14 +14,26 @@ def summarize(report):
     clustered_events=0
     plans_with_touch=0
     first_touch_status_counts={}
+    first_touch_horizons={}
     for plan in report["results"]:
         dates=[event["date"] for event in plan["events"]]
+        if dates!=sorted(dates):
+            raise ValueError("UNSORTED_TOUCH_DATES")
         if len(dates)!=len(set(dates)):
             raise ValueError("DUPLICATE_TOUCH_DATE")
         if dates:
             plans_with_touch+=1
             first=plan["events"][0]["status"]
             first_touch_status_counts[first]=first_touch_status_counts.get(first,0)+1
+            for item in plan["events"][0]["outcomes"]:
+                key=str(item["horizon_sessions"])
+                stat=first_touch_horizons.setdefault(key,dict(complete=0,pending=0,stop_touch_events=0,target_touch_events=0))
+                if item["complete"]:
+                    stat["complete"]+=1
+                    stat["stop_touch_events"]+=item["future_stop_touch_days"]>0
+                    stat["target_touch_events"]+=item["future_target_touch_days"]>0
+                else:
+                    stat["pending"]+=1
         if len(dates)>1:
             clustered_plans+=1
             clustered_events+=len(dates)
@@ -44,6 +56,7 @@ def summarize(report):
                 clustered_plans=clustered_plans,clustered_events=clustered_events,
                 plans_with_touch=plans_with_touch,
                 first_touch_status_counts=first_touch_status_counts,
+                first_touch_horizons=first_touch_horizons,
                 independent_event_sample_size_verified=False,
                 causal_edge_established=False,verified_fills=0,
                 strategy_profitability_verified=False,trade_approved=False,orders_enabled=False)
@@ -62,7 +75,8 @@ def main():
         lines.append(f"- {status}: {n}건")
     lines.extend(["","| 후속 관찰 | 완료 표본 | 미완료 | 완료 표본 내 손절 접촉 | 완료 표본 내 목표 접촉 |",
                   "|---|---:|---:|---:|---:|"])
-    for horizon,item in sorted(result["horizons"].items(),key=lambda x:int(x[0])):
+    lines.append("계획당 첫 접촉만 후속 관찰 표본으로 집계")
+    for horizon,item in sorted(result["first_touch_horizons"].items(),key=lambda x:int(x[0])):
         lines.append(f"| {horizon}거래일 | {item['complete']} | {item['pending']} | {item['stop_touch_events']} | {item['target_touch_events']} |")
     lines.extend(["","> 후속 기간이 미완료인 표본은 성과 계산에서 제외. 접촉 사례는 실제 체결이 아니며, 표본이 작아 우위·수익성을 주장하지 않음."])
     Path(a.markdown).write_text("\n".join(lines)+"\n",encoding="utf-8")
