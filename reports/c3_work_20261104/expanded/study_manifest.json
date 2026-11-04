@@ -1,0 +1,362 @@
+{
+  "schema": "C3_ENTRY_BENCHMARK_RESEARCH_V1",
+  "market_reference_used": true,
+  "paired_same_decision_comparisons": {
+    "C3_ICT": {
+      "DEVELOPMENT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      }
+    },
+    "C3_TREND_VOLUME": {
+      "DEVELOPMENT": {
+        "paired_complete20": 8,
+        "mean_paired_advantage_pct": 0.0,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 6,
+        "mean_paired_advantage_pct": 0.0,
+        "improvement_established": false
+      }
+    },
+    "C3_MA5": {
+      "DEVELOPMENT": {
+        "paired_complete20": 14,
+        "mean_paired_advantage_pct": -3.0787,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 7,
+        "mean_paired_advantage_pct": -1.7622,
+        "improvement_established": false
+      }
+    },
+    "C3_MA10": {
+      "DEVELOPMENT": {
+        "paired_complete20": 14,
+        "mean_paired_advantage_pct": -1.5387,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 10,
+        "mean_paired_advantage_pct": -0.7878,
+        "improvement_established": false
+      }
+    },
+    "C3_MA20": {
+      "DEVELOPMENT": {
+        "paired_complete20": 12,
+        "mean_paired_advantage_pct": 1.1884,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 6,
+        "mean_paired_advantage_pct": 1.1738,
+        "improvement_established": false
+      }
+    },
+    "C3_FIRST_RETEST": {
+      "DEVELOPMENT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      }
+    },
+    "C3_VCP_BREAKOUT": {
+      "DEVELOPMENT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      }
+    },
+    "C3_HIGH_FLIP": {
+      "DEVELOPMENT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      }
+    },
+    "C3_TURN_PULLBACK": {
+      "DEVELOPMENT": {
+        "paired_complete20": 2,
+        "mean_paired_advantage_pct": 0.0,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 1,
+        "mean_paired_advantage_pct": 0.0,
+        "improvement_established": false
+      }
+    },
+    "C3_COMPOSITE": {
+      "DEVELOPMENT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 0,
+        "mean_paired_advantage_pct": null,
+        "improvement_established": false
+      }
+    },
+    "C3_RS_PRICE_VOLUME": {
+      "DEVELOPMENT": {
+        "paired_complete20": 2,
+        "mean_paired_advantage_pct": 0.0,
+        "improvement_established": false
+      },
+      "HOLDOUT": {
+        "paired_complete20": 2,
+        "mean_paired_advantage_pct": 0.0,
+        "improvement_established": false
+      }
+    }
+  },
+  "raw_candidate_days": 1243,
+  "frozen_decision_count": 87,
+  "embargoed_candidate_days": 153,
+  "trade_approved": false,
+  "orders_enabled": false,
+  "strategy_profitability_verified": false,
+  "decision": "CASH",
+  "rules": {
+    "baseline": "C3_V23_GEOMETRY_UPTREND_WITH_RESISTANCE_BAND_GUARD",
+    "structural_stop_frozen_first": true,
+    "fixed_stop_plus_3pct_gate": false,
+    "shared_decision_cooldown_sessions": 26,
+    "watch_sessions": 5,
+    "development_end": "2026-03-31",
+    "holdout_start": "2026-05-01",
+    "development_outcomes_purged": true,
+    "parameters_optimized": false,
+    "buy_cost": 0.0015,
+    "sell_cost": 0.005,
+    "gap_below_band": "CANCEL",
+    "entry_stop_collision": "EXCLUDE_AMBIGUOUS_ENTRY",
+    "exit_stop_target_collision": "STOP_FIRST_UNLESS_OPEN_PROVES_ORDER",
+    "entry_day_profit_targets": "NEVER_EXECUTED_FROM_DAILY_HIGH"
+  },
+  "untested": [
+    "FULL_MARKET_POINT_IN_TIME_TOP2_RANKING",
+    "OFFICIAL_REGULAR_ONLY_OHLCV",
+    "INDEPENDENT_EXCHANGE_CALENDAR",
+    "RELATIVE_STRENGTH_WITH_POINT_IN_TIME_FLOWS",
+    "PORTFOLIO_MAX_DRAWDOWN",
+    "TICK_SIZE_QUEUE_LIQUIDITY_AND_SLIPPAGE",
+    "POINT_IN_TIME_CORPORATE_ACTIONS"
+  ],
+  "limitations": [
+    "RETROSPECTIVELY_SELECTED_SMALL_BASKET_SURVIVORSHIP_BIAS",
+    "ADJUSTED_PRICE_UNITS_ARE_NOT_HISTORICAL_EXECUTABLE_PRICES",
+    "MULTIPLE_EXPLORATORY_VARIANTS_NO_STATISTICAL_PROMOTION",
+    "CALENDAR_AND_PRICE_SESSION_SCOPE_REMAIN_UNCERTIFIED",
+    "DESCRIPTIVE_HOLDOUT_NOT_UNBIASED_UNIVERSE_OUT_OF_SAMPLE"
+  ],
+  "market_reference_sha256": "0072969ad19f1da7a69f6a254ad028b9f9d9b3669acb616e4fee0727e109201f",
+  "data_audit": {
+    "files": [
+      {
+        "ticker": "000660",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "003670",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "007810",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "009540",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "010140",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "012330",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "012450",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 364,
+        "start": "2025-05-08",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "042000",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "042660",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "051600",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "058610",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "071970",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "074600",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "086280",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "095340",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      },
+      {
+        "ticker": "329180",
+        "status": "ACCEPTED_PROVISIONAL",
+        "rows": 366,
+        "start": "2025-05-02",
+        "end": "2026-11-03",
+        "zero_volume_sessions": 0
+      }
+    ],
+    "archive_sha256": "693c404bd8ea65efb1bf1e1b6dd6a4164b43155da2031f8b188adec7e39c2752",
+    "status_sha256": "17c35d7ee9e8138d76c47452222d0352d277018093640419833d1dcce7b991c9",
+    "reference_calendar_sha256": "390d4f028f66fda60aee3e76d868b081dbed132135c5c161a00f406324afd199",
+    "members_sha256": "e0107a372d5cc6ff318294dfdd178d605e8363b3e50c24bc370e596b0830f19e",
+    "basic_snapshot_sha256": {
+      "KOSDAQ_basic_v610.csv": "9e8a4daf2ca07bd932849b7118dab8795f9a4979ff19ca0f4c9f44d6532c1ccb",
+      "KOSPI_basic_v610.csv": "43c3a35fc132b58201c5eba40b44aea47344b63ed240ef0f697f2ba56b5d2b65"
+    },
+    "archive_source_run": {
+      "run_id": "41632048415",
+      "run_attempt": "1",
+      "commit": "fdcd6ec7e6ed64914df402e6fc42b38f32647369"
+    },
+    "archive_asof": "2026-11-03",
+    "archive_tickers": 542,
+    "archive_rows": 197116,
+    "study_scope": "CURATED_NON_BIOTECH_COMMON_SHARES_INTERSECT_POST_SCREEN_RETAINED_HISTORY",
+    "official_calendar_verified": false,
+    "regular_only_certified": false,
+    "current_selection_survivorship_bias": true,
+    "point_in_time_universe_verified": false
+  },
+  "data_summary": {
+    "tickers": [
+      "000660",
+      "003670",
+      "007810",
+      "009540",
+      "010140",
+      "012330",
+      "012450",
+      "042000",
+      "042660",
+      "051600",
+      "058610",
+      "071970",
+      "074600",
+      "086280",
+      "095340",
+      "329180"
+    ],
+    "ticker_count": 16,
+    "bars": 5854,
+    "start": "2025-05-02",
+    "end": "2026-11-03",
+    "full_market_tested": false
+  },
+  "code_sha256": {
+    "c3_entry_benchmark_v1.py": "3b913566c2d941f9de24af29472fab21ff24c6573adf968e0d06281bbf429343",
+    "c3_entry_geometry_v23.py": "c010457e092ab27b04ce1a6ec94e8f7ec2387d16f0b836afbd6157544208c510",
+    "c3_ict_sequence_research_v1.py": "d1d1ce175d09499f0c221152b05d052a0a2b2344a598e52320bf20a85d58a789"
+  }
+}

@@ -7,8 +7,8 @@ This is a **research inventory**, not an approval to trade, a verified scanner r
 - Research branch / PR #30: read-only ledger audit, synthetic regression tests, independent OHLCV comparison prototype.
 - The 2026-10-30 research TOP2 (Orion 271560 / Dong Suh 026960) were registered on 2026-10-31; subsequent hypothetical fills are **not broker fills**.
 - Paper ledger observed through 2026-11-03 when last inspected. No confirmed 5/10/20-session outcome, no regular-only source certification, no real orders.
-- Comparing adjusted pykrx prices with another adjusted pykrx file is not independent verification. Matching numbers alone does not prove the provider captured exclusively 09:00–15:30 KST.
-- PR #30 tests have not yet been verified as passing on GitHub Actions. Do not merge until tested.
+- Comparing adjusted pykrx prices with another adjusted pykrx file is not independent verification. Runtime inspection also confirmed NAVER routing for adjusted-by-date pykrx, so NAVER agreement is not independent evidence. Matching numbers alone does not prove the provider captured exclusively 09:00–15:30 KST.
+- Research CI is verified on GitHub: code `bcb2e6f9f3e6d5a2a26074f89457cc943699e059`, 442 regressions, reproducible 5/16-ticker studies, and frozen-plan charts. See [current integrated report](C3_WORK_INTEGRATED_RESEARCH_20261104.md). No profitability or regular-session certification; keep the PR draft.
 
 ## Reconciled workstreams from previous conversations
 1. **C3 full-universe data coverage**: an older v5.7.2 collection recorded 2,568 valid of 2,679 symbols (95.9%); 111 missing. A later inspection found 40 suspended/zero-volume-like rows not safely mergeable. These are *historical snapshots*, not the present-day coverage claim. Always publish actual session, expected count, successful count, exclusions and reasons.
@@ -29,7 +29,7 @@ This is a **research inventory**, not an approval to trade, a verified scanner r
 - `.github/workflows/c3_paper_integrity_research.yml`: research-only CI test configuration.
 
 ## Next verification sequence
-1. Confirm CI runs and inspect logs. If none, diagnose GitHub Actions branch workflow trigger / manual dispatch before reporting success.
+1. Research CI verification completed in run 41836585549. Retain the exact code/input hashes and distinguish successful CI from certified market data.
 2. Verify ledger audit against actual main snapshot; repair schema mismatches in research branch only.
 3. Acquire independently sourced **actual regular-session-only** OHLCV and trustworthy provenance, compare per ticker/date, investigate adjusted-price and volume semantics.
 4. Produce source-verified TOP2 entries and mobile charts. Keep `trade_approved=false` until all independent gates pass.

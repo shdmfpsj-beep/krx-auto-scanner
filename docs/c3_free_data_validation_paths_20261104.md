@@ -5,9 +5,9 @@
 
 ## 무료 우선순위
 1. **KRX OPEN API**: 공식 KRX 일별매매정보를 기준 데이터 후보로 검토. 가입/인증키, 이용약관, 호출 제한, 조정주가/정규장 범위와 종목별 OHLCV 필드 확인 필요. 공식 안내: https://openapi.krx.co.kr/contents/OPP/INFO/service/OPPINFO004.cmd
-2. **FinanceDataReader NAVER:** `fdr.DataReader("NAVER:271560", start, end)` 및 `NAVER:026960`를 무료 독립 수집 경로 후보로 실험. 실제 응답 여부·이용정책·정규장 범위·수정주가 처리 미확인. 참고: https://github.com/FinanceData/FinanceDataReader
+2. **FinanceDataReader NAVER:** `fdr.DataReader("NAVER:271560", start, end)` 및 `NAVER:026960`를 가격 비교 경로로 실험. 실행 환경에서 pykrx 수정주가 일봉도 NAVER 경유임을 확인했으므로 독립 검증원으로 취급하지 않는다. 정규장 범위·수정주가 기준은 별도 확인 필요. 참고: https://github.com/FinanceData/FinanceDataReader
 3. **FinanceDataReader KRX:** `fdr.DataReader("KRX:271560", start, end)`. pykrx와 같은 거래소 원천일 수 있으므로 '독립 검증'으로 계산하지 않는다.
-4. **Yahoo Finance:** 이미 실험적 비교 중. 현재 14건 중 12건 불일치; 수정주가/거래 세션 차이의 원인 미확인.
+4. **Yahoo Finance:** 이미 실험적 비교 중. 11월 3일 종료의 166행 비교에서 59행 불일치·107행 일치. 수정주가/거래 세션 차이의 원인은 미확정.
 5. **키움 REST:** 기존 계좌와 발급 키 활용 가능성을 검토하되 고정 IP, 호출 정책 및 실행 환경 확인 전 자동 연결을 전제로 하지 않는다.
 
 ## 단계별 의사결정
@@ -25,3 +25,8 @@
 - 불일치 가격을 임의 보정해 매매 가능으로 표시하지 않는다.
 - 실제 체결 없이 일봉 고저가 접촉을 수익으로 계산하지 않는다.
 - 유료 서비스 가입, 새 계좌 개설, 실계좌 주문, 알림 변경을 자동 실행하지 않는다.
+
+## 이번 실행에서 추가 확인한 결과
+- 기존 공식 API 연결로 2026-11-03 KOSPI·KOSDAQ 2,768행 수집에 성공했다. 11-04 응답은 비어 있었으며 사유는 미확정이다.
+- 11-03 동서·오리온의 공식 일별 EOD 종가와 pykrx 수정주가 종가가 각각 +50원·-200원 차이였다. 공식 EOD를 정규장 전용이라고 인증하지 않았고 기존 계획을 변경하지 않았다.
+- [통합 연구 결과](C3_WORK_INTEGRATED_RESEARCH_20261104.md)와 PR #30에 재현·테스트·가격 차이 근거를 기록했다.
