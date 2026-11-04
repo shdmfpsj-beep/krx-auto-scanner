@@ -39,7 +39,13 @@ def compare(primary, reference, primary_provider, reference_provider,
             reference_regular_only=False):
     if not primary_provider or not reference_provider:
         raise ValueError("PROVIDER_PROVENANCE_REQUIRED")
-    if primary_provider.strip().casefold() == reference_provider.strip().casefold():
+    def provider_family(name):
+        normalized=name.strip().casefold().replace("_","").replace("-","").replace(" ","")
+        # pykrx uses KRX-derived upstream; a different wrapper is not independent.
+        if normalized in ("pykrx","krx","krxdata","koreaxchange","koreaexchange"):
+            return "krx"
+        return normalized
+    if provider_family(primary_provider) == provider_family(reference_provider):
         raise ValueError("NON_INDEPENDENT_PROVIDER")
     a, b = read_rows(primary), read_rows(reference)
     rows = []
