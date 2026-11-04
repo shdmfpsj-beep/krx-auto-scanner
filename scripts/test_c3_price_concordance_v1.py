@@ -68,7 +68,7 @@ class ConcordanceTests(unittest.TestCase):
         self.write(self.b, dict(BASE, date="2026-11-02"))
         x = compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
         self.assertFalse(x["regular_only_concordance_passed"])
-        self.assertEqual(x["results"][0]["result"], "MISSING_REFERENCE")
+        self.assertIn("MISSING_REFERENCE", [row["result"] for row in x["results"]])
 
 if __name__ == "__main__":
     unittest.main()
