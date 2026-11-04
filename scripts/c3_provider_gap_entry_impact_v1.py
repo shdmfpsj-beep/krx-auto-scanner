@@ -34,11 +34,24 @@ def assess(plans,diagnostic):
             "method":"PROVISIONAL_RELATIVE_SCALE_ONLY_NOT_CAUSAL",
             "regular_only_certified":False,"trade_approved":False,"orders_enabled":False,
             "results":output}
+def markdown_table(report):
+    lines=["### TOP2 가격 공급원 차이와 매수·손절 구조 (연구용)",
+           "| 종목 | 손절 거리 | 관찰구간 폭 | 최대 종가 차이 | 손절 거리 10% 초과 |",
+           "|---|---:|---:|---:|---|"]
+    for row in report["results"]:
+        lines.append("| {} | {:.3f}% | {:.3f}% | {:.3f}% | {} |".format(
+            row["name"],row["close_to_stop_pct"],row["watch_band_width_pct"],
+            row["max_provider_close_gap_pct"],"예" if row["gap_exceeds_10pct_of_stop_distance"] else "아니오"))
+    lines.append("")
+    lines.append("> 비교는 가격 기준의 민감도 분석이며 체결·손익 검증이 아닙니다. CASH / 주문 비활성.")
+    return "\n".join(lines)+"\n"
+
 def main():
     p=argparse.ArgumentParser()
-    p.add_argument("--plans",required=True);p.add_argument("--diagnostic",required=True);p.add_argument("--output",required=True)
+    p.add_argument("--plans",required=True);p.add_argument("--diagnostic",required=True);p.add_argument("--output",required=True);p.add_argument("--markdown")
     a=p.parse_args()
     result=assess(a.plans,json.loads(Path(a.diagnostic).read_text(encoding="utf-8")))
     Path(a.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    if a.markdown: Path(a.markdown).write_text(markdown_table(result),encoding="utf-8")
     print(json.dumps(result,ensure_ascii=False))
 if __name__=="__main__":main()
