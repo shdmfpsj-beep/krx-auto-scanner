@@ -37,8 +37,10 @@ def assess(plan,prices):
     entry_geometry_valid=bool(stop<entry<target)
     # Prior-only breakout evidence. A prior close above the pivot is necessary
     # but insufficient to establish a sustained breakout or a trade signal.
-    pivot_breakout_closes=(sum(1 for _,bar in prior
-        if pivot_price is not None and float(bar["close"])>pivot_price))
+    pivot_date=nearest_pivot[0] if nearest_pivot else None
+    pivot_breakout_closes=(sum(1 for day,bar in prior
+        if pivot_price is not None and day>pivot_date and float(bar["close"])>pivot_price))
+    post_pivot_sessions=sum(1 for day,_ in prior if pivot_date is not None and day>pivot_date)
     last_prior_close=float(prior[-1][1]["close"]) if prior else None
     last_close_above_pivot=bool(pivot_price is not None and last_prior_close>pivot_price)
     breakout_retest_verified=False
@@ -70,6 +72,8 @@ def assess(plan,prices):
                 prior_swing_before_planned_target=pivot_before_target,
                 pivot_is_confirmed_resistance=False,
                 prior_closes_above_swing_high=pivot_breakout_closes,
+                post_pivot_sessions=post_pivot_sessions,
+                breakout_closes_are_post_pivot_only=True,
                 last_prior_close_above_swing_high=last_close_above_pivot,
                 breakout_retest_verified=breakout_retest_verified,
                 swing_rr_warning=swing_rr_warning,
@@ -123,6 +127,8 @@ def main():
         "target_rr":r["planned_target_reward_risk_at_watch_high"],
         "warning":r["swing_rr_warning"],
         "prior_closes_above_swing_high":r["prior_closes_above_swing_high"],
+        "post_pivot_sessions":r["post_pivot_sessions"],
+        "pivot_date":r["nearest_confirmed_prior_swing_high_date"],
         "last_prior_close_above_swing_high":r["last_prior_close_above_swing_high"],
         "breakout_retest_verified":r["breakout_retest_verified"],
         "research_triage":r["research_triage"]} for r in report["results"]],
