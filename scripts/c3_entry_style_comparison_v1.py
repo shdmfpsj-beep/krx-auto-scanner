@@ -24,15 +24,22 @@ def evaluate(plan, prices):
     pullback=[]
     retest=[]
     breakout_confirmed=False
+    breakout_without_pullback=[]
+    prior_close_above=False
     for day,b in window:
         touches=b["low"]<=high and b["high"]>=low
         if touches:
             pullback.append(day)
             if breakout_confirmed:
                 retest.append(day)
+        # A prior completed close above the anchor plus a full session above
+        # the watch band indicates missed pullback opportunity, not a fill.
+        if prior_close_above and b["low"]>high:
+            breakout_without_pullback.append(day)
         # Confirmation uses completed close; same-day high cannot qualify.
         if b["close"]>breakout_level:
             breakout_confirmed=True
+        prior_close_above=b["close"]>breakout_level
     return dict(plan_id=plan["plan_id"],ticker=code,
                 observed_sessions=len(window),expected_sessions=horizon,
                 observation_complete=len(window)>=horizon,
@@ -43,6 +50,10 @@ def evaluate(plan, prices):
                                      opportunity_days=len(retest),
                                      requires_prior_close_above_source=True,
                                      actual_fill_verified=False),
+                breakout_without_pullback=dict(first_opportunity=breakout_without_pullback[0] if breakout_without_pullback else None,
+                                               opportunity_days=len(breakout_without_pullback),
+                                               requires_prior_completed_close=True,
+                                               actual_fill_verified=False),
                 first_resistance_verified=False,
                 trade_approved=False,orders_enabled=False,
                 note="OPPORTUNITY_ONLY_NO_EXECUTION_OR_RETURN_CLAIMS")
