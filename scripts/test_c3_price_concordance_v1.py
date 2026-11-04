@@ -50,6 +50,18 @@ class ConcordanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "NON_INDEPENDENT_PROVIDER"):
             compare(self.a, self.b, "PYKRX", "pykrx", True)
 
+    def test_nonfinite_price_rejected(self):
+        self.write(self.a, dict(BASE, close="nan"))
+        self.write(self.b, BASE)
+        with self.assertRaisesRegex(ValueError, "INVALID_NONFINITE"):
+            compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
+
+    def test_reference_only_date_reported(self):
+        self.write(self.a, BASE)
+        self.write(self.b, dict(BASE, date="2026-11-02"))
+        x = compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
+        self.assertIn("REFERENCE_ONLY", x["result_counts"])
+
     def test_missing_reference_fails(self):
         self.write(self.a, BASE)
         self.write(self.b, dict(BASE, date="2026-11-02"))
