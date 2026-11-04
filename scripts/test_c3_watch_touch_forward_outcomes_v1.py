@@ -11,12 +11,29 @@ class WatchTouchForwardTests(unittest.TestCase):
         plans=[dict(PLAN,plan_id="p1"),
                dict(PLAN,plan_id="p2",ticker="026960"),
                dict(PLAN,plan_id="p3",registered_day="2026-10-25")]
+        prices={(ticker,"2026-11-02"):bar(103,108,101,104)
+                for ticker in ("271560","026960")}
         with self.assertRaisesRegex(ValueError,"EXPECTED_UNIQUE_TOP2"):
-            build(plans,{})
-        r=build(plans,{},require_top2=False)
+            build(plans,prices)
+        r=build(plans,prices,require_top2=False)
         self.assertEqual(len(r["results"]),3)
+        self.assertEqual([x["plan_id"] for x in r["results"]],["p1","p2","p3"])
+        self.assertTrue(all(x["watch_events"]==1 for x in r["results"]))
         self.assertFalse(r["trade_approved"])
         self.assertFalse(r["orders_enabled"])
+    def test_research_cohort_without_post_registration_prices_fails_closed(self):
+        cases=[{},
+               {("OTHER","2026-11-02"):bar(103,108,101,104)},
+               {("271560","2026-10-30"):bar(103,108,101,104),
+                ("271560",PLAN["registered_day"]):bar(103,108,101,104)}]
+        for prices in cases:
+            with self.subTest(prices=prices):
+                with self.assertRaisesRegex(ValueError,"NO_POST_REGISTRATION_PRICE_BARS"):
+                    build([PLAN],prices,require_top2=False)
+    def test_research_cohort_without_touch_in_incomplete_window_fails_closed(self):
+        prices={("271560","2026-11-02"):bar(110,112,109,111)}
+        with self.assertRaisesRegex(ValueError,"INCOMPLETE_WATCH_WINDOW"):
+            build([PLAN],prices,require_top2=False)
     def test_research_cohort_rejects_duplicate_plan_id(self):
         with self.assertRaisesRegex(ValueError,"DUPLICATE_PLAN_ID"):
             build([PLAN,dict(PLAN)],{},require_top2=False)
