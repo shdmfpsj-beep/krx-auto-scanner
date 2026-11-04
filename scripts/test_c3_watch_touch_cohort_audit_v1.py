@@ -11,6 +11,17 @@ class CohortTests(unittest.TestCase):
         self.assertEqual(r["horizons"]["5"]["stop_touch_events"],0)
         self.assertEqual(r["horizons"]["10"]["stop_touch_events"],1)
         self.assertEqual(r["verified_fills"],0)
+    def test_repeated_touch_dates_not_independent(self):
+        events=[dict(date="2026-11-02",status="WATCH_TOUCH_ONLY",verified_fill=False,outcomes=[]),
+                dict(date="2026-11-03",status="WATCH_TOUCH_ONLY",verified_fill=False,outcomes=[])]
+        r=summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",results=[dict(events=events)]))
+        self.assertEqual(r["clustered_plans"],1)
+        self.assertEqual(r["clustered_events"],2)
+        self.assertFalse(r["independent_event_sample_size_verified"])
+    def test_duplicate_dates_rejected(self):
+        e=dict(date="2026-11-02",status="WATCH_TOUCH_ONLY",verified_fill=False,outcomes=[])
+        with self.assertRaisesRegex(ValueError,"DUPLICATE_TOUCH_DATE"):
+            summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",results=[dict(events=[e,e])]))
     def test_verified_fill_rejected(self):
         with self.assertRaisesRegex(ValueError,"UNEXPECTED_VERIFIED_FILL"):
             summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",
