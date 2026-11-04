@@ -349,6 +349,9 @@ jobs:
               echo '### 무료 NAVER 가격 교차비교 (인증 아님)'
               python -c 'import json; d=json.load(open("/tmp/c3-top2/naver_pykrx_concordance_experimental.json")); print("비교 {}건 / 일치 {}건 / 불일치 {}건".format(d["comparison_count"],d["result_counts"].get("MATCH",0),d["result_counts"].get("MISMATCH",0)))'
             fi
+            if [ -s /tmp/c3-top2/naver_pykrx_concordance_experimental.json ]; then
+              python -c 'import json; d=json.load(open("/tmp/c3-top2/naver_pykrx_concordance_experimental.json")); print("NAVER/pykrx: 비교 {}건, 일치 {}건, 불일치 {}건 (가격 인증 아님)".format(d["comparison_count"],d["result_counts"].get("MATCH",0),d["result_counts"].get("MISMATCH",0)))' >> "$GITHUB_STEP_SUMMARY"
+            fi
             if [ -s /tmp/c3-top2/provider_gap_entry_impact.md ]; then
               echo ''
               cat /tmp/c3-top2/provider_gap_entry_impact.md
