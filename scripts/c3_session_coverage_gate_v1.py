@@ -18,6 +18,13 @@ def validate(plans,prices,session_dates):
         errors.append("EXPECTED_TWO_UNIQUE_TICKERS")
     if not session_dates:
         errors.append("SESSION_CALENDAR_REQUIRED")
+    # Caller-supplied dates are not independently verified exchange sessions.
+    # A calendar ending before registration cannot establish forward coverage.
+    if session_dates:
+        for p in items:
+            registration=p.get("registered_day","")
+            if registration and session_dates[-1] <= registration:
+                errors.append("CALENDAR_HAS_NO_POST_REGISTRATION_SESSIONS")
     if len(set(session_dates))!=len(session_dates):
         errors.append("DUPLICATE_CALENDAR_DAY")
     try:
