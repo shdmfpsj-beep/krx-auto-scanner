@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-def render(payload):
+def render(payload, calendar_check=None):
     coverage=payload.get("coverage",{})
     manifest=payload.get("collector_manifest",{})
     errors=payload.get("provenance",{}).get("errors",[])
@@ -35,6 +35,12 @@ def render(payload):
         for code,rec in sorted(dates.items()):
             lines.append(f"- {code}: {rec.get('last_observed_date') or '미수집'} / 종료일까지 달력상 {rec.get('calendar_days_from_last_to_end')}일")
         lines.append(f"- 두 종목의 마지막 관측일 일치: {'예' if manifest.get('latest_observed_dates_aligned') else '아니요'}")
+    if calendar_check is not None:
+        clean=not calendar_check.get("discrepancies_found",True)
+        lines += ["", "**제3자 XKRX 달력 대조 (공식 인증 아님)**",
+                  f"- 날짜 대조: {'불일치 미발견' if clean else '불일치 발견 / 검토 필요'}",
+                  f"- 대조 범위: {calendar_check.get('start','?')} ~ {calendar_check.get('end','?')}",
+                  "- 공식 한국거래소 거래일 인증: 미완료"]
     lines+=["","**주의:** 5·10·20행 충족은 실제 연속 거래일 수집을 보장하지 않습니다. 공식 거래소 영업일 달력 대조 전에는 수익률 검증 불가입니다.",
             "매수구간·구조손절·목표가는 과거 등록된 연구 계획 그대로 유지하며 이 보고서에서 새 주문을 생성하지 않습니다.",""]
     return "\n".join(lines)
@@ -43,11 +49,13 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--input",required=True)
     p.add_argument("--output",required=True)
+    p.add_argument("--calendar-check",help="Optional third-party XKRX check JSON")
     a=p.parse_args()
     payload=json.loads(Path(a.input).read_text(encoding="utf-8"))
     out=Path(a.output)
     out.parent.mkdir(parents=True,exist_ok=True)
-    out.write_text(render(payload),encoding="utf-8")
+    calendar_check=json.loads(Path(a.calendar_check).read_text(encoding="utf-8")) if a.calendar_check else None
+    out.write_text(render(payload,calendar_check),encoding="utf-8")
     print(str(out))
 
 if __name__=="__main__":
