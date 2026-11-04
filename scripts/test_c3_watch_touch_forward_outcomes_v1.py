@@ -1,5 +1,5 @@
 import unittest
-from c3_watch_touch_forward_outcomes_v1 import analyze
+from c3_watch_touch_forward_outcomes_v1 import analyze,build
 
 PLAN=dict(ticker="271560",plan_id="test",registered_day="2026-11-01",
           watch_low="100",watch_high="105",structure_stop="95",
@@ -7,6 +7,19 @@ PLAN=dict(ticker="271560",plan_id="test",registered_day="2026-11-01",
 def bar(o,h,l,c):
     return dict(open=o,high=h,low=l,close=c,volume=100)
 class WatchTouchForwardTests(unittest.TestCase):
+    def test_research_cohort_accepts_more_plans_but_daily_top2_rejects(self):
+        plans=[dict(PLAN,plan_id="p1"),
+               dict(PLAN,plan_id="p2",ticker="026960"),
+               dict(PLAN,plan_id="p3",registered_day="2026-10-25")]
+        with self.assertRaisesRegex(ValueError,"EXPECTED_UNIQUE_TOP2"):
+            build(plans,{})
+        r=build(plans,{},require_top2=False)
+        self.assertEqual(len(r["results"]),3)
+        self.assertFalse(r["trade_approved"])
+        self.assertFalse(r["orders_enabled"])
+    def test_research_cohort_rejects_duplicate_plan_id(self):
+        with self.assertRaisesRegex(ValueError,"DUPLICATE_PLAN_ID"):
+            build([PLAN,dict(PLAN)],{},require_top2=False)
     def test_touch_is_not_fill_and_future_incomplete(self):
         prices={("271560","2026-11-02"):bar(106,108,102,104),
                 ("271560","2026-11-03"):bar(107,109,106,108)}
