@@ -18,6 +18,15 @@ class ProgressTests(unittest.TestCase):
         self.assertFalse(report["trade_approved"])
         self.assertEqual(report["results"][0]["forward_horizons_complete"],0)
         self.assertIn("CASH",markdown(report))
+    def test_duplicate_ticker_fails(self):
+        with self.assertRaisesRegex(ValueError,"DUPLICATE_TOP2_TICKER"):
+            build({"plans":[entry("271560"),entry("271560")]},
+                  {"results":[{"ticker":"271560"},{"ticker":"026960"}]})
+    def test_nan_gap_fails(self):
+        with self.assertRaisesRegex(ValueError,"INVALID_PROVIDER_GAP"):
+            build({"plans":[entry("271560"),entry("026960")]},
+                  {"results":[{"ticker":"271560","max_provider_close_gap_pct":float("nan")},
+                              {"ticker":"026960","max_provider_close_gap_pct":0.5}]})
     def test_missing_ticker_fails(self):
         with self.assertRaisesRegex(ValueError,"TICKER_MISMATCH"):
             build({"plans":[entry("271560"),entry("026960")]},
