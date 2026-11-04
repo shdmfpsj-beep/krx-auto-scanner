@@ -138,3 +138,38 @@ jobs:
         run: python -m unittest discover -s scripts -p 'test_c3_top2_cross_ticker_gap_v1.py' -v
       - name: Audit committed read-only paper ledger
         run: python scripts/c3_paper_integrity_audit_v1.py --plans config/c3_paper_top2_plans.csv --ledger reports/c3_paper/paper_ledger.json
+
+  provisional_prices:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research-only provider
+        run: pip install pykrx==1.2.9 pandas==2.2.3
+      - name: Collect previous completed KST date
+        run: |
+          END_DATE="$(TZ=Asia/Seoul date -d yesterday +%F)"
+          echo "Research only: $END_DATE"
+          python scripts/c3_top2_pykrx_export_v1.py --plans config/c3_paper_top2_plans.csv --end "$END_DATE" --outdir /tmp/c3-top2
+      - name: Detect cross-ticker date gaps
+        if: success()
+        run: python scripts/c3_top2_cross_ticker_gap_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/cross_ticker_date_gaps.json
+      - name: Build provisional TOP2 analysis
+        if: success()
+        run: |
+          python scripts/c3_top2_provisional_report_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --manifest /tmp/c3-top2/manifest.json --output /tmp/c3-top2/top2_provisional_research.json
+          python scripts/c3_top2_mobile_summary_v1.py --input /tmp/c3-top2/top2_provisional_research.json --output /tmp/c3-top2/TOP2_mobile_summary.md
+      - name: Archive provisional data and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-top2-provisional-observation
+          path: /tmp/c3-top2/
+          if-no-files-found: warn
+          retention-days: 14
