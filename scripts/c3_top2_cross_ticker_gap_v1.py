@@ -27,6 +27,7 @@ def main():
     p.add_argument("--plans",required=True)
     p.add_argument("--prices",required=True)
     p.add_argument("--output",required=True)
+    p.add_argument("--fail-on-gap",action="store_true",help="Fail CI when either ticker lacks a date observed for the other")
     a=p.parse_args()
     with Path(a.plans).open(encoding="utf-8-sig",newline="") as f:
         plans=list(csv.DictReader(f))
@@ -35,6 +36,8 @@ def main():
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps(result,ensure_ascii=False))
+    if a.fail_on_gap and result["asymmetric_gap_count"]:
+        raise SystemExit(2)
 
 if __name__=="__main__":
     main()
