@@ -3,6 +3,9 @@
 ICT signals must be strictly earlier than the C3 watch-touch date.
 No same-day sequencing assumptions, no filled orders, no profitability claims.
 """
+import argparse,csv,json
+from pathlib import Path
+from c3_price_concordance_v1 import read_rows
 from c3_ict_sequence_research_v1 import detect
 from c3_watch_touch_forward_outcomes_v1 import build
 
@@ -53,3 +56,18 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
                 observation_unit="FIRST_TOUCH_PER_PLAN",
                 independent_plan_count=len({e["plan_id"] for e in enriched}),
                 strategy_profitability_verified=False,trade_approved=False,orders_enabled=False)
+
+def main():
+    p=argparse.ArgumentParser()
+    p.add_argument("--plans",required=True)
+    p.add_argument("--prices",required=True)
+    p.add_argument("--output",required=True)
+    a=p.parse_args()
+    with open(a.plans,encoding="utf-8-sig",newline="") as f:
+        plans=list(csv.DictReader(f))
+    result=compare(plans,read_rows(a.prices))
+    Path(a.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    print(json.dumps({"plans":result["independent_plan_count"],"counts":result["horizon_counts"]},ensure_ascii=False))
+
+if __name__=="__main__":
+    main()
