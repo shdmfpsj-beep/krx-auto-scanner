@@ -1,6 +1,6 @@
 import unittest
-from datetime import datetime
-from c3_top2_pykrx_export_v1 import collect
+from datetime import datetime,date,timedelta
+from c3_top2_pykrx_export_v1 import collect,history_start
 
 P=[dict(ticker="271560"),dict(ticker="026960")]
 class Frame:
@@ -8,6 +8,13 @@ class Frame:
     def iterrows(self):
         yield datetime(2026,11,2),{"시가":110,"고가":120,"저가":105,"종가":115,"거래량":100}
 class ExportTests(unittest.TestCase):
+    def test_history_starts_before_selection(self):
+        plans=[dict(ticker="271560",selection_date="2026-10-30"),
+               dict(ticker="026960",selection_date="2026-10-30")]
+        self.assertEqual(history_start(plans),date(2026,10,30)-timedelta(days=120))
+    def test_short_history_request_rejected(self):
+        with self.assertRaisesRegex(ValueError,"INSUFFICIENT_REQUESTED_HISTORY"):
+            history_start([dict(selection_date="2026-10-30")],20)
     def test_two_ticker_export(self):
         rows,days,failures=collect(P,lambda *a,**kw:Frame(),"2026-11-01","2026-11-04")
         self.assertEqual(len(rows),2)
