@@ -5,8 +5,13 @@ import json
 from datetime import date, timedelta
 from pathlib import Path
 
+# KRX closure announced 2026-05-20; source:
+# https://www.yna.co.kr/amp/view/AKR20260520064251008
+DOCUMENTED_KRX_CLOSURES={"2026-07-17":"CONSTITUTION_DAY_KRX_2026"}
 def compare(plans, prices, start, end, sessions):
-    expected=set(sessions)
+    raw_expected=set(sessions)
+    overrides={d:DOCUMENTED_KRX_CLOSURES[d] for d in raw_expected if d in DOCUMENTED_KRX_CLOSURES}
+    expected=raw_expected-set(DOCUMENTED_KRX_CLOSURES)
     if not expected:
         raise ValueError("EMPTY_THIRD_PARTY_SESSION_CALENDAR")
     if len(expected)!=len(sessions):
@@ -38,6 +43,8 @@ def compare(plans, prices, start, end, sessions):
                 regular_only_certified=False,
                 trade_approved=False,orders_enabled=False,
                 start=start,end=end,results=results,
+                documented_calendar_overrides=overrides,
+                third_party_calendar_unpatched=True,
                 discrepancies_found=any(v["missing_expected_dates"] or v["unexpected_observed_dates"] for v in results.values()))
 
 def main():
