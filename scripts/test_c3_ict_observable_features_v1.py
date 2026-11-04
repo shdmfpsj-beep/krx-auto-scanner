@@ -111,6 +111,13 @@ class ICTFeatureTests(unittest.TestCase):
         report=compare([plan],prices)
         self.assertEqual(len(report["rows"]),1)
         self.assertFalse(report["rows"][0]["ict_prior_signal"])
+    def test_incomplete_no_touch_window_is_pending_not_missed(self):
+        plan=dict(plan_id="pending_fixture",ticker="TEST",registered_day="2026-01-01",
+                  watch_low=20,watch_high=21,structure_stop=19,target1=25,
+                  expires_after_sessions=5)
+        prices={("TEST","2026-01-02"):dict(open=30,high=31,low=29,close=30)}
+        with self.assertRaisesRegex(ValueError,"INCOMPLETE_WATCH_WINDOW"):
+            compare([plan],prices)
     def test_no_prices_after_registration_fails_closed(self):
         plan=dict(plan_id="future_fixture",ticker="TEST",registered_day="2026-01-10",
                   watch_low=20,watch_high=21,structure_stop=19,target1=25,
