@@ -23,6 +23,7 @@ jobs:
             scripts/c3_top2_pykrx_export_v1.py
             scripts/c3_top2_provisional_report_v1.py
             scripts/c3_top2_mobile_summary_v1.py
+            scripts/c3_top2_cross_ticker_gap_v1.py
             scripts/c3_top2_research_readiness_v1.py
             scripts/c3_price_concordance_v1.py
             scripts/c3_price_provenance_gate_v1.py
@@ -48,6 +49,9 @@ jobs:
           fi
           echo "Research end date: $END_DATE"
           python scripts/c3_top2_pykrx_export_v1.py --plans config/c3_paper_top2_plans.csv --end "$END_DATE" --outdir /tmp/c3-top2
+      - name: Check asymmetric ticker date gaps
+        run: |
+          python scripts/c3_top2_cross_ticker_gap_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/cross_ticker_date_gaps.json
       - name: Produce read-only provisional analysis
         run: |
           python scripts/c3_top2_provisional_report_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --manifest /tmp/c3-top2/manifest.json --output /tmp/c3-top2/top2_provisional_research.json
