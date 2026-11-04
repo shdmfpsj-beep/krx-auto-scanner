@@ -22,10 +22,16 @@ def build(plans,prices,primary_meta,reference_meta):
         observed_sessions=h["horizons"][-1]["observed_sessions"],
         five_session_complete=h["horizons"][0]["complete"],
         ten_session_complete=h["horizons"][1]["complete"],
-        twenty_session_complete=h["horizons"][2]["complete"])
+        twenty_session_complete=h["horizons"][2]["complete"],
+        official_calendar_verified=False,
+        contiguous_exchange_sessions_verified=False,
+        complete_for_certified_backtest=False,
+        completeness_basis="OBSERVED_ROW_COUNT_ONLY")
         for p,h in zip(items,horizons["plans"])}
     return dict(schema="C3_TOP2_RESEARCH_READINESS_V1",
                 provenance=provenance,coverage=coverage,
+                calendar_completeness_verified=False,
+                row_count_is_not_session_calendar=True,
                 entry_opportunities=entry["plans"],
                 missed_opportunities=missed["plans"],
                 forward_observations=horizons["plans"],
