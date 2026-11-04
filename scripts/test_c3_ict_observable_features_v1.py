@@ -79,6 +79,13 @@ class ICTFeatureTests(unittest.TestCase):
                   expires_after_sessions=2)
         with self.assertRaisesRegex(ValueError,"MISSING_TICKER_PRICE_HISTORY"):
             compare([plan],{("OTHER","2026-01-02"):dict(open=30,high=31,low=29,close=30)})
+    def test_stale_gap_window_rejected(self):
+        bars=[b(str(i),100,110,90,100) for i in range(10)]
+        bars.extend([b("10",94,105,89,95),b("11",112,125,111,123)])
+        bars.extend(b(str(i),120,126,115,121) for i in range(12,16))
+        bars.append(b("16",115,117,110.5,114))
+        self.assertFalse(any(e["event"]=="FVG_RETEST_WATCH" for e in detect(bars,max_fvg_age=3)))
+        self.assertTrue(any(e["event"]=="FVG_RETEST_WATCH" for e in detect(bars,max_fvg_age=5)))
     def test_warmup_and_lookback(self):
         bars=[b(str(i),100,110,90,100) for i in range(10)]
         self.assertFalse(any(x["sweep_reclaim"] for x in features(bars)))
