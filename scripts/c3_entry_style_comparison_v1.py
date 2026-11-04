@@ -67,11 +67,25 @@ def build(plans,prices):
                 independent_price_verified=False,
                 trade_approved=False,orders_enabled=False)
 
+def markdown_table(report):
+    lines=["### TOP2 진입 방식별 관찰 기회 (체결 아님)",
+           "| 종목 | 관찰일 | 눌림목 | 돌파 재시험 | 눌림 없는 돌파 지속 |",
+           "|---|---:|---:|---:|---:|"]
+    for p in report["plans"]:
+        lines.append("| {} | {}/{} | {} | {} | {} |".format(
+            p["ticker"],p["observed_sessions"],p["expected_sessions"],
+            p["pullback"]["opportunity_days"],p["breakout_retest"]["opportunity_days"],
+            p["breakout_without_pullback"]["opportunity_days"]))
+    lines.append("")
+    lines.append("> 일봉 가격 범위 관찰만으로 체결 순서·수익률을 확인할 수 없습니다. CASH / 주문 비활성.")
+    return "\n".join(lines)+"\n"
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--plans",required=True)
     p.add_argument("--prices",required=True)
     p.add_argument("--output",required=True)
+    p.add_argument("--markdown")
     args=p.parse_args()
     with Path(args.plans).open(encoding="utf-8-sig",newline="") as f:
         plans=list(csv.DictReader(f))
@@ -79,6 +93,7 @@ def main():
     out=Path(args.output)
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    if args.markdown: Path(args.markdown).write_text(markdown_table(result),encoding="utf-8")
     print(json.dumps(result,ensure_ascii=False,indent=2))
 
 if __name__=="__main__":
