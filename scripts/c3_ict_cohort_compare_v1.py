@@ -83,6 +83,8 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
     return dict(schema="C3_ICT_MATCHED_COHORT_V1",rows=enriched,horizon_counts=counts,
                 evidence_readiness_by_horizon=evidence_ready,
                 minimum_completed_per_group=min_completed_per_group,
+                comparison_design="OBSERVATIONAL_UNMATCHED",
+                causal_effect_verified=False,
                 history_coverage_certified=False,
                 regular_session_price_certified=False,
                 observation_unit="FIRST_TOUCH_PER_PLAN",
