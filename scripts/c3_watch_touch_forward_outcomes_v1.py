@@ -5,14 +5,14 @@ from c3_price_concordance_v1 import read_rows
 
 HORIZONS=(5,10,20)
 
-def analyze(plan,prices):
+def analyze(plan,prices,*,allow_pending=False):
     ticker=plan["ticker"]
     registered=plan["registered_day"]
     low,high,stop,target=(float(plan[k]) for k in ("watch_low","watch_high","structure_stop","target1"))
     if not 0<stop<low<=high<target:
         raise ValueError("INVALID_PLAN_GEOMETRY")
     series=sorted((day,bar) for (code,day),bar in prices.items() if code==ticker and day>registered)
-    if not series:
+    if not series and not allow_pending:
         raise ValueError("NO_POST_REGISTRATION_PRICE_BARS")
     watch_window=int(plan["expires_after_sessions"])
     if watch_window<1:
@@ -79,13 +79,21 @@ def analyze(plan,prices):
                            entry_reference_close=bar["close"],
                            actual_entry_price=None,verified_fill=False,outcomes=outcomes))
     # An unexpired plan with no touch is pending, not a confirmed miss.
-    if not events and len(series)<watch_window:
+    if not events and len(series)<watch_window and not allow_pending:
         raise ValueError("INCOMPLETE_WATCH_WINDOW")
+    window_status=("TOUCHED" if events else
+                   "PENDING" if len(series)<watch_window else "EXPIRED_NO_TOUCH")
     return dict(ticker=ticker,plan_id=plan["plan_id"],events=events,
                 watch_events=len(events),verified_fills=0,
+                first_touch_date=events[0]["date"] if events else None,
+                watch_window_status=window_status,
+                observed_watch_sessions=min(len(series),watch_window),
+                expected_watch_sessions=watch_window,
+                watch_window_complete=len(series)>=watch_window,
+                session_calendar_verified=False,
                 trade_approved=False,orders_enabled=False)
 
-def build(plans,prices,require_top2=True):
+def build(plans,prices,require_top2=True,*,allow_pending=False):
     # Daily TOP2 stays strict; offline historical cohorts may include
     # multiple dated plans, even repeat tickers, but never duplicate plan IDs.
     if len({p["plan_id"] for p in plans})!=len(plans):
@@ -94,7 +102,7 @@ def build(plans,prices,require_top2=True):
         raise ValueError("EXPECTED_UNIQUE_TOP2")
     if not require_top2 and not plans:
         raise ValueError("EMPTY_RESEARCH_COHORT")
-    results=[analyze(p,prices) for p in plans]
+    results=[analyze(p,prices,allow_pending=allow_pending) for p in plans]
     return dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",
                 price_certified=False,strategy_profitability_verified=False,
                 trade_approved=False,orders_enabled=False,results=results)

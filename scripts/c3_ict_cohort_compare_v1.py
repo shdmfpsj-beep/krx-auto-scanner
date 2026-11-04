@@ -9,18 +9,20 @@ from c3_price_concordance_v1 import read_rows
 from c3_ict_sequence_research_v1 import detect
 from c3_watch_touch_forward_outcomes_v1 import build
 
-def compare(plans, prices, ict_lookback=10, signal_max_age=10):
+def compare(plans, prices, ict_lookback=10, signal_max_age=10,*,allow_pending=False):
     if signal_max_age<1:
         raise ValueError("INVALID_SIGNAL_MAX_AGE")
     if ict_lookback<3:
         raise ValueError("LOOKBACK_TOO_SHORT")
     for plan in plans:
-        if not any(code==plan["ticker"] for code,_ in prices):
+        if not allow_pending and not any(code==plan["ticker"] for code,_ in prices):
             raise ValueError("MISSING_TICKER_PRICE_HISTORY")
-    baseline=build(plans,prices,require_top2=False)
+    baseline=build(plans,prices,require_top2=False,allow_pending=allow_pending)
     enriched=[]
     for result in baseline["results"]:
         ticker=result["ticker"]
+        if not result["events"]:
+            continue
         series=sorted((day,bar) for (code,day),bar in prices.items() if code==ticker)
         if not series:
             raise ValueError("MISSING_TICKER_PRICE_HISTORY")
@@ -35,12 +37,15 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
             preceding=[d for d,s in signal_events.items() if d in day_index
                        and 0<i-day_index[d]<=signal_max_age
                        and all(series[j][1]["close"]>=s["sweep_invalidation_low"]
-                               for j in range(day_index[d]+1,i+1))]
+                               for j in range(day_index[d]+1,i))]
             prior_signal=max(preceding) if preceding else None
             enriched.append(dict(ticker=ticker,plan_id=result["plan_id"],
                                  touch_date=event["date"],
                                  prior_ict_retest_date=prior_signal,
                                  ict_prior_signal=prior_signal is not None,
+                                 touch_day_ict_close_invalidation=(
+                                     series[i][1]["close"]<signal_events[prior_signal]["sweep_invalidation_low"]
+                                     if prior_signal else False),
                                  status=event["status"],
                                  touch_day_execution_ambiguous=event["touch_day_execution_ambiguous"],
                                  outcomes=event["outcomes"],
@@ -49,10 +54,12 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
     # touch events. A stricter filter may discard otherwise useful setups.
     eligible=[e for e in enriched if not e["touch_day_execution_ambiguous"]]
     ambiguous_count=sum(e["touch_day_execution_ambiguous"] for e in enriched)
-    untouched_plan_count=len(baseline["results"])-len(enriched)
+    untouched_plan_count=sum(r["watch_window_status"]=="EXPIRED_NO_TOUCH" for r in baseline["results"])
+    pending_plan_count=sum(r["watch_window_status"]=="PENDING" for r in baseline["results"])
     with_ict=[e for e in eligible if e["ict_prior_signal"]]
     retention=dict(total_plans=len(baseline["results"]),
                    no_touch_plans=untouched_plan_count,
+                   pending_plans=pending_plan_count,
                    ambiguous_touch_plans=ambiguous_count,
                    eligible_first_touch_plans=len(eligible),
                    retained_with_prior_ict=len(with_ict),
@@ -119,6 +126,9 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
                 regular_session_price_certified=False,
                 observation_unit="FIRST_TOUCH_PER_PLAN",
                 independent_plan_count=len({e["plan_id"] for e in enriched}),
+                statistical_independence_verified=False,
+                prior_signal_excludes_touch_day_close=True,
+                pending_plan_count=pending_plan_count,
                 ict_filter_retention=retention,
                 strategy_profitability_verified=False,trade_approved=False,orders_enabled=False)
 
@@ -127,10 +137,12 @@ def main():
     p.add_argument("--plans",required=True)
     p.add_argument("--prices",required=True)
     p.add_argument("--output",required=True)
+    p.add_argument("--allow-pending",action="store_true",
+                   help="Report pending plans separately; never count them as no-touch failures")
     a=p.parse_args()
     with open(a.plans,encoding="utf-8-sig",newline="") as f:
         plans=list(csv.DictReader(f))
-    result=compare(plans,read_rows(a.prices))
+    result=compare(plans,read_rows(a.prices),allow_pending=a.allow_pending)
     Path(a.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({"plans":result["independent_plan_count"],"counts":result["horizon_counts"]},ensure_ascii=False))
 

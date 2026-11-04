@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime,date,timedelta
-from c3_top2_pykrx_export_v1 import collect,history_start
+from c3_top2_pykrx_export_v1 import collect,history_start,routing_probe
 
 P=[dict(ticker="271560"),dict(ticker="026960")]
 class Frame:
@@ -41,6 +41,33 @@ class ExportTests(unittest.TestCase):
             return Frame()
         collect(P,fetch,"2026-11-01","2026-11-04")
         self.assertTrue(all(c["adjusted"] is True for c in calls))
+
+    def test_bad_later_row_discards_entire_ticker_response(self):
+        class Partial(Frame):
+            def iterrows(self):
+                yield from super().iterrows()
+                yield datetime(2026,11,3),{"시가":110,"고가":120,"저가":105,"종가":115,"거래량":float('inf')}
+        rows,days,failures=collect(P,lambda *a,**kw:Partial(),"2026-11-01","2026-11-04")
+        self.assertEqual(rows,[])
+        self.assertEqual(days,[])
+        self.assertEqual(len(failures),2)
+
+    def test_provider_cannot_return_prices_outside_requested_window(self):
+        rows,days,failures=collect(P,lambda *a,**kw:Frame(),"2026-11-03","2026-11-04")
+        self.assertEqual(rows,[])
+        self.assertEqual(len(failures),2)
+
+    def test_runtime_routing_audit_records_installed_source_without_certifying(self):
+        from unittest.mock import patch
+        source='def fetch(adjusted=True):\n    if adjusted:\n        df = naver.get_market_ohlcv_by_date()\n'
+        with patch('c3_top2_pykrx_export_v1.inspect.getsource',return_value=source):
+            r=routing_probe(lambda:None)
+        self.assertEqual(r['upstream'],'NAVER_VIA_PYKRX_ADJUSTED')
+        self.assertEqual(len(r['source_sha256']),64)
+        self.assertTrue(r['inspection_is_not_session_certification'])
+
+    def test_uninspectable_runtime_stays_unverified(self):
+        self.assertEqual(routing_probe(len)['upstream'],'PYKRX_UPSTREAM_UNVERIFIED')
 
 if __name__=="__main__":
     unittest.main()

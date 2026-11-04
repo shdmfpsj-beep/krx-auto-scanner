@@ -20,6 +20,9 @@ class ProvenanceTests(unittest.TestCase):
     def test_same_upstream(self):
         x=inspect(A,dict(B,upstream="krx"))
         self.assertIn("SAME_UPSTREAM",x["errors"])
+    def test_pykrx_and_naver_labels_cannot_hide_shared_source(self):
+        x=inspect(A,dict(B,provider="FinanceDataReader_NAVER",upstream="NAVER"))
+        self.assertIn("SOURCE_LINEAGE_OVERLAP",x["errors"])
     def test_adjustment_mismatch(self):
         x=inspect(A,dict(B,price_adjustment="UNADJUSTED"))
         self.assertIn("ADJUSTMENT_MISMATCH",x["errors"])

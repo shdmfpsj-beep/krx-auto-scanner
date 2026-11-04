@@ -15,7 +15,13 @@ class StructuralEntryTests(unittest.TestCase):
         self.assertEqual(result["state"],"RESEARCH_CONDITIONAL")
         self.assertLessEqual(result["range"][0],result["range"][1])
     def test_no_nearby_reward(self):
-        self.assertEqual(evaluate(case(first_resistance=10400), tick=100)["state"],"NO_COSTED_2R_RANGE")
+        self.assertEqual(evaluate(case(first_resistance=10350), tick=100)["state"],"NO_COSTED_2R_RANGE")
+    def test_single_tick_limit_can_still_offer_costed_2r(self):
+        result=evaluate(case(first_resistance=10400),tick=100)
+        entry=result["range"][1]
+        reward=10400*(1-.005)-entry*(1+.0015)
+        risk=entry*(1+.0015)-result["stop"]*(1-.005)
+        self.assertGreaterEqual(reward/risk,2)
     def test_missing_right_bars(self):
         self.assertEqual(evaluate(case(right_completed_bars=1), tick=100)["state"],"WAIT_SUPPORT_CONFIRMATION")
     def test_no_fake_higher_support(self):

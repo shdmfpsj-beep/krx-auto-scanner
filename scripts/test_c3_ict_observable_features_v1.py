@@ -141,5 +141,42 @@ class ICTFeatureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             features(bars,lookback=2)
 
+    def test_touch_day_close_cannot_reclassify_prior_ict_signal(self):
+        bars=[b(str(i).zfill(2),100,110,90,100) for i in range(10)]
+        bars.extend([b("10",94,105,89,95),b("11",112,125,111,123),
+                     b("12",115,117,110.5,114),b("13",100,110,86,87)])
+        plan=dict(plan_id="prior_only",ticker="TEST",registered_day="12",
+                  watch_low=96,watch_high=97,structure_stop=80,target1=130,
+                  expires_after_sessions=2)
+        prices={("TEST",x["date"]):x for x in bars}
+        row=compare([plan],prices)["rows"][0]
+        self.assertTrue(row["ict_prior_signal"])
+        self.assertTrue(row["touch_day_ict_close_invalidation"])
+        prices[("TEST","13")]=b("13",100,110,96,100)
+        self.assertEqual(compare([plan],prices)["rows"][0]["prior_ict_retest_date"],
+                         row["prior_ict_retest_date"])
+
+    def test_pending_plan_does_not_erase_early_touch(self):
+        plan=dict(plan_id="touch",ticker="TEST",registered_day="2026-01-01",
+                  watch_low=20,watch_high=21,structure_stop=19,target1=25,
+                  expires_after_sessions=5)
+        prices={("TEST","2026-01-02"):dict(open=22,high=23,low=20,close=21),
+                ("OTHER","2026-01-02"):dict(open=30,high=31,low=29,close=30)}
+        r=compare([plan,dict(plan,plan_id="pending",ticker="OTHER")],prices,
+                  allow_pending=True)
+        self.assertEqual(len(r["rows"]),1)
+        self.assertEqual(r["pending_plan_count"],1)
+        self.assertEqual(r["ict_filter_retention"]["no_touch_plans"],0)
+        self.assertEqual(r["rows"][0]["touch_date"],"2026-01-02")
+
+    def test_no_history_can_only_be_pending_in_explicit_reporting_mode(self):
+        plan=dict(plan_id="pending",ticker="TEST",registered_day="2026-01-01",
+                  watch_low=20,watch_high=21,structure_stop=19,target1=25,
+                  expires_after_sessions=5)
+        r=compare([plan],{},allow_pending=True)
+        self.assertEqual(r["pending_plan_count"],1)
+        self.assertEqual(r["ict_filter_retention"]["no_touch_plans"],0)
+        self.assertFalse(r["trade_approved"])
+
 if __name__=="__main__":
     unittest.main()

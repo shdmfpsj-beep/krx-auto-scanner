@@ -20,6 +20,8 @@ def summarize(naver,yahoo):
                 naver_vs_pykrx=n,yahoo_vs_pykrx=y,
                 observed_naver_agreement=n["mismatches"]==0,
                 naver_source_independence_verified=False,
+                naver_may_share_pykrx_adjusted_upstream=True,
+                matching_rows_are_not_independent_validation=True,
                 yahoo_adjustment_basis_verified=False,
                 official_exchange_ohlcv_verified=False,
                 regular_only_certified=False,
@@ -42,7 +44,7 @@ def main():
         "| 비교 | 일치 | 불일치 | 전체 |\n|---|---:|---:|---:|\n"
         f"| NAVER ↔ pykrx | {n['matches']} | {n['mismatches']} | {n['rows']} |\n"
         f"| Yahoo ↔ pykrx | {y['matches']} | {y['mismatches']} | {y['rows']} |\n\n"
-        "> NAVER·pykrx 원천 독립성 미확인. Yahoo 수정주가·세션 범위 미확인. 실전 매매 차단.\n")
+        "> pykrx 수정주가 조회는 NAVER로 연결될 수 있으므로 이 일치는 독립 검증이 아닙니다. Yahoo 수정주가·세션 범위 미확인. 실전 매매 차단.\n")
     Path(a.markdown).write_text(md,encoding="utf-8")
     print(json.dumps(result,ensure_ascii=False))
 if __name__=="__main__":

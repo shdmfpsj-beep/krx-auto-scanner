@@ -6,6 +6,7 @@ regular-session certification. This module never enables trading.
 import argparse
 import json
 from pathlib import Path
+from c3_price_concordance_v1 import provider_families
 
 REQUIRED=("provider","upstream","market_scope","price_adjustment","timezone","retrieved_at")
 SCOPES={"REGULAR_ONLY","UNKNOWN","REGULAR_PLUS_EXTENDED"}
@@ -32,6 +33,8 @@ def inspect(primary,reference):
     if not errors:
         if canonical(primary["provider"])==canonical(reference["provider"]):
             errors.append("SAME_PROVIDER")
+        if provider_families(primary["provider"])&provider_families(reference["provider"]):
+            errors.append("SOURCE_LINEAGE_OVERLAP")
         if canonical(primary["upstream"])==canonical(reference["upstream"]):
             errors.append("SAME_UPSTREAM")
         if (canonical(primary["provider"])==canonical(reference["upstream"]) or

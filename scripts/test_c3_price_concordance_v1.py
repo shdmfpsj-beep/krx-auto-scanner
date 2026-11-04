@@ -24,7 +24,7 @@ class ConcordanceTests(unittest.TestCase):
     def check(self, reference=None, regular=True):
         self.write(self.a, BASE)
         self.write(self.b, reference or BASE)
-        return compare(self.a, self.b, "PYKRX", "INDEPENDENT_KRX_EXPORT",
+        return compare(self.a, self.b, "PYKRX", "SEPARATE_TEST_FEED",
                        reference_regular_only=regular)
 
     def test_identical_reference_is_provisional_match(self):
@@ -57,34 +57,52 @@ class ConcordanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "NON_INDEPENDENT_PROVIDER"):
             compare(self.a, self.b, "pykrx", "KRX", True)
 
+    def test_naver_wrapper_is_not_independent_of_pykrx(self):
+        self.write(self.a, BASE)
+        self.write(self.b, BASE)
+        for vendor in ("NAVER","FinanceDataReader_NAVER","fdr:naver"):
+            with self.subTest(vendor=vendor):
+                with self.assertRaisesRegex(ValueError,"NON_INDEPENDENT_PROVIDER"):
+                    compare(self.a,self.b,"pykrx",vendor,True)
+
+    def test_shared_upstream_observation_never_passes_independence_gate(self):
+        self.write(self.a, BASE)
+        self.write(self.b, BASE)
+        r=compare(self.a,self.b,"pykrx_adjusted","FinanceDataReader_NAVER",True,
+                  observation_only=True)
+        self.assertEqual(r["result_counts"],{"MATCH":1})
+        self.assertTrue(r["source_lineage_overlap"])
+        self.assertFalse(r["regular_only_concordance_passed"])
+        self.assertFalse(r["regular_only_certified"])
+
     def test_nonfinite_price_rejected(self):
         self.write(self.a, dict(BASE, close="nan"))
         self.write(self.b, BASE)
         with self.assertRaisesRegex(ValueError, "INVALID_NONFINITE"):
-            compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
+            compare(self.a, self.b, "PYKRX", "SEPARATE_TEST_FEED", True)
 
     def test_reference_only_date_reported(self):
         self.write(self.a, BASE)
         self.write(self.b, dict(BASE, date="2026-11-02"))
-        x = compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
+        x = compare(self.a, self.b, "PYKRX", "SEPARATE_TEST_FEED", True)
         self.assertIn("REFERENCE_ONLY", x["result_counts"])
 
     def test_blank_ticker_rejected(self):
         self.write(self.a, dict(BASE, ticker=" "))
         self.write(self.b, BASE)
         with self.assertRaisesRegex(ValueError, "EMPTY_TICKER_OR_DATE"):
-            compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
+            compare(self.a, self.b, "PYKRX", "SEPARATE_TEST_FEED", True)
 
     def test_blank_provider_rejected(self):
         self.write(self.a, BASE)
         self.write(self.b, BASE)
         with self.assertRaisesRegex(ValueError, "PROVIDER_PROVENANCE_REQUIRED"):
-            compare(self.a, self.b, "  ", "KRX_EXPORT", True)
+            compare(self.a, self.b, "  ", "SEPARATE_TEST_FEED", True)
 
     def test_missing_reference_fails(self):
         self.write(self.a, BASE)
         self.write(self.b, dict(BASE, date="2026-11-02"))
-        x = compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
+        x = compare(self.a, self.b, "PYKRX", "SEPARATE_TEST_FEED", True)
         self.assertFalse(x["regular_only_concordance_passed"])
         self.assertIn("MISSING_REFERENCE", [row["result"] for row in x["results"]])
 

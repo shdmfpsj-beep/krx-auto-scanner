@@ -6,8 +6,24 @@ Never overwrites frozen plans or places orders.
 import argparse
 import csv
 import json
+import hashlib
+import inspect
+import math
+import re
 from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
+
+def routing_probe(fetch):
+    """Inspect the installed adapter without claiming an independent feed."""
+    try:
+        source=inspect.getsource(fetch)
+    except (OSError,TypeError):
+        return dict(upstream="PYKRX_UPSTREAM_UNVERIFIED",source_sha256=None)
+    naver_adjusted=bool(re.search(r"if adjusted:\s+df\s*=\s*naver\.get_market_ohlcv_by_date",source))
+    return dict(upstream="NAVER_VIA_PYKRX_ADJUSTED" if naver_adjusted else "PYKRX_UPSTREAM_UNVERIFIED",
+                source_sha256=hashlib.sha256(source.encode()).hexdigest(),
+                adjusted_request_routes_to_naver=naver_adjusted,
+                inspection_is_not_session_certification=True)
 
 def collect(plans,fetch,start,end):
     tickers=[p["ticker"] for p in plans]
@@ -18,17 +34,21 @@ def collect(plans,fetch,start,end):
     failures={}
     for code in tickers:
         try:
+            ticker_rows=[]
             frame=fetch(start.replace("-",""),end.replace("-",""),code,adjusted=True)
             if frame is None or frame.empty:
                 raise ValueError("EMPTY_RESPONSE")
             for idx,r in frame.iterrows():
                 day=idx.strftime("%Y-%m-%d")
                 vals=[float(r[k]) for k in ("시가","고가","저가","종가","거래량")]
-                if not (0<vals[2]<=min(vals[0],vals[3])<=max(vals[0],vals[3])<=vals[1]) or vals[4]<0:
+                if not all(math.isfinite(v) for v in vals) or not (0<vals[2]<=min(vals[0],vals[3])<=max(vals[0],vals[3])<=vals[1]) or vals[4]<0:
                     raise ValueError("INVALID_OHLCV")
-                rows.append(dict(ticker=code,date=day,open=vals[0],high=vals[1],
+                if not start<=day<=end:
+                    raise ValueError("PRICE_OUTSIDE_REQUESTED_DATES")
+                ticker_rows.append(dict(ticker=code,date=day,open=vals[0],high=vals[1],
                                  low=vals[2],close=vals[3],volume=vals[4]))
-                days.add(day)
+            rows.extend(ticker_rows)
+            days.update(r["date"] for r in ticker_rows)
         except Exception as exc:
             failures[code]=type(exc).__name__+":"+str(exc)[:150]
     rows.sort(key=lambda r:(r["ticker"],r["date"]))
@@ -55,6 +75,7 @@ def main():
         plans=list(csv.DictReader(f))
     start=history_start(plans,120)
     from pykrx import stock
+    probe=routing_probe(stock.get_market_ohlcv_by_date)
     rows,days,failures=collect(plans,stock.get_market_ohlcv_by_date,start.isoformat(),end.isoformat())
     out=Path(a.outdir)
     out.mkdir(parents=True,exist_ok=True)
@@ -77,7 +98,8 @@ def main():
     last_dates={v["last_observed_date"] for v in ticker_date_coverage.values()}
     latest_observed_dates_aligned=(len(last_dates)==1 and None not in last_dates)
     manifest=dict(schema="C3_TOP2_PYKRX_PROVISIONAL_EXPORT_V1",
-                  provider="pykrx",upstream="KRX_UNVERIFIED",
+                  provider="pykrx",upstream=probe["upstream"],
+                  source_routing_probe=probe,
                   price_adjustment="ADJUSTED",market_scope="UNKNOWN",
                   session_calendar_verified=False,
                   observed_dates_are_not_exchange_calendar=True,

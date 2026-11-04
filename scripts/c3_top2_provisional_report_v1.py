@@ -51,7 +51,7 @@ def validate_export(plans,prices,manifest):
     return True
 
 def report(plans,prices,manifest):
-    source=dict(provider="pykrx",upstream="KRX_UNVERIFIED",
+    source=dict(provider="pykrx",upstream=manifest.get("upstream","PYKRX_UPSTREAM_UNVERIFIED"),
                 market_scope="UNKNOWN",price_adjustment="ADJUSTED",
                 timezone="Asia/Seoul",retrieved_at=datetime.now(timezone(timedelta(hours=9))).isoformat())
     # Do not invent an independent reference feed.
