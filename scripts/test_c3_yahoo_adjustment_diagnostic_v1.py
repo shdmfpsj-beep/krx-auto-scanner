@@ -2,7 +2,7 @@ import csv
 import tempfile
 import unittest
 from pathlib import Path
-from c3_yahoo_adjustment_diagnostic_v1 import compare
+from c3_yahoo_adjustment_diagnostic_v1 import compare,markdown_table
 
 class AdjustmentDiagnosticTests(unittest.TestCase):
     def test_raw_and_adjusted_separately(self):
@@ -21,5 +21,9 @@ class AdjustmentDiagnosticTests(unittest.TestCase):
             self.assertTrue(row["adj_equal"])
             self.assertEqual(row["raw_gap_pct"],1.0)
             self.assertFalse(result["trade_approved"])
+            table=markdown_table(result)
+            self.assertIn("271560",table)
+            self.assertIn("+1.0000%",table)
+            self.assertIn("CASH",table)
 
 if __name__=="__main__":unittest.main()
