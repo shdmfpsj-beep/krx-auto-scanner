@@ -57,6 +57,8 @@ class ICTFeatureTests(unittest.TestCase):
                 ("TEST","2026-01-03"):dict(open=30,high=31,low=29,close=30)}
         report=compare([plan],prices)
         self.assertEqual(report["rows"],[])
+        self.assertEqual(report["ict_filter_retention"]["total_plans"],1)
+        self.assertEqual(report["ict_filter_retention"]["no_touch_plans"],1)
         self.assertFalse(report["trade_approved"])
         self.assertEqual(report["horizon_counts"]["5"]["prior_ict"]["completed_horizons"],0)
     def test_cohort_first_touch_only(self):
@@ -69,6 +71,8 @@ class ICTFeatureTests(unittest.TestCase):
         self.assertEqual(len(report["rows"]),1)
         self.assertEqual(report["observation_unit"],"FIRST_TOUCH_PER_PLAN")
         self.assertEqual(report["independent_plan_count"],1)
+        self.assertEqual(report["ict_filter_retention"]["total_plans"],1)
+        self.assertEqual(report["ict_filter_retention"]["no_touch_plans"],0)
         self.assertEqual(report["ict_filter_retention"]["eligible_first_touch_plans"],1)
         self.assertEqual(report["ict_filter_retention"]["retained_with_prior_ict"],0)
         self.assertEqual(report["ict_filter_retention"]["excluded_without_prior_ict"],1)
