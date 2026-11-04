@@ -59,6 +59,17 @@ class ICTFeatureTests(unittest.TestCase):
         self.assertEqual(report["rows"],[])
         self.assertFalse(report["trade_approved"])
         self.assertEqual(report["horizon_counts"]["5"]["prior_ict"]["completed_horizons"],0)
+    def test_cohort_first_touch_only(self):
+        plan=dict(plan_id="repeat_fixture",ticker="TEST",registered_day="2026-01-01",
+                  watch_low=20,watch_high=21,structure_stop=19,target1=25,
+                  expires_after_sessions=2)
+        prices={("TEST","2026-01-02"):dict(open=22,high=22,low=20,close=21),
+                ("TEST","2026-01-03"):dict(open=22,high=22,low=20,close=21)}
+        report=compare([plan],prices)
+        self.assertEqual(len(report["rows"]),1)
+        self.assertEqual(report["observation_unit"],"FIRST_TOUCH_PER_PLAN")
+        self.assertEqual(report["independent_plan_count"],1)
+        self.assertIsNone(report["horizon_counts"]["5"]["no_prior_ict"]["mean_mfe_pct"])
     def test_warmup_and_lookback(self):
         bars=[b(str(i),100,110,90,100) for i in range(10)]
         self.assertFalse(any(x["sweep_reclaim"] for x in features(bars)))
