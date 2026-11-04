@@ -23,6 +23,21 @@ def build(entry,impact):
         for rows in future.values():
             if not isinstance(rows,list) or any(type(row.get("complete")) is not bool for row in rows):
                 raise ValueError("INVALID_FORWARD_OBSERVATIONS:"+ticker)
+        for style,rows in future.items():
+            if style not in ("pullback","breakout_retest","breakout_without_pullback"):
+                raise ValueError("UNKNOWN_ENTRY_STYLE:"+ticker)
+            if len(rows)!=3 or [r.get("horizon_sessions") for r in rows] != [5,10,20]:
+                raise ValueError("INVALID_FORWARD_HORIZONS:"+ticker)
+            for row in rows:
+                n=row["horizon_sessions"]
+                observed=row.get("observed_sessions")
+                if type(observed) is not int or not 0<=observed<=n or row["complete"]!=(observed==n):
+                    raise ValueError("INVALID_FORWARD_COMPLETENESS:"+ticker)
+                ret=row.get("observation_close_return_pct")
+                if (not row["complete"] and ret is not None) or (row["complete"] and (not isinstance(ret,(int,float)) or not math.isfinite(ret))):
+                    raise ValueError("INVALID_FORWARD_RETURN:"+ticker)
+                if row.get("strategy_return_pct") is not None or row.get("verified_fill") is not False:
+                    raise ValueError("UNVERIFIED_TRADE_CLAIM:"+ticker)
         completed=sum(row["complete"] for rows in future.values() for row in rows)
         total=sum(len(rows) for rows in future.values())
         results.append(dict(ticker=ticker,
