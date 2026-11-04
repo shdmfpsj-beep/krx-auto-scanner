@@ -17,6 +17,7 @@ def summarize(report):
     first_touch_horizons={}
     first_touch_per_plan=[]
     first_touch_order_counts={}
+    first_touch_rebound_counts={}
     first_touch_same_day_collision_count=0
     for plan in report["results"]:
         dates=[event["date"] for event in plan["events"]]
@@ -46,6 +47,11 @@ def summarize(report):
                 if item["complete"]:
                     order=item.get("stop_target_touch_order","UNKNOWN")
                     first_touch_order_counts.setdefault(key,{})[order]=first_touch_order_counts.setdefault(key,{}).get(order,0)+1
+                    rebound=bool(item.get("post_stop_rebound_observed",False))
+                    first_touch_rebound_counts.setdefault(key,{"stop_then_rebound":0,"stop_no_rebound":0,"no_stop":0})
+                    label=("stop_then_rebound" if rebound else
+                           "stop_no_rebound" if item.get("first_future_stop_touch_date") else "no_stop")
+                    first_touch_rebound_counts[key][label]+=1
                     stat["complete"]+=1
                     stat["stop_touch_events"]+=item["future_stop_touch_days"]>0
                     stat["target_touch_events"]+=item["future_target_touch_days"]>0
@@ -75,6 +81,7 @@ def summarize(report):
                 first_touch_status_counts=first_touch_status_counts,
                 first_touch_horizons=first_touch_horizons,
                 first_touch_order_counts=first_touch_order_counts,
+                first_touch_rebound_counts=first_touch_rebound_counts,
                 first_touch_same_day_collision_count=first_touch_same_day_collision_count,
                 first_touch_per_plan=first_touch_per_plan,
                 independent_event_sample_size_verified=False,
@@ -118,6 +125,11 @@ def main():
         lines.append("| {}거래일 | {} | {} | {} | {} |".format(horizon,
                      orders.get("STOP_FIRST",0),orders.get("TARGET_FIRST",0),
                      orders.get("SAME_DAY_ORDER_UNKNOWN",0),orders.get("NO_STOP_OR_TARGET",0)))
+    lines.extend(["","| 최초 접촉 기준 완료 기간 | 손절 후 반등 | 손절 후 미회복 | 손절 미접촉 |",
+                  "|---|---:|---:|---:|"])
+    for horizon,counts in sorted(result["first_touch_rebound_counts"].items(),key=lambda x:int(x[0])):
+        lines.append("| {}거래일 | {} | {} | {} |".format(horizon,
+                     counts["stop_then_rebound"],counts["stop_no_rebound"],counts["no_stop"]))
     lines.extend(["","> 후속 기간이 미완료인 표본은 성과 계산에서 제외. 접촉 사례는 실제 체결이 아니며, 표본이 작아 우위·수익성을 주장하지 않음."])
     Path(a.markdown).write_text("\n".join(lines)+"\n",encoding="utf-8")
     print(json.dumps(result,ensure_ascii=False))
