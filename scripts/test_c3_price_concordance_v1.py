@@ -51,6 +51,12 @@ class ConcordanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "NON_INDEPENDENT_PROVIDER"):
             compare(self.a, self.b, "PYKRX", "pykrx", True)
 
+    def test_krx_alias_is_not_independent(self):
+        self.write(self.a, BASE)
+        self.write(self.b, BASE)
+        with self.assertRaisesRegex(ValueError, "NON_INDEPENDENT_PROVIDER"):
+            compare(self.a, self.b, "pykrx", "KRX", True)
+
     def test_nonfinite_price_rejected(self):
         self.write(self.a, dict(BASE, close="nan"))
         self.write(self.b, BASE)
