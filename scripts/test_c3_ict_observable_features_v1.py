@@ -62,6 +62,8 @@ class ICTFeatureTests(unittest.TestCase):
         self.assertFalse(report["evidence_readiness_by_horizon"]["20"])
         self.assertEqual(report["ict_filter_retention"]["total_plans"],1)
         self.assertEqual(report["ict_filter_retention"]["no_touch_plans"],1)
+        self.assertEqual(report["comparison_design"],"OBSERVATIONAL_UNMATCHED")
+        self.assertFalse(report["causal_effect_verified"])
         self.assertFalse(report["trade_approved"])
         self.assertEqual(report["horizon_counts"]["5"]["prior_ict"]["completed_horizons"],0)
     def test_cohort_first_touch_only(self):
