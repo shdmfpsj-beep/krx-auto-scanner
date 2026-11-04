@@ -2,7 +2,7 @@
 import argparse
 import csv
 import json
-from datetime import datetime,timezone,timedelta
+from datetime import datetime,timezone,timedelta,date
 from pathlib import Path
 from c3_price_concordance_v1 import read_rows
 from c3_top2_research_readiness_v1 import build
@@ -37,6 +37,10 @@ def validate_export(plans,prices,manifest):
                 raise ValueError("COVERAGE_FIRST_DATE_MISMATCH")
             if rec.get("last_observed_date")!=(dates[-1] if dates else None):
                 raise ValueError("COVERAGE_LAST_DATE_MISMATCH")
+            expected_lag=(date.fromisoformat(manifest["end"])-
+                          date.fromisoformat(dates[-1])).days if dates else None
+            if rec.get("calendar_days_from_last_to_end")!=expected_lag:
+                raise ValueError("COVERAGE_LAST_DATE_LAG_MISMATCH")
             last_dates.add(dates[-1] if dates else None)
         aligned=(len(last_dates)==1 and None not in last_dates)
         if manifest.get("latest_observed_dates_aligned") is not aligned:
