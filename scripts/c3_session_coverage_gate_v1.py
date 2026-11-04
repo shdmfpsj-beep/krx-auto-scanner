@@ -38,6 +38,12 @@ def validate(plans,prices,session_dates):
                 errors.append("INVALID_TICKER")
     except ValueError:
         errors.append("INVALID_DATE")
+    # Calendar completeness is unknowable when supplied dates end before
+    # the last observed price row. Do not silently ignore later price dates.
+    if session_dates and prices:
+        last_price_day=max(day for _,day in prices)
+        if session_dates[-1]<last_price_day:
+            errors.append("CALENDAR_ENDS_BEFORE_LAST_PRICE")
     expected={p["ticker"] for p in items}
     unexpected=sorted({code for code,_ in prices}-expected)
     if unexpected:
