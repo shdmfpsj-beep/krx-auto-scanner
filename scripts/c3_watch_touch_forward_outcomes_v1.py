@@ -40,7 +40,15 @@ def analyze(plan,prices):
                          "STOP_FIRST" if first_stop and (not first_target or first_stop<first_target) else
                          "TARGET_FIRST" if first_target and (not first_stop or first_target<first_stop) else
                          "SAME_DAY_ORDER_UNKNOWN")
+            # A stop touch followed by a later close back above the watch
+            # low is descriptive rebound evidence, not an executable exit.
+            rebound_dates=[d for d,b in future if first_stop is not None
+                           and d>first_stop and b["close"]>=low]
+            first_rebound=rebound_dates[0] if rebound_dates else None
             outcomes.append(dict(horizon_sessions=horizon,observed_future_sessions=len(future),
+                                 first_post_stop_rebound_date=first_rebound,
+                                 post_stop_rebound_observed=bool(first_rebound),
+                                 rebound_threshold_watch_low=low,
                                  first_future_stop_touch_date=first_stop,
                                  first_future_target_touch_date=first_target,
                                  stop_target_touch_order=touch_order,
@@ -110,7 +118,9 @@ def main():
                                   "complete":h["complete"],
                                   "mfe_pct":h["observed_max_favorable_excursion_pct"],
                                   "mae_pct":h["observed_max_adverse_excursion_pct"],
-                                  "stop_target_order":h["stop_target_touch_order"]}
+                                  "stop_target_order":h["stop_target_touch_order"],
+                                  "post_stop_rebound":h["post_stop_rebound_observed"],
+                                  "first_post_stop_rebound_date":h["first_post_stop_rebound_date"]}
                                  for h in e["outcomes"]]}
                     for r in report["results"] for e in r["events"]],
         "trade_approved":False},ensure_ascii=False))
