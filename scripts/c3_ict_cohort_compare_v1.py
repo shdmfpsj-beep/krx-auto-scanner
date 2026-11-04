@@ -14,6 +14,9 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
         raise ValueError("INVALID_SIGNAL_MAX_AGE")
     if ict_lookback<3:
         raise ValueError("LOOKBACK_TOO_SHORT")
+    for plan in plans:
+        if not any(code==plan["ticker"] for code,_ in prices):
+            raise ValueError("MISSING_TICKER_PRICE_HISTORY")
     baseline=build(plans,prices,require_top2=False)
     enriched=[]
     for result in baseline["results"]:
