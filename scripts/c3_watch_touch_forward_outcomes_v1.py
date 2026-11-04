@@ -80,10 +80,16 @@ def analyze(plan,prices):
                 watch_events=len(events),verified_fills=0,
                 trade_approved=False,orders_enabled=False)
 
-def build(plans,prices):
-    results=[analyze(p,prices) for p in plans]
-    if len(results)!=2 or len({r["ticker"] for r in results})!=2:
+def build(plans,prices,require_top2=True):
+    # Daily TOP2 stays strict; offline historical cohorts may include
+    # multiple dated plans, even repeat tickers, but never duplicate plan IDs.
+    if len({p["plan_id"] for p in plans})!=len(plans):
+        raise ValueError("DUPLICATE_PLAN_ID")
+    if require_top2 and (len(plans)!=2 or len({p["ticker"] for p in plans})!=2):
         raise ValueError("EXPECTED_UNIQUE_TOP2")
+    if not require_top2 and not plans:
+        raise ValueError("EMPTY_RESEARCH_COHORT")
+    results=[analyze(p,prices) for p in plans]
     return dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",
                 price_certified=False,strategy_profitability_verified=False,
                 trade_approved=False,orders_enabled=False,results=results)
@@ -92,10 +98,12 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--plans",required=True);p.add_argument("--prices",required=True)
     p.add_argument("--output",required=True);p.add_argument("--markdown",required=True)
+    p.add_argument("--research-cohort",action="store_true",
+                   help="Offline multi-plan research only; does not approve trades")
     a=p.parse_args()
     with open(a.plans,encoding="utf-8-sig",newline="") as f:
         plans=list(csv.DictReader(f))
-    report=build(plans,read_rows(a.prices))
+    report=build(plans,read_rows(a.prices),require_top2=not a.research_cohort)
     Path(a.output).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     lines=["### 매수구간 접촉 후 5·10·20거래일 관찰 (실제 매매 성과 아님)",
            "| 종목 | 접촉일 | 분류 | 5일 | 10일 | 20일 |",
