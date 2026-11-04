@@ -86,6 +86,19 @@ class ICTFeatureTests(unittest.TestCase):
         bars.append(b("16",115,117,110.5,114))
         self.assertFalse(any(e["event"]=="FVG_RETEST_WATCH" for e in detect(bars,max_fvg_age=3)))
         self.assertTrue(any(e["event"]=="FVG_RETEST_WATCH" for e in detect(bars,max_fvg_age=5)))
+    def test_ict_signal_invalidated_between_retest_and_touch(self):
+        bars=[b(str(i).zfill(2),100,110,90,100) for i in range(10)]
+        bars.extend([b("10",94,105,89,95),b("11",112,125,111,123),
+                     b("12",115,117,110.5,114),b("13",86,90,84,85),
+                     b("14",100,110,96,100)])
+        plan=dict(plan_id="invalidate_fixture",ticker="TEST",registered_day="13",
+                  watch_low=96,watch_high=97,structure_stop=80,target1=130,
+                  expires_after_sessions=2)
+        prices={("TEST",x["date"]):{k:x[k] for k in ("open","high","low","close")}
+                for x in bars}
+        report=compare([plan],prices)
+        self.assertEqual(len(report["rows"]),1)
+        self.assertFalse(report["rows"][0]["ict_prior_signal"])
     def test_warmup_and_lookback(self):
         bars=[b(str(i),100,110,90,100) for i in range(10)]
         self.assertFalse(any(x["sweep_reclaim"] for x in features(bars)))
