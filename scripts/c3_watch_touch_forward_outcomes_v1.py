@@ -32,7 +32,18 @@ def analyze(plan,prices):
             future_min_low=min((x["low"] for _,x in future),default=None)
             mfe=round(100*(future_max_high/bar["close"]-1),3) if future_max_high is not None else None
             mae=round(100*(future_min_low/bar["close"]-1),3) if future_min_low is not None else None
+            stop_dates=[d for d,b in future if b["low"]<=stop]
+            target_dates=[d for d,b in future if b["high"]>=target]
+            first_stop=stop_dates[0] if stop_dates else None
+            first_target=target_dates[0] if target_dates else None
+            touch_order=("NO_STOP_OR_TARGET" if not first_stop and not first_target else
+                         "STOP_FIRST" if first_stop and (not first_target or first_stop<first_target) else
+                         "TARGET_FIRST" if first_target and (not first_stop or first_target<first_stop) else
+                         "SAME_DAY_ORDER_UNKNOWN")
             outcomes.append(dict(horizon_sessions=horizon,observed_future_sessions=len(future),
+                                 first_future_stop_touch_date=first_stop,
+                                 first_future_target_touch_date=first_target,
+                                 stop_target_touch_order=touch_order,
                                  observation_window_complete=complete,
                                  reference_is_touch_day_close=True,
                                  observed_max_favorable_excursion_pct=mfe,
@@ -85,7 +96,8 @@ def main():
                                   "observed":h["observed_future_sessions"],
                                   "complete":h["complete"],
                                   "mfe_pct":h["observed_max_favorable_excursion_pct"],
-                                  "mae_pct":h["observed_max_adverse_excursion_pct"]}
+                                  "mae_pct":h["observed_max_adverse_excursion_pct"],
+                                  "stop_target_order":h["stop_target_touch_order"]}
                                  for h in e["outcomes"]]}
                     for r in report["results"] for e in r["events"]],
         "trade_approved":False},ensure_ascii=False))
