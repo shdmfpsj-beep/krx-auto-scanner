@@ -5,6 +5,10 @@ on:
       - research/c3-ledger-integrity-audit-20261104
     paths:
       - 'scripts/c3_paper_integrity_audit_v1.py'
+      - 'scripts/c3_ict_*.py'
+      - 'scripts/test_c3_ict_*.py'
+      - 'scripts/c3_entry_benchmark_v1.py'
+      - 'scripts/test_c3_entry_benchmark_v1.py'
       - 'scripts/test_c3_paper_integrity_audit_v1.py'
       - 'scripts/c3_price_concordance_v1.py'
       - 'scripts/c3_yahoo_reference_experiment_v1.py'
@@ -59,6 +63,10 @@ on:
     branches: [main]
     paths:
       - 'scripts/c3_paper_integrity_audit_v1.py'
+      - 'scripts/c3_ict_*.py'
+      - 'scripts/test_c3_ict_*.py'
+      - 'scripts/c3_entry_benchmark_v1.py'
+      - 'scripts/test_c3_entry_benchmark_v1.py'
       - 'scripts/test_c3_paper_integrity_audit_v1.py'
       - 'scripts/c3_price_concordance_v1.py'
       - 'scripts/c3_yahoo_reference_experiment_v1.py'

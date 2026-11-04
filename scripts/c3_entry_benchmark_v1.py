@@ -321,6 +321,12 @@ def net_return(entry,exit_price,buy_cost=BUY_COST,sell_cost=SELL_COST):
     return 100*(exit_price*(1-sell_cost)/(entry*(1+buy_cost))-1)
 
 
+def target_price(entry,pct):
+    # Source research geometry has sub-won precision; avoid 100*1.1 being
+    # slightly above an observed 110 boundary. This is not exchange tick rounding.
+    return round(entry*(100+pct)/100,8)
+
+
 def outcome(plan,entry,rows,sessions,horizon):
     by_day={b["date"]:b for b in rows}
     days=[d for d in sessions if d>entry["date"]][:horizon]
@@ -330,7 +336,7 @@ def outcome(plan,entry,rows,sessions,horizon):
         return result
     bars=[by_day[d] for d in days]
     price=entry["price"]
-    stop_days=[d for d,b in zip(days,bars) if b["low"]<=plan["structure_stop"]]
+    stop_days=[d for d,b in zip(days,bars) if b["volume"]>0 and b["low"]<=plan["structure_stop"]]
     first_stop=stop_days[0] if stop_days else None
     rebound=None
     if first_stop:
@@ -348,12 +354,26 @@ def outcome(plan,entry,rows,sessions,horizon):
     result.update(close_change_pct=100*(bars[-1]["close"]/price-1),
         mfe_pct=max(0,100*(max(b["high"] for b in bars)/price-1)),
         mae_pct=min(0,100*(min(b["low"] for b in bars)/price-1)),
-        target10=any(b["high"]>=price*1.10 for b in bars),
-        target15=any(b["high"]>=price*1.15 for b in bars),
-        target20=any(b["high"]>=price*1.20 for b in bars),
+        target10=any(b["volume"]>0 and b["high"]>=target_price(price,10) for b in bars),
+        target15=any(b["volume"]>0 and b["high"]>=target_price(price,15) for b in bars),
+        target20=any(b["volume"]>0 and b["high"]>=target_price(price,20) for b in bars),
         stop_touched=bool(first_stop),stop_rebound_1_2_sessions=rebound,
         resistance_break_then_5_session_continuation=continuation,
+        excursions_continue_after_model_stop=True,
         observation_reference="HYPOTHETICAL_ENTRY_EXCLUDES_ENTRY_DAY_EXTREMES")
+    for target_pct in (10,15,20):
+        level=target_price(price,target_pct)
+        targets=[d for d,b in zip(days,bars) if b["volume"]>0 and b["high"]>=level]
+        first_target=targets[0] if targets else None
+        if first_stop and first_stop==first_target:
+            opening=by_day[first_stop]["open"]
+            order=("STOP_FIRST" if opening<=plan["structure_stop"] else
+                   "TARGET_FIRST" if opening>=level else "SAME_DAY_ORDER_UNKNOWN")
+        else:
+            order=("TARGET_FIRST" if first_target and (not first_stop or first_target<first_stop) else
+                   "STOP_FIRST" if first_stop else "NO_TARGET_OR_STOP")
+        result["target"+str(target_pct)+"_before_stop"]=order=="TARGET_FIRST"
+        result["target"+str(target_pct)+"_order_unknown"]=order=="SAME_DAY_ORDER_UNKNOWN"
     return result
 
 
@@ -378,7 +398,7 @@ def simulate_exit(plan,entry,rows,sessions,horizon,stop_mode="CLOSE",exit_mode="
             exit_day,exit_price,reason=day,b["open"],"CLOSE_STOP_NEXT_OPEN"
             break
         stop=plan["structure_stop"]
-        target=entry["price"]*1.10
+        target=target_price(entry["price"],10)
         # Opening auction precedes subsequent daily extremes.
         if stop_mode=="INTRADAY" and b["open"]<=stop:
             exit_day,exit_price,reason=day,b["open"],"GAP_STOP"
@@ -438,6 +458,9 @@ def summarize(records,total_decisions,horizon,fold):
             values=[m["hypothetical_net_pct"] for m in models if m["complete"]]
             exits[key]=dict(mean_net_pct=mean_or_none(values),median_net_pct=round(statistics.median(values),4) if values else None,
                             positive_rate_pct=rate([v>0 for v in values]),
+                            stop_exit_rate_pct=rate([m["exit_reason"] in (
+                                "CLOSE_STOP_NEXT_OPEN","INTRADAY_STOP","GAP_STOP") for m in models if m["complete"]]),
+                            pending_close_exit_at_horizon_count=sum(m.get("pending_close_exit_at_horizon",False) for m in models),
                             completed_model_results=len(values),censored_model_results=len(models)-len(values))
     statuses=Counter(r["entry"]["status"] for r in selected)
     return dict(decisions=total_decisions,eligible_after_filter=len(selected),
@@ -451,6 +474,12 @@ def summarize(records,total_decisions,horizon,fold):
         target10_rate_pct=rate([o["target10"] for o in observed]),
         target15_rate_pct=rate([o["target15"] for o in observed]),
         target20_rate_pct=rate([o["target20"] for o in observed]),
+        target10_before_stop_rate_pct=rate([o["target10_before_stop"] for o in observed]),
+        target15_before_stop_rate_pct=rate([o["target15_before_stop"] for o in observed]),
+        target20_before_stop_rate_pct=rate([o["target20_before_stop"] for o in observed]),
+        target10_order_unknown_rate_pct=rate([o["target10_order_unknown"] for o in observed]),
+        target15_order_unknown_rate_pct=rate([o["target15_order_unknown"] for o in observed]),
+        target20_order_unknown_rate_pct=rate([o["target20_order_unknown"] for o in observed]),
         stop_touch_rate_pct=rate([o["stop_touched"] for o in observed]),
         stop_rebound_1_2_session_rate_pct=rate([o["stop_rebound_1_2_sessions"] for o in observed if o["stop_rebound_1_2_sessions"] is not None]),
         stop_rebound_evaluable_count=sum(o["stop_rebound_1_2_sessions"] is not None for o in observed),
@@ -585,6 +614,10 @@ def write_outputs(result,outdir):
                     **{k:v for k,v in s.items() if k not in (
                         "entry_statuses","exit_models","positive_close_wilson95_descriptive")},
                     close_hold_net_mean_pct=s["exit_models"]["CLOSE_HOLD"]["mean_net_pct"],
+                    close_stop_exit_rate_pct=s["exit_models"]["CLOSE_HOLD"]["stop_exit_rate_pct"],
+                    intraday_stop_exit_rate_pct=s["exit_models"]["INTRADAY_HOLD"]["stop_exit_rate_pct"],
+                    close_hold_model_results=s["exit_models"]["CLOSE_HOLD"]["completed_model_results"],
+                    close_hold_censored_results=s["exit_models"]["CLOSE_HOLD"]["censored_model_results"],
                     intraday_hold_net_mean_pct=s["exit_models"]["INTRADAY_HOLD"]["mean_net_pct"],
                     close_take10_net_mean_pct=s["exit_models"]["CLOSE_TAKE10"]["mean_net_pct"],
                     close_trend20_net_mean_pct=s["exit_models"]["CLOSE_TREND20"]["mean_net_pct"]))
@@ -605,6 +638,7 @@ def write_outputs(result,outdir):
                 "/".join(fmt(r[k]) for k in ("target10_rate_pct","target15_rate_pct","target20_rate_pct"))+" | "+fmt(r["stop_touch_rate_pct"])+" |")
     lines.extend(["", "모형손익은 매수 0.15%·매도 0.50%의 연구 비용을 차감한 가상 결과입니다. 실제 체결·세율·슬리피지를 인증하지 않습니다.",
         "MFE·MAE·목표 도달률은 진입일 이후의 실제 관측 봉으로 계산합니다. 진입일 고가를 사후 익절로 처리하지 않습니다.",
+        "MFE·MAE와 원시 목표 도달률은 모형 손절 이후의 가격도 포함합니다. 손절 전에 목표에 먼저 도달한 비율과 같은 날 순서 불명 비율은 CSV에 별도로 기록합니다.",
         "영(0) 거래량 봉에서는 체결을 가정하지 않습니다. 종가 손절의 다음 관측 시가, 갭 손실과 미완료 관찰을 별도로 기록합니다.",
         "시장 강약·수급·뉴스의 시점 검증과 포트폴리오 최대낙폭은 미완료이며 수치를 만들지 않았습니다."])
     (root/"BENCHMARK.md").write_text("\n".join(lines)+"\n",encoding="utf-8")

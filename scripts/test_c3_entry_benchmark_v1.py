@@ -8,7 +8,7 @@ from datetime import date,timedelta
 from pathlib import Path
 
 from c3_entry_benchmark_v1 import (read_bars,load_panel,locate_entry,outcome,
-    simulate_exit,net_return,make_decision,run_benchmark,variant_plan,sha,TRAIN_END,write_outputs)
+    simulate_exit,net_return,make_decision,run_benchmark,variant_plan,sha,TRAIN_END,write_outputs,summarize)
 from c3_ict_sequence_research_v1 import detect
 
 
@@ -130,6 +130,40 @@ class EntryBenchmarkTests(unittest.TestCase):
         falling=[b(d,90,94,88,91) for d in DAYS[2:7]]
         self.assertEqual(outcome(PLAN,ENTRY,rising,DAYS,5)["mae_pct"],0)
         self.assertEqual(outcome(PLAN,ENTRY,falling,DAYS,5)["mfe_pct"],0)
+
+    def test_target_after_stop_is_not_a_stop_surviving_winner(self):
+        rows=[b(DAYS[2],100,102,94,98),b(DAYS[3],110,121,109,119)]+[b(d) for d in DAYS[4:7]]
+        r=outcome(PLAN,ENTRY,rows,DAYS,5)
+        self.assertTrue(r["target10"])
+        self.assertFalse(r["target10_before_stop"])
+        self.assertFalse(r["target10_order_unknown"])
+
+    def test_daily_stop_target_collision_cannot_be_a_verified_target_first(self):
+        rows=[b(DAYS[2],100,112,94,105)]+[b(d) for d in DAYS[3:7]]
+        r=outcome(PLAN,ENTRY,rows,DAYS,5)
+        self.assertFalse(r["target10_before_stop"])
+        self.assertTrue(r["target10_order_unknown"])
+
+    def test_observed_open_can_resolve_target_before_later_stop(self):
+        rows=[b(DAYS[2],112,115,94,105)]+[b(d) for d in DAYS[3:7]]
+        r=outcome(PLAN,ENTRY,rows,DAYS,5)
+        self.assertTrue(r["target10_before_stop"])
+        self.assertFalse(r["target10_order_unknown"])
+
+    def test_exact_ten_percent_touch_is_not_lost_to_float_rounding(self):
+        rows=[b(DAYS[2],100,110,99,108)]+[b(d) for d in DAYS[3:7]]
+        self.assertTrue(outcome(PLAN,ENTRY,rows,DAYS,5)["target10_before_stop"])
+        self.assertEqual(simulate_exit(PLAN,ENTRY,rows,DAYS,5,"CLOSE","TAKE10")["exit_price"],110)
+
+    def test_intraday_touch_and_actual_close_stop_exit_are_separate_metrics(self):
+        rows=[b(d,100,105,94,101) for d in DAYS[2:7]]
+        exits={mode+'_'+style:simulate_exit(PLAN,ENTRY,rows,DAYS,5,mode,style)
+               for mode in ('CLOSE','INTRADAY') for style in ('HOLD','TAKE10','TREND20')}
+        record=dict(fold='HOLDOUT',entry=ENTRY,outcomes={'5':outcome(PLAN,ENTRY,rows,DAYS,5)},exits={'5':exits})
+        s=summarize([record],1,5,'HOLDOUT')
+        self.assertEqual(s['stop_touch_rate_pct'],100)
+        self.assertEqual(s['exit_models']['CLOSE_HOLD']['stop_exit_rate_pct'],0)
+        self.assertEqual(s['exit_models']['INTRADAY_HOLD']['stop_exit_rate_pct'],100)
 
     def test_future_prices_cannot_change_frozen_plan_or_features(self):
         rows=history(180)
