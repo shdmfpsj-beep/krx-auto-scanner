@@ -102,8 +102,13 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
     evidence_ready={str(h):all(counts[str(h)][group]["completed_horizons"]>=min_completed_per_group
                                 for group in ("prior_ict","no_prior_ict"))
                     for h in (5,10,20)}
+    # Sample size alone does not establish a comparable market regime.
+    # Keep the basic sample-size gate separate from month-overlap readiness.
+    overlap_readiness={str(h):bool(evidence_ready[str(h)] and completed_overlap[str(h)])
+                       for h in (5,10,20)}
     return dict(schema="C3_ICT_MATCHED_COHORT_V1",rows=enriched,horizon_counts=counts,
                 evidence_readiness_by_horizon=evidence_ready,
+                overlap_readiness_by_horizon=overlap_readiness,
                 minimum_completed_per_group=min_completed_per_group,
                 comparison_design="OBSERVATIONAL_UNMATCHED",
                 touch_month_counts=month_groups,
