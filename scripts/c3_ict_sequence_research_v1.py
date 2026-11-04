@@ -5,8 +5,8 @@ The break level is frozen on the sweep date, never recomputed using later bars.
 """
 from c3_ict_observable_features_v1 import features
 
-def detect(bars,lookback=10,max_wait=10,min_body_fraction=0.55):
-    if max_wait<1 or not 0<min_body_fraction<=1:
+def detect(bars,lookback=10,max_wait=10,min_body_fraction=0.55,max_fvg_age=10):
+    if max_wait<1 or max_fvg_age<1 or not 0<min_body_fraction<=1:
         raise ValueError("INVALID_PARAMETERS")
     base=features(bars,lookback)
     out=[]
@@ -15,6 +15,9 @@ def detect(bars,lookback=10,max_wait=10,min_body_fraction=0.55):
     for i,(b,x) in enumerate(zip(bars,base)):
         if pending and i-pending["index"]>max_wait:
             pending=None
+        # Old unfilled gaps are not perpetual valid entry signals.
+        if fvg and i-fvg["index"]>max_fvg_age:
+            fvg=None
         # Invalidate the bullish setup when a completed close loses the
         # original sweep low. Do not revive a stale FVG after invalidation.
         if fvg and b["close"]<fvg["sweep_low"]:
