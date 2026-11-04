@@ -6,7 +6,7 @@ Never overwrites frozen plans or places orders.
 import argparse
 import csv
 import json
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
 
 def collect(plans,fetch,start,end):
@@ -43,8 +43,9 @@ def main():
     p.add_argument("--outdir",required=True)
     a=p.parse_args()
     end=date.fromisoformat(a.end)
-    if end>date.today():
-        raise ValueError("FUTURE_END_DATE")
+    kst_today=datetime.now(timezone(timedelta(hours=9))).date()
+    if end>=kst_today:
+        raise ValueError("END_DATE_MUST_PRECEDE_KST_TODAY")
     with Path(a.plans).open(encoding="utf-8-sig",newline="") as f:
         plans=list(csv.DictReader(f))
     start=min(date.fromisoformat(p["registered_day"]) for p in plans)-timedelta(days=5)
