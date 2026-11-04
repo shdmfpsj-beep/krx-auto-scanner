@@ -15,6 +15,8 @@ class CohortTests(unittest.TestCase):
         events=[dict(date="2026-11-02",status="WATCH_TOUCH_ONLY",verified_fill=False,outcomes=[]),
                 dict(date="2026-11-03",status="WATCH_TOUCH_ONLY",verified_fill=False,outcomes=[])]
         r=summarize(dict(schema="C3_WATCH_TOUCH_FORWARD_OUTCOMES_V1",results=[dict(events=events)]))
+        self.assertEqual(r["plans_with_touch"],1)
+        self.assertEqual(r["first_touch_status_counts"]["WATCH_TOUCH_ONLY"],1)
         self.assertEqual(r["clustered_plans"],1)
         self.assertEqual(r["clustered_events"],2)
         self.assertFalse(r["independent_event_sample_size_verified"])
