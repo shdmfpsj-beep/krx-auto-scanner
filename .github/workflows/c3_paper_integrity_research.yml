@@ -177,6 +177,7 @@ jobs:
           # Full checkout fails on an unrelated overlong tracked path.
           sparse-checkout: |
             scripts/c3_yahoo_reference_experiment_v1.py
+            scripts/c3_yahoo_adjustment_diagnostic_v1.py
             scripts/c3_provider_difference_diagnostic_v1.py
             config/c3_top2_yahoo_symbols_experimental.csv
             scripts/c3_top2_pykrx_export_v1.py
@@ -247,6 +248,14 @@ jobs:
             echo '### 실험용 가격 비교 진단 (거래 인증 아님)' >> "$GITHUB_STEP_SUMMARY"
             cat /tmp/c3-top2/yahoo_pykrx_field_diagnostics.json
             python -c 'import json; d=json.load(open("/tmp/c3-top2/yahoo_pykrx_field_diagnostics.json")); print("\\n".join("- {}: 비교 {}행, 일치 {}행, 불일치 {}행, 필드별 {}".format(k,v["rows"],v["matches"],v["mismatches"],v["field_mismatches"]) for k,v in d["tickers"].items()))' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Diagnose Yahoo adjusted versus unadjusted close
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/yahoo_reference_experimental.csv ] && [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_yahoo_adjustment_diagnostic_v1.py --primary /tmp/c3-top2/top2_provisional_ohlcv.csv --yahoo /tmp/c3-top2/yahoo_reference_experimental.csv --output /tmp/c3-top2/yahoo_adjustment_diagnostics.json
           fi
       - name: Publish mobile research summary in Actions
         if: always()
