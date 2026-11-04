@@ -75,6 +75,14 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
                                        target_first=sum(x["stop_target_touch_order"]=="TARGET_FIRST" for x in complete),
                                        stop_first=sum(x["stop_target_touch_order"]=="STOP_FIRST" for x in complete),
                                        ambiguous_order=sum(x["stop_target_touch_order"]=="SAME_DAY_ORDER_UNKNOWN" for x in complete))
+    # Same-month overlap is a diagnostic, not a matched-market backtest.
+    month_groups={}
+    for row in eligible:
+        month=row["touch_date"][:7]
+        bucket=month_groups.setdefault(month,{"prior_ict":0,"no_prior_ict":0})
+        bucket["prior_ict" if row["ict_prior_signal"] else "no_prior_ict"]+=1
+    overlapping_months=sorted(m for m,v in month_groups.items()
+                              if v["prior_ict"]>0 and v["no_prior_ict"]>0)
     # A small or one-sided cohort is descriptive, never evidence of edge.
     min_completed_per_group=30
     evidence_ready={str(h):all(counts[str(h)][group]["completed_horizons"]>=min_completed_per_group
@@ -84,6 +92,8 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
                 evidence_readiness_by_horizon=evidence_ready,
                 minimum_completed_per_group=min_completed_per_group,
                 comparison_design="OBSERVATIONAL_UNMATCHED",
+                touch_month_counts=month_groups,
+                months_with_both_cohorts=overlapping_months,
                 causal_effect_verified=False,
                 history_coverage_certified=False,
                 regular_session_price_certified=False,
