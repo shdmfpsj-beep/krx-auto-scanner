@@ -29,7 +29,13 @@ def summarize(report):
             first_touch_per_plan.append(dict(ticker=plan.get("ticker"),plan_id=plan.get("plan_id"),
                                              first_touch_date=first_event["date"],
                                              first_touch_status=first,
-                                             repeated_touch_count=len(dates)-1))
+                                             repeated_touch_count=len(dates)-1,
+                                             forward_progress=[
+                                                 dict(horizon_sessions=h["horizon_sessions"],
+                                                      observed_future_sessions=h["observed_future_sessions"],
+                                                      remaining_sessions=max(0,h["horizon_sessions"]-h["observed_future_sessions"]),
+                                                      complete=h["complete"])
+                                                 for h in first_event["outcomes"]]))
             first_touch_status_counts[first]=first_touch_status_counts.get(first,0)+1
             for item in plan["events"][0]["outcomes"]:
                 key=str(item["horizon_sessions"])
@@ -82,6 +88,15 @@ def main():
                   "|---|---|---|---:|"])
     for item in result["first_touch_per_plan"]:
         lines.append("| {} | {} | {} | {} |".format(item["ticker"],item["first_touch_date"],item["first_touch_status"],item["repeated_touch_count"]))
+    lines.extend(["","| 종목 | 5일 진행 | 10일 진행 | 20일 진행 |",
+                  "|---|---|---|---|"])
+    for item in result["first_touch_per_plan"]:
+        progress={h["horizon_sessions"]:h for h in item["forward_progress"]}
+        cells=[]
+        for horizon in (5,10,20):
+            h=progress.get(horizon)
+            cells.append("{} / {}".format(h["observed_future_sessions"],horizon) if h else "미확인")
+        lines.append("| {} | {} |".format(item["ticker"]," | ".join(cells)))
     for status,n in sorted(result["status_counts"].items()):
         lines.append(f"- {status}: {n}건")
     lines.extend(["","| 후속 관찰 | 완료 표본 | 미완료 | 완료 표본 내 손절 접촉 | 완료 표본 내 목표 접촉 |",
