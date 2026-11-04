@@ -265,6 +265,13 @@ jobs:
         run: |
           python scripts/c3_top2_provisional_report_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --manifest /tmp/c3-top2/manifest.json --output /tmp/c3-top2/top2_provisional_research.json
           python scripts/c3_top2_mobile_summary_v1.py --input /tmp/c3-top2/top2_provisional_research.json --calendar-check /tmp/c3-top2/xkrx_third_party_calendar_check.json --output /tmp/c3-top2/TOP2_mobile_summary.md
+      - name: Observe TOP2 forward 5-10-20 sessions without claiming fills
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_forward_horizon_observation_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/forward_horizon_observation.json > /tmp/c3-top2/forward_horizon_stdout.json
+          fi
       - name: Audit conservative virtual entry-stop ambiguity
         if: always()
         shell: bash
@@ -385,6 +392,10 @@ jobs:
               python -c 'import json; d=json.load(open("/tmp/c3-top2/naver_pykrx_concordance_experimental.json")); print("NAVER/pykrx: 비교 {}건, 일치 {}건, 불일치 {}건 (가격 인증 아님)".format(d["comparison_count"],d["result_counts"].get("MATCH",0),d["result_counts"].get("MISMATCH",0)))' >> "$GITHUB_STEP_SUMMARY"
             else
               echo 'NAVER/pykrx: 미수집 또는 비교 미완료 — NAVER 데이터 연결 성공으로 간주하지 않음' >> "$GITHUB_STEP_SUMMARY"
+            fi
+            if [ -s /tmp/c3-top2/forward_horizon_observation.json ]; then
+              echo '### 5·10·20거래일 관찰 (실제 체결 수익률 아님)'
+              python -c 'import json; d=json.load(open("/tmp/c3-top2/forward_horizon_observation.json")); [print("- {}: {}".format(p["ticker"], ", ".join("{}일 {}/{}{}".format(h["horizon_sessions"],h["observed_sessions"],h["horizon_sessions"]," 완료" if h["complete"] else " 대기") for h in p["horizons"]))) for p in d["plans"]]'
             fi
             if [ -s /tmp/c3-top2/conservative_paper_touch_audit.md ]; then
               cat /tmp/c3-top2/conservative_paper_touch_audit.md
