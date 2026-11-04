@@ -58,8 +58,17 @@ class PriorResistanceTests(unittest.TestCase):
         prices[("271560","2026-11-02")]=dict(bar(200),close=200)
         r=assess(PLAN,prices)
         self.assertEqual(r["prior_closes_above_swing_high"],1)
+        self.assertTrue(r["breakout_closes_are_post_pivot_only"])
         self.assertFalse(r["last_prior_close_above_swing_high"])
         self.assertFalse(r["breakout_retest_verified"])
+        self.assertFalse(r["trade_approved"])
+    def test_pre_pivot_closes_do_not_count_as_breakouts(self):
+        prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
+        prices[("271560","2026-10-02")]=dict(bar(120),close=119)
+        prices[("271560","2026-10-10")]=bar(109)
+        r=assess(PLAN,prices)
+        self.assertEqual(r["nearest_confirmed_prior_swing_high_date"],"2026-10-10")
+        self.assertEqual(r["prior_closes_above_swing_high"],0)
         self.assertFalse(r["trade_approved"])
     def test_no_candidate_above_entry(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
