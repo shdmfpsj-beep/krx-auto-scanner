@@ -41,6 +41,12 @@ def assess(plan,prices):
                       "SWING_REWARD_BELOW_1R" if pivot_reward_risk<1 else
                       "SWING_REWARD_1_TO_1_5R" if pivot_reward_risk<1.5 else
                       "SWING_REWARD_AT_LEAST_1_5R")
+    # Conservative research triage, never a live order signal.
+    research_triage=("REVIEW_ENTRY_GEOMETRY" if not entry_geometry_valid else
+                     "REVIEW_INSUFFICIENT_HISTORY" if not enough else
+                     "REVIEW_NO_SWING_EVIDENCE" if pivot_reward_risk is None else
+                     "REVIEW_NEAR_RESISTANCE" if pivot_reward_risk<1 else
+                     "WATCH_RESEARCH_ONLY")
     return dict(ticker=ticker,selection_date=cutoff,prior_sessions=len(prior),
                 minimum_prior_sessions=MIN_PRIOR_SESSIONS,
                 sufficient_history=enough,
@@ -57,6 +63,7 @@ def assess(plan,prices):
                 prior_swing_before_planned_target=pivot_before_target,
                 pivot_is_confirmed_resistance=False,
                 swing_rr_warning=swing_rr_warning,
+                research_triage=research_triage,
                 warning_threshold_is_research_only=True,
                 target_vs_nearest_prior_high_pct=target_gap_pct,
                 planned_target_above_nearest_prior_high=target_above_candidate,
@@ -85,7 +92,7 @@ def main():
         report=build(list(csv.DictReader(f)),read_rows(a.prices))
     Path(a.output).write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     lines=["### 첫 저항 후보 근거 점검 (선정일 이전 데이터만)",
-           "| 종목 | 스윙고점 후보 | 목표가 | 스윙고점 손익비 | 목표가 손익비 | 경고 |",
+           "| 종목 | 스윙고점 후보 | 목표가 | 스윙고점 손익비 | 목표가 손익비 | 연구 판정 |",
            "|---|---:|---:|---:|---:|---|"]
     for r in report["results"]:
         nearest=r["nearest_prior_high_above_watch_high"]
@@ -96,7 +103,7 @@ def main():
             r["planned_first_target"],
             "{:.2f}".format(r["prior_swing_reward_risk_at_watch_high"]) if r["prior_swing_reward_risk_at_watch_high"] is not None else "미확인",
             "{:.2f}".format(r["planned_target_reward_risk_at_watch_high"]) if r["planned_target_reward_risk_at_watch_high"] is not None else "미확인",
-            r["swing_rr_warning"]))
+            r["research_triage"]))
     lines.extend(["","> 최소 20거래일의 선정일 이전 일봉 필요. 과거 고가 후보는 검증된 저항선이 아니며 데이터 출처도 미인증. 미래 데이터 사용 금지."])
     Path(a.markdown).write_text("\n".join(lines)+"\n",encoding="utf-8")
     print(json.dumps({"schema":report["schema"],"results":[{
@@ -104,6 +111,7 @@ def main():
         "prior_swing":r["nearest_confirmed_prior_swing_high"],
         "swing_rr":r["prior_swing_reward_risk_at_watch_high"],
         "target_rr":r["planned_target_reward_risk_at_watch_high"],
-        "warning":r["swing_rr_warning"]} for r in report["results"]],
+        "warning":r["swing_rr_warning"],
+        "research_triage":r["research_triage"]} for r in report["results"]],
         "trade_approved":False},ensure_ascii=False))
 if __name__=="__main__":main()
