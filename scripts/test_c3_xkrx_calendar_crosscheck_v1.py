@@ -15,6 +15,12 @@ class ThirdPartyCalendarTests(unittest.TestCase):
         self.assertTrue(r["discrepancies_found"])
         self.assertEqual(r["results"]["271560"]["missing_expected_dates"],["2026-11-03"])
         self.assertEqual(r["results"]["026960"]["missing_expected_dates"],["2026-11-03"])
+    def test_unexpected_ticker_rejected(self):
+        with self.assertRaisesRegex(ValueError,"UNEXPECTED_PRICE_TICKER"):
+            compare(PLANS,ROWS+[{"ticker":"005930","date":"2026-11-02"}],"2026-11-02","2026-11-03",["2026-11-02","2026-11-03"])
+    def test_duplicate_price_day_rejected(self):
+        with self.assertRaisesRegex(ValueError,"DUPLICATE_PRICE_TICKER_DATE"):
+            compare(PLANS,ROWS+[ROWS[0]],"2026-11-02","2026-11-03",["2026-11-02","2026-11-03"])
     def test_empty_calendar_rejected(self):
         with self.assertRaisesRegex(ValueError,"EMPTY_THIRD_PARTY_SESSION_CALENDAR"):
             compare(PLANS,ROWS,"2026-11-02","2026-11-03",[])
