@@ -221,6 +221,14 @@ jobs:
             END_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')"
             python scripts/c3_yahoo_reference_experiment_v1.py --plans config/c3_paper_top2_plans.csv --symbols config/c3_top2_yahoo_symbols_experimental.csv --start "$START_DATE" --end "$END_DATE" --output /tmp/c3-top2/yahoo_reference_experimental.csv --status /tmp/c3-top2/yahoo_reference_status.json
           fi
+      - name: Compare Yahoo and pykrx prices (experimental only)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/yahoo_reference_experimental.csv ] && [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_price_concordance_v1.py --primary /tmp/c3-top2/top2_provisional_ohlcv.csv --reference /tmp/c3-top2/yahoo_reference_experimental.csv --primary-provider pykrx --reference-provider YahooFinance --output /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json
+          fi
       - name: Publish mobile research summary in Actions
         if: always()
         shell: bash
