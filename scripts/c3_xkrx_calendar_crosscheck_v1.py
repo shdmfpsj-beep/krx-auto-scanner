@@ -14,9 +14,16 @@ def compare(plans, prices, start, end, sessions):
     observed={p["ticker"]:set() for p in plans}
     if len(observed)!=2 or len(plans)!=2:
         raise ValueError("EXPECTED_TWO_UNIQUE_PLANS")
+    seen=set()
     for row in prices:
-        if row["ticker"] in observed:
-            observed[row["ticker"]].add(row["date"])
+        ticker,day=row["ticker"],row["date"]
+        if ticker not in observed:
+            raise ValueError("UNEXPECTED_PRICE_TICKER")
+        key=(ticker,day)
+        if key in seen:
+            raise ValueError("DUPLICATE_PRICE_TICKER_DATE")
+        seen.add(key)
+        observed[ticker].add(day)
     results={}
     for ticker, days in observed.items():
         results[ticker]=dict(missing_expected_dates=sorted(expected-days),
