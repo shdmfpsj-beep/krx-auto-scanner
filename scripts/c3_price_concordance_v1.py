@@ -24,6 +24,8 @@ def read_rows(path):
     result = {}
     for row in rows:
         key = tuple(row[k].strip() for k in KEY)
+        if not all(key):
+            raise ValueError("EMPTY_TICKER_OR_DATE")
         if key in result:
             raise ValueError("DUPLICATE_TICKER_DATE")
         vals = {k: float(row[k]) for k in FIELDS}
@@ -37,7 +39,7 @@ def read_rows(path):
 
 def compare(primary, reference, primary_provider, reference_provider,
             reference_regular_only=False):
-    if not primary_provider or not reference_provider:
+    if not primary_provider or not primary_provider.strip() or not reference_provider or not reference_provider.strip():
         raise ValueError("PROVIDER_PROVENANCE_REQUIRED")
     def provider_family(name):
         normalized=name.strip().casefold().replace("_","").replace("-","").replace(" ","")
