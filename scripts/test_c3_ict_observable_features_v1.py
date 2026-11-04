@@ -1,6 +1,7 @@
 import unittest
 from c3_ict_observable_features_v1 import features
 from c3_ict_sequence_research_v1 import detect
+from c3_ict_cohort_compare_v1 import compare
 
 def b(day,o,h,l,c):
     return dict(date=day,open=o,high=h,low=l,close=c)
@@ -48,6 +49,16 @@ class ICTFeatureTests(unittest.TestCase):
         bars.append(b("11",87,100,85,86))
         bars.append(b("12",112,125,111,123))
         self.assertFalse(any(e["event"]=="DISPLACED_STRUCTURE_BREAK" for e in detect(bars)))
+    def test_cohort_no_touch_no_approval(self):
+        plan=dict(plan_id="ict_fixture",ticker="TEST",registered_day="2026-01-01",
+                  watch_low=20,watch_high=21,structure_stop=19,target1=25,
+                  expires_after_sessions=2)
+        prices={("TEST","2026-01-02"):dict(open=30,high=31,low=29,close=30),
+                ("TEST","2026-01-03"):dict(open=30,high=31,low=29,close=30)}
+        report=compare([plan],prices)
+        self.assertEqual(report["rows"],[])
+        self.assertFalse(report["trade_approved"])
+        self.assertEqual(report["horizon_counts"]["5"]["prior_ict"]["completed_horizons"],0)
     def test_warmup_and_lookback(self):
         bars=[b(str(i),100,110,90,100) for i in range(10)]
         self.assertFalse(any(x["sweep_reclaim"] for x in features(bars)))
