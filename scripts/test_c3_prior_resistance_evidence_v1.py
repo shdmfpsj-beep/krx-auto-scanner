@@ -73,8 +73,8 @@ class PriorResistanceTests(unittest.TestCase):
     def test_breakout_then_later_retest_prior_to_selection(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
         prices[("271560","2026-10-10")]=bar(109)
-        prices[("271560","2026-10-15")]=dict(bar(112),close=111,low=106)
-        prices[("271560","2026-10-16")]=dict(bar(112),close=110,low=108)
+        prices[("271560","2026-10-15")]=dict(bar(112),open=110,close=111,low=106)
+        prices[("271560","2026-10-16")]=dict(bar(112),open=110,close=110,low=108)
         r=assess(PLAN,prices)
         self.assertTrue(r["breakout_retest_verified"])
         self.assertEqual(r["first_post_pivot_breakout_date"],"2026-10-15")
@@ -83,7 +83,7 @@ class PriorResistanceTests(unittest.TestCase):
     def test_same_day_touch_does_not_count_as_later_retest(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
         prices[("271560","2026-10-10")]=bar(109)
-        prices[("271560","2026-10-15")]=dict(bar(112),close=111,low=108)
+        prices[("271560","2026-10-15")]=dict(bar(112),open=110,close=111,low=108)
         r=assess(PLAN,prices)
         self.assertFalse(r["breakout_retest_verified"])
     def test_invalid_ohlcv_rejected_before_resistance_analysis(self):
