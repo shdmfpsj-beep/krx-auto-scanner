@@ -36,6 +36,11 @@ def collect(plans,fetch,start,end):
         raise ValueError("DUPLICATE_OHLCV")
     return rows,sorted(days),failures
 
+def history_start(plans,lookback_calendar_days=120):
+    if lookback_calendar_days<40:
+        raise ValueError("INSUFFICIENT_REQUESTED_HISTORY")
+    return min(date.fromisoformat(p["selection_date"]) for p in plans)-timedelta(days=lookback_calendar_days)
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--plans",required=True)
@@ -48,7 +53,7 @@ def main():
         raise ValueError("END_DATE_MUST_PRECEDE_KST_TODAY")
     with Path(a.plans).open(encoding="utf-8-sig",newline="") as f:
         plans=list(csv.DictReader(f))
-    start=min(date.fromisoformat(p["registered_day"]) for p in plans)-timedelta(days=5)
+    start=history_start(plans,120)
     from pykrx import stock
     rows,days,failures=collect(plans,stock.get_market_ohlcv_by_date,start.isoformat(),end.isoformat())
     out=Path(a.outdir)
@@ -78,6 +83,8 @@ def main():
                   observed_dates_are_not_exchange_calendar=True,
                   independent_price_verified=False,regular_only_certified=False,
                   trade_approved=False,orders_enabled=False,
+                  history_lookback_calendar_days=120,
+                  history_before_selection_requested=True,
                   start=start.isoformat(),end=end.isoformat(),
                   rows=len(rows),tickers=sorted({r["ticker"] for r in rows}),
                   ticker_date_coverage=ticker_date_coverage,
