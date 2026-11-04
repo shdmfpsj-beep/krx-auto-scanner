@@ -104,6 +104,7 @@ jobs:
             scripts/c3_entry_geometry_research_v1.py
             scripts/c3_no_fill_opportunity_v1.py
             scripts/c3_entry_style_comparison_v1.py
+            scripts/c3_top2_progress_status_v1.py
             scripts/c3_forward_horizon_observation_v1.py
             scripts/c3_price_provenance_gate_v1.py
             scripts/c3_top2_research_readiness_v1.py
@@ -124,6 +125,7 @@ jobs:
             scripts/test_c3_price_provenance_gate_v1.py
             scripts/test_c3_forward_horizon_observation_v1.py
             scripts/test_c3_entry_style_comparison_v1.py
+            scripts/test_c3_top2_progress_status_v1.py
             scripts/test_c3_no_fill_opportunity_v1.py
             scripts/test_c3_entry_geometry_research_v1.py
             scripts/test_c3_price_concordance_v1.py
@@ -137,6 +139,8 @@ jobs:
         run: python -m py_compile scripts/c3_paper_integrity_audit_v1.py scripts/test_c3_paper_integrity_audit_v1.py scripts/c3_price_concordance_v1.py scripts/test_c3_price_concordance_v1.py scripts/c3_entry_geometry_research_v1.py scripts/test_c3_entry_geometry_research_v1.py scripts/c3_no_fill_opportunity_v1.py scripts/test_c3_no_fill_opportunity_v1.py scripts/c3_entry_style_comparison_v1.py scripts/test_c3_entry_style_comparison_v1.py scripts/c3_forward_horizon_observation_v1.py scripts/test_c3_forward_horizon_observation_v1.py scripts/c3_price_provenance_gate_v1.py scripts/test_c3_price_provenance_gate_v1.py scripts/c3_top2_research_readiness_v1.py scripts/test_c3_top2_research_readiness_v1.py scripts/c3_session_coverage_gate_v1.py scripts/test_c3_session_coverage_gate_v1.py scripts/c3_top2_pykrx_export_v1.py scripts/test_c3_top2_pykrx_export_v1.py scripts/c3_top2_provisional_report_v1.py scripts/test_c3_top2_provisional_report_v1.py scripts/test_c3_top2_export_integrity_v1.py scripts/c3_top2_cross_ticker_gap_v1.py scripts/test_c3_top2_cross_ticker_gap_v1.py scripts/c3_top2_mobile_summary_v1.py scripts/test_c3_top2_mobile_summary_v1.py
       - name: Run synthetic regression tests
         run: python -m unittest discover -s scripts -p 'test_c3_paper_integrity_audit_v1.py' -v
+      - name: Test TOP2 progress status
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_progress_status_v1.py' -v
       - name: Test provider gap entry impact
         run: python -m unittest discover -s scripts -p 'test_c3_provider_gap_entry_impact_v1.py' -v
       - name: Test Yahoo adjusted-close comparison
@@ -205,6 +209,7 @@ jobs:
             scripts/c3_entry_geometry_research_v1.py
             scripts/c3_no_fill_opportunity_v1.py
             scripts/c3_entry_style_comparison_v1.py
+            scripts/c3_top2_progress_status_v1.py
             scripts/c3_forward_horizon_observation_v1.py
             config/c3_paper_top2_plans.csv
           sparse-checkout-cone-mode: false
@@ -283,6 +288,13 @@ jobs:
           if [ -s /tmp/c3-top2/yahoo_adjustment_diagnostics.json ]; then
             python scripts/c3_provider_gap_entry_impact_v1.py --plans config/c3_paper_top2_plans.csv --diagnostic /tmp/c3-top2/yahoo_adjustment_diagnostics.json --output /tmp/c3-top2/provider_gap_entry_impact.json --markdown /tmp/c3-top2/provider_gap_entry_impact.md
           fi
+      - name: Build TOP2 research progress status
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/entry_style_opportunities.json ] && [ -s /tmp/c3-top2/provider_gap_entry_impact.json ]; then
+            python scripts/c3_top2_progress_status_v1.py --entry /tmp/c3-top2/entry_style_opportunities.json --impact /tmp/c3-top2/provider_gap_entry_impact.json --output /tmp/c3-top2/research_progress_status.json --markdown /tmp/c3-top2/research_progress_status.md
+          fi
       - name: Publish mobile research summary in Actions
         if: always()
         shell: bash
@@ -298,6 +310,10 @@ jobs:
               echo '보고서가 생성되지 않았습니다. 앞선 수집·무결성 단계의 오류를 확인하세요.'
             fi
             echo ''
+            if [ -s /tmp/c3-top2/research_progress_status.md ]; then
+              echo ''
+              cat /tmp/c3-top2/research_progress_status.md
+            fi
             if [ -s /tmp/c3-top2/entry_style_opportunities.md ]; then
               echo ''
               cat /tmp/c3-top2/entry_style_opportunities.md
