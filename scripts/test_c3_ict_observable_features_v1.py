@@ -61,6 +61,7 @@ class ICTFeatureTests(unittest.TestCase):
         self.assertFalse(report["evidence_readiness_by_horizon"]["10"])
         self.assertFalse(report["evidence_readiness_by_horizon"]["20"])
         self.assertEqual(report["months_with_both_cohorts"],[])
+        self.assertEqual(report["completed_horizon_overlap_months"],{"5":[],"10":[],"20":[]})
         self.assertEqual(report["ict_filter_retention"]["total_plans"],1)
         self.assertEqual(report["ict_filter_retention"]["no_touch_plans"],1)
         self.assertEqual(report["comparison_design"],"OBSERVATIONAL_UNMATCHED")
