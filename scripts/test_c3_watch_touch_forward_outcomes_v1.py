@@ -13,6 +13,7 @@ class WatchTouchForwardTests(unittest.TestCase):
         r=analyze(PLAN,prices)
         self.assertEqual(r["watch_events"],1)
         self.assertEqual(r["events"][0]["status"],"WATCH_TOUCH_ONLY")
+        self.assertFalse(r["events"][0]["touch_day_stop_breached"])
         self.assertFalse(r["events"][0]["outcomes"][0]["complete"])
         self.assertIsNone(r["events"][0]["outcomes"][0]["strategy_return_pct"])
         self.assertEqual(r["verified_fills"],0)
@@ -45,8 +46,13 @@ class WatchTouchForwardTests(unittest.TestCase):
         prices={("271560","2026-11-02"):bar(103,108,94,99)}
         r=analyze(PLAN,prices)
         self.assertEqual(r["events"][0]["status"],"SAME_BAR_STOP_AMBIGUOUS")
+        self.assertTrue(r["events"][0]["touch_day_stop_breached"])
+        self.assertTrue(r["events"][0]["touch_day_execution_ambiguous"])
+        self.assertFalse(r["events"][0]["touch_day_gap_below_stop"])
     def test_gap_below_stop(self):
         prices={("271560","2026-11-02"):bar(90,102,89,101)}
         r=analyze(PLAN,prices)
         self.assertEqual(r["events"][0]["status"],"GAP_BELOW_STOP")
+        self.assertTrue(r["events"][0]["touch_day_gap_below_stop"])
+        self.assertTrue(r["events"][0]["touch_day_execution_ambiguous"])
 if __name__=="__main__":unittest.main()
