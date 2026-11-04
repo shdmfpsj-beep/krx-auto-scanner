@@ -111,6 +111,16 @@ class ICTFeatureTests(unittest.TestCase):
         report=compare([plan],prices)
         self.assertEqual(len(report["rows"]),1)
         self.assertFalse(report["rows"][0]["ict_prior_signal"])
+    def test_early_touch_with_short_history_is_observable(self):
+        plan=dict(plan_id="early_touch",ticker="TEST",registered_day="2026-01-01",
+                  watch_low=20,watch_high=21,structure_stop=19,target1=25,
+                  expires_after_sessions=5)
+        prices={("TEST","2026-01-02"):dict(open=22,high=23,low=20,close=21)}
+        report=compare([plan],prices)
+        self.assertEqual(len(report["rows"]),1)
+        self.assertEqual(report["rows"][0]["touch_date"],"2026-01-02")
+        self.assertFalse(next(x for x in report["rows"][0]["outcomes"]
+                              if x["horizon_sessions"]==5)["complete"])
     def test_incomplete_no_touch_window_is_pending_not_missed(self):
         plan=dict(plan_id="pending_fixture",ticker="TEST",registered_day="2026-01-01",
                   watch_low=20,watch_high=21,structure_stop=19,target1=25,
