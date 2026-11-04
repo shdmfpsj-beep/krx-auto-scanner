@@ -50,6 +50,18 @@ class EntryStyleTests(unittest.TestCase):
         self.assertIn("CASH",table)
         self.assertIn(chr(10)+"|",table)
         self.assertIn("눌림 없는 돌파 지속",table)
+    def test_future_observation_censored_and_not_pnl(self):
+        p={("271560","2026-11-02"):bar(111000,116000,115000)}
+        for day in range(3,9):
+            p[("271560","2026-11-%02d"%day)]=bar(115000,119000,116000)
+        x=evaluate(PLAN,p)
+        rows=x["future_close_observations"]["pullback"]
+        self.assertTrue(rows[0]["complete"])
+        self.assertIsNotNone(rows[0]["observation_close_return_pct"])
+        self.assertFalse(rows[1]["complete"])
+        self.assertIsNone(rows[1]["observation_close_return_pct"])
+        self.assertIsNone(rows[0]["strategy_return_pct"])
+        self.assertFalse(rows[0]["verified_fill"])
     def test_two_plans_required(self):
         with self.assertRaisesRegex(ValueError,"EXPECTED_EXACTLY_TWO"):
             build([PLAN],{})
