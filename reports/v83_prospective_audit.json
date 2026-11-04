@@ -1,6 +1,6 @@
 {
   "version": "8.3",
-  "run_kst": "2026-11-03T21:31:20+09:00",
+  "run_kst": "2026-11-04T21:40:28+09:00",
   "research_only": true,
   "purpose": "Separate C3 prospective TOP3 / K100 Tactical prospective TOP3 / four-stock K100 Core review",
   "source_pool": "C3 and K100 Tactical: upstream prefiltered candidates; K100 Core: confirmed four-stock user screenshot",
@@ -9,24 +9,24 @@
     "new_cohorts": 6,
     "unchanged_cohorts": 0,
     "conflicting_cohorts": 0,
-    "asof": "2026-11-03",
-    "candidate_count": 97,
+    "asof": "2026-11-04",
+    "candidate_count": 88,
     "candidate_date_counts": {
-      "2026-11-03": 97
+      "2026-11-04": 88
     },
     "c3_status": "READY_C3",
     "k100_tactical_status": "READY_K100_TACTICAL",
     "k100_core_status": "EXISTING_FOUR_HOLDINGS_ONLY",
     "conflicts": [],
     "watchlist_C3": [
-      "067280",
-      "100120",
-      "466690"
+      "006400",
+      "086060",
+      "100120"
     ],
     "watchlist_K100_TACTICAL": [
-      "067280",
-      "100120",
-      "104480"
+      "006400",
+      "086060",
+      "100120"
     ],
     "k100_core_new_screen_candidates": 0,
     "k100_core_mode": "EXISTING_HOLDINGS_ONLY",
@@ -34,9 +34,9 @@
     "selection_scope": "UPSTREAM_PREFILTERED_NOT_EXHAUSTIVE_KRX",
     "archived_k100_legacy_cohorts": 3
   },
-  "cumulative_cohorts": 39,
-  "evaluations_completed": 52,
-  "pending_or_quarantined": 104,
+  "cumulative_cohorts": 45,
+  "evaluations_completed": 70,
+  "pending_or_quarantined": 110,
   "fetch_requested": true,
   "fetch_log": [
     {
@@ -60,7 +60,22 @@
       "revision_pct": 0.0
     },
     {
+      "ticker": "067280",
+      "status": "REFRESH_OK",
+      "revision_pct": 0.0
+    },
+    {
       "ticker": "069510",
+      "status": "REFRESH_OK",
+      "revision_pct": 0.0
+    },
+    {
+      "ticker": "100120",
+      "status": "REFRESH_OK",
+      "revision_pct": 0.0
+    },
+    {
+      "ticker": "104480",
       "status": "REFRESH_OK",
       "revision_pct": 0.0
     },
@@ -114,37 +129,37 @@
     {
       "account": "C3",
       "horizon": 1,
-      "observed_rows": 13,
-      "unique_cohort_dates": 5,
-      "mean_gross_pct": -0.2936,
+      "observed_rows": 16,
+      "unique_cohort_dates": 6,
+      "mean_gross_pct": -0.2358,
       "median_gross_pct": 0.0,
-      "positive_row_pct": 38.46,
-      "date_balanced_mean_pct": -0.375,
-      "positive_date_pct": 40.0,
+      "positive_row_pct": 43.75,
+      "date_balanced_mean_pct": -0.3101,
+      "positive_date_pct": 50.0,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
     {
       "account": "C3",
       "horizon": 3,
-      "observed_rows": 7,
-      "unique_cohort_dates": 3,
-      "mean_gross_pct": -0.6933,
-      "median_gross_pct": -0.2427,
-      "positive_row_pct": 28.57,
-      "date_balanced_mean_pct": -1.3831,
-      "positive_date_pct": 33.33,
+      "observed_rows": 10,
+      "unique_cohort_dates": 4,
+      "mean_gross_pct": -0.8557,
+      "median_gross_pct": -0.3635,
+      "positive_row_pct": 30.0,
+      "date_balanced_mean_pct": -1.346,
+      "positive_date_pct": 25.0,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
     {
       "account": "C3",
       "horizon": 5,
-      "observed_rows": 1,
-      "unique_cohort_dates": 1,
-      "mean_gross_pct": -2.7125,
-      "median_gross_pct": -2.7125,
-      "positive_row_pct": 0.0,
-      "date_balanced_mean_pct": -2.7125,
-      "positive_date_pct": 0.0,
+      "observed_rows": 4,
+      "unique_cohort_dates": 2,
+      "mean_gross_pct": -0.1182,
+      "median_gross_pct": -0.1213,
+      "positive_row_pct": 25.0,
+      "date_balanced_mean_pct": -0.983,
+      "positive_date_pct": 50.0,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
     {
@@ -162,36 +177,36 @@
     {
       "account": "K100_TACTICAL",
       "horizon": 1,
-      "observed_rows": 14,
-      "unique_cohort_dates": 5,
-      "mean_gross_pct": -0.5978,
+      "observed_rows": 17,
+      "unique_cohort_dates": 6,
+      "mean_gross_pct": -0.4696,
       "median_gross_pct": 0.0,
-      "positive_row_pct": 42.86,
-      "date_balanced_mean_pct": -0.6366,
-      "positive_date_pct": 20.0,
+      "positive_row_pct": 47.06,
+      "date_balanced_mean_pct": -0.5091,
+      "positive_date_pct": 33.33,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
     {
       "account": "K100_TACTICAL",
       "horizon": 3,
-      "observed_rows": 8,
-      "unique_cohort_dates": 3,
-      "mean_gross_pct": -3.2481,
-      "median_gross_pct": -0.1213,
-      "positive_row_pct": 37.5,
-      "date_balanced_mean_pct": -3.8079,
+      "observed_rows": 11,
+      "unique_cohort_dates": 4,
+      "mean_gross_pct": -2.6989,
+      "median_gross_pct": -0.2427,
+      "positive_row_pct": 36.36,
+      "date_balanced_mean_pct": -3.1646,
       "positive_date_pct": 0.0,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
     {
       "account": "K100_TACTICAL",
       "horizon": 5,
-      "observed_rows": 2,
-      "unique_cohort_dates": 1,
-      "mean_gross_pct": -1.795,
-      "median_gross_pct": -1.795,
-      "positive_row_pct": 50.0,
-      "date_balanced_mean_pct": -1.795,
+      "observed_rows": 5,
+      "unique_cohort_dates": 2,
+      "mean_gross_pct": -3.2701,
+      "median_gross_pct": -0.2427,
+      "positive_row_pct": 40.0,
+      "date_balanced_mean_pct": -3.0242,
       "positive_date_pct": 0.0,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
