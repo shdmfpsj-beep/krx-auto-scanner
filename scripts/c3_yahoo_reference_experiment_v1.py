@@ -18,7 +18,8 @@ def normalize(frame,ticker):
         vals={key:float(record[key]) for key in ("Open","High","Low","Close","Volume")}
         if not (0<vals["Low"]<=min(vals["Open"],vals["Close"])<=max(vals["Open"],vals["Close"])<=vals["High"]):
             raise ValueError("INVALID_YAHOO_OHLC")
-        rows.append(dict(ticker=ticker,date=day,open=vals["Open"],high=vals["High"],
+        adj_close=float(record["Adj Close"]) if "Adj Close" in record else None
+        rows.append(dict(ticker=ticker,date=day,adj_close=adj_close,open=vals["Open"],high=vals["High"],
                          low=vals["Low"],close=vals["Close"],volume=vals["Volume"]))
     return rows
 
@@ -65,7 +66,7 @@ def main():
     path=Path(args.output)
     path.parent.mkdir(parents=True,exist_ok=True)
     with path.open("w",encoding="utf-8",newline="") as f:
-        writer=csv.DictWriter(f,fieldnames=["ticker","date","open","high","low","close","volume"])
+        writer=csv.DictWriter(f,fieldnames=["ticker","date","open","high","low","close","volume","adj_close"])
         writer.writeheader()
         writer.writerows(rows)
     Path(args.status).write_text(json.dumps(status,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
