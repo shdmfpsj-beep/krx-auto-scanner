@@ -15,6 +15,18 @@ def assess(plan,prices):
     prior=sorted(((day,bar) for (code,day),bar in prices.items()
                   if code==ticker and day<cutoff),key=lambda x:x[0])
     prior=prior[-60:]
+    # Fail closed on malformed OHLCV; invalid vendor bars must never
+    # manufacture breakout/retest evidence.
+    for day,bar in prior:
+        try:
+            o,h,l,cl=(float(bar[k]) for k in ("open","high","low","close"))
+            vol=float(bar["volume"])
+        except (KeyError,ValueError,TypeError) as exc:
+            raise ValueError("INVALID_OHLCV_BAR:"+ticker+":"+day) from exc
+        if (not all(math.isfinite(x) for x in (o,h,l,cl,vol))
+                or min(o,h,l,cl)<=0 or vol<0
+                or h<max(o,cl,l) or l>min(o,cl,h)):
+            raise ValueError("INVALID_OHLCV_BAR:"+ticker+":"+day)
     enough=len(prior)>=MIN_PRIOR_SESSIONS
     resistance_candidates=sorted(set(float(bar["high"]) for _,bar in prior if float(bar["high"])>entry))
     nearest=resistance_candidates[0] if enough and resistance_candidates else None
