@@ -14,6 +14,7 @@ on:
       - 'scripts/c3_price_provenance_gate_v1.py'
       - 'scripts/c3_top2_research_readiness_v1.py'
       - 'scripts/c3_session_coverage_gate_v1.py'
+      - 'scripts/c3_xkrx_calendar_crosscheck_v1.py'
       - 'scripts/c3_top2_pykrx_export_v1.py'
       - 'scripts/c3_top2_provisional_report_v1.py'
       - 'scripts/c3_top2_mobile_summary_v1.py'
@@ -45,6 +46,7 @@ on:
       - 'scripts/c3_price_provenance_gate_v1.py'
       - 'scripts/c3_top2_research_readiness_v1.py'
       - 'scripts/c3_session_coverage_gate_v1.py'
+      - 'scripts/c3_xkrx_calendar_crosscheck_v1.py'
       - 'scripts/c3_top2_pykrx_export_v1.py'
       - 'scripts/c3_top2_provisional_report_v1.py'
       - 'scripts/c3_top2_mobile_summary_v1.py'
@@ -83,6 +85,7 @@ jobs:
             scripts/c3_price_provenance_gate_v1.py
             scripts/c3_top2_research_readiness_v1.py
             scripts/c3_session_coverage_gate_v1.py
+            scripts/c3_xkrx_calendar_crosscheck_v1.py
             scripts/c3_top2_pykrx_export_v1.py
             scripts/c3_top2_provisional_report_v1.py
             scripts/c3_top2_mobile_summary_v1.py
@@ -157,6 +160,7 @@ jobs:
             scripts/c3_top2_mobile_summary_v1.py
             scripts/c3_price_concordance_v1.py
             scripts/c3_session_coverage_gate_v1.py
+            scripts/c3_xkrx_calendar_crosscheck_v1.py
             scripts/c3_price_provenance_gate_v1.py
             scripts/c3_top2_research_readiness_v1.py
             scripts/c3_entry_geometry_research_v1.py
@@ -169,7 +173,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install research-only provider
-        run: pip install pykrx==1.2.9 pandas==2.2.3
+        run: pip install pykrx==1.2.9 pandas==2.2.3 exchange-calendars==4.13.1
       - name: Collect previous completed KST date
         run: |
           END_DATE="$(TZ=Asia/Seoul date -d yesterday +%F)"
@@ -178,6 +182,16 @@ jobs:
       - name: Detect cross-ticker date gaps
         if: success()
         run: python scripts/c3_top2_cross_ticker_gap_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/cross_ticker_date_gaps.json --fail-on-gap
+      - name: Cross-check observed dates against third-party XKRX calendar
+        if: success()
+        shell: bash
+        run: |
+          python scripts/c3_xkrx_calendar_crosscheck_v1.py \\
+            --plans config/c3_paper_top2_plans.csv \\
+            --prices /tmp/c3-top2/top2_provisional_ohlcv.csv \\
+            --start "$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["start"])')" \\
+            --end "$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')" \\
+            --output /tmp/c3-top2/xkrx_third_party_calendar_check.json
       - name: Build provisional TOP2 analysis
         if: success()
         run: |
