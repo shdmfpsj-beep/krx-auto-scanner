@@ -12,6 +12,8 @@ def analyze(plan,prices):
     if not 0<stop<low<=high<target:
         raise ValueError("INVALID_PLAN_GEOMETRY")
     series=sorted((day,bar) for (code,day),bar in prices.items() if code==ticker and day>registered)
+    if not series:
+        raise ValueError("NO_POST_REGISTRATION_PRICE_BARS")
     watch_window=int(plan["expires_after_sessions"])
     if watch_window<1:
         raise ValueError("INVALID_WATCH_WINDOW")
