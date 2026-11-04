@@ -72,7 +72,14 @@ def compare(plans, prices, ict_lookback=10, signal_max_age=10):
                                        target_first=sum(x["stop_target_touch_order"]=="TARGET_FIRST" for x in complete),
                                        stop_first=sum(x["stop_target_touch_order"]=="STOP_FIRST" for x in complete),
                                        ambiguous_order=sum(x["stop_target_touch_order"]=="SAME_DAY_ORDER_UNKNOWN" for x in complete))
+    # A small or one-sided cohort is descriptive, never evidence of edge.
+    min_completed_per_group=30
+    evidence_ready={str(h):all(counts[str(h)][group]["completed_horizons"]>=min_completed_per_group
+                                for group in ("prior_ict","no_prior_ict"))
+                    for h in (5,10,20)}
     return dict(schema="C3_ICT_MATCHED_COHORT_V1",rows=enriched,horizon_counts=counts,
+                evidence_readiness_by_horizon=evidence_ready,
+                minimum_completed_per_group=min_completed_per_group,
                 history_coverage_certified=False,
                 regular_session_price_certified=False,
                 observation_unit="FIRST_TOUCH_PER_PLAN",
