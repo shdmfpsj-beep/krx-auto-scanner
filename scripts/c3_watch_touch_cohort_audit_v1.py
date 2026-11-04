@@ -16,6 +16,8 @@ def summarize(report):
     first_touch_status_counts={}
     first_touch_horizons={}
     first_touch_per_plan=[]
+    first_touch_order_counts={}
+    first_touch_same_day_collision_count=0
     for plan in report["results"]:
         dates=[event["date"] for event in plan["events"]]
         if dates!=sorted(dates):
@@ -37,10 +39,13 @@ def summarize(report):
                                                       complete=h["complete"])
                                                  for h in first_event["outcomes"]]))
             first_touch_status_counts[first]=first_touch_status_counts.get(first,0)+1
+            first_touch_same_day_collision_count+=int(bool(first_event.get("touch_day_execution_ambiguous",False)))
             for item in plan["events"][0]["outcomes"]:
                 key=str(item["horizon_sessions"])
                 stat=first_touch_horizons.setdefault(key,dict(complete=0,pending=0,stop_touch_events=0,target_touch_events=0))
                 if item["complete"]:
+                    order=item.get("stop_target_touch_order","UNKNOWN")
+                    first_touch_order_counts.setdefault(key,{})[order]=first_touch_order_counts.setdefault(key,{}).get(order,0)+1
                     stat["complete"]+=1
                     stat["stop_touch_events"]+=item["future_stop_touch_days"]>0
                     stat["target_touch_events"]+=item["future_target_touch_days"]>0
@@ -69,6 +74,8 @@ def summarize(report):
                 plans_with_touch=plans_with_touch,
                 first_touch_status_counts=first_touch_status_counts,
                 first_touch_horizons=first_touch_horizons,
+                first_touch_order_counts=first_touch_order_counts,
+                first_touch_same_day_collision_count=first_touch_same_day_collision_count,
                 first_touch_per_plan=first_touch_per_plan,
                 independent_event_sample_size_verified=False,
                 causal_edge_established=False,verified_fills=0,
@@ -84,6 +91,7 @@ def main():
            f"- 전체 접촉 관찰: {result['events']}건"]
     lines.append("- 동일 계획의 반복 접촉: {}건 / {}개 계획 (독립 표본 아님)".format(result["clustered_events"],result["clustered_plans"]))
     lines.append("- 매수구간 접촉 계획 수(계획당 첫 접촉 1건): {}개".format(result["plans_with_touch"]))
+    lines.append("- 첫 접촉일 가격 순서 불명 사례: {}개 계획".format(result["first_touch_same_day_collision_count"]))
     lines.extend(["","| 종목 | 최초 접촉일 | 분류 | 후속 반복 접촉 |",
                   "|---|---|---|---:|"])
     for item in result["first_touch_per_plan"]:
@@ -104,6 +112,12 @@ def main():
     lines.append("계획당 첫 접촉만 후속 관찰 표본으로 집계")
     for horizon,item in sorted(result["first_touch_horizons"].items(),key=lambda x:int(x[0])):
         lines.append(f"| {horizon}거래일 | {item['complete']} | {item['pending']} | {item['stop_touch_events']} | {item['target_touch_events']} |")
+    lines.extend(["","| 최초 접촉 기준 완료 기간 | 손절 먼저 | 목표 먼저 | 같은 날 순서 불명 | 둘 다 미도달 |",
+                  "|---|---:|---:|---:|---:|"])
+    for horizon,orders in sorted(result["first_touch_order_counts"].items(),key=lambda x:int(x[0])):
+        lines.append("| {}거래일 | {} | {} | {} | {} |".format(horizon,
+                     orders.get("STOP_FIRST",0),orders.get("TARGET_FIRST",0),
+                     orders.get("SAME_DAY_ORDER_UNKNOWN",0),orders.get("NO_STOP_OR_TARGET",0)))
     lines.extend(["","> 후속 기간이 미완료인 표본은 성과 계산에서 제외. 접촉 사례는 실제 체결이 아니며, 표본이 작아 우위·수익성을 주장하지 않음."])
     Path(a.markdown).write_text("\n".join(lines)+"\n",encoding="utf-8")
     print(json.dumps(result,ensure_ascii=False))
