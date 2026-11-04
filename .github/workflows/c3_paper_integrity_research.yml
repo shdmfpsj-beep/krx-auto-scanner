@@ -148,6 +148,23 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full checkout fails on an unrelated overlong tracked path.
+          sparse-checkout: |
+            scripts/c3_top2_pykrx_export_v1.py
+            scripts/c3_top2_cross_ticker_gap_v1.py
+            scripts/c3_top2_provisional_report_v1.py
+            scripts/c3_top2_mobile_summary_v1.py
+            scripts/c3_price_concordance_v1.py
+            scripts/c3_session_coverage_gate_v1.py
+            scripts/c3_price_provenance_gate_v1.py
+            scripts/c3_top2_research_readiness_v1.py
+            scripts/c3_entry_geometry_research_v1.py
+            scripts/c3_no_fill_opportunity_v1.py
+            scripts/c3_entry_style_comparison_v1.py
+            scripts/c3_forward_horizon_observation_v1.py
+            config/c3_paper_top2_plans.csv
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
