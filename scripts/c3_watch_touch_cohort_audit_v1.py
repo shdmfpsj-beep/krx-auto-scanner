@@ -12,10 +12,16 @@ def summarize(report):
     horizons={}
     clustered_plans=0
     clustered_events=0
+    plans_with_touch=0
+    first_touch_status_counts={}
     for plan in report["results"]:
         dates=[event["date"] for event in plan["events"]]
         if len(dates)!=len(set(dates)):
             raise ValueError("DUPLICATE_TOUCH_DATE")
+        if dates:
+            plans_with_touch+=1
+            first=plan["events"][0]["status"]
+            first_touch_status_counts[first]=first_touch_status_counts.get(first,0)+1
         if len(dates)>1:
             clustered_plans+=1
             clustered_events+=len(dates)
@@ -36,6 +42,8 @@ def summarize(report):
     return dict(schema="C3_WATCH_TOUCH_COHORT_AUDIT_V1",events=sum(counts.values()),
                 status_counts=counts,horizons=horizons,
                 clustered_plans=clustered_plans,clustered_events=clustered_events,
+                plans_with_touch=plans_with_touch,
+                first_touch_status_counts=first_touch_status_counts,
                 independent_event_sample_size_verified=False,
                 causal_edge_established=False,verified_fills=0,
                 strategy_profitability_verified=False,trade_approved=False,orders_enabled=False)
@@ -49,6 +57,7 @@ def main():
     lines=["### 매수구간 접촉 표본 요약 (가상 체결 아님)",
            f"- 전체 접촉 관찰: {result['events']}건"]
     lines.append("- 동일 계획의 반복 접촉: {}건 / {}개 계획 (독립 표본 아님)".format(result["clustered_events"],result["clustered_plans"]))
+    lines.append("- 매수구간 접촉 계획 수(계획당 첫 접촉 1건): {}개".format(result["plans_with_touch"]))
     for status,n in sorted(result["status_counts"].items()):
         lines.append(f"- {status}: {n}건")
     lines.extend(["","| 후속 관찰 | 완료 표본 | 미완료 | 완료 표본 내 손절 접촉 | 완료 표본 내 목표 접촉 |",
