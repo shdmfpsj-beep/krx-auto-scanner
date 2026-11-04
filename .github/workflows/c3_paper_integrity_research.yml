@@ -233,6 +233,13 @@ jobs:
         run: |
           python scripts/c3_top2_provisional_report_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --manifest /tmp/c3-top2/manifest.json --output /tmp/c3-top2/top2_provisional_research.json
           python scripts/c3_top2_mobile_summary_v1.py --input /tmp/c3-top2/top2_provisional_research.json --calendar-check /tmp/c3-top2/xkrx_third_party_calendar_check.json --output /tmp/c3-top2/TOP2_mobile_summary.md
+      - name: Compare TOP2 entry-style opportunities (research only)
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_entry_style_comparison_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/entry_style_opportunities.json --markdown /tmp/c3-top2/entry_style_opportunities.md
+          fi
       - name: Experiment with separate Yahoo reference feed (non-certifying)
         if: always()
         continue-on-error: true
@@ -291,6 +298,10 @@ jobs:
               echo '보고서가 생성되지 않았습니다. 앞선 수집·무결성 단계의 오류를 확인하세요.'
             fi
             echo ''
+            if [ -s /tmp/c3-top2/entry_style_opportunities.md ]; then
+              echo ''
+              cat /tmp/c3-top2/entry_style_opportunities.md
+            fi
             if [ -s /tmp/c3-top2/provider_gap_entry_impact.md ]; then
               echo ''
               cat /tmp/c3-top2/provider_gap_entry_impact.md
