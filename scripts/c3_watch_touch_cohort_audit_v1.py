@@ -33,7 +33,7 @@ def summarize(report):
                                              forward_progress=[
                                                  dict(horizon_sessions=h["horizon_sessions"],
                                                       observed_future_sessions=h.get("observed_future_sessions",0),
-                                                      remaining_sessions=max(0,h["horizon_sessions"]-h["observed_future_sessions"]),
+                                                      remaining_sessions=max(0,h["horizon_sessions"]-h.get("observed_future_sessions",0)),
                                                       complete=h["complete"])
                                                  for h in first_event["outcomes"]]))
             first_touch_status_counts[first]=first_touch_status_counts.get(first,0)+1
