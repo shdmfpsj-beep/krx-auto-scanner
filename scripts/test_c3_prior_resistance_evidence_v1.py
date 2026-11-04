@@ -54,7 +54,7 @@ class PriorResistanceTests(unittest.TestCase):
     def test_breakout_evidence_excludes_selection_and_future(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
         prices[("271560","2026-10-10")]=bar(109)
-        prices[("271560","2026-10-15")]=dict(bar(108),close=110)
+        prices[("271560","2026-10-15")]=dict(bar(110),close=110)
         prices[("271560","2026-11-02")]=dict(bar(200),close=200)
         r=assess(PLAN,prices)
         self.assertEqual(r["prior_closes_above_swing_high"],1)
