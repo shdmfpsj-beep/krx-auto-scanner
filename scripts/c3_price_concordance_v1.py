@@ -83,6 +83,8 @@ def main():
     p.add_argument("--reference-provider", required=True)
     p.add_argument("--reference-regular-only", action="store_true")
     p.add_argument("--output", required=True)
+    p.add_argument("--observation-only", action="store_true",
+                   help="Record expected mismatches without failing CI; never certifies prices")
     args = p.parse_args()
     result = compare(args.primary, args.reference, args.primary_provider,
                      args.reference_provider, args.reference_regular_only)
@@ -90,7 +92,7 @@ def main():
                                   ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in result.items() if k != "results"},
                      ensure_ascii=False))
-    raise SystemExit(0 if result["regular_only_concordance_passed"] else 2)
+    raise SystemExit(0 if args.observation_only or result["regular_only_concordance_passed"] else 2)
 
 if __name__ == "__main__":
     main()
