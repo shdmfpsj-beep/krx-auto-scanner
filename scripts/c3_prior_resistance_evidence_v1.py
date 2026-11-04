@@ -43,7 +43,18 @@ def assess(plan,prices):
     post_pivot_sessions=sum(1 for day,_ in prior if pivot_date is not None and day>pivot_date)
     last_prior_close=float(prior[-1][1]["close"]) if prior else None
     last_close_above_pivot=bool(pivot_price is not None and last_prior_close>pivot_price)
-    breakout_retest_verified=False
+    # Research-only sequence: a post-pivot close above the pivot followed
+    # by a later bar touching the level intraday and closing back above it.
+    # All bars must predate selection; no volume/market-data certification.
+    post_pivot=[(day,bar) for day,bar in prior if pivot_date is not None and day>pivot_date]
+    breakout_dates=[day for day,bar in post_pivot if float(bar["close"])>pivot_price] if pivot_price is not None else []
+    first_breakout_date=breakout_dates[0] if breakout_dates else None
+    retest_dates=[day for day,bar in post_pivot
+                  if first_breakout_date is not None and day>first_breakout_date
+                  and float(bar["low"])<=pivot_price and float(bar["close"])>pivot_price]
+    first_retest_date=retest_dates[0] if retest_dates else None
+    breakout_retest_verified=bool(first_retest_date)
+    # This is a mechanical pattern flag, NOT proof of support or trade readiness.
     # Informational warning, not a trade gate or statistically validated cutoff.
     swing_rr_warning=("INVALID_ENTRY_GEOMETRY" if not entry_geometry_valid else
                       "NO_PRIOR_SWING_CANDIDATE" if pivot_reward_risk is None else
@@ -76,6 +87,9 @@ def assess(plan,prices):
                 breakout_closes_are_post_pivot_only=True,
                 last_prior_close_above_swing_high=last_close_above_pivot,
                 breakout_retest_verified=breakout_retest_verified,
+                first_post_pivot_breakout_date=first_breakout_date,
+                first_post_breakout_retest_date=first_retest_date,
+                retest_pattern_research_only=True,
                 swing_rr_warning=swing_rr_warning,
                 research_triage=research_triage,
                 warning_threshold_is_research_only=True,
@@ -131,6 +145,8 @@ def main():
         "pivot_date":r["nearest_confirmed_prior_swing_high_date"],
         "last_prior_close_above_swing_high":r["last_prior_close_above_swing_high"],
         "breakout_retest_verified":r["breakout_retest_verified"],
+        "first_post_pivot_breakout_date":r["first_post_pivot_breakout_date"],
+        "first_post_breakout_retest_date":r["first_post_breakout_retest_date"],
         "research_triage":r["research_triage"]} for r in report["results"]],
         "trade_approved":False},ensure_ascii=False))
 if __name__=="__main__":main()
