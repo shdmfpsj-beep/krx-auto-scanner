@@ -29,7 +29,12 @@ def evaluate(plan, bars):
     # A session gap through the watch band is not a guaranteed execution.
     confirmed_fill=False
     missed=[day for day,bar in window
-            if bar["high"]>source_close and day not in touched]
+            if bar["low"]>high and bar["high"]>source_close]
+    # Highs on a day that also touched the band cannot establish whether
+    # the breakout happened before or after the possible entry.
+    ambiguous=[day for day,bar in window
+               if bar["high"]>source_close and day in touched]
+    gap_ups=[day for day,bar in window if bar["low"]>high]
     return dict(plan_id=plan["plan_id"],ticker=ticker,name=plan["name"],
                 registered_day=registered,window_sessions=len(window),
                 expected_sessions=horizon,
@@ -37,6 +42,9 @@ def evaluate(plan, bars):
                 first_band_touch_day=touched[0] if touched else None,
                 band_touch_sessions=len(touched),
                 no_touch_higher_high_sessions=len(missed),
+                no_touch_gap_above_band_sessions=len(gap_ups),
+                ambiguous_touch_and_higher_high_sessions=len(ambiguous),
+                max_missed_upside_pct=(round(100*(max((b["high"] for day,b in window if day in missed),default=source_close)/source_close-1),2) if missed else None),
                 highest_observed_high=max((b["high"] for _,b in window),default=None),
                 source_close=source_close,
                 band_touch_is_fill=False,confirmed_fill=confirmed_fill,
