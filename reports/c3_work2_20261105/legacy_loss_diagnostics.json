@@ -1,0 +1,813 @@
+{
+  "schema": "C3_LEGACY_LOSS_DIAGNOSTICS_V2",
+  "cases": [
+    {
+      "plan_id": "C3V23-000660-2026-09-18",
+      "ticker": "000660",
+      "decision_date": "2026-09-18",
+      "entry_date": "2026-09-21",
+      "entry_price": 1868785.7143,
+      "structure_stop": 1759053.5714,
+      "first_resistance": 1890000.0,
+      "exit_date": "2026-10-08",
+      "net_pct": -8.45265183363727,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 5.871841916402009,
+        "net_first_resistance_rr": 0.07385694883828106,
+        "support_age_sessions": 88,
+        "atr_pct": 4.747740091941591,
+        "ma20_gap_atr": 1.4085435310970635,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": false,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": false,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": true,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": false,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": -1.4868325505371205,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": -5.87184191640201,
+        "close_breach_overshoot": -2.3573366953150843,
+        "next_open_gap": 0.37457478117666493,
+        "costs": -0.5980480030968405,
+        "gross_return": -7.85460383054043,
+        "net_return": -8.45265183363727
+      }
+    },
+    {
+      "plan_id": "C3V23-007810-2026-05-06",
+      "ticker": "007810",
+      "decision_date": "2026-05-06",
+      "entry_date": "2026-05-07",
+      "entry_price": 93778.5714,
+      "structure_stop": 85930.3571,
+      "first_resistance": 99500.0,
+      "exit_date": "2026-05-19",
+      "net_pct": -15.246332242855676,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 8.368878073994638,
+        "net_first_resistance_rr": 0.6038178116949013,
+        "support_age_sessions": 7,
+        "atr_pct": 6.615986722866175,
+        "ma20_gap_atr": 0.9357224160897494,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": true,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": false,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": false,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": 8.980120377478906,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": -8.368878073994635,
+        "close_breach_overshoot": -3.6579327758878546,
+        "next_open_gap": -2.6658542166702275,
+        "costs": -0.5536671763029517,
+        "gross_return": -14.692665066552724,
+        "net_return": -15.246332242855676
+      }
+    },
+    {
+      "plan_id": "C3V23-007810-2026-06-15",
+      "ticker": "007810",
+      "decision_date": "2026-06-15",
+      "entry_date": "2026-06-19",
+      "entry_price": 118150.0,
+      "structure_stop": 96712.5,
+      "first_resistance": null,
+      "exit_date": "2026-06-26",
+      "net_pct": -20.872394328524145,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 18.144308082945408,
+        "net_first_resistance_rr": null,
+        "support_age_sessions": 5,
+        "atr_pct": 12.536549707602338,
+        "ma20_gap_atr": 1.5247813411078717,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": true,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": null,
+          "FIRST_RESISTANCE_MISSING": true,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": false,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": true,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": -2.1582733812949617,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": -18.144308082945404,
+        "close_breach_overshoot": -1.4494286923402455,
+        "next_open_gap": -0.7617435463393991,
+        "costs": -0.5169140068990927,
+        "gross_return": -20.355480321625052,
+        "net_return": -20.872394328524145
+      }
+    },
+    {
+      "plan_id": "C3V23-009540-2026-05-04",
+      "ticker": "009540",
+      "decision_date": "2026-05-04",
+      "entry_date": "2026-05-06",
+      "entry_price": 462107.1429,
+      "structure_stop": 441348.2143,
+      "first_resistance": 474000.0,
+      "exit_date": "2026-05-15",
+      "net_pct": -5.724456835366809,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 4.492232790370916,
+        "net_first_resistance_rr": 0.3732093362878555,
+        "support_age_sessions": 125,
+        "atr_pct": 3.5371976357827473,
+        "ma20_gap_atr": 2.5982795631872357,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": false,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": true,
+          "ATR_ABOVE_5PCT": false,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": true,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": true,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": 1.16701444304812,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": -4.49223279037092,
+        "close_breach_overshoot": -0.8327536934075798,
+        "next_open_gap": 0.21640003089422058,
+        "costs": -0.6158703824825302,
+        "gross_return": -5.108586452884278,
+        "net_return": -5.724456835366809
+      }
+    },
+    {
+      "plan_id": "C3V23-012330-2026-05-06",
+      "ticker": "012330",
+      "decision_date": "2026-05-06",
+      "entry_date": "2026-05-07",
+      "entry_price": 445182.14286,
+      "structure_stop": 423955.3571,
+      "first_resistance": 447000.0,
+      "exit_date": "2026-06-08",
+      "net_pct": 36.5795928283936,
+      "loss": false,
+      "before_decision": {
+        "planned_risk_pct": 5.087151198854217,
+        "net_first_resistance_rr": -0.10126556467379678,
+        "support_age_sessions": 72,
+        "atr_pct": 4.203137895953757,
+        "ma20_gap_atr": 0.5143418475667455,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": false,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": false,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": true,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": false,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": 14.335223944521358,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": null,
+        "close_breach_overshoot": null,
+        "next_open_gap": null,
+        "costs": -0.892228495863904,
+        "gross_return": 37.471821324257505,
+        "net_return": 36.5795928283936
+      }
+    },
+    {
+      "plan_id": "C3V23-012330-2026-06-16",
+      "ticker": "012330",
+      "decision_date": "2026-06-16",
+      "entry_date": "2026-06-18",
+      "entry_price": 607714.2857,
+      "structure_stop": 515571.4286,
+      "first_resistance": 687000.0,
+      "exit_date": "2026-06-24",
+      "net_pct": -14.988823767518955,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 15.162200275391687,
+        "net_first_resistance_rr": 0.783617607225546,
+        "support_age_sessions": 3,
+        "atr_pct": 11.168831166666665,
+        "ma20_gap_atr": 0.15058139537801968,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": true,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": false,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": true,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": 0.7052186201388144,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": true,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": true
+      },
+      "accounting": {
+        "structural_distance": -15.16220027539169,
+        "close_breach_overshoot": -0.9167842078259679,
+        "next_open_gap": 1.6455101081722028,
+        "costs": -0.5553493924735022,
+        "gross_return": -14.433474375045453,
+        "net_return": -14.988823767518955
+      }
+    },
+    {
+      "plan_id": "C3V23-012450-2026-08-27",
+      "ticker": "012450",
+      "decision_date": "2026-08-27",
+      "entry_date": "2026-08-28",
+      "entry_price": 1139000.0,
+      "structure_stop": 1103285.7143,
+      "first_resistance": 1213000.0,
+      "exit_date": "2026-09-01",
+      "net_pct": -3.09136821545557,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 7.431379601794387,
+        "net_first_resistance_rr": 0.13861780725134656,
+        "support_age_sessions": 7,
+        "atr_pct": 6.1614906869565225,
+        "ma20_gap_atr": 0.9646169349004332,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": false,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": false,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": true,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": -3.2484635645302906,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": true,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": true,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": true
+      },
+      "accounting": {
+        "structural_distance": -3.135582589991215,
+        "close_breach_overshoot": -0.11288097453907892,
+        "next_open_gap": 0.7901668129938543,
+        "costs": -0.6330714639191326,
+        "gross_return": -2.4582967515364373,
+        "net_return": -3.09136821545557
+      }
+    },
+    {
+      "plan_id": "C3V23-058610-2026-05-11",
+      "ticker": "058610",
+      "decision_date": "2026-05-11",
+      "entry_date": "2026-05-12",
+      "entry_price": 138750.0,
+      "structure_stop": 126562.5,
+      "first_resistance": 144600.0,
+      "exit_date": "2026-05-19",
+      "net_pct": -13.573603558626024,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 8.783783783783784,
+        "net_first_resistance_rr": 0.3775491113189897,
+        "support_age_sessions": 57,
+        "atr_pct": 6.856540084388186,
+        "ma20_gap_atr": 2.1184615384615384,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": true,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": true,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": true,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": false,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": -4.648648648648646,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": true,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": -8.783783783783782,
+        "close_breach_overshoot": -3.0720720720720722,
+        "next_open_gap": -1.1531531531531531,
+        "costs": -0.5645945496170146,
+        "gross_return": -13.00900900900901,
+        "net_return": -13.573603558626024
+      }
+    },
+    {
+      "plan_id": "C3V23-058610-2026-09-28",
+      "ticker": "058610",
+      "decision_date": "2026-09-28",
+      "entry_date": "2026-09-29",
+      "entry_price": 96900.0,
+      "structure_stop": 89275.0,
+      "first_resistance": 98500.0,
+      "exit_date": "2026-10-13",
+      "net_pct": -13.56772890200304,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 7.868937048503612,
+        "net_first_resistance_rr": 0.11709653176904344,
+        "support_age_sessions": 11,
+        "atr_pct": 6.301652892561983,
+        "ma20_gap_atr": 0.2983606557377049,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": false,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": false,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": true,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": 0.20639834881321928,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": true
+      },
+      "accounting": {
+        "structural_distance": -7.868937048503611,
+        "close_breach_overshoot": -1.934984520123839,
+        "next_open_gap": -3.199174406604747,
+        "costs": -0.5646329267708481,
+        "gross_return": -13.003095975232192,
+        "net_return": -13.56772890200304
+      }
+    },
+    {
+      "plan_id": "C3V23-071970-2026-05-04",
+      "ticker": "071970",
+      "decision_date": "2026-05-04",
+      "entry_date": "2026-05-06",
+      "entry_price": 102835.7143,
+      "structure_stop": 94291.0714,
+      "first_resistance": 118200.0,
+      "exit_date": "2026-05-12",
+      "net_pct": -11.310779207145716,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 8.309022753586305,
+        "net_first_resistance_rr": 1.5941626234225854,
+        "support_age_sessions": 125,
+        "atr_pct": 6.3825530345471515,
+        "ma20_gap_atr": 2.0729362548110006,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": true,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": false,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": true,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": true,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": true,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": -2.8547614221220097,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": true,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": -8.309022753586303,
+        "close_breach_overshoot": -3.4920469259579017,
+        "next_open_gap": 1.069667291648306,
+        "costs": -0.579376819249811,
+        "gross_return": -10.731402387895905,
+        "net_return": -11.310779207145716
+      }
+    },
+    {
+      "plan_id": "C3V23-074600-2026-05-04",
+      "ticker": "074600",
+      "decision_date": "2026-05-04",
+      "entry_date": "2026-05-11",
+      "entry_price": 37789.2857,
+      "structure_stop": 35177.6786,
+      "first_resistance": 40550.0,
+      "exit_date": "2026-05-21",
+      "net_pct": -4.564474488313397,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 6.910972387075316,
+        "net_first_resistance_rr": 0.8794383197129185,
+        "support_age_sessions": 6,
+        "atr_pct": 5.377826769626769,
+        "ma20_gap_atr": 1.696752148353861,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": false,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": false,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": true,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": -1.294773613569522,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": -6.91097238707532,
+        "close_breach_overshoot": -0.07324457048416577,
+        "next_open_gap": 3.0431906258550954,
+        "costs": -0.6234481566090082,
+        "gross_return": -3.941026331704389,
+        "net_return": -4.564474488313397
+      }
+    },
+    {
+      "plan_id": "C3V23-086280-2026-05-13",
+      "ticker": "086280",
+      "decision_date": "2026-05-13",
+      "entry_date": "2026-05-14",
+      "entry_price": 276714.2857,
+      "structure_stop": 255821.4286,
+      "first_resistance": 295000.0,
+      "exit_date": "2026-05-18",
+      "net_pct": -14.189892235166157,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 7.550335555371724,
+        "net_first_resistance_rr": 0.7258873235898543,
+        "support_age_sessions": 53,
+        "atr_pct": 5.885311866197183,
+        "ma20_gap_atr": 2.9286324811355833,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": false,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": true,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": true,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": false,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": -12.545172943342553,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": true,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": true,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": -7.550335555371723,
+        "close_breach_overshoot": -4.994837387970827,
+        "next_open_gap": -1.0841507486362494,
+        "costs": -0.5605685431873564,
+        "gross_return": -13.6293236919788,
+        "net_return": -14.189892235166157
+      }
+    },
+    {
+      "plan_id": "C3V23-095340-2026-05-04",
+      "ticker": "095340",
+      "decision_date": "2026-05-04",
+      "entry_date": "2026-05-06",
+      "entry_price": 246357.1429,
+      "structure_stop": 230910.7143,
+      "first_resistance": 249000.0,
+      "exit_date": "2026-05-18",
+      "net_pct": -9.261940679738444,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 6.269933324510889,
+        "net_first_resistance_rr": 0.06059457893782992,
+        "support_age_sessions": 28,
+        "atr_pct": 4.99278501010101,
+        "ma20_gap_atr": 0.75664739621972,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": false,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": false,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": true,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": true,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": 0.2609451840659416,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": true
+      },
+      "accounting": {
+        "structural_distance": -6.26993332451089,
+        "close_breach_overshoot": -2.6022035426032666,
+        "next_open_gap": 0.20295737891511323,
+        "costs": -0.5927611915394024,
+        "gross_return": -8.669179488199042,
+        "net_return": -9.261940679738444
+      }
+    },
+    {
+      "plan_id": "C3V23-329180-2026-06-15",
+      "ticker": "329180",
+      "decision_date": "2026-06-15",
+      "entry_date": "2026-06-16",
+      "entry_price": 697500.0,
+      "structure_stop": 636875.0,
+      "first_resistance": 734000.0,
+      "exit_date": "2026-06-23",
+      "net_pct": -8.127056726737846,
+      "loss": true,
+      "before_decision": {
+        "planned_risk_pct": 8.691756272401435,
+        "net_first_resistance_rr": 0.4900692885158381,
+        "support_age_sessions": 29,
+        "atr_pct": 6.792717086834734,
+        "ma20_gap_atr": 1.024742268041237,
+        "flags": {
+          "STRUCTURAL_RISK_ABOVE_8PCT": true,
+          "FIRST_RESISTANCE_NET_RR_BELOW_1": true,
+          "FIRST_RESISTANCE_MISSING": false,
+          "DECISION_CLOSE_ABOVE_MA20_BY_2ATR": false,
+          "ATR_ABOVE_5PCT": true,
+          "SUPPORT_OLDER_THAN_20_SESSIONS": true,
+          "DECISION_VOLUME_BELOW_70PCT_PRIOR20": false,
+          "MARKET_DOWNTREND": false,
+          "SECTOR_RELATIVE_STRENGTH_WEAK": null
+        }
+      },
+      "after_entry_only": {
+        "first_next_close_return_pct": 1.3620071684587787,
+        "CLOSE_DROP_3PCT_FIRST_NEXT_SESSION": false,
+        "STRUCTURE_LOST_IN_FIRST_THREE_SESSIONS": false,
+        "BREAKOUT_FAILED_WITHIN_THREE_SESSIONS": null,
+        "VOLUME_CONTRACTED_AFTER_ENTRY": false
+      },
+      "accounting": {
+        "structural_distance": -8.69175627240143,
+        "close_breach_overshoot": -0.12544802867383512,
+        "next_open_gap": 1.2903225806451613,
+        "costs": -0.6001750063077349,
+        "gross_return": -7.5268817204301115,
+        "net_return": -8.127056726737846
+      }
+    }
+  ],
+  "factors": [
+    {
+      "hypothesis": "STRUCTURAL_RISK_ABOVE_8PCT",
+      "known_cases": 14,
+      "flagged_cases": 6,
+      "flagged_losses": 6,
+      "negative_pnl_covered_pct_points": -84.11898983140836,
+      "subgroup_mean_net_pct": -14.01983163856806,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "FIRST_RESISTANCE_NET_RR_BELOW_1",
+      "known_cases": 13,
+      "flagged_cases": 12,
+      "flagged_losses": 11,
+      "negative_pnl_covered_pct_points": -110.78832948541918,
+      "subgroup_mean_net_pct": -6.184061388085466,
+      "winners_also_rejected": 1,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "FIRST_RESISTANCE_MISSING",
+      "known_cases": 14,
+      "flagged_cases": 1,
+      "flagged_losses": 1,
+      "negative_pnl_covered_pct_points": -20.872394328524145,
+      "subgroup_mean_net_pct": -20.872394328524145,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "DECISION_CLOSE_ABOVE_MA20_BY_2ATR",
+      "known_cases": 14,
+      "flagged_cases": 4,
+      "flagged_losses": 4,
+      "negative_pnl_covered_pct_points": -44.798731836304704,
+      "subgroup_mean_net_pct": -11.199682959076176,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "ATR_ABOVE_5PCT",
+      "known_cases": 14,
+      "flagged_cases": 10,
+      "flagged_losses": 10,
+      "negative_pnl_covered_pct_points": -119.53245367234652,
+      "subgroup_mean_net_pct": -11.953245367234652,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "SUPPORT_OLDER_THAN_20_SESSIONS",
+      "known_cases": 14,
+      "flagged_cases": 8,
+      "flagged_losses": 7,
+      "negative_pnl_covered_pct_points": -70.64038107641827,
+      "subgroup_mean_net_pct": -4.257598531003083,
+      "winners_also_rejected": 1,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "DECISION_VOLUME_BELOW_70PCT_PRIOR20",
+      "known_cases": 14,
+      "flagged_cases": 8,
+      "flagged_losses": 8,
+      "negative_pnl_covered_pct_points": -83.38196642406608,
+      "subgroup_mean_net_pct": -10.42274580300826,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "MARKET_DOWNTREND",
+      "known_cases": 14,
+      "flagged_cases": 0,
+      "flagged_losses": 0,
+      "negative_pnl_covered_pct_points": 0,
+      "subgroup_mean_net_pct": null,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "SECTOR_RELATIVE_STRENGTH_WEAK",
+      "known_cases": 0,
+      "flagged_cases": 0,
+      "flagged_losses": 0,
+      "negative_pnl_covered_pct_points": 0,
+      "subgroup_mean_net_pct": null,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    }
+  ],
+  "top5_hypotheses": [
+    {
+      "hypothesis": "ATR_ABOVE_5PCT",
+      "known_cases": 14,
+      "flagged_cases": 10,
+      "flagged_losses": 10,
+      "negative_pnl_covered_pct_points": -119.53245367234652,
+      "subgroup_mean_net_pct": -11.953245367234652,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "FIRST_RESISTANCE_NET_RR_BELOW_1",
+      "known_cases": 13,
+      "flagged_cases": 12,
+      "flagged_losses": 11,
+      "negative_pnl_covered_pct_points": -110.78832948541918,
+      "subgroup_mean_net_pct": -6.184061388085466,
+      "winners_also_rejected": 1,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "STRUCTURAL_RISK_ABOVE_8PCT",
+      "known_cases": 14,
+      "flagged_cases": 6,
+      "flagged_losses": 6,
+      "negative_pnl_covered_pct_points": -84.11898983140836,
+      "subgroup_mean_net_pct": -14.01983163856806,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "DECISION_VOLUME_BELOW_70PCT_PRIOR20",
+      "known_cases": 14,
+      "flagged_cases": 8,
+      "flagged_losses": 8,
+      "negative_pnl_covered_pct_points": -83.38196642406608,
+      "subgroup_mean_net_pct": -10.42274580300826,
+      "winners_also_rejected": 0,
+      "causal_effect_established": false
+    },
+    {
+      "hypothesis": "SUPPORT_OLDER_THAN_20_SESSIONS",
+      "known_cases": 14,
+      "flagged_cases": 8,
+      "flagged_losses": 7,
+      "negative_pnl_covered_pct_points": -70.64038107641827,
+      "subgroup_mean_net_pct": -4.257598531003083,
+      "winners_also_rejected": 1,
+      "causal_effect_established": false
+    }
+  ],
+  "losses": 13,
+  "completed_cases": 14,
+  "mean_net_pct": -7.599422156621103,
+  "additive_loss_accounting_pct_points": {
+    "structural_distance": -109.55978485432894,
+    "close_breach_overshoot": -25.62195408720172,
+    "next_open_gap": -0.23128646110315756,
+    "costs": -7.558477618455226
+  },
+  "factor_coverage_overlaps_and_must_not_be_added": true,
+  "post_entry_flags_are_not_ex_ante_predictors": true,
+  "old_16_tickers_reserved_as_exploratory_not_confirmation": [
+    "000660",
+    "003670",
+    "007810",
+    "009540",
+    "010140",
+    "012330",
+    "012450",
+    "042000",
+    "042660",
+    "051600",
+    "058610",
+    "071970",
+    "074600",
+    "086280",
+    "095340",
+    "329180"
+  ],
+  "price_basis": "LEGACY_ADJUSTED_UNCERTIFIED",
+  "regular_only_certified": false,
+  "strategy_improvement_verified": false,
+  "orders_enabled": false,
+  "decision": "CASH"
+}
