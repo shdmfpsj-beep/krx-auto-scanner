@@ -177,7 +177,7 @@ jobs:
           python scripts/c3_top2_pykrx_export_v1.py --plans config/c3_paper_top2_plans.csv --end "$END_DATE" --outdir /tmp/c3-top2
       - name: Detect cross-ticker date gaps
         if: success()
-        run: python scripts/c3_top2_cross_ticker_gap_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/cross_ticker_date_gaps.json
+        run: python scripts/c3_top2_cross_ticker_gap_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/cross_ticker_date_gaps.json --fail-on-gap
       - name: Build provisional TOP2 analysis
         if: success()
         run: |
