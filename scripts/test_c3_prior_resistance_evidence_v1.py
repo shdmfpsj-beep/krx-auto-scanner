@@ -34,6 +34,7 @@ class PriorResistanceTests(unittest.TestCase):
         self.assertTrue(r["prior_swing_before_planned_target"])
         self.assertFalse(r["pivot_is_confirmed_resistance"])
         self.assertEqual(r["swing_rr_warning"],"SWING_REWARD_1_TO_1_5R")
+        self.assertEqual(r["research_triage"],"WATCH_RESEARCH_ONLY")
     def test_selection_day_cannot_confirm_pivot(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
         prices[("271560","2026-10-19")]=bar(118)
@@ -41,6 +42,13 @@ class PriorResistanceTests(unittest.TestCase):
         r=assess(PLAN,prices)
         self.assertIsNone(r["nearest_confirmed_prior_swing_high"])
         self.assertEqual(r["swing_rr_warning"],"NO_PRIOR_SWING_CANDIDATE")
+        self.assertEqual(r["research_triage"],"REVIEW_NO_SWING_EVIDENCE")
+    def test_near_resistance_is_review_not_buy(self):
+        prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
+        prices[("271560","2026-10-10")]=bar(109)
+        r=assess(PLAN,prices)
+        self.assertEqual(r["research_triage"],"REVIEW_NEAR_RESISTANCE")
+        self.assertFalse(r["trade_approved"])
     def test_no_candidate_above_entry(self):
         prices={("271560","2026-10-{:02d}".format(i)):bar(104) for i in range(1,21)}
         r=assess(PLAN,prices)
