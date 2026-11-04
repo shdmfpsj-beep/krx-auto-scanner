@@ -69,6 +69,18 @@ class ConcordanceTests(unittest.TestCase):
         x = compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
         self.assertIn("REFERENCE_ONLY", x["result_counts"])
 
+    def test_blank_ticker_rejected(self):
+        self.write(self.a, dict(BASE, ticker=" "))
+        self.write(self.b, BASE)
+        with self.assertRaisesRegex(ValueError, "EMPTY_TICKER_OR_DATE"):
+            compare(self.a, self.b, "PYKRX", "KRX_EXPORT", True)
+
+    def test_blank_provider_rejected(self):
+        self.write(self.a, BASE)
+        self.write(self.b, BASE)
+        with self.assertRaisesRegex(ValueError, "PROVIDER_PROVENANCE_REQUIRED"):
+            compare(self.a, self.b, "  ", "KRX_EXPORT", True)
+
     def test_missing_reference_fails(self):
         self.write(self.a, BASE)
         self.write(self.b, dict(BASE, date="2026-11-02"))
