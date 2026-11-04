@@ -10,7 +10,15 @@ def summarize(report):
         raise ValueError("UNEXPECTED_SOURCE_SCHEMA")
     counts={}
     horizons={}
+    clustered_plans=0
+    clustered_events=0
     for plan in report["results"]:
+        dates=[event["date"] for event in plan["events"]]
+        if len(dates)!=len(set(dates)):
+            raise ValueError("DUPLICATE_TOUCH_DATE")
+        if len(dates)>1:
+            clustered_plans+=1
+            clustered_events+=len(dates)
         for event in plan["events"]:
             status=event["status"]
             counts[status]=counts.get(status,0)+1
@@ -27,6 +35,8 @@ def summarize(report):
                     s["pending"]+=1
     return dict(schema="C3_WATCH_TOUCH_COHORT_AUDIT_V1",events=sum(counts.values()),
                 status_counts=counts,horizons=horizons,
+                clustered_plans=clustered_plans,clustered_events=clustered_events,
+                independent_event_sample_size_verified=False,
                 causal_edge_established=False,verified_fills=0,
                 strategy_profitability_verified=False,trade_approved=False,orders_enabled=False)
 
@@ -38,6 +48,7 @@ def main():
     Path(a.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     lines=["### 매수구간 접촉 표본 요약 (가상 체결 아님)",
            f"- 전체 접촉 관찰: {result['events']}건"]
+    lines.append("- 동일 계획의 반복 접촉: {}건 / {}개 계획 (독립 표본 아님)".format(result["clustered_events"],result["clustered_plans"]))
     for status,n in sorted(result["status_counts"].items()):
         lines.append(f"- {status}: {n}건")
     lines.extend(["","| 후속 관찰 | 완료 표본 | 미완료 | 완료 표본 내 손절 접촉 | 완료 표본 내 목표 접촉 |",
