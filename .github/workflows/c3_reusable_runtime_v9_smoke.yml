@@ -8,10 +8,37 @@ permissions:
   contents: write
   actions: read
 jobs:
+  source:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run_id: ${{ steps.source.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 384a5189af79be1bc415ab3d04451efadd457749
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_runtime_v10.py
+          sparse-checkout-cone-mode: false
+      - name: Verify the same read-only source preflight as the deployment caller
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/c3_runtime_v10.py --outdir /tmp/c3-source-preflight
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c3-source-preflight-smoke
+          path: /tmp/c3-source-preflight/
+          retention-days: 90
   pipeline:
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@e759e56f2e3f240b97ffa3f5422ff62244b68ba7
+    needs: source
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@384a5189af79be1bc415ab3d04451efadd457749
     with:
-      engine_ref: e759e56f2e3f240b97ffa3f5422ff62244b68ba7
+      engine_ref: 384a5189af79be1bc415ab3d04451efadd457749
       caller_mode: research_smoke
+      upstream_run_id: ${{ needs.source.outputs.run_id }}
     secrets:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
