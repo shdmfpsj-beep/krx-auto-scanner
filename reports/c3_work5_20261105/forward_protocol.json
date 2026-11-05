@@ -1,0 +1,23 @@
+{
+  "schema": "C3_SELECTION_FORWARD_V5",
+  "first_decision_not_before": "2026-11-06",
+  "frozen_rules": {
+    "base_rank": "UPTREND_POSITIVE_RS_THEN_TURNOVER20",
+    "sector_variant": "SAME_RANK_AND_SECTOR_MEDIAN20_EXCESS_GT_0_MIN_5_MEMBERS",
+    "comparison_cadences": [
+      "FIXED26",
+      "DAILY"
+    ],
+    "entry_and_stop": "UNCHANGED_C3_DAILY_V4",
+    "source_knowledge_must_precede_decision": true
+  },
+  "current_registration": "ANALYSIS_ONLY_USE_EXPLICIT_APPEND_ONLY_REGISTRATION_AFTER_FORWARD_START",
+  "completed_horizons": {
+    "5": 0,
+    "10": 0,
+    "20": 0
+  },
+  "registered_snapshots": [],
+  "automatic_schedule_created": false,
+  "orders_enabled": false
+}
