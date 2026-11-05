@@ -1,0 +1,66 @@
+{
+  "schema": "C3_EXTERNAL_AI_REVIEW_V6",
+  "primary_sources": [
+    {
+      "repo": "TauricResearch/TradingAgents",
+      "commit": "9fa1196fffbcfd9de5146d2dd2869df84ab99838",
+      "reviewed_files": [
+        "README.md",
+        "tradingagents/backtest.py"
+      ],
+      "source_urls": [
+        "https://github.com/TauricResearch/TradingAgents/blob/9fa1196fffbcfd9de5146d2dd2869df84ab99838/README.md",
+        "https://github.com/TauricResearch/TradingAgents/blob/9fa1196fffbcfd9de5146d2dd2869df84ab99838/tradingagents/backtest.py"
+      ]
+    },
+    {
+      "repo": "virattt/ai-hedge-fund",
+      "commit": "e8655f10453f0c7c0874c8d691ef5ae2d74dab5c",
+      "reviewed_files": [
+        "README.md",
+        "hedge_fund/backtesting/research.py",
+        "hedge_fund/data/client.py"
+      ],
+      "source_urls": [
+        "https://github.com/virattt/ai-hedge-fund/blob/e8655f10453f0c7c0874c8d691ef5ae2d74dab5c/README.md",
+        "https://github.com/virattt/ai-hedge-fund/blob/e8655f10453f0c7c0874c8d691ef5ae2d74dab5c/hedge_fund/backtesting/research.py",
+        "https://github.com/virattt/ai-hedge-fund/blob/e8655f10453f0c7c0874c8d691ef5ae2d74dab5c/hedge_fund/data/client.py"
+      ]
+    }
+  ],
+  "borrowed_concepts": [
+    "SEPARATE_QUANT_DECISION_AND_RISK_REVIEW",
+    "PUBLISHED_INFORMATION_CUTOFF_NOT_REPORT_PERIOD",
+    "TIMELOCKED_INPUT_AND_PENDING_OUTCOMES",
+    "DECISION_QUALITY_IS_NOT_PORTFOLIO_RETURN"
+  ],
+  "external_code_copied": false,
+  "external_framework_installed": false,
+  "models": {
+    "A": "EXECUTED_QUANT_BASELINE",
+    "B": "EXECUTED_PRICE_RS_COMPONENT_SECTOR_HISTORY_UNAVAILABLE",
+    "C": "INTERFACE_ONLY_NO_ACTUAL_LLM_EXPERIMENT"
+  },
+  "ai_benefit_verified": false,
+  "paid_api_calls": 0,
+  "actual_external_api_cost_usd": 0,
+  "financialdatasets_official_pricing": {
+    "url": "https://www.financialdatasets.ai/pricing",
+    "checked_date": "2026-11-05",
+    "credits_usd": 20,
+    "credits_requests": 1000,
+    "personal_monthly_usd": 200,
+    "personal_requests": 100000,
+    "model_tokens_extra": true,
+    "purchased": false
+  },
+  "free_alternative": {
+    "provider": "Ollama_local",
+    "url": "https://docs.ollama.com/quickstart",
+    "api_key_not_required_for_local": true,
+    "installed_here": false,
+    "model_downloaded": false,
+    "execution_completed": false
+  },
+  "korean_market_effect_not_inferred_from_us_papers": true
+}

@@ -1,0 +1,29 @@
+{
+  "provider": "NAVER_PUBLISHED_KOSPI_KOSDAQ_INDEX_VALUES",
+  "series": {
+    "KOSPI": {
+      "rows": 366,
+      "first": "2025-05-02",
+      "last": "2026-11-03",
+      "last_close": 5648.79,
+      "received_at": "2026-11-05T09:02:32.788689+00:00",
+      "raw_sha256": "0384161ec04e50eb7e53fc919fbacc2c3777d18e708983a9ae3c1384747e797d",
+      "csv_sha256": "a3e9420a9cf631a51ed7681ed2d198472029e77603805db4f113ac4a5b5583e6",
+      "url": "https://api.finance.naver.com/siseJson.naver?symbol=KOSPI&requestType=1&startTime=20250502&endTime=20261105&timeframe=day"
+    },
+    "KOSDAQ": {
+      "rows": 366,
+      "first": "2025-05-02",
+      "last": "2026-11-03",
+      "last_close": 704.39,
+      "received_at": "2026-11-05T09:02:40.601555+00:00",
+      "raw_sha256": "ce7ffbe613a53fdddd714e2fe3ab04d9cccdab4b03be864bc94f0214040a3962",
+      "csv_sha256": "e7b385f4d9bd5538b160086074820e3a1ee4d84659e03f1f6da82d9a56526370",
+      "url": "https://api.finance.naver.com/siseJson.naver?symbol=KOSDAQ&requestType=1&startTime=20250502&endTime=20261105&timeframe=day"
+    }
+  },
+  "official_krx_independent_crosscheck": false,
+  "regular_final_close_independently_certified": false,
+  "current_membership_not_used": true,
+  "orders_enabled": false
+}
