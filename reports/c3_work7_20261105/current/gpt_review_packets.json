@@ -1,0 +1,69 @@
+{
+  "actual_model_runs": 0,
+  "paid_api_calls": 0,
+  "packets": [
+    {
+      "research_rank": 1,
+      "packet": {
+        "schema": "C3_BLIND_AI_PACKET_V6",
+        "features": {
+          "own_rs20": 54.43360184650797,
+          "rs_accel5": 13.300175040852025,
+          "trend60": true,
+          "high252_ratio": null,
+          "turnover_ratio": 0.8820457647784522,
+          "volume_ratio": 0.7934913264492235,
+          "higher_lows": true,
+          "market_regime": "DOWN",
+          "turnover20": 195572910183.1,
+          "structure_stop": 57700,
+          "reference_close": 65500.0,
+          "first_resistance": null,
+          "source_is_latest_expected_session": false
+        },
+        "source_hash": "eef404aea9a2029cc2de84bd386b86caacb84a611c82ec7fe2363cccd290d0e1",
+        "known_at": "2026-11-05T11:03:11.584790+00:00",
+        "execution_open_at": null,
+        "external_data_allowed": false
+      }
+    },
+    {
+      "research_rank": 2,
+      "packet": {
+        "schema": "C3_BLIND_AI_PACKET_V6",
+        "features": {
+          "own_rs20": 20.64729840105447,
+          "rs_accel5": 9.000393563652555,
+          "trend60": true,
+          "high252_ratio": null,
+          "turnover_ratio": 2.556570575915266,
+          "volume_ratio": 2.393188588416919,
+          "higher_lows": true,
+          "market_regime": "DOWN",
+          "turnover20": 66655218530.0,
+          "structure_stop": 20600,
+          "reference_close": 30100.0,
+          "first_resistance": 30400.0,
+          "source_is_latest_expected_session": false
+        },
+        "source_hash": "eef404aea9a2029cc2de84bd386b86caacb84a611c82ec7fe2363cccd290d0e1",
+        "known_at": "2026-11-05T11:03:11.584790+00:00",
+        "execution_open_at": null,
+        "external_data_allowed": false
+      }
+    }
+  ],
+  "required_output_fields": [
+    "packet_sha256",
+    "produced_at",
+    "reviewer",
+    "model_version",
+    "decision",
+    "bull_evidence_keys",
+    "bear_evidence_keys",
+    "evidence_keys",
+    "external_data_used"
+  ],
+  "output_template_is_not_a_model_result": true,
+  "performance_status": "NOT_EXECUTED"
+}
