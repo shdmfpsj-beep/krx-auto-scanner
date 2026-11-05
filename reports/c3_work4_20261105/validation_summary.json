@@ -1,0 +1,52 @@
+{
+  "schema": "C3_DAILY_TOP2_V4_VALIDATION",
+  "tested_code_commit": "0150d1a67f10d9a2d1d4acd2b53fb6bc62b56e8b",
+  "preserved_commit": "74c2aa932f7b389621ea8db66ee32d7ef16079cc",
+  "preserved_tests": 513,
+  "new_tests": 19,
+  "tests": {
+    "counts": [
+      497,
+      14,
+      21
+    ],
+    "total": 532,
+    "failures": 0,
+    "errors": 0
+  },
+  "workflow_run": 41977428534,
+  "workflow_conclusion": "success",
+  "artifact_id": 13392143021,
+  "artifact_sha256": "2ef8dbd8b5a453a9681468f1061f2e586fd16951266039a0650cc1268a40f4df",
+  "reproduction": {
+    "daily_comparison.csv": {
+      "byte_equal": true,
+      "sha256": "8720c00bdbe6323551b338e54a13cbf3d772228781b83c35d76fb19bd8b534a1"
+    },
+    "current_decision.json": {
+      "byte_equal": true,
+      "sha256": "0e74e454372b6d3f9b5a77687b4c544fe44e011d12538e1d88e5020eecdc9e00"
+    },
+    "chart_provenance.json": {
+      "byte_equal": true,
+      "sha256": "bce05a3bb55e20dc20ec7acfee8d3f2209a042da196ee3d5160ab205f7c08461"
+    },
+    "daily_report.json": {
+      "numeric_tolerance": 1e-12,
+      "max_absolute_difference": 0.0,
+      "different_numbers": 0
+    }
+  },
+  "other_successful_runs": {
+    "ict_push": 41977428363,
+    "ict_pr": 41977433651,
+    "entry_benchmark": 41977433357,
+    "ledger_integrity": 41977433369
+  },
+  "price_rows_audited": 2769,
+  "current_action": "CASH",
+  "unseen_completed_samples": 0,
+  "production_orders_changed": false,
+  "notifications_or_schedules_changed": false,
+  "pr_kept_draft": true
+}
