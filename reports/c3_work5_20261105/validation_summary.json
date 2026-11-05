@@ -1,0 +1,71 @@
+{
+  "schema": "C3_SELECTION_V5_VALIDATION",
+  "tested_code_commit": "e28e4170a7d462809c8551658dd837c9a4e396cd",
+  "preserved_commit": "79b0866a53a93eb056c2e2c582627c2d63c2c7f5",
+  "preserved_tests": 532,
+  "new_tests": 26,
+  "tests": {
+    "counts": [
+      523,
+      14,
+      21
+    ],
+    "total": 558,
+    "failures": 0,
+    "errors": 0
+  },
+  "workflow_run": 41996782798,
+  "workflow_conclusion": "success",
+  "artifact_id": 13400606783,
+  "artifact_sha256": "b005c726fc62005d9131be7c4857c052d7950352648df5ed65224ec88160bf4b",
+  "reproduction": {
+    "scope_summary.json": {
+      "byte_equal": true,
+      "sha256": "92040b62756108fbf7fed5988443d68ea010f1ddbf4c59fcae0c5839b605688e"
+    },
+    "forward_protocol.json": {
+      "byte_equal": true,
+      "sha256": "9af4bac479b6620bf7460712d04d3b0cb38577621adac13eb0ecb69a3fa0f001"
+    },
+    "selection_comparison.csv": {
+      "byte_equal": true,
+      "sha256": "11caa6864530f8697b5e1d41269496cc04c785fce86168b01c45a68cb8e8b3dd"
+    },
+    "selection_diagnostic.json": {
+      "byte_equal": true,
+      "sha256": "17db60c03e9a4c1d660f362130422cb8d99fef6c43a8540523e0bcaf227700a6"
+    }
+  },
+  "market_split": {
+    "KOSPI": {
+      "price_rows": 938,
+      "nonbio_common": 709,
+      "analysis_eligible": 663
+    },
+    "KOSDAQ": {
+      "price_rows": 1831,
+      "nonbio_common": 1457,
+      "analysis_eligible": 1320
+    }
+  },
+  "kind_stdlib_parser_parity_rows": 2658,
+  "regression_failure_fixed": {
+    "failed_run": 41995883384,
+    "failed_job": 127138794457,
+    "cause": "NEW_KIND_TEST_REQUIRED_LXML_ABSENT_FROM_EXISTING_CI",
+    "fix_commit": "0f492983f72c7639088797e4896f95f460b876b2",
+    "fix": "USE_STDLIB_HTMLPARSER_NO_NEW_DEPENDENCY"
+  },
+  "other_successful_runs": {
+    "ict_push": 41996782826,
+    "ict_pr": 41996791239,
+    "entry_benchmark": 41996791386,
+    "ledger_integrity": 41996791220
+  },
+  "historical_rules_retuned": false,
+  "new_forward_completed": 0,
+  "current_action": "CASH",
+  "orders_changed": false,
+  "notifications_or_schedules_changed": false,
+  "pr_draft": true
+}
