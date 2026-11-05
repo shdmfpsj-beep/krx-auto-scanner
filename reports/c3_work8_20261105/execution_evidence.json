@@ -1,0 +1,62 @@
+{
+  "schema": "C3_WORK8_EXECUTION_EVIDENCE",
+  "preserved_commit": "1b32f1a32ce6cc74ca6a7c2cb249f76bb4623e4a",
+  "preserved_tests": 591,
+  "new_tests": 26,
+  "tests": {
+    "counts": [
+      582,
+      14,
+      21
+    ],
+    "total": 617,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "new_integration_fixtures_are_synthetic": true
+  },
+  "initial_engine_commit": "ee65cd4c3dfa801aa5303502772d159c1934d06f",
+  "validated_final_code_commit": "3768778c359d177f15a17196a5b8759b7a105854",
+  "automatic_persistence_commit": "16689aba271cef5bac4848a976137b2572f86078",
+  "workflow_run_id": 42034308985,
+  "workflow_conclusion": "success",
+  "validation_job": "success",
+  "research_only_persistence_job": "success",
+  "artifact_id": 13417212504,
+  "artifact_zip_sha256": "f679375fb127458ccf7211d6953a26b9a0aad0cfad2b516504776d89cad50372",
+  "downloaded_result_matches_persisted_git_result": true,
+  "generated_at": "2026-11-05T13:16:58.071332+00:00",
+  "price_probe_received_at": "2026-11-05T13:16:57.522866+00:00",
+  "attempted_price_asof": "2026-11-05",
+  "actual_fresh_price_rows": 0,
+  "actual_new_price_source_asof": null,
+  "last_confirmed_price_asof": "2026-11-04",
+  "current_analysis_scope": null,
+  "last_confirmed_analysis_scope": 1983,
+  "real_new_decisions": 0,
+  "real_new_tickers": 0,
+  "real_model_entries": 0,
+  "real_stops_or_exits": 0,
+  "new_horizon_complete": {
+    "5": 0,
+    "10": 0,
+    "20": 0
+  },
+  "new_horizon_pending": {
+    "5": 0,
+    "10": 0,
+    "20": 0
+  },
+  "errors": [
+    "FORWARD_NOT_STARTED_NO_RETROACTIVE_DECISION",
+    "OFFICIAL_RESPONSE_MISSING_OR_EMPTY_OUTBLOCK"
+  ],
+  "actual_broker_orders": 0,
+  "gpt_model_runs": 0,
+  "paid_api_calls": 0,
+  "calendar_schedule_deployed": false,
+  "chatgpt_schedule_or_activation_modified": false,
+  "default_branch_modified": false,
+  "live_action": "CASH",
+  "pr_draft": true
+}
