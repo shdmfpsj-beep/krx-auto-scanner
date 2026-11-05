@@ -1,0 +1,72 @@
+{
+  "schema": "C3_EOD_DIAGNOSTICS_V9",
+  "generated_at": "2026-11-05T19:13:10.488991+00:00",
+  "dates": [
+    {
+      "asof": "2026-11-05",
+      "status": "OFFICIAL_MARKETS_NOT_COMPLETE",
+      "rows": 0,
+      "response_diagnostics": [
+        {
+          "market": "KOSPI",
+          "asof": "2026-11-05",
+          "endpoint": "stk_bydd_trd",
+          "method": "GET",
+          "query": {
+            "basDd": "20261105"
+          },
+          "credential_present": true,
+          "request_header_names": [
+            "AUTH_KEY",
+            "Accept"
+          ],
+          "started_at": "2026-11-05T19:13:07.167773+00:00",
+          "http_status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+          "body_bytes": 17,
+          "json_top_keys": [
+            "OutBlock_1"
+          ],
+          "outblock_type": "list",
+          "outblock_rows": 0,
+          "status": "OUTBLOCK_EMPTY",
+          "provider_error": {},
+          "received_at": "2026-11-05T19:13:08.832991+00:00"
+        },
+        {
+          "market": "KOSDAQ",
+          "asof": "2026-11-05",
+          "endpoint": "ksq_bydd_trd",
+          "method": "GET",
+          "query": {
+            "basDd": "20261105"
+          },
+          "credential_present": true,
+          "request_header_names": [
+            "AUTH_KEY",
+            "Accept"
+          ],
+          "started_at": "2026-11-05T19:13:08.833054+00:00",
+          "http_status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+          "body_bytes": 17,
+          "json_top_keys": [
+            "OutBlock_1"
+          ],
+          "outblock_type": "list",
+          "outblock_rows": 0,
+          "status": "OUTBLOCK_EMPTY",
+          "provider_error": {},
+          "received_at": "2026-11-05T19:13:10.488522+00:00"
+        }
+      ],
+      "quality": {}
+    }
+  ],
+  "latest_available_asof": null,
+  "secret_recorded": false,
+  "regular_only_certified": false,
+  "orders_enabled": false
+}

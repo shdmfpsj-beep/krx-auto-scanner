@@ -25,17 +25,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          sparse-checkout: |
+            /.github/workflows/c3_research_daily_caller.yml
+          sparse-checkout-cone-mode: false
       - name: Validate the one-file deployment pin without running collection
         run: |
           python - <<'PYCODE'
           from pathlib import Path
           p=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
+          import re
           pin='e759e56f2e3f240b97ffa3f5422ff62244b68ba7'
-          assert p.count(pin)==3
-          assert 'secrets: inherit' not in p
-          assert 'caller_mode: approved_daily' in p
-          assert 'github.ref == ' in p and 'refs/heads/main' in p
-          assert 'workflow_run:' in p and 'KRX daily candidate scan' in p
+          job=p.split('\n  research:\n',1)[1]
+          called=re.search(r'uses: shdmfpsj-beep/krx-auto-scanner/\.github/workflows/c3_daily_research_v8\.yml@([a-f0-9]{40})',job)
+          configured=re.search(r'^      engine_ref: ([a-f0-9]{40})$',job,re.M)
+          assert called and configured and called[1]==configured[1]==pin
+          secrets=job.split('\n    secrets:\n',1)[1]
+          assert 'inherit' not in secrets
+          assert set(re.findall(r'^      ([A-Z_]+):',secrets,re.M))=={'KRX_AUTH_KEY'}
+          assert 'caller_mode: approved_daily' in job and 'refs/heads/main' in job
           print('Pinned research caller manifest valid; production invocation remains disabled on PR')
           PYCODE
   research:

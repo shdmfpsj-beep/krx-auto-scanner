@@ -1,0 +1,167 @@
+{
+  "schema": "C3_EOD_DIAGNOSTICS_V9",
+  "generated_at": "2026-11-05T18:48:04.930220+00:00",
+  "dates": [
+    {
+      "asof": "2026-11-04",
+      "status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+      "rows": 2769,
+      "response_diagnostics": [
+        {
+          "market": "KOSPI",
+          "asof": "2026-11-04",
+          "endpoint": "stk_bydd_trd",
+          "method": "GET",
+          "query": {
+            "basDd": "20261104"
+          },
+          "credential_present": true,
+          "request_header_names": [
+            "AUTH_KEY",
+            "Accept"
+          ],
+          "started_at": "2026-11-05T18:47:58.888131+00:00",
+          "http_status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "body_sha256": "5791334a4b66a716ce4ad897671acc306eb984ecd92e345b38747e728e55cca9",
+          "body_bytes": 291396,
+          "json_top_keys": [
+            "OutBlock_1"
+          ],
+          "outblock_type": "list",
+          "outblock_rows": 938,
+          "status": "NORMALIZED",
+          "provider_error": {},
+          "received_at": "2026-11-05T18:48:00.470755+00:00",
+          "normalized_rows": 938
+        },
+        {
+          "market": "KOSDAQ",
+          "asof": "2026-11-04",
+          "endpoint": "ksq_bydd_trd",
+          "method": "GET",
+          "query": {
+            "basDd": "20261104"
+          },
+          "credential_present": true,
+          "request_header_names": [
+            "AUTH_KEY",
+            "Accept"
+          ],
+          "started_at": "2026-11-05T18:48:00.477529+00:00",
+          "http_status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "body_sha256": "97d280716bf4ec8a3ee39295a992e96bd428820ae6b08837fb9149bf15cc397c",
+          "body_bytes": 598183,
+          "json_top_keys": [
+            "OutBlock_1"
+          ],
+          "outblock_type": "list",
+          "outblock_rows": 1831,
+          "status": "NORMALIZED",
+          "provider_error": {},
+          "received_at": "2026-11-05T18:48:01.711401+00:00",
+          "normalized_rows": 1831
+        }
+      ],
+      "quality": {
+        "KOSPI": {
+          "rows": 938,
+          "valid_daily_bars": 911,
+          "invalid_or_halt_bars": 27,
+          "unique_tickers": 938,
+          "all_dates_matched": true
+        },
+        "KOSDAQ": {
+          "rows": 1831,
+          "valid_daily_bars": 1746,
+          "invalid_or_halt_bars": 85,
+          "unique_tickers": 1831,
+          "all_dates_matched": true
+        }
+      }
+    },
+    {
+      "asof": "2026-11-05",
+      "status": "OFFICIAL_MARKETS_NOT_COMPLETE",
+      "rows": 0,
+      "response_diagnostics": [
+        {
+          "market": "KOSPI",
+          "asof": "2026-11-05",
+          "endpoint": "stk_bydd_trd",
+          "method": "GET",
+          "query": {
+            "basDd": "20261105"
+          },
+          "credential_present": true,
+          "request_header_names": [
+            "AUTH_KEY",
+            "Accept"
+          ],
+          "started_at": "2026-11-05T18:48:01.735185+00:00",
+          "http_status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+          "body_bytes": 17,
+          "json_top_keys": [
+            "OutBlock_1"
+          ],
+          "outblock_type": "list",
+          "outblock_rows": 0,
+          "status": "OUTBLOCK_EMPTY",
+          "provider_error": {},
+          "received_at": "2026-11-05T18:48:03.389713+00:00"
+        },
+        {
+          "market": "KOSDAQ",
+          "asof": "2026-11-05",
+          "endpoint": "ksq_bydd_trd",
+          "method": "GET",
+          "query": {
+            "basDd": "20261105"
+          },
+          "credential_present": true,
+          "request_header_names": [
+            "AUTH_KEY",
+            "Accept"
+          ],
+          "started_at": "2026-11-05T18:48:03.389768+00:00",
+          "http_status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+          "body_bytes": 17,
+          "json_top_keys": [
+            "OutBlock_1"
+          ],
+          "outblock_type": "list",
+          "outblock_rows": 0,
+          "status": "OUTBLOCK_EMPTY",
+          "provider_error": {},
+          "received_at": "2026-11-05T18:48:04.929672+00:00"
+        }
+      ],
+      "quality": {},
+      "control_interpretation": "EARLIER_DATE_WORKS_TARGET_NOT_AVAILABLE;NO_PROVEN_EXACT_PUBLICATION_CAUSE"
+    },
+    {
+      "asof": "2026-11-06",
+      "status": "SESSION_NOT_COMPLETED_NO_REQUEST",
+      "rows": 0,
+      "response_diagnostics": [],
+      "quality": {},
+      "control_interpretation": "EARLIER_DATE_WORKS_TARGET_NOT_AVAILABLE;NO_PROVEN_EXACT_PUBLICATION_CAUSE"
+    }
+  ],
+  "latest_available_asof": "2026-11-04",
+  "secret_recorded": false,
+  "regular_only_certified": false,
+  "orders_enabled": false,
+  "membership_change": {
+    "before": "2026-11-04",
+    "after": "2026-11-04",
+    "missing_vs_before": [],
+    "new_vs_before": [],
+    "cause_not_inferred": true
+  }
+}

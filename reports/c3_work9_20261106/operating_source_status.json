@@ -1,0 +1,40 @@
+{
+  "schema": "C3_DAILY_20K_FULL_MARKET_AND_NEWS_V1",
+  "run_kst": "2026-11-05T23:11:01.763229+09:00",
+  "price_data_asof": "2026-11-05",
+  "source_age_calendar_days": 0,
+  "weekend": false,
+  "mode": "LAST_COMPLETED_SCAN_AND_NEWS_REVIEW",
+  "full_market_scanned_fresh_now": false,
+  "completed_market_universe_rescreened": true,
+  "source_market": {
+    "source_state": "COMPLETED_ARCHIVE_RESCREENED",
+    "source_date": "2026-11-05",
+    "universe": 2625,
+    "total_observations": 2625,
+    "early_candidate_count": 514,
+    "original_run_kst": "2026-11-05T21:09:57.488096+09:00",
+    "original_source_session_scope_certified": false,
+    "full_status_sha256": "b144633b2345e407d734a9b10a01d31ac5cc9b83512de52f0ce277aa1e41b473"
+  },
+  "news_window_hours": 72,
+  "domestic_news_count": 83,
+  "domestic_rss_sources": {
+    "HK_FINANCE": {
+      "status": "OK",
+      "articles_72h": 50
+    },
+    "MK_MARKET": {
+      "status": "OK",
+      "articles_72h": 33
+    }
+  },
+  "global_news_separate_file": "global/global_sector_news_status.json",
+  "weekend_news_not_weekend_prices": true,
+  "disclosed_news_not_a_required_buy_gate": true,
+  "price_source_regular_only_certified": false,
+  "actual_investor_flows_verified": false,
+  "trade_approved": false,
+  "orders_enabled": false,
+  "all_market_rescreen_rows_written": 2625
+}
