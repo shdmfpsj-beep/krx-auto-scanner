@@ -1,0 +1,37 @@
+name: C3 bulk supply provenance and operating OHLCV recovery
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths: ['scripts/c3_supply_bridge_v11.py','.github/workflows/c3_supply_bridge_v11_research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==2.2.3 pykrx==1.2.9 finance-datareader==0.9.202 cryptography==46.0.7
+      - name: Reuse sealed sample data and inspect actual bulk-price provenance
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python scripts/c3_supply_bridge_v11.py --outdir /tmp/c3-bridge11
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-supply-v11-bulk-and-recovery-proof
+          path: |
+            /tmp/c3-bridge11/public/
+            /tmp/c3-bridge11/private_market_data.aesgcm
+          retention-days: 90
+          if-no-files-found: error
