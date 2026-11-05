@@ -97,11 +97,15 @@ def freeze_market(root,payload,now):
 
 
 def register(root,batch,now):
-    day=stamp(now).astimezone(KST).date().isoformat();path=Path(root)/"decisions"/(day+".json")
-    if batch["decision_date"]!=day or batch["price_asof"]!=day:raise ValueError("CURRENT_SESSION_DECISION_REQUIRED")
+    day=stamp(now).astimezone(KST).date().isoformat();price_day=batch['price_asof'];path=Path(root)/"decisions"/(price_day+".json")
+    if batch["decision_date"]!=day:raise ValueError("CURRENT_SESSION_DECISION_REQUIRED")
+    if price_day!=day:
+        from c3_runtime_v9 import registration_window
+        if batch.get('schema')!='C3_FORWARD_DECISION_V9' or not batch.get('allow_delayed_preopen'):raise ValueError('CURRENT_SESSION_DECISION_REQUIRED')
+        if registration_window(price_day,stamp(now))!='DELAYED_BEFORE_NEXT_POSSIBLE_OPEN':raise ValueError('DELAYED_SOURCE_OUTSIDE_PROSPECTIVE_WINDOW')
     if path.exists():
         old=read_record(path)
-        if old["schema"]!="C3_FORWARD_DECISION_V8":raise ValueError("DECISION_SCHEMA_CHANGED")
+        if old["schema"] not in ("C3_FORWARD_DECISION_V8","C3_FORWARD_DECISION_V9"):raise ValueError("DECISION_SCHEMA_CHANGED")
         substantive=lambda b:{m:[{k:r[k] for k in ("signal_id","ticker","rank","reference_close","entry_plans")} for r in rows] for m,rows in b["models"].items()}
         if substantive(old)!=substantive(batch):raise ValueError("DECISION_CORRECTION_REQUIRES_SEPARATE_RECORD")
         return old,False
@@ -112,8 +116,8 @@ def register(root,batch,now):
     if set(batch["models"])!={"A","B"}:raise ValueError("SELECTION_MODEL_SET_INVALID")
     for model,rows in batch["models"].items():
         if len(rows)>2 or len({r["ticker"] for r in rows})!=len(rows):raise ValueError("DUPLICATE_OR_TOO_MANY_SIGNALS")
-        if any(r["signal_id"]!=signal_id(day,model,r["ticker"]) or r["rank"]!=i for i,r in enumerate(rows,1)):raise ValueError("SIGNAL_ID_OR_RANK_INVALID")
-    source=Path(root)/'markets'/(day+'.json.gz')
+        if any(r["signal_id"]!=signal_id(price_day,model,r["ticker"]) or r["rank"]!=i or r.get('source_price_asof',price_day)!=price_day for i,r in enumerate(rows,1)):raise ValueError("SIGNAL_ID_OR_RANK_INVALID")
+    source=Path(root)/'markets'/(price_day+'.json.gz')
     if not source.exists():raise ValueError('DECISION_SOURCE_SNAPSHOT_REQUIRED')
     market=read_record(source)
     if batch['source_snapshot_hash']!=hash_value(market):raise ValueError('DECISION_SOURCE_SNAPSHOT_MISMATCH')
@@ -138,8 +142,11 @@ def correction(root,target,reason,proposed,now,run_id):
 def signal_id(day,model,ticker):return "C3V8-"+hash_value([day,model,ticker])[:24]
 
 
+def price_session(signal):return signal.get('source_price_asof',signal['decision_date'])
+
+
 def rows_for(signal,markets,sessions):
-    day=signal["decision_date"];ticker=signal["ticker"];prior=None;rows=[]
+    day=price_session(signal);ticker=signal["ticker"];prior=None;rows=[]
     for d in sessions:
         if d<day:continue
         p=markets.get(d);bar=p["rows"].get(ticker) if p else None
@@ -152,7 +159,7 @@ def rows_for(signal,markets,sessions):
 
 
 def selection_observation(signal,rows,sessions,index,h):
-    start=sessions.index(signal["decision_date"]);out=dict(status="INCOMPLETE_WINDOW",horizon=h,price_move_pct=None,excess_pct=None)
+    start=sessions.index(price_session(signal));out=dict(status="INCOMPLETE_WINDOW",horizon=h,price_move_pct=None,excess_pct=None)
     if start+h>=len(sessions):return out
     days=sessions[start:start+h+1];by={b["date"]:b for b in rows};bars=[by.get(d) for d in days]
     if any(b is None for b in bars):return dict(out,status="DATA_MISSING")
@@ -191,10 +198,10 @@ def advance(root,now,run_id):
     for batch in decisions:
         if stamp(batch["registered_at"])>stamp(now):raise ValueError("FUTURE_DECISION_RECORD")
         if batch['execution_version']!=execution_version():raise ValueError('FROZEN_EXECUTION_ENGINE_CHANGED_RECONCILIATION_REQUIRED')
-        if batch["decision_date"] not in markets or batch["source_snapshot_hash"]!=hash_value(markets[batch["decision_date"]]):raise ValueError("DECISION_SOURCE_SNAPSHOT_MISMATCH")
+        if batch["price_asof"] not in markets or batch["source_snapshot_hash"]!=hash_value(markets[batch["price_asof"]]):raise ValueError("DECISION_SOURCE_SNAPSHOT_MISMATCH")
         for model,signals in batch["models"].items():
             for s in signals:
-                idx=sessions.index(s["decision_date"]);key=(model,s["ticker"]);overlap=idx<clock.get(key,-1)
+                anchor=price_session(s);idx=sessions.index(anchor);key=(model,s["ticker"]);overlap=idx<clock.get(key,-1)
                 if not overlap:clock[key]=idx+20
                 rows=rows_for(s,markets,sessions);paper={};aliases={}
                 for variant,item in s["entry_plans"].items():
@@ -202,15 +209,15 @@ def advance(root,now,run_id):
                     aliases[variant]=trade_key in entry_clock if trade_key else False
                     observations={str(h):paper_observation(s,variant,rows,sessions,h) for h in HORIZONS};paper[variant]=observations
                     if trade_key and any(x["model_entry"] for x in observations.values()):entry_clock.add(trade_key)
-                row=dict(signal_id=s["signal_id"],ticker=s["ticker"],name=s["name"],model=model,decision_date=s["decision_date"],asof=latest["asof"],
+                row=dict(signal_id=s["signal_id"],ticker=s["ticker"],name=s["name"],model=model,decision_date=s["decision_date"],source_price_asof=anchor,asof=latest["asof"],
                     overlap_with_prior_20_sessions=overlap,duplicate_entry_structure=aliases,selection={str(h):selection_observation(s,rows,sessions,indices[s["market"]],h) for h in HORIZONS},paper=paper)
-                sources={d:hash_value(m) for d,m in markets.items() if d>=s["decision_date"]}
-                row.update(market_sources_sha256=sources,source_knowledge_at=max((m["source"]["received_at"] for d,m in markets.items() if d>=s["decision_date"]),key=stamp))
+                sources={d:hash_value(m) for d,m in markets.items() if d>=anchor}
+                row.update(market_sources_sha256=sources,source_knowledge_at=max((m["source"]["received_at"] for d,m in markets.items() if d>=anchor),key=stamp))
                 # Exclude changing execution receipt/run ID from deterministic observations.
                 # Late outcome data appends a new knowledge version; neither the
                 # original decision nor an earlier incomplete observation changes.
                 immutable(root/"observations"/latest["asof"]/(s["signal_id"]+"-"+hash_value(sources)[:12]+".json"),row);out.append(row)
-    summary=dict(registered_decision_days=len(decisions),registered_signals=len(out),unique_registered_tickers=len({r["ticker"] for r in out}),latest_observed_session=latest["asof"],
+    summary=dict(registered_decision_days=len({b['decision_date'] for b in decisions}),registered_source_sessions=len(decisions),registered_signals=len(out),unique_registered_tickers=len({r["ticker"] for r in out}),latest_observed_session=latest["asof"],
         selection={},paper={},overlapping_selection_records=sum(r["overlap_with_prior_20_sessions"] for r in out),actual_broker_fills=0,orders_enabled=False,current_action="CASH",not_a_capital_constrained_portfolio=True)
     avg=lambda v:statistics.mean(v) if v else None
     for model in ("A","B"):

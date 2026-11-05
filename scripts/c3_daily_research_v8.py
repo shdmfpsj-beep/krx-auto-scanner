@@ -122,13 +122,14 @@ def next_execution(day,sessions):
 def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
     outdir=Path(outdir);outdir.mkdir(parents=True,exist_ok=True);root=Path(root)
     now=datetime.now(timezone.utc).isoformat();local=stamp(now).astimezone(KST);today=local.date().isoformat();errors=[];batch=None;counts=None;added=False
+    timing='NO_COMPLETED_PRICE_SOURCE'
     if today<"2026-11-06":errors.append("FORWARD_NOT_STARTED_NO_RETROACTIVE_DECISION")
     prices,fresh_meta=fresh_snapshot(fresh);probe_meta=json.loads((Path(fresh)/"krx_v65_collect_status.json").read_text())
     if prices is None:errors.append(fresh_meta["status"])
     dates=[r["date"] for r in read_csv(Path(indices_dir)/"KOSPI_index.csv")];indices,index_meta=load_indices(indices_dir,dates)
     if any(stamp(v["received_at"])>stamp(now) for v in index_meta["series"].values()):raise ValueError("FUTURE_INDEX_RECEIPT")
     source_hashes=dict(panel=digest(panel),audit=digest(audit),classification=digest(Path(scope)/"classification_sources.json"),index_manifest=digest(Path(indices_dir)/"index_manifest.json"),
-        pipeline_code=digest(__file__),ledger_code=digest(Path(__file__).with_name("c3_forward_ledger_v8.py")),entry_code=digest(Path(__file__).with_name("c3_entry_practical_v7.py")),protocol=digest('config/c3_forward_v8_protocol.json'))
+        pipeline_code=digest(__file__),ledger_code=digest(Path(__file__).with_name("c3_forward_ledger_v8.py")),entry_code=digest(Path(__file__).with_name("c3_entry_practical_v7.py")),protocol=digest('config/c3_forward_v8_protocol.json'),runtime_protocol=digest('config/c3_runtime_v9_protocol.json'))
     protocol=json.loads(Path('config/c3_forward_v8_protocol.json').read_text())
     if protocol['entry_methods']!=list(ENTRIES) or protocol['costs']!={'buy':BUY,'sell':SELL,'slippage_each_side':SLIP}:raise ValueError('FROZEN_RESEARCH_PROTOCOL_MISMATCH')
     # Missing warmup sessions may be collected now as price receipts. They are
@@ -143,8 +144,11 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
                 regular_only_certified=bool(mm.get("independent_1530_regular_session_certified",False)),source_run_id=str(run_id),source_manifest_sha256=digest(pm))
             freeze_market(root,market_payload(list(pp.values()),ix,dd,sm),now)
     if prices:
+        from c3_runtime_v9 import registration_window
         day=fresh_meta["asof"]
-        if day!=today:errors.append("LATEST_PRICE_IS_NOT_TODAY_NO_NEW_DECISION")
+        timing=registration_window(day,stamp(now));eligible=timing in ('SAME_COMPLETED_SESSION','DELAYED_BEFORE_NEXT_POSSIBLE_OPEN')
+        if not eligible:errors.append(timing)
+        if day>today or (day==today and local.hour*60+local.minute<930):errors.append('PRICE_SESSION_NOT_COMPLETED')
         elif day not in indices["KOSPI"] or day not in indices["KOSDAQ"]:errors.append("CURRENT_BENCHMARK_MISSING")
         else:
             dates=[d for d in dates if d<=day];indices={m:{d:v for d,v in ix.items() if d<=day} for m,ix in indices.items()}
@@ -164,16 +168,26 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
                 execution_open_at=next_execution(day,dates),execution_date_is_provisional_until_observed=True,models=models,scope=counts,source_hashes=source_hashes,
                 source_snapshot_hash=hash_value(market),model_code_sha256=source_hashes["pipeline_code"],execution_version=execution_version(),synthetic_source=False,orders_enabled=False,live_action="CASH")
             if counts["analysis_eligible"]==0:errors.append("INSUFFICIENT_CONTINUOUS_HISTORY_NO_DECISION")
-            elif day>="2026-11-06":batch,added=register(root,batch,now)
+            elif eligible:
+                if day!=today:
+                    batch.update(schema='C3_FORWARD_DECISION_V9',decision_date=today,allow_delayed_preopen=True,registration_timing=timing)
+                    for rows in batch['models'].values():
+                        for r in rows:r.update(decision_date=today,source_price_asof=day,registration_timing=timing)
+                batch,added=register(root,batch,now)
     observations,performance=advance(root,now,run_id)
     previous=json.loads(Path('reports/c3_work7_20261105/current/current_candidates.json').read_text())
     preview=(batch["models"]["B"] if batch else [dict(r,chart_bars=previous["chart_bars"].get(r["ticker"],[])) for r in previous["research_top2"]])
+    source_registered=bool(batch and (root/'decisions'/(batch['price_asof']+'.json')).exists())
+    registered=bool(source_registered and batch['decision_date']==today)
+    if not source_registered:preview=[dict(r,registered_at=None,analysis_known_at=now,trade_approved=False) for r in preview]
     result=dict(schema="C3_DAILY_RESEARCH_V8",generated_at=now,report_day_kst=today,source_run_id=str(run_id),
         source_price_asof=fresh_meta.get("asof") if prices else None,source_received_at=fresh_meta.get("retrieval_utc") if prices else None,
         attempted_price_asof=probe_meta.get("asof"),probe_received_at=probe_meta.get("retrieval_utc"),last_confirmed_price_asof=fresh_meta['asof'] if prices else previous["price_asof"],
+        source_diagnostics=probe_meta.get('response_diagnostics',[]),source_collection_status=probe_meta.get('status'),
         current_scope=counts,last_confirmed_scope=previous["currently_analyzable"],errors=errors,new_decision_registered=added,
         new_registered_signals=sum(len(x) for x in batch["models"].values()) if added else 0,new_registered_unique_tickers=len({r["ticker"] for rows in batch["models"].values() for r in rows}) if added else 0,
-        research_top2=preview,research_top2_is_registered_today=added or bool(batch and (root/"decisions"/(today+".json")).exists()),
+        research_top2=preview,research_top2_is_registered_today=registered,
+        research_top2_registered_for_source_session=source_registered,registration_timing=timing,
         preview_price_asof=batch["price_asof"] if batch else previous["price_asof"],performance=performance,observations=observations,
         forward_start="2026-11-06",current_action="CASH",approved_top2=[],gpt_actual_model_runs=0,paid_api_calls=0,orders_enabled=False,
         scheduler_deployed=False,default_branch_modified=False,notifications_modified=False,source_hashes=source_hashes)
@@ -184,7 +198,7 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
 if __name__=="__main__":
     p=argparse.ArgumentParser()
     for k in ("panel","audit","baseline","basic","scope","indices","fresh","ledger","outdir"):p.add_argument("--"+k,required=True)
-    p.add_argument("--run-id",default="LOCAL_READ_ONLY");p.add_argument("--refresh-indices",action="store_true")
+    p.add_argument("--run-id",default="LOCAL_READ_ONLY");p.add_argument("--refresh-indices",action="store_true");p.add_argument('--invocation',default='')
     a=p.parse_args()
     if a.refresh_indices:
         try:collect_indices(a.indices,datetime.now(KST).date().isoformat())
@@ -192,4 +206,7 @@ if __name__=="__main__":
             import shutil
             shutil.copytree('reports/c3_work7_20261105/sources',a.indices,dirs_exist_ok=True)
             Path(a.indices,'collection_error.json').write_text(json.dumps(dict(status='INDEX_COLLECTION_FAILED_USING_DATED_CACHE',error_type=type(exc).__name__))+"\n")
-    run(a.panel,a.audit,a.baseline,a.basic,a.scope,a.indices,a.fresh,a.ledger,a.outdir,a.run_id)
+    result=run(a.panel,a.audit,a.baseline,a.basic,a.scope,a.indices,a.fresh,a.ledger,a.outdir,a.run_id)
+    if a.invocation:
+        result['invocation']=json.loads(Path(a.invocation).read_text());result['invocation']['run_id']=a.run_id
+        (Path(a.outdir)/'latest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')

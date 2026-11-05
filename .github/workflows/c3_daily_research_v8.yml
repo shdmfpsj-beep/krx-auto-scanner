@@ -4,11 +4,29 @@ on:
     branches: [research/c3-ledger-integrity-audit-20261104]
     paths:
       - 'scripts/c3_*_v8.py'
+      - 'scripts/c3_runtime_v9.py'
+      - 'scripts/test_c3_runtime_v9.py'
+      - 'scripts/c3_eod_source_v9.py'
+      - 'scripts/test_c3_eod_source_v9.py'
+      - 'scripts/c3_free_provider_triangulation_v1.py'
+      - 'scripts/test_c3_free_provider_triangulation_v1.py'
       - 'scripts/test_c3_forward_ledger_v8.py'
       - 'config/c3_forward_v8_*.json'
+      - 'config/c3_runtime_v9_protocol.json'
       - 'reports/c3_work8_20261105/inputs.json'
       - '.github/workflows/c3_daily_research_v8.yml'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      engine_ref:
+        required: true
+        type: string
+      caller_mode:
+        required: true
+        type: string
+    secrets:
+      KRX_AUTH_KEY:
+        required: false
 permissions:
   contents: read
   actions: read
@@ -17,9 +35,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   validate-and-run:
-    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/research/c3-ledger-integrity-audit-20261104'
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && (github.ref == 'refs/heads/research/c3-ledger-integrity-audit-20261104' || (github.ref == 'refs/heads/main' && inputs.caller_mode == 'approved_daily'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      state_sha: ${{ steps.context.outputs.state_sha }}
     env:
       PYTHONDONTWRITEBYTECODE: '1'
       PYTHONPATH: scripts
@@ -27,13 +47,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          ref: ${{ inputs.engine_ref || github.sha }}
+          persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Validate caller and load only the current research ledger
+        id: context
+        env:
+          CALLER_MODE: ${{ inputs.caller_mode || 'research_direct' }}
+        run: |
+          python - <<'PY'
+          import json,os,subprocess
+          from pathlib import Path
+          from c3_runtime_v9 import invocation,BRANCH
+          root=Path('/tmp/c3-forward8/result');root.mkdir(parents=True,exist_ok=True)
+          event=json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text());upstream=event.get('workflow_run');u=None
+          if upstream:u={k:upstream.get(k) for k in ('id','name','head_branch','conclusion')};u['repository']=upstream.get('head_repository',{}).get('full_name')
+          engine=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          audit=invocation(os.environ['GITHUB_REPOSITORY'],os.environ['GITHUB_REF'],os.environ['GITHUB_EVENT_NAME'],os.environ['CALLER_MODE'],engine,u)
+          subprocess.run(['git','fetch','origin',BRANCH],check=True)
+          state=subprocess.check_output(['git','rev-parse','FETCH_HEAD'],text=True).strip()
+          paths=subprocess.check_output(['git','ls-tree','-r','--name-only',state,'--','reports/c3_forward_v8'],text=True).splitlines()
+          if paths:subprocess.run(['git','restore','--source='+state,'--worktree','--',*paths],check=True)
+          audit['state_sha']=state;audit['caller_commit']=os.environ['GITHUB_SHA']
+          (root/'invocation.json').write_text(json.dumps(audit,indent=2)+'\n')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('state_sha='+state+'\n')
+          PY
       - name: Install the existing research dependencies
         run: pip install pandas==2.2.3 pykrx==1.2.9 'matplotlib>=3.8,<4'
-      - name: Preserve 591 regressions and validate prospective integration
+      - name: Preserve 617 regressions and validate source and caller guards
         run: |
           mkdir -p /tmp/c3-forward8/result/validation
           python - <<'PY'
@@ -44,7 +87,7 @@ jobs:
           counts=[s.countTestCases() for s in suites]
           result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
           Path('/tmp/c3-forward8/result/validation/tests.json').write_text(json.dumps(dict(counts=counts,total=result.testsRun,failures=len(result.failures),errors=len(result.errors),skipped=len(result.skipped),new_integration_fixtures_are_synthetic=True)))
-          assert counts==[582,14,21], 'PRESERVED_TEST_COUNT_CHANGED'
+          assert counts==[606,14,21], 'PRESERVED_TEST_COUNT_CHANGED'
           if not result.wasSuccessful():raise SystemExit(1)
           PY
       - name: Reuse the three hash-pinned bootstrap inputs
@@ -71,6 +114,8 @@ jobs:
           from zoneinfo import ZoneInfo
           from c3_daily_research_v8 import collect_indices
           from c3_forward_ledger_v8 import read_record
+          from c3_runtime_v9 import collection_plan,already_current
+          from c3_selection_scope_v5 import digest
           root=Path('/tmp/c3-forward8/result');today=datetime.now(ZoneInfo('Asia/Seoul')).date().isoformat();indices=root/'indices'
           try:collect_indices(indices,today)
           except Exception as exc:
@@ -78,23 +123,42 @@ jobs:
               (indices/'collection_error.json').write_text(json.dumps(dict(status='INDEX_COLLECTION_FAILED_DATED_CACHE_ONLY',error_type=type(exc).__name__)))
           with (indices/'KOSPI_index.csv').open() as f:dates=[r['date'] for r in csv.DictReader(f)]
           existing={read_record(p)['asof'] for p in Path('reports/c3_forward_v8/markets').glob('*.json.gz')}
-          missing=[d for d in dates if '2026-11-04'<d<=today and d not in existing]
-          requested=sorted(set(missing[:4]+[today]))
-          (root/'collection_plan.json').write_text(json.dumps(dict(today=today,missing_index_sessions=missing,requested_dates=requested,request_budget_dates=5,not_a_new_decision_for_old_dates=True)))
-          subprocess.run([sys.executable,'scripts/c3_official_snapshot_probe_v1.py','--asof',*requested,'--prices','reports/c3_work_20261104/inputs/top2_provisional_ohlcv.csv','--outdir',str(root/'fresh')],check=True)
+          plan=collection_plan(datetime.now(ZoneInfo('Asia/Seoul')),dates,existing);target=plan['expected_completed_session']
+          (root/'collection_plan.json').write_text(json.dumps(plan,indent=2)+'\n')
+          old=Path('reports/c3_forward_v8/latest.json');previous=json.loads(old.read_text()) if old.exists() else None
+          skip=already_current(previous,target,digest('scripts/c3_daily_research_v8.py'))
+          audit=json.loads((root/'invocation.json').read_text());audit.update(expected_completed_session=target,duplicate_current_session_skipped=skip)
+          (root/'invocation.json').write_text(json.dumps(audit,indent=2)+'\n')
+          if not skip:subprocess.run([sys.executable,'scripts/c3_eod_source_v9.py','--asof',*plan['requested_dates'],'--outdir',str(root/'fresh')],check=True)
+          (root/'skip_current.txt').write_text('1' if skip else '0')
+          (root/'target_session.txt').write_text(target)
           (root/'runtime_day.txt').write_text(today)
-          (root/'validated_commit.txt').write_text(__import__('os').environ['GITHUB_SHA'])
+          (root/'validated_commit.txt').write_text(subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip())
           PY
       - name: Connect current selection to immutable registration and post-entry observations
         run: |
-          day=$(cat /tmp/c3-forward8/result/runtime_day.txt)
-          python scripts/c3_daily_research_v8.py --panel /tmp/c3-forward8/inputs/panel/official_panel.csv.gz --audit /tmp/c3-forward8/inputs/panel/quality_audit.json --baseline /tmp/c3-forward8/inputs/latest/requested-date-probe/2026-11-04 --basic /tmp/c3-forward8/inputs/issuer/basic --scope reports/c3_work5_20261105/sources --indices /tmp/c3-forward8/result/indices --fresh "/tmp/c3-forward8/result/fresh/$day" --ledger reports/c3_forward_v8 --outdir /tmp/c3-forward8/result/current --run-id '${{ github.run_id }}'
+          day=$(cat /tmp/c3-forward8/result/target_session.txt)
+          if [ "$(cat /tmp/c3-forward8/result/skip_current.txt)" = 1 ]; then
+            python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from datetime import datetime,timezone
+          root=Path('/tmp/c3-forward8/result');out=root/'current';out.mkdir(exist_ok=True)
+          data=json.loads(Path('reports/c3_forward_v8/latest.json').read_text());data.update(new_decision_registered=False,new_registered_signals=0,new_registered_unique_tickers=0,checked_at=datetime.now(timezone.utc).isoformat(),invocation=json.loads((root/'invocation.json').read_text()))
+          data['invocation']['run_id']=os.environ['GITHUB_RUN_ID'];(out/'latest.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          PY
+          else
+            python scripts/c3_daily_research_v8.py --panel /tmp/c3-forward8/inputs/panel/official_panel.csv.gz --audit /tmp/c3-forward8/inputs/panel/quality_audit.json --baseline /tmp/c3-forward8/inputs/latest/requested-date-probe/2026-11-04 --basic /tmp/c3-forward8/inputs/issuer/basic --scope reports/c3_work5_20261105/sources --indices /tmp/c3-forward8/result/indices --fresh "/tmp/c3-forward8/result/fresh/$day" --ledger reports/c3_forward_v8 --outdir /tmp/c3-forward8/result/current --run-id '${{ github.run_id }}' --invocation /tmp/c3-forward8/result/invocation.json
+          fi
           python scripts/c3_forward_report_v8.py --latest /tmp/c3-forward8/result/current/latest.json --outdir /tmp/c3-forward8/result/mobile
           python - <<'PY'
           from pathlib import Path
           import shutil,json
           root=Path('/tmp/c3-forward8/result');shutil.copytree('reports/c3_forward_v8',root/'ledger',dirs_exist_ok=True) if Path('reports/c3_forward_v8').exists() else (root/'ledger').mkdir()
           j=json.loads((root/'current/latest.json').read_text());assert not j['orders_enabled'] and j['current_action']=='CASH'
+          from c3_runtime_v9 import handoff
+          summary=json.loads((root/'mobile/summary.json').read_text());audit=handoff(summary,(root/'mobile/mobile_report.md').read_text())
+          (root/'report_handoff_audit.json').write_text(json.dumps(audit,indent=2)+'\n')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -105,7 +169,7 @@ jobs:
           if-no-files-found: error
   preserve-research-only:
     needs: validate-and-run
-    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/research/c3-ledger-integrity-audit-20261104'
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && (github.ref == 'refs/heads/research/c3-ledger-integrity-audit-20261104' || (github.ref == 'refs/heads/main' && inputs.caller_mode == 'approved_daily'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -122,7 +186,7 @@ jobs:
           path: /tmp/c3-forward8-validated
       - name: Preserve source records and derived report on the research branch only
         env:
-          EXPECTED_HEAD: ${{ github.sha }}
+          EXPECTED_HEAD: ${{ needs.validate-and-run.outputs.state_sha }}
         run: |
           python - <<'PY'
           import os,shutil,subprocess

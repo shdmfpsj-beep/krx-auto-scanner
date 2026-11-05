@@ -11,14 +11,15 @@ def summarize(naver,yahoo):
         n=d["comparison_count"]
         m=r.get("MATCH",0)
         x=r.get("MISMATCH",0)
-        if any(type(v) is not int or v<0 for v in (n,m,x)) or m+x!=n:
+        missing=r.get("MISSING_REFERENCE",0)
+        if any(type(v) is not int or v<0 for v in (n,m,x,missing)) or set(r)-{"MATCH","MISMATCH","MISSING_REFERENCE"} or m+x+missing!=n:
             raise ValueError("INVALID_CONCORDANCE_COUNTS")
-        return dict(rows=n,matches=m,mismatches=x)
+        return dict(rows=n,matches=m,mismatches=x,missing_reference=missing)
     n=counts(naver)
     y=counts(yahoo)
     return dict(schema="C3_FREE_PROVIDER_TRIANGULATION_V1",
                 naver_vs_pykrx=n,yahoo_vs_pykrx=y,
-                observed_naver_agreement=n["mismatches"]==0,
+                observed_naver_agreement=n["mismatches"]==0 and n["missing_reference"]==0,
                 naver_source_independence_verified=False,
                 naver_may_share_pykrx_adjusted_upstream=True,
                 matching_rows_are_not_independent_validation=True,
@@ -41,9 +42,9 @@ def main():
     n=result["naver_vs_pykrx"]
     y=result["yahoo_vs_pykrx"]
     md=("### 무료 3경로 가격 교차비교 (인증 아님)\n"
-        "| 비교 | 일치 | 불일치 | 전체 |\n|---|---:|---:|---:|\n"
-        f"| NAVER ↔ pykrx | {n['matches']} | {n['mismatches']} | {n['rows']} |\n"
-        f"| Yahoo ↔ pykrx | {y['matches']} | {y['mismatches']} | {y['rows']} |\n\n"
+        "| 비교 | 일치 | 불일치 | 참조누락 | 전체 |\n|---|---:|---:|---:|---:|\n"
+        f"| NAVER ↔ pykrx | {n['matches']} | {n['mismatches']} | {n['missing_reference']} | {n['rows']} |\n"
+        f"| Yahoo ↔ pykrx | {y['matches']} | {y['mismatches']} | {y['missing_reference']} | {y['rows']} |\n\n"
         "> pykrx 수정주가 조회는 NAVER로 연결될 수 있으므로 이 일치는 독립 검증이 아닙니다. Yahoo 수정주가·세션 범위 미확인. 실전 매매 차단.\n")
     Path(a.markdown).write_text(md,encoding="utf-8")
     print(json.dumps(result,ensure_ascii=False))
