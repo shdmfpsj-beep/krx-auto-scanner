@@ -10,6 +10,9 @@ def render(latest,outdir):
     from matplotlib.patches import Rectangle
     from matplotlib.ticker import FuncFormatter
     data=json.loads(Path(latest).read_text());root=Path(outdir);root.mkdir(parents=True,exist_ok=True);cards=[]
+    compact={k:v for k,v in data.items() if k not in ('observations','research_top2')}
+    compact['research_top2']=[{k:v for k,v in r.items() if k!='chart_bars'} for r in data['research_top2']]
+    (root/'summary.json').write_text(json.dumps(compact,ensure_ascii=False,indent=2)+'\n')
     price=lambda v:'미확인' if v is None else f'{v:,.0f}원'
     md=['# C3 연구용 TOP2·가상매매 일일 통합 보고','',f"- 보고일(KST): {data['report_day_kst']} / 실행: {data['source_run_id']}",
         f"- 실제 신규 가격 기준일: {data['source_price_asof'] or '미확보'} / 수집: {data['source_received_at'] or '미확보'}",
@@ -50,10 +53,17 @@ def render(latest,outdir):
         for h in (5,10,20):
             x=performance.get('selection',{}).get(model,{}).get(str(h),{});n=x.get('completed_nonoverlap',0);v=x.get('mean_excess_pct')
             md.append(f"- {model} 선정 {h}일 완료 {n}개 / 지수 대비 평균 "+('미확정' if v is None else f'{v:+.2f}%p'))
+    paper=[]
+    for variant,label in (('A_SUPPORT_LIMIT','지지 지정가'),('B_CONFIRMED_PULLBACK','눌림 확인 다음 시가'),('C_LIMITED_BREAKOUT','돌파 제한 매수')):
+        for h in (5,10,20):
+            p=performance.get('paper',{}).get('B',{}).get(variant,{}).get(str(h),{});v=p.get('mean_net_pct');statuses=p.get('status_counts',{})
+            text=f"{label} · {h}일: 완료 {p.get('completed',0)}개 / 순손익 "+('미확정' if v is None else f'{v:+.2f}%')+f" / 손절 종료 {p.get('stop_exit_count',0)}개 / 상태 {json.dumps(statuses,ensure_ascii=False)}"
+            paper.append(text)
+    md+=['','## B 후보의 가상매매 성과','']+['- '+s for s in paper]+['','상태가 비어 있으면 등록 신호 자체가 0개입니다. NO_SIGNAL은 진입 조건 미성립, DAY_EXPIRED_NO_TOUCH는 지정가 미접촉 만료, TOUCH_WITHOUT_TRADE_THROUGH는 보수적 체결 미확인, DATA_UNUSABLE은 데이터 누락입니다. 가상 진입은 브로커 체결이 아닙니다.']
     md+=['','## 수집·실행 상태','']+['- '+s for s in data['errors']]+['','새 정기 실행은 배포되지 않았습니다. 검증된 실행 경로는 연구 브랜치의 요청 파일 push이며, 현재 ChatGPT 알림의 일정·활성 상태는 변경하지 않았습니다.','실전 승인 TOP2 없음. GPT 실행·유료 API·실계좌 주문 없음.']
     (root/'mobile_report.md').write_text('\n'.join(md)+'\n')
     top='<section><h1>C3 연구용 TOP2·가상매매</h1><strong style="color:#a83e51">실전 행동: CASH</strong><p>보고일 '+data['report_day_kst']+' · 가격 '+data['preview_price_asof']+' · 신규 신호 '+str(data['new_registered_signals'])+'개</p><p>신규 가격 미확보 또는 신규 기간 전에는 지난 후보를 신규 결정으로 등록하지 않습니다. 종목 선정과 진입 성과를 분리하며 미완성 수익률은 미확정으로 둡니다.</p></section>'
-    doc='<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>C3 전방 연구</title><style>body{font:16px/1.65 system-ui;background:#f1f4f8;color:#203047;max-width:780px;margin:auto;padding:16px}section{background:white;margin:14px 0;padding:16px;border-radius:12px}h1{font-size:25px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}table,img{width:100%}img{height:auto}</style>'+top+''.join(cards)+'<section><h2>오류와 검증 한계</h2><p>'+html.escape(' / '.join(data['errors']) or '이번 실행에서 수집 오류 없음')+'</p><p>신규 완료 표본이 없으면 성과 미확정입니다. 기존 과거 수익률은 재사용하지 않았습니다. 정규장 원천 인증·기업행위 전수 대조·기간 외 수익성은 별도 검증이 필요합니다.</p></section></html>'
+    doc='<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>C3 전방 연구</title><style>body{font:16px/1.65 system-ui;background:#f1f4f8;color:#203047;max-width:780px;margin:auto;padding:16px}section{background:white;margin:14px 0;padding:16px;border-radius:12px}h1{font-size:25px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}table,img{width:100%}img{height:auto}</style>'+top+''.join(cards)+'<section><h2>B 후보 가상매매 성과</h2><ul>'+''.join('<li>'+html.escape(s)+'</li>' for s in paper)+'</ul></section><section><h2>오류와 검증 한계</h2><p>'+html.escape(' / '.join(data['errors']) or '이번 실행에서 수집 오류 없음')+'</p><p>신규 완료 표본이 없으면 성과 미확정입니다. 기존 과거 수익률은 재사용하지 않았습니다. 정규장 원천 인증·기업행위 전수 대조·기간 외 수익성은 별도 검증이 필요합니다.</p></section></html>'
     (root/'mobile_report.html').write_text(doc)
 
 
