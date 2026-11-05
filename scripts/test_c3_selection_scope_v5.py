@@ -73,12 +73,19 @@ class SelectionScopeTests(unittest.TestCase):
         self.assertEqual([r["ticker"] for r in rank_stocks(pool,True)],["B","C"])
 
     def test_forward_record_cannot_be_backdated_or_overwritten(self):
-        r=dict(decision_date="2026-11-06",price_asof="2026-11-05",known_at="2026-11-06T00:00:00Z",expected_last_completed_session="2026-11-05")
+        r=dict(decision_date="2026-11-06",price_asof="2026-11-05",known_at="2026-11-05T22:00:00Z",expected_last_completed_session="2026-11-05",execution_open_at="2026-11-06T00:00:00Z")
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaisesRegex(ValueError,"TODAY"):freeze_forward(d,r,"2026-11-07T00:00:00Z")
-            p=freeze_forward(d,r,"2026-11-06T00:00:01Z");before=p.read_bytes()
-            with self.assertRaises(FileExistsError):freeze_forward(d,dict(r,fake=1),"2026-11-06T00:00:02Z")
+            with self.assertRaisesRegex(ValueError,"PRECEDE_NEXT_EXECUTION_OPEN"):freeze_forward(d,r,"2026-11-06T00:00:01Z")
+            p=freeze_forward(d,r,"2026-11-05T23:00:01Z");before=p.read_bytes()
+            with self.assertRaises(FileExistsError):freeze_forward(d,dict(r,fake=1),"2026-11-05T23:00:02Z")
             self.assertEqual(before,p.read_bytes())
+
+    def test_completed_same_day_close_can_be_frozen_before_later_execution(self):
+        r=dict(decision_date="2026-11-06",price_asof="2026-11-06",known_at="2026-11-06T07:00:00Z",expected_last_completed_session="2026-11-06",execution_open_at="2026-11-09T00:00:00Z")
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaisesRegex(ValueError,"NOT_YET_COMPLETE"):freeze_forward(d,r,"2026-11-06T05:00:00Z")
+            self.assertTrue(freeze_forward(d,r,"2026-11-06T07:01:00Z").is_file())
 
     def test_stale_source_and_pre_forward_registration_are_blocked(self):
         with tempfile.TemporaryDirectory() as d:

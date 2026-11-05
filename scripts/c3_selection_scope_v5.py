@@ -139,9 +139,16 @@ def freeze_forward(folder,record,registered_at):
     day=now.astimezone(timezone(timedelta(hours=9))).date().isoformat()
     if record["decision_date"]!=day:raise ValueError("DECISION_MUST_BE_REGISTERED_TODAY")
     if day<FORWARD_START:raise ValueError("FORWARD_NOT_STARTED")
-    if record["price_asof"]>=day:raise ValueError("PREVIOUS_COMPLETE_SOURCE_REQUIRED")
+    if record["price_asof"]>day:raise ValueError("FUTURE_PRICE_SESSION")
+    local=now.astimezone(timezone(timedelta(hours=9)))
+    if record["price_asof"]==day and (local.hour,local.minute)<(15,30):raise ValueError("SAME_DAY_SOURCE_NOT_YET_COMPLETE")
     if record.get("expected_last_completed_session")!=record["price_asof"]:raise ValueError("STALE_OR_UNVERIFIED_LAST_SESSION")
     if not known_by(record["known_at"],registered_at):raise ValueError("FUTURE_KNOWLEDGE")
+    if not record.get("execution_open_at"):raise ValueError("EXPLICIT_EXECUTION_OPEN_REQUIRED")
+    opening=datetime.fromisoformat(record["execution_open_at"].replace("Z","+00:00"))
+    if opening.tzinfo is None:raise ValueError("TIMEZONE_REQUIRED")
+    if now>=opening or opening.astimezone(timezone(timedelta(hours=9))).date().isoformat()<=record["price_asof"]:
+        raise ValueError("REGISTRATION_MUST_PRECEDE_NEXT_EXECUTION_OPEN")
     path=Path(folder)/(day+".json");path.parent.mkdir(parents=True,exist_ok=True)
     with path.open("x") as f:json.dump(dict(record,registered_at=registered_at),f,ensure_ascii=False,indent=2);f.write("\n")
     return path
@@ -197,7 +204,8 @@ def run(panel,audit,latest,basic,scope,known_at,outdir):
     (root/"scope_summary.json").write_text(json.dumps(summary,ensure_ascii=False,indent=2)+"\n")
     forward=dict(schema="C3_SELECTION_FORWARD_V5",first_decision_not_before=FORWARD_START,
         frozen_rules=dict(base_rank="UPTREND_POSITIVE_RS_THEN_TURNOVER20",sector_variant="SAME_RANK_AND_SECTOR_MEDIAN20_EXCESS_GT_0_MIN_5_MEMBERS",
-            comparison_cadences=["FIXED26","DAILY"],entry_and_stop="UNCHANGED_C3_DAILY_V4",source_knowledge_must_precede_decision=True),
+            comparison_cadences=["FIXED26","DAILY"],entry_and_stop="UNCHANGED_C3_DAILY_V4",source_knowledge_must_precede_decision=True,
+            registration_must_precede_explicit_execution_open=True),
         current_registration="ANALYSIS_ONLY_USE_EXPLICIT_APPEND_ONLY_REGISTRATION_AFTER_FORWARD_START",completed_horizons={str(h):0 for h in (5,10,20)},
         registered_snapshots=[],automatic_schedule_created=False,orders_enabled=False)
     (root/"forward_protocol.json").write_text(json.dumps(forward,ensure_ascii=False,indent=2)+"\n")
@@ -208,12 +216,13 @@ def run(panel,audit,latest,basic,scope,known_at,outdir):
 def main():
     p=argparse.ArgumentParser()
     for name in ("panel","audit","latest","basic","scope","known-at","outdir"):p.add_argument("--"+name,required=True)
-    p.add_argument("--register-forward",default="");p.add_argument("--expected-last-session",default="")
+    p.add_argument("--register-forward",default="");p.add_argument("--expected-last-session",default="");p.add_argument("--execution-open-at",default="")
     a=p.parse_args();record=run(a.panel,a.audit,a.latest,a.basic,a.scope,a.known_at,a.outdir)
     if a.register_forward:
         from datetime import timedelta
         now=datetime.now(timezone.utc);day=now.astimezone(timezone(timedelta(hours=9))).date().isoformat()
-        freeze_forward(a.register_forward,dict(record,decision_date=day,expected_last_completed_session=a.expected_last_session),now.isoformat())
+        freeze_forward(a.register_forward,dict(record,decision_date=day,expected_last_completed_session=a.expected_last_session,
+            execution_open_at=a.execution_open_at),now.isoformat())
 
 
 if __name__=="__main__":main()

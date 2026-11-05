@@ -37,7 +37,7 @@ jobs:
           counts=[s.countTestCases() for s in suites]
           result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
           Path('/tmp/c3-selection/validation/tests.json').write_text(json.dumps(dict(counts=counts,total=result.testsRun,failures=len(result.failures),errors=len(result.errors))))
-          assert counts==[522,14,21], 'PRESERVED_TEST_COUNT_CHANGED'
+          assert counts==[523,14,21], 'PRESERVED_TEST_COUNT_CHANGED'
           if not result.wasSuccessful():raise SystemExit(1)
           PY
       - name: Reuse pinned raw data and completed v4 ledger without rerunning strategies
