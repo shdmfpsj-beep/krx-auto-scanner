@@ -1,0 +1,64 @@
+{
+  "schema": "C3_PRACTICAL_V3_VALIDATION",
+  "tested_code_commit": "a9b075cf555e5db22e1c7a7eb8d6c5240af5dfec",
+  "run_id": 41963993017,
+  "artifact_id": 13386961758,
+  "tests": {
+    "counts": [
+      478,
+      14,
+      21
+    ],
+    "total": 513,
+    "failures": 0,
+    "errors": 0
+  },
+  "new_tests": 24,
+  "exact_reproduction": [
+    "top2_comparison.csv",
+    "current_decision.json"
+  ],
+  "detailed_report_tolerance": 1e-12,
+  "detailed_report_max_abs_error": 8.881784197001252e-16,
+  "roundoff_only_fields": [
+    "profit_factor"
+  ],
+  "latest_official_probe": {
+    "asof": "2026-11-04",
+    "rows": 2769,
+    "regular_only_certified": false,
+    "comparison_pairs": 0,
+    "not_a_source_concordance_certificate": true
+  },
+  "dated_universe_delta": {
+    "previous_date": "2026-11-03",
+    "previous_codes": 2768,
+    "new_date": "2026-11-04",
+    "new_codes": 2769,
+    "added": [
+      "0222E0",
+      "495910"
+    ],
+    "removed": [
+      "011155"
+    ],
+    "listing_or_delisting_cause_verified": false
+  },
+  "selection_data_asof": "2026-11-03",
+  "current_action": "CASH",
+  "mixed_date_join_permitted": false,
+  "execution_diagnostic": {
+    "model_fills_checked": 704,
+    "unique_ticker_entry_dates": 129,
+    "max_daily_volume_participation_pct": 0.66178682442595,
+    "fills_above_one_percent": 0,
+    "actual_fills_verified": false
+  },
+  "protected_scope": {
+    "orders_changed": false,
+    "schedules_changed": false,
+    "alerts_changed": false,
+    "main_merged": false,
+    "pr_draft": true
+  }
+}
