@@ -1,0 +1,37 @@
+name: C3 dated whole-market mirror validation
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths: ['scripts/c3_market_supply_v11.py','scripts/c3_supply_validate_v11.py','.github/workflows/c3_supply_validate_v11_research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==2.2.3 cryptography==46.0.7
+      - name: Validate full prior official control, source dates and actual current comparisons
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python scripts/c3_supply_validate_v11.py --outdir /tmp/c3-validate11
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-supply-v11-dated-full-market-validation
+          path: |
+            /tmp/c3-validate11/public/
+            /tmp/c3-validate11/private_market_data.aesgcm
+          retention-days: 90
+          if-no-files-found: error
