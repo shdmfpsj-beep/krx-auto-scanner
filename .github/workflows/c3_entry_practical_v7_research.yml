@@ -1,0 +1,87 @@
+name: C3 frozen selection and practical entry research
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_entry*_v7.py'
+      - 'scripts/c3_current_candidates_v7.py'
+      - 'scripts/test_c3_entry_practical_v7.py'
+      - 'reports/c3_work7_20261105/protocol.json'
+      - 'reports/c3_work7_20261105/inputs.json'
+      - 'reports/c3_work7_20261105/sources/**'
+      - '.github/workflows/c3_entry_practical_v7_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  entry-practical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install the existing research dependencies
+        run: pip install pandas==2.2.3 pykrx==1.2.9 'matplotlib>=3.8,<4'
+      - name: Preserve 576 tests and verify entry timing and source guards
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          mkdir -p /tmp/c3-entry7/validation
+          python - <<'PY'
+          import json,sys,unittest
+          from pathlib import Path
+          sys.path.insert(0,'scripts');loader=unittest.TestLoader()
+          suites=[loader.discover('scripts',pattern=p) for p in ('test_c3_*.py','test_krx_official_eod_v65.py','test_hma60_first_pullback_v11.py')]
+          counts=[s.countTestCases() for s in suites]
+          result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
+          Path('/tmp/c3-entry7/validation/tests.json').write_text(json.dumps(dict(counts=counts,total=result.testsRun,failures=len(result.failures),errors=len(result.errors),skipped=len(result.skipped))))
+          assert counts==[556,14,21], 'PRESERVED_TEST_COUNT_CHANGED'
+          if not result.wasSuccessful():raise SystemExit(1)
+          PY
+      - name: Reuse four hash-pinned inputs without repeating the factor study
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,subprocess,zipfile
+          from pathlib import Path
+          m=json.loads(Path('reports/c3_work7_20261105/inputs.json').read_text())
+          protocol=Path('reports/c3_work7_20261105/protocol.json').read_bytes()
+          assert hashlib.sha256(protocol).hexdigest()==m['protocol_sha256'],'PREREGISTERED_PROTOCOL_CHANGED'
+          for name,item in m['artifacts'].items():
+              root=Path('/tmp/c3-entry7/inputs')/name;root.mkdir(parents=True,exist_ok=True);p=root/'input.zip'
+              with p.open('wb') as f:subprocess.run(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(item['id'])+'/zip'],stdout=f,check=True)
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==item['sha256'],'PINNED_SOURCE_HASH_MISMATCH:'+name
+              with zipfile.ZipFile(p) as z:
+                  assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in z.namelist());z.extractall(root)
+          PY
+      - name: Compare the three prespecified entries on frozen B decisions
+        run: |
+          python scripts/c3_entry_practical_v7.py --panel /tmp/c3-entry7/inputs/panel/official_panel.csv.gz --audit /tmp/c3-entry7/inputs/panel/quality_audit.json --archive /tmp/c3-entry7/inputs/v6/study/ledger.json.gz --indices reports/c3_work6_20261105/sources --protocol reports/c3_work7_20261105/protocol.json --outdir /tmp/c3-entry7/study
+          cmp reports/c3_work7_20261105/entry_comparison.csv /tmp/c3-entry7/study/entry_comparison.csv
+      - name: Probe only the latest completed official session
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: |
+          python scripts/c3_official_snapshot_probe_v1.py --asof 2026-11-05 --prices reports/c3_work_20261104/inputs/top2_provisional_ohlcv.csv --outdir /tmp/c3-entry7/fresh
+      - name: Generate dated current-scope candidates without trade approval
+        run: |
+          python scripts/c3_current_candidates_v7.py --panel /tmp/c3-entry7/inputs/panel/official_panel.csv.gz --audit /tmp/c3-entry7/inputs/panel/quality_audit.json --latest /tmp/c3-entry7/inputs/latest/requested-date-probe/2026-11-04 --basic /tmp/c3-entry7/inputs/issuer/basic --scope reports/c3_work5_20261105/sources --indices reports/c3_work7_20261105/sources --fresh /tmp/c3-entry7/fresh/2026-11-05 --outdir /tmp/c3-entry7/current
+      - name: Render mobile charts and diagnose close-stop next-open gaps
+        run: |
+          python scripts/c3_entry_report_v7.py --study /tmp/c3-entry7/study --current /tmp/c3-entry7/current/current_candidates.json --panel /tmp/c3-entry7/inputs/panel/official_panel.csv.gz --outdir /tmp/c3-entry7/mobile
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-entry-practical-v7
+          path: |
+            /tmp/c3-entry7/study/
+            /tmp/c3-entry7/current/
+            /tmp/c3-entry7/fresh/
+            /tmp/c3-entry7/mobile/
+            /tmp/c3-entry7/validation/
+          retention-days: 90
+          if-no-files-found: error
