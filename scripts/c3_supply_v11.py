@@ -137,18 +137,23 @@ def load_route(route,sample,start,end):
     return rows_from_frame(frame,ticker,market,end)
 
 
-def seal(root,outfile,key):
-    """Keep provider data out of public git/artifacts in plaintext."""
+def encrypt_bytes(payload,key):
+    """Owner-only market bytes; the existing key is neither stored nor logged."""
     from cryptography.hazmat.primitives.kdf.hkdf import HKDF
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     if not key:raise ValueError('PRIVATE_ARCHIVE_KEY_NOT_CONNECTED')
+    nonce=os.urandom(12);derived=HKDF(algorithm=hashes.SHA256(),length=32,salt=b'C3_SUPPLY_V11_PRIVATE_ARCHIVE',info=b'NONCOMMERCIAL_PERSONAL_RESEARCH').derive(key.encode())
+    return b'C3V11GCM1'+nonce+AESGCM(derived).encrypt(nonce,payload,b'C3_V11_MARKET_DATA')
+
+
+def seal(root,outfile,key):
+    """Keep provider data out of public git/artifacts in plaintext."""
     stream=io.BytesIO()
     with zipfile.ZipFile(stream,'w',zipfile.ZIP_DEFLATED) as z:
         for p in sorted(Path(root).rglob('*')):
             if p.is_file():z.write(p,str(p.relative_to(root)))
-    payload=stream.getvalue();nonce=os.urandom(12);derived=HKDF(algorithm=hashes.SHA256(),length=32,salt=b'C3_SUPPLY_V11_PRIVATE_ARCHIVE',info=b'NONCOMMERCIAL_PERSONAL_RESEARCH').derive(key.encode())
-    sealed=b'C3V11GCM1'+nonce+AESGCM(derived).encrypt(nonce,payload,b'C3_V11_MARKET_DATA');Path(outfile).write_bytes(sealed)
+    payload=stream.getvalue();sealed=encrypt_bytes(payload,key);Path(outfile).write_bytes(sealed)
     return dict(format='C3V11GCM1_AES256GCM_HKDF_SHA256',plaintext_sha256=digest(payload),ciphertext_sha256=digest(sealed),bytes=len(sealed),key_persisted=False,public_plaintext_market_data=False)
 
 

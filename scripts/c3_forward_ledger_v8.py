@@ -4,7 +4,7 @@ Original decisions, market receipts and observations are exclusive-create and
 hash checked. Derived latest reports may be rebuilt. No retrospective decision
 registration, no broker-fill claim, and no return inferred from absent prices.
 """
-import gzip,hashlib,json,math,statistics
+import gzip,hashlib,json,math,os,statistics
 from collections import Counter,defaultdict
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
@@ -40,7 +40,11 @@ def immutable(path,payload):
         return False
     path.parent.mkdir(parents=True,exist_ok=True)
     try:
-        with path.open("x",encoding="utf-8") as f:f.write(canonical(record)+"\n")
+        body=(canonical(record)+"\n").encode()
+        if 'lanes' in path.parts:
+            from c3_supply_v11 import encrypt_bytes
+            body=encrypt_bytes(body,os.environ.get('KRX_AUTH_KEY'))
+        with path.open("xb") as f:f.write(body)
     except FileExistsError:
         if canonical(read_record(path))!=canonical(payload):raise ValueError("IMMUTABLE_RECORD_RACE")
         return False
@@ -49,7 +53,11 @@ def immutable(path,payload):
 
 def read_record(path):
     path=Path(path)
-    raw=gzip.decompress(path.read_bytes()).decode() if path.suffix==".gz" else path.read_text()
+    body=path.read_bytes()
+    if body.startswith(b'C3V11GCM1'):
+        from c3_supply_v11 import open_sealed
+        body=open_sealed(path,os.environ.get('KRX_AUTH_KEY',''))
+    raw=gzip.decompress(body).decode() if path.suffix==".gz" else body.decode()
     r=json.loads(raw)
     if r["sha256"]!=hash_value(r["payload"]):raise ValueError("IMMUTABLE_RECORD_HASH_MISMATCH:"+path.name)
     return r["payload"]
@@ -60,7 +68,9 @@ def market_payload(prices,indices,sessions,meta):
     if sessions!=sorted(set(sessions)) or day!=sessions[-1]:raise ValueError("SESSION_GRID_OR_ASOF_INVALID")
     if set(indices)!={"KOSPI","KOSDAQ"} or any(set(indices[m])!=set(sessions) for m in indices):raise ValueError("BENCHMARK_GRID_MISMATCH")
     if meta.get("price_basis")!="UNADJUSTED_AS_TRADED" or meta.get("source_scope") in ("MIXED","AFTERMARKET"):raise ValueError("PRICE_BASIS_OR_SCOPE_REJECTED")
-    if not meta.get("authenticated"):raise ValueError("UNAUTHENTICATED_MARKET_SNAPSHOT")
+    if not meta.get("authenticated"):
+        from c3_market_supply_v11 import source_usable
+        if meta.get('provider')!='C3_KRX_UNADJUSTED_SUPPLY_V12' or not source_usable(meta.get('supply_manifest',{})) or meta['supply_manifest'].get('asof')!=day:raise ValueError("UNAUTHENTICATED_MARKET_SNAPSHOT")
     for p in prices:
         t=p["ticker"]
         if t in rows:raise ValueError("DUPLICATE_SECURITY_BAR")
@@ -90,11 +100,18 @@ def freeze_market(root,payload,now):
         old=read_record(path)
         # Retries may have a new retrieval receipt; retain the first receipt.
         content=lambda p:{k:p[k] for k in ("asof","rows","indices","sessions")}
-        if hash_value(content(old))!=hash_value(content(payload)):raise ValueError("MARKET_CORRECTION_REQUIRES_SEPARATE_RECORD")
+        if hash_value(content(old))!=hash_value(content(payload)):
+            if 'lanes' in Path(root).parts:
+                correction(root,path,'SUPPLY_RECONCILIATION_DIFFERENCE',payload,now,source.get('source_run_id','UNKNOWN'))
+            raise ValueError("MARKET_CORRECTION_REQUIRES_SEPARATE_RECORD")
         return old,False
     path.parent.mkdir(parents=True,exist_ok=True)
     record=dict(payload=payload,sha256=hash_value(payload))
-    with path.open("xb") as f:f.write(gzip.compress((canonical(record)+"\n").encode(),mtime=0))
+    body=gzip.compress((canonical(record)+"\n").encode(),mtime=0)
+    if 'lanes' in path.parts:
+        from c3_supply_v11 import encrypt_bytes
+        body=encrypt_bytes(body,os.environ.get('KRX_AUTH_KEY'))
+    with path.open("xb") as f:f.write(body)
     return read_record(path),True
 
 

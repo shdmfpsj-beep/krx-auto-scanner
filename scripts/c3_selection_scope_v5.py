@@ -68,10 +68,11 @@ def load_sources(latest,basic,scope,known_at):
     receipts=[pm["retrieval_utc"],bm["received_utc"],sm["frozen_at"]]+[r["received_at"] for r in sm["receipts"]]
     for receipt in receipts:
         if not known_by(receipt,known_at):raise ValueError("SOURCE_NOT_YET_KNOWN")
-    if not pm["krx_eod_authenticated"] or not bm["official_base_usable"]:raise ValueError("OFFICIAL_SOURCE_UNAVAILABLE")
+    from c3_market_supply_v11 import source_usable,price_path
+    if not source_usable(pm) or not bm["official_base_usable"]:raise ValueError("OFFICIAL_SOURCE_UNAVAILABLE")
     prices=[];basics=[]
     for market in ("KOSPI","KOSDAQ"):
-        p=latest/(market+"_official.csv");b=basic/(market+"_basic_v610.csv")
+        p=price_path(latest,pm,market);b=basic/(market+"_basic_v610.csv")
         if digest(p)!=pm["market_file_sha256"][market] or digest(b)!=bm["source_file_sha256"][market]:raise ValueError("OFFICIAL_HASH_MISMATCH")
         prices+=read_csv(p);basics+=read_csv(b)
     for name,h in sm["file_sha256"].items():

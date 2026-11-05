@@ -35,7 +35,7 @@ def collection_plan(now,index_dates,cached_dates):
 
 
 def already_current(report,expected,pipeline_hash):
-    return bool(report and report.get('source_price_asof')==expected and not report.get('errors') and
+    return bool(report and report.get('data_quality_state') in (None,'OFFICIAL_VERIFIED') and report.get('source_price_asof')==expected and not report.get('errors') and
         report.get('source_hashes',{}).get('pipeline_code')==pipeline_hash)
 
 

@@ -15,7 +15,8 @@ def render(latest,outdir):
     (root/'summary.json').write_text(json.dumps(compact,ensure_ascii=False,indent=2)+'\n')
     price=lambda v:'미확인' if v is None else f'{v:,.0f}원'
     md=['# C3 연구용 TOP2·가상매매 일일 통합 보고','',f"- 보고일(KST): {data['report_day_kst']} / 실행: {data['source_run_id']}",
-        f"- 실제 신규 가격 기준일: {data['source_price_asof'] or '미확보'} / 수집: {data['source_received_at'] or '미확보'}",
+        f"- 확보된 가격 기준일: {data['source_price_asof'] or '미확보'} / 수집: {data['source_received_at'] or '미확보'}",
+        f"- 데이터 상태: {data.get('data_quality_state','기존 보고')} / 원천: {data.get('source_provider','미확인')} / 정규장 전용 독립 인증: {data.get('source_regular_only_certified',False)}",
         f"- 마지막 확인 가격: {data['preview_price_asof']} / 오늘 등록된 결정: {data['new_decision_registered']}",
         f"- 신규 신호: {data['new_registered_signals']} / 신규 고유 종목: {data['new_registered_unique_tickers']}",'- 실전 행동: CASH / 실제 브로커 주문·체결 0','',
         '오늘 등록되지 않은 아래 후보는 이전 확인일의 연구 미리보기이며 현재 매수 지시가 아닙니다.','']
@@ -66,7 +67,10 @@ def render(latest,outdir):
             f"- 완료 일봉 확인 대상: {v.get('expected_completed_session','미확인')} / 같은 원본 중복 갱신 생략: {v.get('duplicate_current_session_skipped',False)}"]
         md=[line.replace('새 정기 실행은 배포되지 않았습니다. 검증된 실행 경로는 연구 브랜치의 요청 파일 push이며, 현재 ChatGPT 알림의 일정·활성 상태는 변경하지 않았습니다.','현재 호출의 이벤트를 위 원장과 별도로 기록합니다. 정기 배포와 실제 자동 실행 관측은 구분하며, 현재 ChatGPT 알림의 일정·활성 상태는 변경하지 않았습니다.') for line in md]
     for source in data.get('source_diagnostics',[]):md.append(f"- 가격 응답 {source['market']} {source['asof']}: HTTP {source.get('http_status')} / {source['status']} / OutBlock 행 {source.get('outblock_rows')}")
-    if data.get('source_quality_gate'):md.append('- 공식 원본 품질 검사: '+data['source_quality_gate']['status'])
+    if data.get('source_quality_gate'):md.append('- 선택된 원본 품질 검사: '+data['source_quality_gate']['status'])
+    if data.get('primary_collection_status'):md.append('- 직접 공식 API 상태: '+data['primary_collection_status'])
+    if data.get('current_scope'):md.append('- 현재 분석 가능 비바이오 보통주: '+str(data['current_scope']['analysis_eligible'])+' / 전체 가격 '+str(data['current_scope']['price_rows'])+'종목. 기존 시점 고정 종목 기본정보·업종 자료를 사용했으며 신규 분류를 추정하지 않았습니다.')
+    if data.get('ledger_lane'):md.append('- 가격 원장: '+data['ledger_lane']+' (원본 암호화 보관, 기존 원장 보존). 캐시와 공식 API는 최종 KRX 원천을 공유하며 독립 공급사 둘로 계산하지 않습니다.')
     if data.get('upstream_validation'):md.append('- 기존 스캐너 실제 수집 단계·아티팩트 확인: '+str(data['upstream_validation']['run_id']))
     if data.get('provisional_source'):
         v=data['provisional_source'];md+=['','## 격리한 임시 연구 자료','',f"- PROVISIONAL: {v['source_price_asof']} / {v['rows']}종목 / 최종 수집 {v['last_received_at']}",'- pykrx→NAVER 수정주가 요청의 종가 영수증만 보관했습니다. 완전한 OHLC·실제 거래대금·정규장 범위는 미검증입니다.','- 공식 OHLC·신호 원장·가상 체결·인증 성과에 섞지 않습니다. 신규 TOP2가 아닙니다.']

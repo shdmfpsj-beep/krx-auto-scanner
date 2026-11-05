@@ -14,11 +14,12 @@ def fresh_snapshot(folder):
     path=Path(folder)/"krx_v65_collect_status.json"
     if not path.exists():return None,dict(status="FRESH_SOURCE_NOT_PROVIDED")
     meta=json.loads(path.read_text())
-    if not meta.get("krx_eod_authenticated") or not meta.get("official_market_rows"):
+    from c3_market_supply_v11 import source_usable,price_path
+    if not source_usable(meta):
         return None,dict(status=meta.get("status","FRESH_SOURCE_UNAVAILABLE"),asof=meta.get("asof"),rows=meta.get("official_market_rows",0))
     rows=[]
     for market in ("KOSPI","KOSDAQ"):
-        p=path.parent/(market+"_official.csv")
+        p=price_path(path.parent,meta,market)
         if digest(p)!=meta["market_file_sha256"][market]:raise ValueError("FRESH_PRICE_HASH_MISMATCH")
         rr=read_csv(p)
         if any(r["market"]!=market or r["asof"]!=meta["asof"] for r in rr):raise ValueError("FRESH_PRICE_DATE_OR_MARKET_MISMATCH")

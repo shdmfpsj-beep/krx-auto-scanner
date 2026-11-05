@@ -119,8 +119,21 @@ def next_execution(day,sessions):
     return d.isoformat()+"T09:00:00+09:00"
 
 
+def supply_metadata(manifest,path,run_id):
+    """One explicit KRX unadjusted family; underlying transport never hidden."""
+    official=bool(manifest.get('krx_eod_authenticated'))
+    return dict(asof=manifest['asof'],received_at=manifest['retrieval_utc'],
+        provider='C3_KRX_UNADJUSTED_SUPPLY_V12',price_basis='UNADJUSTED_AS_TRADED',
+        source_scope='KRX_UNADJUSTED_EOD_REGULAR_SCOPE_UNCERTIFIED',authenticated=False,
+        underlying_provider=manifest.get('source_provider','KRX_OFFICIAL_EOD'),
+        underlying_official_api_authenticated=official,
+        data_quality_state=manifest.get('data_quality_state','OFFICIAL_VERIFIED' if official else 'UNAVAILABLE'),
+        regular_only_certified=False,source_run_id=str(run_id),source_manifest_sha256=digest(path),
+        supply_manifest=manifest,live_action='CASH')
+
+
 def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
-    outdir=Path(outdir);outdir.mkdir(parents=True,exist_ok=True);root=Path(root)
+    outdir=Path(outdir);outdir.mkdir(parents=True,exist_ok=True);root=Path(root)/'lanes'/'krx_unadjusted_v12'
     now=datetime.now(timezone.utc).isoformat();local=stamp(now).astimezone(KST);today=local.date().isoformat();errors=[];batch=None;counts=None;added=False
     timing='NO_COMPLETED_PRICE_SOURCE'
     if today<"2026-11-06":errors.append("FORWARD_NOT_STARTED_NO_RETROACTIVE_DECISION")
@@ -144,8 +157,7 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
         pp,mm=fresh_snapshot(folder)
         if pp and mm["asof"] in dates and not quality(pp,control,mm['asof'])['errors']:
             dd=[d for d in dates if d<=mm["asof"]];ix={m:{d:v for d,v in vv.items() if d<=mm["asof"]} for m,vv in indices.items()}
-            sm=dict(asof=mm["asof"],received_at=mm["retrieval_utc"],provider="KRX_OFFICIAL_EOD",price_basis="UNADJUSTED_AS_TRADED",source_scope="OFFICIAL_EOD_REGULAR_SCOPE_UNCERTIFIED",authenticated=True,
-                regular_only_certified=bool(mm.get("independent_1530_regular_session_certified",False)),source_run_id=str(run_id),source_manifest_sha256=digest(pm))
+            sm=supply_metadata(mm,pm,run_id)
             freeze_market(root,market_payload(list(pp.values()),ix,dd,sm),now)
     if prices:
         from c3_runtime_v9 import registration_window
@@ -156,8 +168,7 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
         elif day not in indices["KOSPI"] or day not in indices["KOSDAQ"]:errors.append("CURRENT_BENCHMARK_MISSING")
         else:
             dates=[d for d in dates if d<=day];indices={m:{d:v for d,v in ix.items() if d<=day} for m,ix in indices.items()}
-            meta=dict(asof=day,received_at=fresh_meta["retrieval_utc"],provider="KRX_OFFICIAL_EOD",price_basis="UNADJUSTED_AS_TRADED",source_scope="OFFICIAL_EOD_REGULAR_SCOPE_UNCERTIFIED",
-                authenticated=True,regular_only_certified=bool(fresh_meta.get("independent_1530_regular_session_certified",False)),source_run_id=str(run_id),source_manifest_sha256=digest(Path(fresh)/"krx_v65_collect_status.json"))
+            meta=supply_metadata(fresh_meta,Path(fresh)/"krx_v65_collect_status.json",run_id)
             market=market_payload(list(prices.values()),indices,dates,meta);market,_=freeze_market(root,market,now)
             # Dated prior price receipts warm the current universe. They are
             # source caches, never retroactively registered selection signals.
@@ -170,7 +181,8 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
             models,counts=choose(allprices,past,basics,kind,secondary,indices,dates,now,meta,run_id,source_hashes["pipeline_code"])
             batch=dict(schema="C3_FORWARD_DECISION_V8",decision_date=day,price_asof=day,known_at=now,source_received_at=meta["received_at"],expected_last_completed_session=day,
                 execution_open_at=next_execution(day,dates),execution_date_is_provisional_until_observed=True,models=models,scope=counts,source_hashes=source_hashes,
-                source_snapshot_hash=hash_value(market),model_code_sha256=source_hashes["pipeline_code"],execution_version=execution_version(),synthetic_source=False,orders_enabled=False,live_action="CASH")
+                source_snapshot_hash=hash_value(market),model_code_sha256=source_hashes["pipeline_code"],execution_version=execution_version(),synthetic_source=False,orders_enabled=False,live_action="CASH",
+                data_quality_state=meta['data_quality_state'],underlying_provider=meta['underlying_provider'],regular_only_certified=False)
             if counts["analysis_eligible"]==0:errors.append("INSUFFICIENT_CONTINUOUS_HISTORY_NO_DECISION")
             elif eligible:
                 if day!=today:
@@ -188,6 +200,12 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
         source_price_asof=fresh_meta.get("asof") if prices else None,source_received_at=fresh_meta.get("retrieval_utc") if prices else None,
         attempted_price_asof=probe_meta.get("asof"),probe_received_at=probe_meta.get("retrieval_utc"),last_confirmed_price_asof=fresh_meta['asof'] if prices else previous["price_asof"],
         source_diagnostics=probe_meta.get('response_diagnostics',[]),source_collection_status=probe_meta.get('status'),
+        data_quality_state=fresh_meta.get('data_quality_state','OFFICIAL_VERIFIED' if prices and fresh_meta.get('krx_eod_authenticated') else 'UNAVAILABLE'),
+        source_provider=fresh_meta.get('source_provider','KRX_OFFICIAL_EOD' if prices else None),
+        source_regular_only_certified=False,source_validation_sha256=fresh_meta.get('validation_sha256'),
+        ledger_lane='lanes/krx_unadjusted_v12',source_prices_encrypted_at_rest=True,
+        primary_collection_status=probe_meta.get('primary_collection_status',probe_meta.get('status')),
+        research_preview_only=not source_registered,
         source_quality_gate=source_quality,
         current_scope=counts,last_confirmed_scope=previous["currently_analyzable"],errors=errors,new_decision_registered=added,
         new_registered_signals=sum(len(x) for x in batch["models"].values()) if added else 0,new_registered_unique_tickers=len({r["ticker"] for rows in batch["models"].values() for r in rows}) if added else 0,
