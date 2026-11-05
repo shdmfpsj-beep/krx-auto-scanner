@@ -1,0 +1,50 @@
+name: C3 official and isolated public source verification
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths: ['.github/workflows/c3_source_v10_research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas==2.2.3 pykrx==1.2.9
+      - name: Recheck official control and completed session with original request contract
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python scripts/c3_eod_source_v9.py --asof 2026-11-04 2026-11-05 2026-11-06 --outdir /tmp/c3-source10/official
+      - name: Probe free KRX website cross-sections in a separate directory
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from datetime import datetime,timezone,timedelta
+          from c3_selection_scope_v5 import read_csv
+          from c3_runtime_v10 import probe_free
+          base=Path('/tmp/c3-source10/official/2026-11-04');control=[]
+          for market in ('KOSPI','KOSDAQ'):
+              p=base/(market+'_official.csv')
+              if p.exists():control+=read_csv(p)
+          local=datetime.now(timezone(timedelta(hours=9)))
+          for day in ('2026-11-04','2026-11-05','2026-11-06'):
+              if day<local.date().isoformat() or (day==local.date().isoformat() and local.hour*60+local.minute>=930):probe_free(day,'/tmp/c3-source10/public',control)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-source-v10-real-transport-proof
+          path: /tmp/c3-source10/
+          retention-days: 90
+          if-no-files-found: error

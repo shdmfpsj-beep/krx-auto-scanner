@@ -81,6 +81,8 @@ def freeze_market(root,payload,now):
     path=Path(root)/"markets"/(payload["asof"]+".json.gz")
     for p in sorted((Path(root)/"markets").glob("*.json.gz")):
         old=read_record(p)
+        keys=('provider','price_basis','source_scope','authenticated','regular_only_certified')
+        if any(old['source'].get(k)!=source.get(k) for k in keys):raise ValueError('MARKET_SOURCE_PROVIDER_OR_BASIS_CHANGED')
         if old["asof"]>=payload["asof"]:continue
         for market in old["indices"]:
             if any(payload["indices"][market].get(d)!=v for d,v in old["indices"][market].items()):raise ValueError("BENCHMARK_HISTORY_REVISED")

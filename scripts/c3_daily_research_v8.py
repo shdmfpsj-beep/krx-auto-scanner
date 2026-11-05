@@ -125,6 +125,10 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
     timing='NO_COMPLETED_PRICE_SOURCE'
     if today<"2026-11-06":errors.append("FORWARD_NOT_STARTED_NO_RETROACTIVE_DECISION")
     prices,fresh_meta=fresh_snapshot(fresh);probe_meta=json.loads((Path(fresh)/"krx_v65_collect_status.json").read_text())
+    from c3_runtime_v10 import quality
+    control,_=fresh_snapshot(baseline);source_quality=quality(prices,control,fresh_meta['asof']) if prices else None
+    if source_quality and source_quality['errors']:
+        prices=None;fresh_meta=dict(fresh_meta,status='OFFICIAL_SOURCE_QUALITY_REJECTED')
     if prices is None:errors.append(fresh_meta["status"])
     dates=[r["date"] for r in read_csv(Path(indices_dir)/"KOSPI_index.csv")];indices,index_meta=load_indices(indices_dir,dates)
     if any(stamp(v["received_at"])>stamp(now) for v in index_meta["series"].values()):raise ValueError("FUTURE_INDEX_RECEIPT")
@@ -138,7 +142,7 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
         pm=folder/"krx_v65_collect_status.json"
         if not pm.exists() or folder.name>=today:continue
         pp,mm=fresh_snapshot(folder)
-        if pp and mm["asof"] in dates:
+        if pp and mm["asof"] in dates and not quality(pp,control,mm['asof'])['errors']:
             dd=[d for d in dates if d<=mm["asof"]];ix={m:{d:v for d,v in vv.items() if d<=mm["asof"]} for m,vv in indices.items()}
             sm=dict(asof=mm["asof"],received_at=mm["retrieval_utc"],provider="KRX_OFFICIAL_EOD",price_basis="UNADJUSTED_AS_TRADED",source_scope="OFFICIAL_EOD_REGULAR_SCOPE_UNCERTIFIED",authenticated=True,
                 regular_only_certified=bool(mm.get("independent_1530_regular_session_certified",False)),source_run_id=str(run_id),source_manifest_sha256=digest(pm))
@@ -184,6 +188,7 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
         source_price_asof=fresh_meta.get("asof") if prices else None,source_received_at=fresh_meta.get("retrieval_utc") if prices else None,
         attempted_price_asof=probe_meta.get("asof"),probe_received_at=probe_meta.get("retrieval_utc"),last_confirmed_price_asof=fresh_meta['asof'] if prices else previous["price_asof"],
         source_diagnostics=probe_meta.get('response_diagnostics',[]),source_collection_status=probe_meta.get('status'),
+        source_quality_gate=source_quality,
         current_scope=counts,last_confirmed_scope=previous["currently_analyzable"],errors=errors,new_decision_registered=added,
         new_registered_signals=sum(len(x) for x in batch["models"].values()) if added else 0,new_registered_unique_tickers=len({r["ticker"] for rows in batch["models"].values() for r in rows}) if added else 0,
         research_top2=preview,research_top2_is_registered_today=registered,
