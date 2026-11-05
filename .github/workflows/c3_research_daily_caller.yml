@@ -25,6 +25,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          sparse-checkout: |
+            /.github/workflows/c3_research_daily_caller.yml
+          sparse-checkout-cone-mode: false
       - name: Validate the one-file deployment pin without running collection
         run: |
           python - <<'PYCODE'
