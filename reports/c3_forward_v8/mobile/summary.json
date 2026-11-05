@@ -1,12 +1,12 @@
 {
   "schema": "C3_DAILY_RESEARCH_V8",
-  "generated_at": "2026-11-05T23:52:43.778364+00:00",
+  "generated_at": "2026-11-05T23:58:19.011272+00:00",
   "report_day_kst": "2026-11-06",
-  "source_run_id": "42132626779",
+  "source_run_id": "42133263982",
   "source_price_asof": "2026-11-05",
-  "source_received_at": "2026-11-05T23:52:39.010721+00:00",
+  "source_received_at": "2026-11-05T23:58:18.786615+00:00",
   "attempted_price_asof": "2026-11-05",
-  "probe_received_at": "2026-11-05T23:52:39.010721+00:00",
+  "probe_received_at": "2026-11-05T23:58:18.786615+00:00",
   "last_confirmed_price_asof": "2026-11-05",
   "source_diagnostics": [
     {
@@ -22,7 +22,7 @@
         "AUTH_KEY",
         "Accept"
       ],
-      "started_at": "2026-11-05T23:52:39.010814+00:00",
+      "started_at": "2026-11-05T23:58:13.069213+00:00",
       "http_status": 200,
       "content_type": "application/json; charset=utf-8",
       "body_sha256": "290b7d94486656cad2ff7f4be1ac68501907c57dab1d405e350fc3060594201b",
@@ -34,7 +34,7 @@
       "outblock_rows": 938,
       "status": "NORMALIZED",
       "provider_error": {},
-      "received_at": "2026-11-05T23:52:41.268303+00:00",
+      "received_at": "2026-11-05T23:58:16.471706+00:00",
       "normalized_rows": 938
     },
     {
@@ -50,7 +50,7 @@
         "AUTH_KEY",
         "Accept"
       ],
-      "started_at": "2026-11-05T23:52:41.276071+00:00",
+      "started_at": "2026-11-05T23:58:16.479965+00:00",
       "http_status": 200,
       "content_type": "application/json; charset=utf-8",
       "body_sha256": "6038da378f86d284b64416efedb17f5fd88f25f9ecfd47a8c767b18303dce02c",
@@ -62,7 +62,7 @@
       "outblock_rows": 1831,
       "status": "NORMALIZED",
       "provider_error": {},
-      "received_at": "2026-11-05T23:52:43.532652+00:00",
+      "received_at": "2026-11-05T23:58:18.786615+00:00",
       "normalized_rows": 1831
     }
   ],
@@ -298,7 +298,7 @@
     "panel": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
     "audit": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
     "classification": "449e7187b4aa7b39e9ef4452a0399ac629de9cce105ced6ead48d968c0de674d",
-    "index_manifest": "8c7ed106b19c25639fae221d797a05a4c7eecdffeab6fa7044378b30ca31951f",
+    "index_manifest": "ac850c41baeaf270bcff855d69569d1e4e5659b17d57ee6b84a48050d3cc5013",
     "pipeline_code": "e0af885f4b19204fcb5043238cf9d425fafdc48350b48e2f5ee3658bf7847733",
     "ledger_code": "089f33544e22f578eea4d5b94719c34908b4768ce1e16f24a6ef5c72122f8c6d",
     "entry_code": "fb2a4d7eadd64030feb7b5943aee25125c7233022ddeeee14a484a5f66ecb396",
@@ -308,17 +308,17 @@
   "invocation": {
     "event": "push",
     "mode": "research_direct",
-    "engine_sha": "73d3f2345735267f17b6a9f8a6f3f873719d85c9",
+    "engine_sha": "9d64972b17eed55d04ab19f4ba2e4fb377359601",
     "upstream": null,
     "automatic_event_observed": false,
     "calendar_schedule_deployed_claimed": false,
     "source_of_truth": "GITHUB_EVENT_CONTEXT_NOT_USER_REQUEST_DATE",
     "orders_enabled": false,
-    "state_sha": "73d3f2345735267f17b6a9f8a6f3f873719d85c9",
-    "caller_commit": "73d3f2345735267f17b6a9f8a6f3f873719d85c9",
+    "state_sha": "9d64972b17eed55d04ab19f4ba2e4fb377359601",
+    "caller_commit": "9d64972b17eed55d04ab19f4ba2e4fb377359601",
     "expected_completed_session": "2026-11-05",
     "duplicate_current_session_skipped": false,
-    "run_id": "42132626779"
+    "run_id": "42133263982"
   },
   "upstream_validation": {
     "status": "VALIDATED_COLLECTION_AND_ARTIFACT",
@@ -330,7 +330,7 @@
     ],
     "artifact_id": 13416241119,
     "artifact_expires_at": "2027-02-03T12:09:31Z",
-    "validated_at": "2026-11-05T23:52:35.272017+00:00",
+    "validated_at": "2026-11-05T23:58:09.543805+00:00",
     "prices_not_implicitly_certified": true,
     "rejected_prior_runs": []
   },
@@ -377,8 +377,8 @@
       "rank": 1,
       "decision_date": "2026-11-05",
       "registered_at": null,
-      "source_received_at": "2026-11-05T23:52:39.010721+00:00",
-      "source_run_id": "42132626779",
+      "source_received_at": "2026-11-05T23:58:18.786615+00:00",
+      "source_run_id": "42133263982",
       "source_price_asof": "2026-11-05",
       "reference_close": 64300.0,
       "selection_reasons": [
@@ -456,7 +456,7 @@
       "price_basis": "UNADJUSTED_AS_TRADED",
       "buy_approved": false,
       "live_action": "CASH",
-      "analysis_known_at": "2026-11-05T23:52:43.778364+00:00",
+      "analysis_known_at": "2026-11-05T23:58:19.011272+00:00",
       "trade_approved": false
     },
     {
@@ -482,8 +482,8 @@
       "rank": 2,
       "decision_date": "2026-11-05",
       "registered_at": null,
-      "source_received_at": "2026-11-05T23:52:39.010721+00:00",
-      "source_run_id": "42132626779",
+      "source_received_at": "2026-11-05T23:58:18.786615+00:00",
+      "source_run_id": "42133263982",
       "source_price_asof": "2026-11-05",
       "reference_close": 26950.0,
       "selection_reasons": [
@@ -561,7 +561,7 @@
       "price_basis": "UNADJUSTED_AS_TRADED",
       "buy_approved": false,
       "live_action": "CASH",
-      "analysis_known_at": "2026-11-05T23:52:43.778364+00:00",
+      "analysis_known_at": "2026-11-05T23:58:19.011272+00:00",
       "trade_approved": false
     }
   ]
