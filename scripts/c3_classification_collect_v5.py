@@ -4,8 +4,9 @@ Save a NEW dated snapshot; never overwrite an earlier decision's classifications
 Only industry and KRX tradability metadata are kept from Naver, never its prices
 or NXT fields. No credentials are used by this collector.
 """
-import argparse,concurrent.futures,csv,hashlib,io,json,re,urllib.parse,urllib.request
+import argparse,concurrent.futures,csv,hashlib,json,re,urllib.parse,urllib.request
 from datetime import datetime,timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from c3_selection_scope_v5 import write_csv
 
@@ -23,15 +24,39 @@ def fetch(url):
 
 
 def kind_rows(body,market):
-    import pandas as pd
-    tables=pd.read_html(io.BytesIO(body),encoding="euc-kr",converters={"종목코드":str})
-    frame=next((x for x in tables if {"종목코드","업종","주요제품","상장일","회사명"}.issubset(x.columns)),None)
-    if frame is None:raise ValueError("KIND_SCHEMA_CHANGED")
+    # KIND's XLS download is a single ordinary HTML table. Keep identifiers as
+    # strings and avoid optional pandas/lxml dependencies in old regression CI.
+    class Tables(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True);self.tables=[];self.depth=0;self.table=[];self.row=None;self.cell=None
+        def handle_starttag(self,tag,attrs):
+            if tag=="table":
+                if self.depth==0:self.table=[]
+                self.depth+=1
+            elif self.depth==1 and tag=="tr":self.row=[]
+            elif self.depth==1 and tag in ("td","th"):self.cell=[]
+            elif tag=="br" and self.cell is not None:self.cell.append(" ")
+        def handle_data(self,data):
+            if self.cell is not None:self.cell.append(data)
+        def handle_endtag(self,tag):
+            if tag in ("td","th") and self.cell is not None:
+                self.row.append(" ".join("".join(self.cell).split()));self.cell=None
+            elif tag=="tr" and self.depth==1 and self.row is not None:
+                if self.row:self.table.append(self.row)
+                self.row=None
+            elif tag=="table":
+                if self.depth==1:self.tables.append(self.table)
+                self.depth-=1
+    parser=Tables();parser.feed(body.decode("euc-kr"));parser.close()
+    table=next((t for t in parser.tables if t and {"종목코드","업종","주요제품","상장일","회사명"}.issubset(t[0])),None)
+    if table is None:raise ValueError("KIND_SCHEMA_CHANGED")
     rows=[]
-    for item in frame.to_dict("records"):
-        row={k:"" if pd.isna(v) else str(v).strip() for k,v in item.items()};ticker=row["종목코드"]
+    for cells in table[1:]:
+        if len(cells)!=len(table[0]):raise ValueError("KIND_ROW_WIDTH_CHANGED")
+        row=dict(zip(table[0],cells));ticker=row["종목코드"]
         if not re.fullmatch(r"[0-9A-Z]{6}",ticker):raise ValueError("KIND_SECURITY_CODE_CHANGED")
         rows.append(dict(ticker=ticker,market=market,name=row["회사명"],industry=row["업종"],products=row["주요제품"],listed_date=row["상장일"]))
+    if not rows:raise ValueError("KIND_EMPTY_LISTING")
     return rows
 
 
