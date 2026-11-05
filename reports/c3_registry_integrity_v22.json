@@ -1,6 +1,6 @@
 {
   "schema": "C3_REGISTRY_INTEGRITY_V22",
-  "total_registered": 18,
+  "total_registered": 20,
   "excluded_from_eligible_performance": 3,
   "items": [
     {
@@ -10,8 +10,8 @@
       "registered_utc": "2026-11-03T01:23:50.479529+00:00",
       "original_status": "RESEARCH_ONLY",
       "audit_reasons": [
-        "EVIDENCE_MISSING",
-        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+        "EXCLUDED_INSTRUMENT_EVIDENCE",
+        "SPECIAL_INSTRUMENT_NAME"
       ],
       "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
@@ -42,11 +42,8 @@
       "ticker": "006280",
       "registered_utc": "2026-11-03T03:05:18.760163+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [
-        "EVIDENCE_MISSING",
-        "NAME_NOT_IN_CURRENT_PRELIMINARY"
-      ],
-      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
+      "audit_reasons": [],
+      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
     },
     {
       "key": "c0cbd8062a8bc17ab8b4bdfa0398484fd9ba6dcc118f2d34931f0e2bc09399f6",
@@ -162,14 +159,35 @@
       "ticker": "006400",
       "registered_utc": "2026-11-04T12:41:00.505940+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [],
-      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+      "audit_reasons": [
+        "EVIDENCE_MISSING",
+        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+      ],
+      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
     {
       "key": "83c615d478b5aafef0d9d5ef6799045572e561fc15afb1ad8022762eed18b395",
       "run": "41826028346",
       "ticker": "086060",
       "registered_utc": "2026-11-04T12:41:00.505940+00:00",
+      "original_status": "RESEARCH_ONLY",
+      "audit_reasons": [],
+      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+    },
+    {
+      "key": "d37e9694f6ac06d08d8214b1d64b83064d1d6de0902ed3bd717493797cb3fe91",
+      "run": "42024764636",
+      "ticker": "050760",
+      "registered_utc": "2026-11-05T12:48:52.704303+00:00",
+      "original_status": "RESEARCH_ONLY",
+      "audit_reasons": [],
+      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+    },
+    {
+      "key": "d37e9694f6ac06d08d8214b1d64b83064d1d6de0902ed3bd717493797cb3fe91",
+      "run": "42024764636",
+      "ticker": "066670",
+      "registered_utc": "2026-11-05T12:48:52.704303+00:00",
       "original_status": "RESEARCH_ONLY",
       "audit_reasons": [],
       "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"

@@ -1,20 +1,20 @@
 {
   "schema": "C3_SELECTION_EVIDENCE_V16",
-  "input_count": 88,
-  "evidence_rows": 88,
-  "joined_count": 72,
+  "input_count": 82,
+  "evidence_rows": 82,
+  "joined_count": 63,
   "excluded": {
-    "EXCLUDED_PHARMA_NAME": 1,
+    "EXCLUDED_PHARMA_NAME": 4,
     "EXCLUDED_SPECIAL_NAME": 14,
     "EXCLUDED_INSTRUMENT_EVIDENCE": 1
   },
   "provisional_watch_top2": [
     {
-      "ticker": "006400",
-      "name": "삼성SDI",
-      "price_date": "2026-11-04",
+      "ticker": "050760",
+      "name": "에스폴리텍",
+      "price_date": "2026-11-05",
       "stage": "PULLBACK_PROXY",
-      "technical_priority": 78.0,
+      "technical_priority": 84.0,
       "business_scope": "UNREVIEWED_BUSINESS",
       "evidence_blockers": [
         "ACTUAL_SOURCE_TURNOVER_MISSING",
@@ -37,20 +37,20 @@
       "buy_approved": false
     },
     {
-      "ticker": "086060",
-      "name": "진바이오텍",
-      "price_date": "2026-11-04",
+      "ticker": "066670",
+      "name": "디티씨",
+      "price_date": "2026-11-05",
       "stage": "PULLBACK_PROXY",
-      "technical_priority": 76.0,
-      "business_scope": "EXCLUDE_PHARMA_BIOTECH",
+      "technical_priority": 83.0,
+      "business_scope": "UNREVIEWED_BUSINESS",
       "evidence_blockers": [
         "ACTUAL_SOURCE_TURNOVER_MISSING",
         "ACTUAL_TURNOVER_UNVERIFIED",
+        "BUSINESS_SCOPE_REVIEW_REQUIRED",
         "BUSINESS_SCOPE_UNVERIFIED",
         "COMPANY_SECTOR_FLOW_FINAL_SCORE_AND_ENTRY_REVIEW_REQUIRED",
         "CURRENT_COMMON_SHARE_PROOF_MISSING",
         "CURRENT_COMMON_UNVERIFIED",
-        "EXCLUDE_PHARMA_BIOTECH",
         "REGULAR_SESSION_PRICE_PROOF_MISSING",
         "REGULAR_SESSION_UNVERIFIED"
       ],
@@ -66,11 +66,11 @@
   ],
   "provisional_watch_top5": [
     {
-      "ticker": "006400",
-      "name": "삼성SDI",
-      "price_date": "2026-11-04",
+      "ticker": "050760",
+      "name": "에스폴리텍",
+      "price_date": "2026-11-05",
       "stage": "PULLBACK_PROXY",
-      "technical_priority": 78.0,
+      "technical_priority": 84.0,
       "business_scope": "UNREVIEWED_BUSINESS",
       "evidence_blockers": [
         "ACTUAL_SOURCE_TURNOVER_MISSING",
@@ -93,38 +93,11 @@
       "buy_approved": false
     },
     {
-      "ticker": "086060",
-      "name": "진바이오텍",
-      "price_date": "2026-11-04",
+      "ticker": "066670",
+      "name": "디티씨",
+      "price_date": "2026-11-05",
       "stage": "PULLBACK_PROXY",
-      "technical_priority": 76.0,
-      "business_scope": "EXCLUDE_PHARMA_BIOTECH",
-      "evidence_blockers": [
-        "ACTUAL_SOURCE_TURNOVER_MISSING",
-        "ACTUAL_TURNOVER_UNVERIFIED",
-        "BUSINESS_SCOPE_UNVERIFIED",
-        "COMPANY_SECTOR_FLOW_FINAL_SCORE_AND_ENTRY_REVIEW_REQUIRED",
-        "CURRENT_COMMON_SHARE_PROOF_MISSING",
-        "CURRENT_COMMON_UNVERIFIED",
-        "EXCLUDE_PHARMA_BIOTECH",
-        "REGULAR_SESSION_PRICE_PROOF_MISSING",
-        "REGULAR_SESSION_UNVERIFIED"
-      ],
-      "sector_strength": "UNVERIFIED",
-      "financial_health": "UNVERIFIED",
-      "entry_range": null,
-      "entry_status": "재산정 대기",
-      "entry_registered_at": null,
-      "structural_stop": null,
-      "nearest_resistance": null,
-      "buy_approved": false
-    },
-    {
-      "ticker": "100120",
-      "name": "뷰웍스",
-      "price_date": "2026-11-04",
-      "stage": "PULLBACK_PROXY",
-      "technical_priority": 76.0,
+      "technical_priority": 83.0,
       "business_scope": "UNREVIEWED_BUSINESS",
       "evidence_blockers": [
         "ACTUAL_SOURCE_TURNOVER_MISSING",
@@ -147,12 +120,12 @@
       "buy_approved": false
     },
     {
-      "ticker": "110020",
-      "name": "전진바이오팜",
-      "price_date": "2026-11-04",
+      "ticker": "002680",
+      "name": "한탑",
+      "price_date": "2026-11-05",
       "stage": "PULLBACK_PROXY",
-      "technical_priority": 76.0,
-      "business_scope": "BOUNDARY_REVIEW_REQUIRED",
+      "technical_priority": 82.0,
+      "business_scope": "UNREVIEWED_BUSINESS",
       "evidence_blockers": [
         "ACTUAL_SOURCE_TURNOVER_MISSING",
         "ACTUAL_TURNOVER_UNVERIFIED",
@@ -174,11 +147,38 @@
       "buy_approved": false
     },
     {
-      "ticker": "453340",
-      "name": "현대그린푸드",
-      "price_date": "2026-11-04",
+      "ticker": "068930",
+      "name": "디지털대성",
+      "price_date": "2026-11-05",
       "stage": "PULLBACK_PROXY",
-      "technical_priority": 75.0,
+      "technical_priority": 80.75,
+      "business_scope": "UNREVIEWED_BUSINESS",
+      "evidence_blockers": [
+        "ACTUAL_SOURCE_TURNOVER_MISSING",
+        "ACTUAL_TURNOVER_UNVERIFIED",
+        "BUSINESS_SCOPE_REVIEW_REQUIRED",
+        "BUSINESS_SCOPE_UNVERIFIED",
+        "COMPANY_SECTOR_FLOW_FINAL_SCORE_AND_ENTRY_REVIEW_REQUIRED",
+        "CURRENT_COMMON_SHARE_PROOF_MISSING",
+        "CURRENT_COMMON_UNVERIFIED",
+        "REGULAR_SESSION_PRICE_PROOF_MISSING",
+        "REGULAR_SESSION_UNVERIFIED"
+      ],
+      "sector_strength": "UNVERIFIED",
+      "financial_health": "UNVERIFIED",
+      "entry_range": null,
+      "entry_status": "재산정 대기",
+      "entry_registered_at": null,
+      "structural_stop": null,
+      "nearest_resistance": null,
+      "buy_approved": false
+    },
+    {
+      "ticker": "134380",
+      "name": "미원화학",
+      "price_date": "2026-11-05",
+      "stage": "PULLBACK_PROXY",
+      "technical_priority": 80.0,
       "business_scope": "UNREVIEWED_BUSINESS",
       "evidence_blockers": [
         "ACTUAL_SOURCE_TURNOVER_MISSING",
