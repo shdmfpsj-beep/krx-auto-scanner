@@ -1,0 +1,51 @@
+name: C3 approved research daily caller
+on:
+  workflow_run:
+    workflows: ['KRX daily candidate scan']
+    types: [completed]
+    branches: [main]
+  schedule:
+    # Retry windows, not a provider publication SLA. KST 22:15 and 08:20.
+    - cron: '15 13 * * 1-5'
+    - cron: '20 23 * * 0-4'
+  workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/c3_research_daily_caller.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-approved-daily-caller
+  cancel-in-progress: false
+jobs:
+  review-manifest:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate the one-file deployment pin without running collection
+        run: |
+          python - <<'PYCODE'
+          from pathlib import Path
+          p=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
+          pin='e759e56f2e3f240b97ffa3f5422ff62244b68ba7'
+          assert p.count(pin)==3
+          assert 'secrets: inherit' not in p
+          assert 'caller_mode: approved_daily' in p
+          assert 'github.ref == ' in p and 'refs/heads/main' in p
+          assert 'workflow_run:' in p and 'KRX daily candidate scan' in p
+          print('Pinned research caller manifest valid; production invocation remains disabled on PR')
+          PYCODE
+  research:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    permissions:
+      contents: write
+      actions: read
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@e759e56f2e3f240b97ffa3f5422ff62244b68ba7
+    with:
+      engine_ref: e759e56f2e3f240b97ffa3f5422ff62244b68ba7
+      caller_mode: approved_daily
+    secrets:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}

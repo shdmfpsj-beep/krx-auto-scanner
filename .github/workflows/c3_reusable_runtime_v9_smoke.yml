@@ -1,0 +1,17 @@
+name: C3 pinned reusable runtime validation
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths: ['.github/workflows/c3_reusable_runtime_v9_smoke.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  pipeline:
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@e759e56f2e3f240b97ffa3f5422ff62244b68ba7
+    with:
+      engine_ref: e759e56f2e3f240b97ffa3f5422ff62244b68ba7
+      caller_mode: research_smoke
+    secrets:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
