@@ -1,0 +1,57 @@
+{
+  "run_id": "42106901196",
+  "generated_at": "2026-11-05T20:49:27.720078+00:00",
+  "source_date": "2026-11-05",
+  "rows": 2769,
+  "quality_state": "RESEARCH_VALIDATED",
+  "full_control": {
+    "rows": 2769,
+    "compared": 2769,
+    "missing": [],
+    "extra": [],
+    "mismatches": [],
+    "name_differences": [],
+    "complete_match": true
+  },
+  "quality": {
+    "status": "QUALITY_GATE_PASSED",
+    "errors": [],
+    "markets": {
+      "KOSPI": {
+        "rows": 938,
+        "baseline_rows": 938,
+        "retained_baseline_fraction": 1.0,
+        "newly_observed": [],
+        "no_longer_observed": [],
+        "invalid_ohlc": [],
+        "halt_like": 26,
+        "listing_or_delisting_cause_confirmed": false
+      },
+      "KOSDAQ": {
+        "rows": 1831,
+        "baseline_rows": 1831,
+        "retained_baseline_fraction": 1.0,
+        "newly_observed": [],
+        "no_longer_observed": [],
+        "invalid_ohlc": [],
+        "halt_like": 85,
+        "listing_or_delisting_cause_confirmed": false
+      }
+    },
+    "full_current_listing_census_verified": false,
+    "coverage_alarm_floor": 0.95,
+    "asof": "2026-11-05"
+  },
+  "reference_rebases": [
+    "072770",
+    "474930"
+  ],
+  "naver_current": {
+    "MATCH_OHLCV": 19,
+    "TURNOVER_UNAVAILABLE": 40,
+    "MISMATCH": 21
+  },
+  "independent_current_confirmation": false,
+  "current_action": "CASH",
+  "new_signals": 0
+}
