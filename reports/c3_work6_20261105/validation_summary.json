@@ -1,0 +1,71 @@
+{
+  "schema": "C3_WORK6_VALIDATION",
+  "preregistered_protocol_commit": "5d41b9c380cba7cc3004a0e4de0fbce800b45edc",
+  "tested_code_commit": "3c1e3656256f669c85450aba7534edb7aae1664a",
+  "preserved_commit": "d5b6f5e80aa36d85c08500f0f4a29da63ce8586c",
+  "preserved_tests": 558,
+  "new_tests": 18,
+  "tests": {
+    "counts": [
+      541,
+      14,
+      21
+    ],
+    "total": 576,
+    "failures": 0,
+    "errors": 0
+  },
+  "skipped_tests": 0,
+  "workflow_run": 42003654106,
+  "workflow_conclusion": "success",
+  "artifact_id": 13404535122,
+  "artifact_sha256": "6c82d23a34eab288fac09de1d61b562d679226e322bbfd0e246c12c4eb3227dd",
+  "reproduction": {
+    "factor_comparison.csv": {
+      "byte_equal": true,
+      "sha256": "7b31a56e1f8ddfd4445c1e8984f90b487a92482b82b02a8a686829f2bf200446"
+    },
+    "paper_comparison.csv": {
+      "byte_equal": true,
+      "sha256": "12b5569cfe7c48a1a63c05ff70cd4ed79e3a2a8cd80b3be544a545d28f55e4f6"
+    },
+    "factor_report.json": {
+      "numeric_tolerance": 1e-12,
+      "max_absolute_difference": 0.0,
+      "different_numbers": 0
+    }
+  },
+  "other_successful_runs": {
+    "ict_pr": 42003660810,
+    "ict_push": 42003654021,
+    "entry_benchmark": 42003660684,
+    "ledger_integrity": 42003660613
+  },
+  "latest_price_probe": [
+    {
+      "asof": "2026-11-05",
+      "status": "OFFICIAL_RESPONSE_MISSING_OR_EMPTY_OUTBLOCK",
+      "authenticated": false,
+      "official_market_rows": 0,
+      "comparison": {
+        "asof": "2026-11-05",
+        "compared_rows": 0,
+        "result_counts": {},
+        "results": [],
+        "comparison_is_adjusted_vs_official_basis_unverified": true,
+        "regular_only_certified": false,
+        "trade_approved": false,
+        "orders_enabled": false
+      }
+    }
+  ],
+  "historical_cohort": 95,
+  "current_scope_not_backtested": 1983,
+  "new_forward_completed": 0,
+  "ai_C_status": "NOT_RUN",
+  "paid_api_calls": 0,
+  "current_action": "CASH",
+  "orders_changed": false,
+  "notifications_or_schedules_changed": false,
+  "pr_draft": true
+}
