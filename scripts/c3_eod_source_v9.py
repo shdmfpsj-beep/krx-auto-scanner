@@ -67,7 +67,7 @@ def collect_day(day,outdir,key,now=None,opener=urlopen):
     if date.fromisoformat(day).isoformat()!=day:raise ValueError('CANONICAL_DATE_REQUIRED')
     now=now or datetime.now(timezone.utc);local=now.astimezone(KST)
     root=Path(outdir);root.mkdir(parents=True,exist_ok=True)
-    manifest=dict(schema=COLLECT_SCHEMA,asof=day,retrieval_utc=now.isoformat(),api_reference_base=BASE_URL,endpoints=list(MARKETS.values()),
+    manifest=dict(schema=COLLECT_SCHEMA,asof=day,collection_started_utc=now.isoformat(),retrieval_utc=now.isoformat(),api_reference_base=BASE_URL,endpoints=list(MARKETS.values()),
         authentication_secret_persisted=False,krx_eod_authenticated=False,official_dataset_usable=False,independent_1530_regular_session_certified=False,
         session_scope_includes_aftermarket_verified=False,source_price_authorized_for_trading=False,trade_approved=False,orders_enabled=False,decision='CASH',
         official_market_rows=0,unmatched_nonshort_codes=0,market_file_sha256={},raw_response_sha256={},response_diagnostics=[],price_basis='UNADJUSTED_AS_REPORTED',quality={})
@@ -98,6 +98,8 @@ def collect_day(day,outdir,key,now=None,opener=urlopen):
         for market in MARKETS:
             p=root/(market+'_official.csv')
             if p.exists():p.unlink()
+    receipts=[r['received_at'] for r in manifest['response_diagnostics'] if r.get('received_at')]
+    if receipts:manifest['retrieval_utc']=max(receipts,key=lambda t:datetime.fromisoformat(t.replace('Z','+00:00')))
     (root/'krx_v65_collect_status.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
     return manifest
 

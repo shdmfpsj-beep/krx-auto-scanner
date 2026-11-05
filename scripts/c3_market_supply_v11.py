@@ -4,11 +4,20 @@ from pathlib import Path
 from datetime import datetime,timezone
 from urllib.request import Request,urlopen
 from urllib.error import HTTPError,URLError
+from urllib.parse import urlencode
 from c3_supply_v11 import digest,write,now,completed_day
 from c3_runtime_v10 import quality
 
 CACHE_REPO='FinanceData/fdr_krx_data_cache'
 FIELDS=('market','ticker','name','asof','open','high','low','close','volume','turnover_krw','valid_daily_bar','action_boundary')
+
+
+def published_after_close(day,commit_time,clock=None):
+    try:
+        changed=datetime.fromisoformat(commit_time.replace('Z','+00:00'))
+        closed=datetime.fromisoformat(day+'T15:30:00+09:00')
+        return changed.tzinfo is not None and closed<=changed<=(clock or datetime.now(timezone.utc))
+    except (ValueError,TypeError,AttributeError):return False
 
 
 def number(v):
@@ -91,6 +100,12 @@ def mirror(day,control_dir,outdir,private_dir=None,previous_day=None):
     pin=commit['sha']
     if not re.fullmatch('[0-9a-f]{40}',pin):raise ValueError('CACHE_PIN_INVALID')
     if datetime.fromisoformat(commit['commit']['committer']['date'].replace('Z','+00:00'))>datetime.now(timezone.utc):raise ValueError('CACHE_COMMIT_IN_FUTURE')
+    # The dated cache can also be updated intraday. A global repository commit
+    # or filename alone does not prove this file was published after close.
+    history=json.loads(retrieve('https://api.github.com/repos/'+CACHE_REPO+'/commits?'+urlencode(dict(sha=pin,path='data/listing/krx/'+day+'.csv',per_page=1)),audit,private_dir))
+    if not isinstance(history,list) or not history:raise ValueError('DATED_CACHE_FILE_COMMIT_MISSING')
+    file_commit=history[0];file_time=file_commit['commit']['committer']['date']
+    if not re.fullmatch('[0-9a-f]{40}',file_commit['sha']) or not published_after_close(day,file_time):raise ValueError('DATED_CACHE_NOT_PUBLISHED_AFTER_CLOSE')
     def fetch(d):return retrieve('https://raw.githubusercontent.com/'+CACHE_REPO+'/'+pin+'/data/listing/krx/'+d+'.csv',audit,private_dir)
     old,_=normalize_cache(fetch(meta['asof']),meta['asof']);check=control_check(control,old)
     if not check['complete_match']:
@@ -112,7 +127,7 @@ def mirror(day,control_dir,outdir,private_dir=None,previous_day=None):
         with p.open('w',encoding='utf-8-sig',newline='') as f:
             w=csv.DictWriter(f,fieldnames=FIELDS,extrasaction='ignore');w.writeheader();w.writerows(r for r in rows if r['market']==market)
         files[market]=p.name;hashes[market]=digest(p.read_bytes())
-    evidence.update(current_market_file_sha256=hashes,current_rows=len(rows))
+    evidence.update(current_market_file_sha256=hashes,current_rows=len(rows),cache_file_commit=file_commit['sha'],cache_file_commit_date=file_time,dated_file_published_after_close=True)
     proof=digest(json.dumps(evidence,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode())
     manifest=dict(schema='C3_SUPPLY_SNAPSHOT_V11',asof=day,retrieval_utc=audit[-1]['received_at'],status='RESEARCH_VALIDATED',data_quality_state='RESEARCH_VALIDATED',source_provider='FINANCEDATA_KRX_CACHE',research_dataset_validated=True,krx_eod_authenticated=False,official_dataset_usable=False,official_market_rows=len(rows),price_files=files,market_file_sha256=hashes,price_basis='UNADJUSTED_AS_TRADED',independent_1530_regular_session_certified=False,trade_approved=False,orders_enabled=False,validation=evidence,validation_sha256=proof,response_diagnostics=[],transport=audit,excluded_other_market_rows=len(excluded))
     write(out/'krx_v65_collect_status.json',manifest);write(out/'supply_validation.json',dict(manifest,price_files=None))
@@ -131,6 +146,7 @@ def validated_manifest(meta):
         v.get('requested_cache_day')==meta.get('asof') and v.get('exchange_max_work_dt','')>=meta['asof'] and
         q.get('status')=='QUALITY_GATE_PASSED' and set(q.get('markets',{}))=={'KOSPI','KOSDAQ'} and not q.get('errors') and
         meta.get('price_basis')=='UNADJUSTED_AS_TRADED' and
+        re.fullmatch('[0-9a-f]{40}',v.get('cache_file_commit','')) and published_after_close(meta['asof'],v.get('cache_file_commit_date')) and
         v.get('current_market_file_sha256')==meta.get('market_file_sha256') and v.get('current_rows')==meta.get('official_market_rows') and
         v.get('control_asof','')<=v.get('previous_session_checked','')<meta['asof'])
 

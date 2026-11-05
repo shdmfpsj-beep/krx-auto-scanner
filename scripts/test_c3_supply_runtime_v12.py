@@ -2,7 +2,7 @@
 import copy,csv,io,json,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
-from c3_market_supply_v11 import normalize_cache,control_check,validated_manifest,CACHE_REPO
+from c3_market_supply_v11 import normalize_cache,control_check,validated_manifest,published_after_close,CACHE_REPO
 from c3_supply_v11 import digest,write
 from c3_current_candidates_v7 import fresh_snapshot
 from c3_supply_runtime_v12 import collect_session
@@ -24,6 +24,7 @@ def fixture(folder,day='2026-11-05',research=False):
     m=dict(asof=day,retrieval_utc=day+'T07:00:00Z',krx_eod_authenticated=not research,official_dataset_usable=not research,official_market_rows=2,market_file_sha256=hashes,price_basis='UNADJUSTED_AS_TRADED',status='OFFICIAL_AVAILABLE',response_diagnostics=[])
     if research:
         evidence=dict(official_control_complete_match=True,control_asof='2026-11-04',previous_session_checked='2026-11-04',control=dict(rows=2,compared=2,complete_match=True,missing=[],extra=[],mismatches=[]),cache_repository=CACHE_REPO,cache_commit='a'*40,requested_cache_day=day,exchange_max_work_dt=day,quality=dict(status='QUALITY_GATE_PASSED',errors=[],markets={'KOSPI':{},'KOSDAQ':{}}),current_market_file_sha256=hashes,current_rows=2)
+        evidence.update(cache_file_commit='a'*40,cache_file_commit_date=day+'T07:00:00Z')
         m.update(schema='C3_SUPPLY_SNAPSHOT_V11',research_dataset_validated=True,data_quality_state='RESEARCH_VALIDATED',source_provider='FINANCEDATA_KRX_CACHE',status='RESEARCH_VALIDATED',price_files=files,validation=evidence,
             validation_sha256=digest(json.dumps(evidence,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()))
     write(root/'krx_v65_collect_status.json',m);return m
@@ -95,5 +96,12 @@ class SupplyRuntimeV12Tests(unittest.TestCase):
         from c3_forward_ledger_v8 import market_payload
         meta=dict(asof='2026-11-05',price_basis='UNADJUSTED_AS_TRADED',authenticated=False,provider='C3_KRX_UNADJUSTED_SUPPLY_V12',research_dataset_validated=True,supply_manifest={})
         with self.assertRaisesRegex(ValueError,'UNAUTHENTICATED'):market_payload(rows(),{m:{'2026-11-05':100} for m in ('KOSPI','KOSDAQ')},['2026-11-05'],meta)
+
+    def test_intraday_cache_file_or_future_commit_is_not_completed_eod(self):
+        from datetime import datetime,timezone
+        clock=datetime(2026,11,5,14,tzinfo=timezone.utc)
+        self.assertFalse(published_after_close('2026-11-05','2026-11-05T05:59:00Z',clock))
+        self.assertTrue(published_after_close('2026-11-05','2026-11-05T06:30:00Z',clock))
+        self.assertFalse(published_after_close('2026-11-05','2026-11-06T00:00:00Z',clock))
 
 if __name__=='__main__':unittest.main()

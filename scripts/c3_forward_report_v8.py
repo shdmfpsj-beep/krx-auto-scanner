@@ -17,6 +17,7 @@ def render(latest,outdir):
     md=['# C3 연구용 TOP2·가상매매 일일 통합 보고','',f"- 보고일(KST): {data['report_day_kst']} / 실행: {data['source_run_id']}",
         f"- 확보된 가격 기준일: {data['source_price_asof'] or '미확보'} / 수집: {data['source_received_at'] or '미확보'}",
         f"- 데이터 상태: {data.get('data_quality_state','기존 보고')} / 원천: {data.get('source_provider','미확인')} / 정규장 전용 독립 인증: {data.get('source_regular_only_certified',False)}",
+        '- 출처: 한국거래소 통계정보. FinanceData KRX 캐시 이용 시 동일 KRX 원천의 별도 전달 경로이며 독립 가격 공급사가 아닙니다.',
         f"- 마지막 확인 가격: {data['preview_price_asof']} / 오늘 등록된 결정: {data['new_decision_registered']}",
         f"- 신규 신호: {data['new_registered_signals']} / 신규 고유 종목: {data['new_registered_unique_tickers']}",'- 실전 행동: CASH / 실제 브로커 주문·체결 0','',
         '오늘 등록되지 않은 아래 후보는 이전 확인일의 연구 미리보기이며 현재 매수 지시가 아닙니다.','']
@@ -41,6 +42,7 @@ def render(latest,outdir):
                     if v is not None:ax.axhline(v,color=c,ls='--',label=f'{label} {v:,.0f}')
             ax.axhline(r.get('reference_close',r['close']),color='#34465a',ls=':',label='Dated reference close')
             ax.set_title(f"RESEARCH ONLY | {r['ticker']} | {data['preview_price_asof']}\nCASH / registration today: {data['research_top2_is_registered_today']}",fontsize=10)
+            fig.text(.5,.004,'Source: KRX statistics / dated research snapshot / CASH',ha='center',fontsize=7)
             ax.legend(fontsize=8,loc='upper left');ax.grid(alpha=.15);ax.yaxis.set_major_formatter(FuncFormatter(lambda v,pos:f'{v:,.0f}'))
             ticks=list(range(0,len(bars),max(1,len(bars)//5)));vol.set_xticks(ticks,[bars[i]['date'][5:] for i in ticks],rotation=25);vol.set_ylabel('Volume / million',fontsize=8)
             fig.tight_layout();name=r['ticker']+'_structure.png';fig.savefig(root/name,dpi=160);plt.close(fig);table+=f'<img src="{name}" alt="Dated research structure">';md+=['!['+r['name']+']('+name+')','']
@@ -75,7 +77,7 @@ def render(latest,outdir):
     if data.get('provisional_source'):
         v=data['provisional_source'];md+=['','## 격리한 임시 연구 자료','',f"- PROVISIONAL: {v['source_price_asof']} / {v['rows']}종목 / 최종 수집 {v['last_received_at']}",'- pykrx→NAVER 수정주가 요청의 종가 영수증만 보관했습니다. 완전한 OHLC·실제 거래대금·정규장 범위는 미검증입니다.','- 공식 OHLC·신호 원장·가상 체결·인증 성과에 섞지 않습니다. 신규 TOP2가 아닙니다.']
     (root/'mobile_report.md').write_text('\n'.join(md)+'\n')
-    top='<section><h1>C3 연구용 TOP2·가상매매</h1><strong style="color:#a83e51">실전 행동: CASH</strong><p>보고일 '+data['report_day_kst']+' · 가격 '+data['preview_price_asof']+' · 신규 신호 '+str(data['new_registered_signals'])+'개</p><p>신규 가격 미확보 또는 신규 기간 전에는 지난 후보를 신규 결정으로 등록하지 않습니다. 종목 선정과 진입 성과를 분리하며 미완성 수익률은 미확정으로 둡니다.</p></section>'
+    top='<section><h1>C3 연구용 TOP2·가상매매</h1><strong style="color:#a83e51">실전 행동: CASH</strong><p>보고일 '+data['report_day_kst']+' · 가격 '+data['preview_price_asof']+' · 신규 신호 '+str(data['new_registered_signals'])+'개</p><p>출처: 한국거래소 통계정보 · '+html.escape(data.get('source_provider') or '기존 자료')+' · '+html.escape(data.get('data_quality_state','미확인'))+'</p><p>신규 가격 미확보 또는 신규 기간 전에는 지난 후보를 신규 결정으로 등록하지 않습니다. 종목 선정과 진입 성과를 분리하며 미완성 수익률은 미확정으로 둡니다.</p></section>'
     doc='<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>C3 전방 연구</title><style>body{font:16px/1.65 system-ui;background:#f1f4f8;color:#203047;max-width:780px;margin:auto;padding:16px}section{background:white;margin:14px 0;padding:16px;border-radius:12px}h1{font-size:25px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}table,img{width:100%}img{height:auto}</style>'+top+''.join(cards)+'<section><h2>B 후보 가상매매 성과</h2><ul>'+''.join('<li>'+html.escape(s)+'</li>' for s in paper)+'</ul></section><section><h2>오류와 검증 한계</h2><p>'+html.escape(' / '.join(data['errors']) or '이번 실행에서 수집 오류 없음')+'</p><p>신규 완료 표본이 없으면 성과 미확정입니다. 기존 과거 수익률은 재사용하지 않았습니다. 정규장 원천 인증·기업행위 전수 대조·기간 외 수익성은 별도 검증이 필요합니다.</p></section></html>'
     (root/'mobile_report.html').write_text(doc)
 
