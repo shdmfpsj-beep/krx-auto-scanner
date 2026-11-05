@@ -1,0 +1,83 @@
+name: C3 practical TOP2 reservations and entry research
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_practical*_v3.py'
+      - 'scripts/test_c3_practical*_v3.py'
+      - 'reports/c3_work3_20261105/inputs.json'
+      - 'reports/c3_work3_20261105/top2_comparison.csv'
+      - '.github/workflows/c3_practical_top2_v3_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  practical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install isolated research dependencies
+        run: pip install pandas==2.2.3 pykrx==1.2.9 'matplotlib>=3.8,<4'
+      - name: Run existing regression and new causal TOP2 tests once
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          mkdir -p /tmp/c3-practical/validation
+          python - <<'PY'
+          import sys,unittest,json
+          from pathlib import Path
+          sys.path.insert(0,'scripts')
+          loader=unittest.TestLoader()
+          suites=[loader.discover('scripts',pattern=p) for p in ('test_c3_*.py','test_krx_official_eod_v65.py','test_hma60_first_pullback_v11.py')]
+          counts=[s.countTestCases() for s in suites]
+          result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
+          Path('/tmp/c3-practical/validation/tests.json').write_text(json.dumps(dict(counts=counts,total=result.testsRun,failures=len(result.failures),errors=len(result.errors))))
+          if not result.wasSuccessful():raise SystemExit(1)
+          PY
+      - name: Reuse fixed price and decision archives without repeating twelve entry backtests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,subprocess,zipfile
+          from pathlib import Path
+          m=json.loads(Path('reports/c3_work3_20261105/inputs.json').read_text())
+          root=Path('/tmp/c3-practical/inputs');root.mkdir(parents=True,exist_ok=True)
+          for key,item in m['artifacts'].items():
+              p=root/(key+'.zip')
+              with p.open('wb') as f:subprocess.run(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(item['artifact_id'])+'/zip'],stdout=f,check=True)
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==item['sha256'],'PINNED_SOURCE_HASH_MISMATCH'
+              dest=root/key;dest.mkdir(exist_ok=True)
+              with zipfile.ZipFile(p) as z:
+                  assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in z.namelist())
+                  z.extractall(dest)
+          PY
+      - name: Replay shared decisions with cash reservations and real quote units
+        run: |
+          python scripts/c3_practical_top2_v3.py --panel /tmp/c3-practical/inputs/panel/official_panel.csv.gz --audit /tmp/c3-practical/inputs/panel/quality_audit.json --ledger /tmp/c3-practical/inputs/ledger/competition/competition_ledger.json.gz --outdir /tmp/c3-practical/study
+          cmp reports/c3_work3_20261105/top2_comparison.csv /tmp/c3-practical/study/top2_comparison.csv
+      - name: Produce dated CASH contract and mobile evidence
+        run: |
+          python scripts/c3_practical_report_v3.py --study /tmp/c3-practical/study --panel /tmp/c3-practical/inputs/panel/official_panel.csv.gz --ledger /tmp/c3-practical/inputs/ledger/competition/competition_ledger.json.gz --broad /tmp/c3-practical/inputs/broad --issuer /tmp/c3-practical/inputs/issuer --requested-date 2026-11-04 --outdir /tmp/c3-practical/mobile
+          cmp reports/c3_work3_20261105/current_decision.json /tmp/c3-practical/mobile/current_decision.json
+      - name: Check requested completed-day publication using two read-only requests
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python scripts/c3_official_snapshot_probe_v1.py --asof 2026-11-04 --prices reports/c3_work_20261104/inputs/top2_provisional_ohlcv.csv --outdir /tmp/c3-practical/requested-date-probe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-practical-top2-v3
+          path: |
+            /tmp/c3-practical/study/
+            /tmp/c3-practical/mobile/
+            /tmp/c3-practical/validation/
+            /tmp/c3-practical/requested-date-probe/
+          if-no-files-found: error
+          retention-days: 90

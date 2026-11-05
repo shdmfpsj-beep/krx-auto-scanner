@@ -1,0 +1,3220 @@
+{
+  "schema": "C3_PRACTICAL_TOP2_V3",
+  "audit": {
+    "panel_sha256": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
+    "audit_sha256": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
+    "members_sha256": "e0107a372d5cc6ff318294dfdd178d605e8363b3e50c24bc370e596b0830f19e",
+    "raw_source_rows": 1012593,
+    "raw_source_tickers": 2909,
+    "effective_start": "2025-05-02",
+    "effective_end": "2026-11-03",
+    "published_sessions": 366,
+    "unpublished_requested_tail": [
+      {
+        "date": "2026-11-04",
+        "market": "KOSDAQ"
+      },
+      {
+        "date": "2026-11-04",
+        "market": "KOSPI"
+      }
+    ],
+    "cohort_tickers": 111,
+    "cohort_bars": 40626,
+    "excluded_prior_exploratory_tickers": [
+      "000660",
+      "003670",
+      "007810",
+      "009540",
+      "010140",
+      "012330",
+      "012450",
+      "042000",
+      "042660",
+      "051600",
+      "058610",
+      "071970",
+      "074600",
+      "086280",
+      "095340",
+      "329180"
+    ],
+    "confirmation_tickers": [
+      "000270",
+      "000500",
+      "001440",
+      "003160",
+      "003570",
+      "005290",
+      "005380",
+      "005850",
+      "005930",
+      "006260",
+      "006340",
+      "006400",
+      "010120",
+      "010690",
+      "011210",
+      "014680",
+      "015750",
+      "017510",
+      "017960",
+      "032820",
+      "033100",
+      "033500",
+      "034020",
+      "035420",
+      "035720",
+      "036540",
+      "036830",
+      "036930",
+      "039030",
+      "039440",
+      "042370",
+      "042700",
+      "047810",
+      "052690",
+      "056080",
+      "058470",
+      "062040",
+      "064350",
+      "064760",
+      "066970",
+      "077970",
+      "078600",
+      "079370",
+      "082740",
+      "083450",
+      "083650",
+      "084370",
+      "086520",
+      "089030",
+      "090360",
+      "090710",
+      "093370",
+      "095610",
+      "100840",
+      "103140",
+      "103590",
+      "105840",
+      "108490",
+      "117730",
+      "121600",
+      "130660",
+      "137400",
+      "147830",
+      "160190",
+      "166090",
+      "181710",
+      "204320",
+      "222800",
+      "232140",
+      "240810",
+      "247540",
+      "262260",
+      "267260",
+      "270660",
+      "272210",
+      "277810",
+      "278280",
+      "281820",
+      "298040",
+      "319660",
+      "348210",
+      "348340",
+      "348370",
+      "353200",
+      "357780",
+      "365340",
+      "372170",
+      "373220",
+      "382840",
+      "388720",
+      "389500",
+      "403870",
+      "450080",
+      "454910",
+      "466100"
+    ],
+    "selection_scope": "RETROSPECTIVE_CURATED_NON_BIOTECH_NOT_FULL_MARKET_STRATEGY_VALIDATION",
+    "point_in_time_sector_membership_verified": false,
+    "survivorship_bias_removed": false,
+    "regular_only_certified": false,
+    "official_calendar_verified": false,
+    "no_future_action_adjustment": true,
+    "source_basis": "OFFICIAL_DATED_RAW_PRICE_UNITS"
+  },
+  "rejections": {
+    "C3_STRUCTURE": {},
+    "COSTED_LIMIT": {
+      "NO_COSTED_ENTRY_BAND": 49,
+      "FIRST_RESISTANCE_UNKNOWN": 114
+    },
+    "FRESH_COSTED_LIMIT": {
+      "NO_COSTED_ENTRY_BAND": 25,
+      "FIRST_RESISTANCE_UNKNOWN": 112,
+      "NO_RECENT_CONFIRMED_LOW": 4
+    }
+  },
+  "opportunity_comparison": {
+    "DEVELOPMENT": {
+      "5": {
+        "shared_fully_observed_anchors": 358,
+        "common_censored_anchors": 0,
+        "methods": {
+          "C3_STRUCTURE": {
+            "mean_net_per_anchor_including_cash": 0.359238,
+            "evaluated_anchors": 358,
+            "entry_statuses": {
+              "MODEL_ENTRY": 160,
+              "NO_TRADE_THROUGH": 85,
+              "WATCH_INVALIDATED": 101,
+              "GAP_INVALIDATION": 10,
+              "SIGNAL_HISTORY_RESET": 2
+            },
+            "baseline_winners_missed": 0
+          },
+          "COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": 0.059887,
+            "evaluated_anchors": 358,
+            "entry_statuses": {
+              "FILTERED_AT_DECISION": 120,
+              "WATCH_INVALIDATED": 133,
+              "GAP_INVALIDATION": 11,
+              "NO_TRADE_THROUGH": 15,
+              "MODEL_ENTRY": 79
+            },
+            "baseline_winners_missed": 37
+          },
+          "FRESH_COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": 0.099432,
+            "evaluated_anchors": 358,
+            "entry_statuses": {
+              "FILTERED_AT_DECISION": 105,
+              "WATCH_INVALIDATED": 177,
+              "GAP_INVALIDATION": 3,
+              "NO_TRADE_THROUGH": 31,
+              "MODEL_ENTRY": 42
+            },
+            "baseline_winners_missed": 57
+          }
+        },
+        "not_a_capital_weighted_portfolio": true
+      },
+      "10": {
+        "shared_fully_observed_anchors": 358,
+        "common_censored_anchors": 1,
+        "methods": {
+          "C3_STRUCTURE": {
+            "mean_net_per_anchor_including_cash": 0.904739,
+            "evaluated_anchors": 357,
+            "entry_statuses": {
+              "MODEL_ENTRY": 160,
+              "NO_TRADE_THROUGH": 85,
+              "WATCH_INVALIDATED": 101,
+              "GAP_INVALIDATION": 10,
+              "SIGNAL_HISTORY_RESET": 2
+            },
+            "baseline_winners_missed": 0
+          },
+          "COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": 0.293827,
+            "evaluated_anchors": 357,
+            "entry_statuses": {
+              "FILTERED_AT_DECISION": 120,
+              "WATCH_INVALIDATED": 133,
+              "GAP_INVALIDATION": 11,
+              "NO_TRADE_THROUGH": 15,
+              "MODEL_ENTRY": 79
+            },
+            "baseline_winners_missed": 37
+          },
+          "FRESH_COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": 0.111891,
+            "evaluated_anchors": 357,
+            "entry_statuses": {
+              "FILTERED_AT_DECISION": 105,
+              "WATCH_INVALIDATED": 177,
+              "GAP_INVALIDATION": 3,
+              "NO_TRADE_THROUGH": 31,
+              "MODEL_ENTRY": 42
+            },
+            "baseline_winners_missed": 53
+          }
+        },
+        "not_a_capital_weighted_portfolio": true
+      },
+      "20": {
+        "shared_fully_observed_anchors": 358,
+        "common_censored_anchors": 1,
+        "methods": {
+          "C3_STRUCTURE": {
+            "mean_net_per_anchor_including_cash": 2.182512,
+            "evaluated_anchors": 357,
+            "entry_statuses": {
+              "MODEL_ENTRY": 160,
+              "NO_TRADE_THROUGH": 85,
+              "WATCH_INVALIDATED": 101,
+              "GAP_INVALIDATION": 10,
+              "SIGNAL_HISTORY_RESET": 2
+            },
+            "baseline_winners_missed": 0
+          },
+          "COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": 0.655157,
+            "evaluated_anchors": 357,
+            "entry_statuses": {
+              "FILTERED_AT_DECISION": 120,
+              "WATCH_INVALIDATED": 133,
+              "GAP_INVALIDATION": 11,
+              "NO_TRADE_THROUGH": 15,
+              "MODEL_ENTRY": 79
+            },
+            "baseline_winners_missed": 33
+          },
+          "FRESH_COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": 0.241316,
+            "evaluated_anchors": 357,
+            "entry_statuses": {
+              "FILTERED_AT_DECISION": 105,
+              "WATCH_INVALIDATED": 177,
+              "GAP_INVALIDATION": 3,
+              "NO_TRADE_THROUGH": 31,
+              "MODEL_ENTRY": 42
+            },
+            "baseline_winners_missed": 51
+          }
+        },
+        "not_a_capital_weighted_portfolio": true
+      }
+    },
+    "HOLDOUT": {
+      "5": {
+        "shared_fully_observed_anchors": 171,
+        "common_censored_anchors": 0,
+        "methods": {
+          "C3_STRUCTURE": {
+            "mean_net_per_anchor_including_cash": -2.246705,
+            "evaluated_anchors": 171,
+            "entry_statuses": {
+              "MODEL_ENTRY": 96,
+              "SIGNAL_HISTORY_RESET": 1,
+              "NO_TRADE_THROUGH": 26,
+              "GAP_INVALIDATION": 13,
+              "WATCH_INVALIDATED": 35
+            },
+            "baseline_winners_missed": 0
+          },
+          "COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": -1.707803,
+            "evaluated_anchors": 171,
+            "entry_statuses": {
+              "MODEL_ENTRY": 59,
+              "FILTERED_AT_DECISION": 43,
+              "GAP_INVALIDATION": 9,
+              "WATCH_INVALIDATED": 57,
+              "NO_TRADE_THROUGH": 3
+            },
+            "baseline_winners_missed": 13
+          },
+          "FRESH_COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": -1.100516,
+            "evaluated_anchors": 171,
+            "entry_statuses": {
+              "MODEL_ENTRY": 41,
+              "FILTERED_AT_DECISION": 36,
+              "WATCH_INVALIDATED": 76,
+              "NO_TRADE_THROUGH": 17,
+              "GAP_INVALIDATION": 1
+            },
+            "baseline_winners_missed": 22
+          }
+        },
+        "not_a_capital_weighted_portfolio": true
+      },
+      "10": {
+        "shared_fully_observed_anchors": 164,
+        "common_censored_anchors": 0,
+        "methods": {
+          "C3_STRUCTURE": {
+            "mean_net_per_anchor_including_cash": -3.512682,
+            "evaluated_anchors": 164,
+            "entry_statuses": {
+              "MODEL_ENTRY": 89,
+              "SIGNAL_HISTORY_RESET": 1,
+              "NO_TRADE_THROUGH": 26,
+              "GAP_INVALIDATION": 13,
+              "WATCH_INVALIDATED": 35
+            },
+            "baseline_winners_missed": 0
+          },
+          "COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": -1.799684,
+            "evaluated_anchors": 164,
+            "entry_statuses": {
+              "MODEL_ENTRY": 53,
+              "FILTERED_AT_DECISION": 42,
+              "GAP_INVALIDATION": 9,
+              "WATCH_INVALIDATED": 57,
+              "NO_TRADE_THROUGH": 3
+            },
+            "baseline_winners_missed": 7
+          },
+          "FRESH_COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": -1.135153,
+            "evaluated_anchors": 164,
+            "entry_statuses": {
+              "MODEL_ENTRY": 36,
+              "FILTERED_AT_DECISION": 36,
+              "WATCH_INVALIDATED": 74,
+              "NO_TRADE_THROUGH": 17,
+              "GAP_INVALIDATION": 1
+            },
+            "baseline_winners_missed": 14
+          }
+        },
+        "not_a_capital_weighted_portfolio": true
+      },
+      "20": {
+        "shared_fully_observed_anchors": 143,
+        "common_censored_anchors": 0,
+        "methods": {
+          "C3_STRUCTURE": {
+            "mean_net_per_anchor_including_cash": -2.529219,
+            "evaluated_anchors": 143,
+            "entry_statuses": {
+              "MODEL_ENTRY": 75,
+              "SIGNAL_HISTORY_RESET": 1,
+              "NO_TRADE_THROUGH": 26,
+              "GAP_INVALIDATION": 11,
+              "WATCH_INVALIDATED": 30
+            },
+            "baseline_winners_missed": 0
+          },
+          "COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": -0.941184,
+            "evaluated_anchors": 143,
+            "entry_statuses": {
+              "MODEL_ENTRY": 45,
+              "FILTERED_AT_DECISION": 41,
+              "GAP_INVALIDATION": 8,
+              "WATCH_INVALIDATED": 46,
+              "NO_TRADE_THROUGH": 3
+            },
+            "baseline_winners_missed": 4
+          },
+          "FRESH_COSTED_LIMIT": {
+            "mean_net_per_anchor_including_cash": -0.884114,
+            "evaluated_anchors": 143,
+            "entry_statuses": {
+              "MODEL_ENTRY": 32,
+              "FILTERED_AT_DECISION": 36,
+              "WATCH_INVALIDATED": 60,
+              "NO_TRADE_THROUGH": 14,
+              "GAP_INVALIDATION": 1
+            },
+            "baseline_winners_missed": 8
+          }
+        },
+        "not_a_capital_weighted_portfolio": true
+      }
+    }
+  },
+  "metrics": {
+    "C3_STRUCTURE__TURNOVER20": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 50,
+          "model_entries": 20,
+          "touch_rate_pct": 40.0,
+          "strict_fill_rate_pct": 40.0,
+          "missed_or_pending_pct": 60.0,
+          "completed_trades": 20,
+          "mean_net_pct": 4.482793,
+          "win_rate_pct": 70.0,
+          "mean_win_pct": 8.608784,
+          "mean_loss_pct": -5.14452,
+          "payoff_ratio": 1.6733891311965154,
+          "profit_factor": 3.9045746394585352,
+          "expectancy_pct": 4.482793,
+          "stop_rate_pct": 10.0,
+          "mean_mfe_pct": 11.97822,
+          "mean_mae_pct": -2.64925,
+          "mean_first_resistance_rr": 0.227949,
+          "mean_ci95_month_clusters": [
+            0.21132,
+            8.51025
+          ],
+          "market_regimes": {
+            "UP": {
+              "n": 17,
+              "mean_net_pct": 4.143937
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 3,
+              "mean_net_pct": 6.402973
+            }
+          },
+          "portfolio_return_pct": 51.718784478100076,
+          "max_drawdown_close_liquidation_pct": -8.638352565647455,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 308,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 39,
+          "model_entries": 17,
+          "touch_rate_pct": 43.58974358974359,
+          "strict_fill_rate_pct": 43.58974358974359,
+          "missed_or_pending_pct": 56.41025641025641,
+          "completed_trades": 17,
+          "mean_net_pct": 2.338912,
+          "win_rate_pct": 52.9412,
+          "mean_win_pct": 9.919626,
+          "mean_loss_pct": -6.189391,
+          "payoff_ratio": 1.6026821513700755,
+          "profit_factor": 1.803017420291335,
+          "expectancy_pct": 2.338912,
+          "stop_rate_pct": 35.2941,
+          "mean_mfe_pct": 15.28397,
+          "mean_mae_pct": -5.307351,
+          "mean_first_resistance_rr": 0.262987,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 16,
+              "mean_net_pct": 2.43303
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 0.83302
+            }
+          },
+          "portfolio_return_pct": 18.486821731600102,
+          "max_drawdown_close_liquidation_pct": -13.214633314805724,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 319,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 25,
+          "model_entries": 18,
+          "touch_rate_pct": 72.0,
+          "strict_fill_rate_pct": 72.0,
+          "missed_or_pending_pct": 28.0,
+          "completed_trades": 18,
+          "mean_net_pct": 5.529543,
+          "win_rate_pct": 27.7778,
+          "mean_win_pct": 41.829928,
+          "mean_loss_pct": -8.432143,
+          "payoff_ratio": 4.960770783241882,
+          "profit_factor": 1.9079887627853396,
+          "expectancy_pct": 5.529543,
+          "stop_rate_pct": 61.1111,
+          "mean_mfe_pct": 27.020803,
+          "mean_mae_pct": -10.090861,
+          "mean_first_resistance_rr": 0.168325,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 17,
+              "mean_net_pct": 3.93941
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 32.561811
+            }
+          },
+          "portfolio_return_pct": 49.4261411415001,
+          "max_drawdown_close_liquidation_pct": -21.04172788461017,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 333,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 32,
+          "model_entries": 19,
+          "touch_rate_pct": 59.375,
+          "strict_fill_rate_pct": 59.375,
+          "missed_or_pending_pct": 40.625,
+          "completed_trades": 19,
+          "mean_net_pct": -5.074607,
+          "win_rate_pct": 21.0526,
+          "mean_win_pct": 7.421625,
+          "mean_loss_pct": -8.406936,
+          "payoff_ratio": 0.8827979004260577,
+          "profit_factor": 0.23541277344694872,
+          "expectancy_pct": -5.074607,
+          "stop_rate_pct": 57.8947,
+          "mean_mfe_pct": 7.801205,
+          "mean_mae_pct": -12.165241,
+          "mean_first_resistance_rr": 0.652045,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 11,
+              "mean_net_pct": -2.197587
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -22.847926
+            },
+            "SIDEWAYS": {
+              "n": 7,
+              "mean_net_pct": -7.056593
+            }
+          },
+          "portfolio_return_pct": -38.855688952299936,
+          "max_drawdown_close_liquidation_pct": -42.38171916144299,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 139,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 25,
+          "model_entries": 16,
+          "touch_rate_pct": 64.0,
+          "strict_fill_rate_pct": 64.0,
+          "missed_or_pending_pct": 36.0,
+          "completed_trades": 15,
+          "mean_net_pct": -7.052404,
+          "win_rate_pct": 20.0,
+          "mean_win_pct": 8.640314,
+          "mean_loss_pct": -10.975583,
+          "payoff_ratio": 0.7872304722331183,
+          "profit_factor": 0.1968076180582796,
+          "expectancy_pct": -7.052404,
+          "stop_rate_pct": 73.3333,
+          "mean_mfe_pct": 10.880052,
+          "mean_mae_pct": -14.290535,
+          "mean_first_resistance_rr": 0.454584,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 8,
+              "mean_net_pct": -7.083826
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -22.847926
+            },
+            "SIDEWAYS": {
+              "n": 6,
+              "mean_net_pct": -4.37792
+            }
+          },
+          "portfolio_return_pct": -44.71414582549994,
+          "max_drawdown_close_liquidation_pct": -50.41170911316144,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 146,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 21,
+          "model_entries": 13,
+          "touch_rate_pct": 61.904761904761905,
+          "strict_fill_rate_pct": 61.904761904761905,
+          "missed_or_pending_pct": 38.095238095238095,
+          "completed_trades": 11,
+          "mean_net_pct": -6.851422,
+          "win_rate_pct": 18.1818,
+          "mean_win_pct": 21.90033,
+          "mean_loss_pct": -13.240701,
+          "payoff_ratio": 1.6540159301370667,
+          "profit_factor": 0.3675590955860148,
+          "expectancy_pct": -6.851422,
+          "stop_rate_pct": 81.8182,
+          "mean_mfe_pct": 14.558242,
+          "mean_mae_pct": -20.077323,
+          "mean_first_resistance_rr": 0.662316,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 5,
+              "mean_net_pct": -5.068627
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -22.847926
+            },
+            "SIDEWAYS": {
+              "n": 5,
+              "mean_net_pct": -5.434917
+            }
+          },
+          "portfolio_return_pct": -40.77311450824994,
+          "max_drawdown_close_liquidation_pct": -47.315839483216074,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 150,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    },
+    "C3_STRUCTURE__STOCK_RS20": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 49,
+          "model_entries": 20,
+          "touch_rate_pct": 40.816326530612244,
+          "strict_fill_rate_pct": 40.816326530612244,
+          "missed_or_pending_pct": 59.183673469387756,
+          "completed_trades": 20,
+          "mean_net_pct": 0.688481,
+          "win_rate_pct": 60.0,
+          "mean_win_pct": 5.878357,
+          "mean_loss_pct": -7.096332,
+          "payoff_ratio": 0.8283654617585994,
+          "profit_factor": 1.242548192637899,
+          "expectancy_pct": 0.688481,
+          "stop_rate_pct": 30.0,
+          "mean_mfe_pct": 9.538827,
+          "mean_mae_pct": -4.503241,
+          "mean_first_resistance_rr": 0.175814,
+          "mean_ci95_month_clusters": [
+            -1.37543,
+            2.23133
+          ],
+          "market_regimes": {
+            "UP": {
+              "n": 17,
+              "mean_net_pct": -0.319959
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 3,
+              "mean_net_pct": 6.402973
+            }
+          },
+          "portfolio_return_pct": 5.335326350750069,
+          "max_drawdown_close_liquidation_pct": -10.599076671109609,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 309,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 44,
+          "model_entries": 17,
+          "touch_rate_pct": 38.63636363636363,
+          "strict_fill_rate_pct": 38.63636363636363,
+          "missed_or_pending_pct": 61.36363636363637,
+          "completed_trades": 17,
+          "mean_net_pct": 1.679849,
+          "win_rate_pct": 47.0588,
+          "mean_win_pct": 12.473977,
+          "mean_loss_pct": -7.914932,
+          "payoff_ratio": 1.5760055646320998,
+          "profit_factor": 1.4008938352285332,
+          "expectancy_pct": 1.679849,
+          "stop_rate_pct": 47.0588,
+          "mean_mfe_pct": 11.708019,
+          "mean_mae_pct": -7.496524,
+          "mean_first_resistance_rr": 0.282798,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 16,
+              "mean_net_pct": 1.732775
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 0.83302
+            }
+          },
+          "portfolio_return_pct": 10.787100225500046,
+          "max_drawdown_close_liquidation_pct": -17.532054895473337,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 314,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 33,
+          "model_entries": 13,
+          "touch_rate_pct": 39.39393939393939,
+          "strict_fill_rate_pct": 39.39393939393939,
+          "missed_or_pending_pct": 60.60606060606061,
+          "completed_trades": 13,
+          "mean_net_pct": 7.065315,
+          "win_rate_pct": 38.4615,
+          "mean_win_pct": 30.546453,
+          "mean_loss_pct": -7.610397,
+          "payoff_ratio": 4.013779093865455,
+          "profit_factor": 2.5086119336659096,
+          "expectancy_pct": 7.065315,
+          "stop_rate_pct": 53.8462,
+          "mean_mfe_pct": 22.80696,
+          "mean_mae_pct": -8.394018,
+          "mean_first_resistance_rr": 0.329899,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 11,
+              "mean_net_pct": 5.852152
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 2,
+              "mean_net_pct": 13.73771
+            }
+          },
+          "portfolio_return_pct": 39.40336353500009,
+          "max_drawdown_close_liquidation_pct": -21.96384978949758,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 325,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 30,
+          "model_entries": 17,
+          "touch_rate_pct": 56.666666666666664,
+          "strict_fill_rate_pct": 56.666666666666664,
+          "missed_or_pending_pct": 43.333333333333336,
+          "completed_trades": 17,
+          "mean_net_pct": -2.876003,
+          "win_rate_pct": 29.4118,
+          "mean_win_pct": 10.049476,
+          "mean_loss_pct": -8.261619,
+          "payoff_ratio": 1.2164050983209485,
+          "profit_factor": 0.5068354576337285,
+          "expectancy_pct": -2.876003,
+          "stop_rate_pct": 52.9412,
+          "mean_mfe_pct": 10.125803,
+          "mean_mae_pct": -10.488806,
+          "mean_first_resistance_rr": 0.534831,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 10,
+              "mean_net_pct": 0.196035
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -22.847926
+            },
+            "SIDEWAYS": {
+              "n": 6,
+              "mean_net_pct": -4.667412
+            }
+          },
+          "portfolio_return_pct": -23.72101345264993,
+          "max_drawdown_close_liquidation_pct": -37.63734683906097,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 141,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 27,
+          "model_entries": 15,
+          "touch_rate_pct": 55.55555555555556,
+          "strict_fill_rate_pct": 55.55555555555556,
+          "missed_or_pending_pct": 44.44444444444444,
+          "completed_trades": 15,
+          "mean_net_pct": -7.753271,
+          "win_rate_pct": 20.0,
+          "mean_win_pct": 10.105137,
+          "mean_loss_pct": -12.217873,
+          "payoff_ratio": 0.8270782508076523,
+          "profit_factor": 0.20676956270191302,
+          "expectancy_pct": -7.753271,
+          "stop_rate_pct": 73.3333,
+          "mean_mfe_pct": 8.501527,
+          "mean_mae_pct": -14.720944,
+          "mean_first_resistance_rr": 0.429518,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 7,
+              "mean_net_pct": -7.340178
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -22.847926
+            },
+            "SIDEWAYS": {
+              "n": 7,
+              "mean_net_pct": -6.009985
+            }
+          },
+          "portfolio_return_pct": -45.531364135049955,
+          "max_drawdown_close_liquidation_pct": -49.06746562098001,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 144,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 24,
+          "model_entries": 13,
+          "touch_rate_pct": 54.166666666666664,
+          "strict_fill_rate_pct": 54.166666666666664,
+          "missed_or_pending_pct": 45.833333333333336,
+          "completed_trades": 12,
+          "mean_net_pct": -9.204491,
+          "win_rate_pct": 8.3333,
+          "mean_win_pct": 17.772652,
+          "mean_loss_pct": -11.656958,
+          "payoff_ratio": 1.5246389012579147,
+          "profit_factor": 0.13860353647799226,
+          "expectancy_pct": -9.204491,
+          "stop_rate_pct": 91.6667,
+          "mean_mfe_pct": 9.925619,
+          "mean_mae_pct": -20.733297,
+          "mean_first_resistance_rr": 0.512717,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 6,
+              "mean_net_pct": -9.633933
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -22.847926
+            },
+            "SIDEWAYS": {
+              "n": 5,
+              "mean_net_pct": -5.960473
+            }
+          },
+          "portfolio_return_pct": -45.75451823579995,
+          "max_drawdown_close_liquidation_pct": -45.91330459319054,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 147,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    },
+    "C3_STRUCTURE__SECTOR_LEADER": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 53,
+          "model_entries": 22,
+          "touch_rate_pct": 41.509433962264154,
+          "strict_fill_rate_pct": 41.509433962264154,
+          "missed_or_pending_pct": 58.490566037735846,
+          "completed_trades": 22,
+          "mean_net_pct": 5.122533,
+          "win_rate_pct": 72.7273,
+          "mean_win_pct": 9.529362,
+          "mean_loss_pct": -6.629008,
+          "payoff_ratio": 1.4375244270622425,
+          "profit_factor": 3.8333984721659804,
+          "expectancy_pct": 5.122533,
+          "stop_rate_pct": 13.6364,
+          "mean_mfe_pct": 14.788937,
+          "mean_mae_pct": -3.373983,
+          "mean_first_resistance_rr": 0.23531,
+          "mean_ci95_month_clusters": [
+            -0.05364,
+            10.36796
+          ],
+          "market_regimes": {
+            "UP": {
+              "n": 19,
+              "mean_net_pct": 4.920359
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 3,
+              "mean_net_pct": 6.402973
+            }
+          },
+          "portfolio_return_pct": 65.2216224547001,
+          "max_drawdown_close_liquidation_pct": -12.938284339157457,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 305,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 44,
+          "model_entries": 15,
+          "touch_rate_pct": 34.09090909090909,
+          "strict_fill_rate_pct": 34.09090909090909,
+          "missed_or_pending_pct": 65.9090909090909,
+          "completed_trades": 15,
+          "mean_net_pct": 6.970076,
+          "win_rate_pct": 60.0,
+          "mean_win_pct": 16.981962,
+          "mean_loss_pct": -8.047752,
+          "payoff_ratio": 2.1101497355850243,
+          "profit_factor": 3.165224603377536,
+          "expectancy_pct": 6.970076,
+          "stop_rate_pct": 33.3333,
+          "mean_mfe_pct": 18.229142,
+          "mean_mae_pct": -5.331876,
+          "mean_first_resistance_rr": 0.16442,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 14,
+              "mean_net_pct": 7.408438
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 0.83302
+            }
+          },
+          "portfolio_return_pct": 57.225045236900066,
+          "max_drawdown_close_liquidation_pct": -14.76905096312997,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 314,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 30,
+          "model_entries": 12,
+          "touch_rate_pct": 40.0,
+          "strict_fill_rate_pct": 40.0,
+          "missed_or_pending_pct": 60.0,
+          "completed_trades": 12,
+          "mean_net_pct": 11.450004,
+          "win_rate_pct": 58.3333,
+          "mean_win_pct": 24.851065,
+          "mean_loss_pct": -7.311482,
+          "payoff_ratio": 3.398909393174138,
+          "profit_factor": 4.758473150443794,
+          "expectancy_pct": 11.450004,
+          "stop_rate_pct": 33.3333,
+          "mean_mfe_pct": 25.894455,
+          "mean_mae_pct": -6.814594,
+          "mean_first_resistance_rr": 0.212603,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 10,
+              "mean_net_pct": 10.820174
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 2,
+              "mean_net_pct": 14.599151
+            }
+          },
+          "portfolio_return_pct": 71.89491074985006,
+          "max_drawdown_close_liquidation_pct": -19.89583640703747,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 328,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 30,
+          "model_entries": 16,
+          "touch_rate_pct": 53.333333333333336,
+          "strict_fill_rate_pct": 53.333333333333336,
+          "missed_or_pending_pct": 46.666666666666664,
+          "completed_trades": 16,
+          "mean_net_pct": -5.034484,
+          "win_rate_pct": 31.25,
+          "mean_win_pct": 6.179137,
+          "mean_loss_pct": -10.131584,
+          "payoff_ratio": 0.6098885304615943,
+          "profit_factor": 0.2772220593007247,
+          "expectancy_pct": -5.034484,
+          "stop_rate_pct": 50.0,
+          "mean_mfe_pct": 7.715344,
+          "mean_mae_pct": -12.043341,
+          "mean_first_resistance_rr": 0.557716,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": -3.299926
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -22.847926
+            },
+            "SIDEWAYS": {
+              "n": 6,
+              "mean_net_pct": -4.667412
+            }
+          },
+          "portfolio_return_pct": -34.16096789194992,
+          "max_drawdown_close_liquidation_pct": -36.177244773659986,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 141,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 27,
+          "model_entries": 14,
+          "touch_rate_pct": 51.851851851851855,
+          "strict_fill_rate_pct": 51.851851851851855,
+          "missed_or_pending_pct": 48.148148148148145,
+          "completed_trades": 14,
+          "mean_net_pct": -7.852309,
+          "win_rate_pct": 14.2857,
+          "mean_win_pct": 9.339858,
+          "mean_loss_pct": -10.71767,
+          "payoff_ratio": 0.8714448527493808,
+          "profit_factor": 0.14524080879156348,
+          "expectancy_pct": -7.852309,
+          "stop_rate_pct": 71.4286,
+          "mean_mfe_pct": 9.20544,
+          "mean_mae_pct": -13.647842,
+          "mean_first_resistance_rr": 0.408347,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 6,
+              "mean_net_pct": -7.502417
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -22.847926
+            },
+            "SIDEWAYS": {
+              "n": 7,
+              "mean_net_pct": -6.009985
+            }
+          },
+          "portfolio_return_pct": -43.639521583049955,
+          "max_drawdown_close_liquidation_pct": -47.328834044748,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 144,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 24,
+          "model_entries": 13,
+          "touch_rate_pct": 54.166666666666664,
+          "strict_fill_rate_pct": 54.166666666666664,
+          "missed_or_pending_pct": 45.833333333333336,
+          "completed_trades": 12,
+          "mean_net_pct": -9.204491,
+          "win_rate_pct": 8.3333,
+          "mean_win_pct": 17.772652,
+          "mean_loss_pct": -11.656958,
+          "payoff_ratio": 1.5246389012579147,
+          "profit_factor": 0.13860353647799226,
+          "expectancy_pct": -9.204491,
+          "stop_rate_pct": 91.6667,
+          "mean_mfe_pct": 9.925619,
+          "mean_mae_pct": -20.733297,
+          "mean_first_resistance_rr": 0.512717,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 6,
+              "mean_net_pct": -9.633933
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -22.847926
+            },
+            "SIDEWAYS": {
+              "n": 5,
+              "mean_net_pct": -5.960473
+            }
+          },
+          "portfolio_return_pct": -45.75451823579995,
+          "max_drawdown_close_liquidation_pct": -45.91330459319054,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 147,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    },
+    "COSTED_LIMIT__TURNOVER20": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 72,
+          "model_entries": 17,
+          "touch_rate_pct": 25.0,
+          "strict_fill_rate_pct": 23.61111111111111,
+          "missed_or_pending_pct": 76.38888888888889,
+          "completed_trades": 17,
+          "mean_net_pct": 8.183134,
+          "win_rate_pct": 58.8235,
+          "mean_win_pct": 17.057666,
+          "mean_loss_pct": -4.494769,
+          "payoff_ratio": 3.7950039422328925,
+          "profit_factor": 5.421434203189845,
+          "expectancy_pct": 8.183134,
+          "stop_rate_pct": 29.4118,
+          "mean_mfe_pct": 16.32685,
+          "mean_mae_pct": -3.422277,
+          "mean_first_resistance_rr": 1.079723,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 16,
+              "mean_net_pct": 8.943368
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -3.980601
+            }
+          },
+          "portfolio_return_pct": 85.6480053171,
+          "max_drawdown_close_liquidation_pct": -9.612327325455727,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 166,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 65,
+          "model_entries": 13,
+          "touch_rate_pct": 21.53846153846154,
+          "strict_fill_rate_pct": 20.0,
+          "missed_or_pending_pct": 80.0,
+          "completed_trades": 13,
+          "mean_net_pct": 10.150964,
+          "win_rate_pct": 53.8462,
+          "mean_win_pct": 23.172395,
+          "mean_loss_pct": -5.040706,
+          "payoff_ratio": 4.5970536563260485,
+          "profit_factor": 5.363229265713724,
+          "expectancy_pct": 10.150964,
+          "stop_rate_pct": 38.4615,
+          "mean_mfe_pct": 22.106648,
+          "mean_mae_pct": -5.756351,
+          "mean_first_resistance_rr": 1.076423,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 13,
+              "mean_net_pct": 10.150964
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 71.28045048005004,
+          "max_drawdown_close_liquidation_pct": -11.457424372406743,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 173,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 47,
+          "model_entries": 13,
+          "touch_rate_pct": 29.78723404255319,
+          "strict_fill_rate_pct": 27.659574468085108,
+          "missed_or_pending_pct": 72.34042553191489,
+          "completed_trades": 13,
+          "mean_net_pct": 4.211393,
+          "win_rate_pct": 23.0769,
+          "mean_win_pct": 36.182503,
+          "mean_loss_pct": -5.379939,
+          "payoff_ratio": 6.725448132859748,
+          "profit_factor": 2.0176344398579245,
+          "expectancy_pct": 4.211393,
+          "stop_rate_pct": 61.5385,
+          "mean_mfe_pct": 31.255163,
+          "mean_mae_pct": -7.347657,
+          "mean_first_resistance_rr": 1.071562,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 13,
+              "mean_net_pct": 4.211393
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 20.095641687050026,
+          "max_drawdown_close_liquidation_pct": -23.102632126606302,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 191,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 37,
+          "model_entries": 16,
+          "touch_rate_pct": 43.24324324324324,
+          "strict_fill_rate_pct": 43.24324324324324,
+          "missed_or_pending_pct": 56.75675675675676,
+          "completed_trades": 16,
+          "mean_net_pct": -4.564946,
+          "win_rate_pct": 37.5,
+          "mean_win_pct": 6.778288,
+          "mean_loss_pct": -11.370886,
+          "payoff_ratio": 0.5961090181813007,
+          "profit_factor": 0.35766541090878046,
+          "expectancy_pct": -4.564946,
+          "stop_rate_pct": 43.75,
+          "mean_mfe_pct": 9.974303,
+          "mean_mae_pct": -11.55984,
+          "mean_first_resistance_rr": 1.438021,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": -1.658053
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -18.557115
+            },
+            "SIDEWAYS": {
+              "n": 6,
+              "mean_net_pct": -6.593257
+            }
+          },
+          "portfolio_return_pct": -32.15618593369992,
+          "max_drawdown_close_liquidation_pct": -40.23945470880346,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 91,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 29,
+          "model_entries": 14,
+          "touch_rate_pct": 48.275862068965516,
+          "strict_fill_rate_pct": 48.275862068965516,
+          "missed_or_pending_pct": 51.724137931034484,
+          "completed_trades": 14,
+          "mean_net_pct": -6.159501,
+          "win_rate_pct": 21.4286,
+          "mean_win_pct": 10.474927,
+          "mean_loss_pct": -10.696163,
+          "payoff_ratio": 0.9793163697056535,
+          "profit_factor": 0.2670862826469964,
+          "expectancy_pct": -6.159501,
+          "stop_rate_pct": 71.4286,
+          "mean_mfe_pct": 16.549728,
+          "mean_mae_pct": -14.636399,
+          "mean_first_resistance_rr": 1.43225,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": -5.146985
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -18.557115
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": -5.338257
+            }
+          },
+          "portfolio_return_pct": -37.234413159499965,
+          "max_drawdown_close_liquidation_pct": -51.27218002208676,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 99,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 31,
+          "model_entries": 15,
+          "touch_rate_pct": 48.38709677419355,
+          "strict_fill_rate_pct": 48.38709677419355,
+          "missed_or_pending_pct": 51.61290322580645,
+          "completed_trades": 11,
+          "mean_net_pct": -8.844278,
+          "win_rate_pct": 9.0909,
+          "mean_win_pct": 17.772652,
+          "mean_loss_pct": -11.505971,
+          "payoff_ratio": 1.5446460542863027,
+          "profit_factor": 0.15446460542863027,
+          "expectancy_pct": -8.844278,
+          "stop_rate_pct": 90.9091,
+          "mean_mfe_pct": 22.092044,
+          "mean_mae_pct": -19.748546,
+          "mean_first_resistance_rr": 1.416988,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 6,
+              "mean_net_pct": -9.9766
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -18.557115
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": -4.717585
+            }
+          },
+          "portfolio_return_pct": -52.138729543899956,
+          "max_drawdown_close_liquidation_pct": -59.58502103094825,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 97,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    },
+    "COSTED_LIMIT__STOCK_RS20": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 74,
+          "model_entries": 15,
+          "touch_rate_pct": 22.972972972972972,
+          "strict_fill_rate_pct": 20.27027027027027,
+          "missed_or_pending_pct": 79.72972972972973,
+          "completed_trades": 15,
+          "mean_net_pct": 1.986215,
+          "win_rate_pct": 46.6667,
+          "mean_win_pct": 10.453271,
+          "mean_loss_pct": -5.422459,
+          "payoff_ratio": 1.9277730311086052,
+          "profit_factor": 1.6868014022200295,
+          "expectancy_pct": 1.986215,
+          "stop_rate_pct": 26.6667,
+          "mean_mfe_pct": 13.608164,
+          "mean_mae_pct": -4.199126,
+          "mean_first_resistance_rr": 1.135863,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 14,
+              "mean_net_pct": 2.412416
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -3.980601
+            }
+          },
+          "portfolio_return_pct": 13.722081848699963,
+          "max_drawdown_close_liquidation_pct": -15.096522262535938,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 164,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 67,
+          "model_entries": 15,
+          "touch_rate_pct": 25.37313432835821,
+          "strict_fill_rate_pct": 22.388059701492537,
+          "missed_or_pending_pct": 77.61194029850746,
+          "completed_trades": 15,
+          "mean_net_pct": 0.973963,
+          "win_rate_pct": 33.3333,
+          "mean_win_pct": 15.64765,
+          "mean_loss_pct": -6.36288,
+          "payoff_ratio": 2.4592085713454903,
+          "profit_factor": 1.2296042856727452,
+          "expectancy_pct": 0.973963,
+          "stop_rate_pct": 66.6667,
+          "mean_mfe_pct": 14.311748,
+          "mean_mae_pct": -8.92579,
+          "mean_first_resistance_rr": 1.156933,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 14,
+              "mean_net_pct": 1.406845
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -5.08639
+            }
+          },
+          "portfolio_return_pct": 5.98558789075001,
+          "max_drawdown_close_liquidation_pct": -20.27254061313655,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 171,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 58,
+          "model_entries": 12,
+          "touch_rate_pct": 24.137931034482758,
+          "strict_fill_rate_pct": 20.689655172413794,
+          "missed_or_pending_pct": 79.3103448275862,
+          "completed_trades": 12,
+          "mean_net_pct": 3.073237,
+          "win_rate_pct": 33.3333,
+          "mean_win_pct": 21.871059,
+          "mean_loss_pct": -6.325674,
+          "payoff_ratio": 3.457506339280421,
+          "profit_factor": 1.7287531696402105,
+          "expectancy_pct": 3.073237,
+          "stop_rate_pct": 58.3333,
+          "mean_mfe_pct": 25.203416,
+          "mean_mae_pct": -9.013973,
+          "mean_first_resistance_rr": 1.174807,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 11,
+              "mean_net_pct": 3.815021
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -5.08639
+            }
+          },
+          "portfolio_return_pct": 17.235340056000027,
+          "max_drawdown_close_liquidation_pct": -20.370918427835683,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 180,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 38,
+          "model_entries": 16,
+          "touch_rate_pct": 42.10526315789474,
+          "strict_fill_rate_pct": 42.10526315789474,
+          "missed_or_pending_pct": 57.89473684210526,
+          "completed_trades": 16,
+          "mean_net_pct": -4.350306,
+          "win_rate_pct": 31.25,
+          "mean_win_pct": 11.565025,
+          "mean_loss_pct": -11.584547,
+          "payoff_ratio": 0.9983147948171013,
+          "profit_factor": 0.4537794521895915,
+          "expectancy_pct": -4.350306,
+          "stop_rate_pct": 50.0,
+          "mean_mfe_pct": 9.191478,
+          "mean_mae_pct": -12.5296,
+          "mean_first_resistance_rr": 1.416971,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": -1.260671
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -18.557115
+            },
+            "SIDEWAYS": {
+              "n": 6,
+              "mean_net_pct": -6.616957
+            }
+          },
+          "portfolio_return_pct": -31.79851243144999,
+          "max_drawdown_close_liquidation_pct": -41.413156617449985,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 90,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 31,
+          "model_entries": 15,
+          "touch_rate_pct": 48.38709677419355,
+          "strict_fill_rate_pct": 48.38709677419355,
+          "missed_or_pending_pct": 51.61290322580645,
+          "completed_trades": 14,
+          "mean_net_pct": -8.017015,
+          "win_rate_pct": 21.4286,
+          "mean_win_pct": 14.751044,
+          "mean_loss_pct": -14.226486,
+          "payoff_ratio": 1.036871911107984,
+          "profit_factor": 0.2827832484839956,
+          "expectancy_pct": -8.017015,
+          "stop_rate_pct": 78.5714,
+          "mean_mfe_pct": 12.542696,
+          "mean_mae_pct": -16.632261,
+          "mean_first_resistance_rr": 1.376491,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 8,
+              "mean_net_pct": -7.603435
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -18.557115
+            },
+            "SIDEWAYS": {
+              "n": 5,
+              "mean_net_pct": -6.570724
+            }
+          },
+          "portfolio_return_pct": -47.309442935849965,
+          "max_drawdown_close_liquidation_pct": -48.13770281934999,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 97,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 27,
+          "model_entries": 12,
+          "touch_rate_pct": 44.44444444444444,
+          "strict_fill_rate_pct": 44.44444444444444,
+          "missed_or_pending_pct": 55.55555555555556,
+          "completed_trades": 12,
+          "mean_net_pct": -10.300681,
+          "win_rate_pct": 8.3333,
+          "mean_win_pct": 17.772652,
+          "mean_loss_pct": -12.852802,
+          "payoff_ratio": 1.3827842290596561,
+          "profit_factor": 0.12570765718724144,
+          "expectancy_pct": -10.300681,
+          "stop_rate_pct": 83.3333,
+          "mean_mfe_pct": 14.84117,
+          "mean_mae_pct": -21.89823,
+          "mean_first_resistance_rr": 1.433811,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 7,
+              "mean_net_pct": -11.952945
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -18.557115
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": -5.34511
+            }
+          },
+          "portfolio_return_pct": -47.29291404734999,
+          "max_drawdown_close_liquidation_pct": -48.13770281934999,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 101,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    },
+    "COSTED_LIMIT__SECTOR_LEADER": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 79,
+          "model_entries": 16,
+          "touch_rate_pct": 21.518987341772153,
+          "strict_fill_rate_pct": 20.253164556962027,
+          "missed_or_pending_pct": 79.74683544303798,
+          "completed_trades": 16,
+          "mean_net_pct": 2.03049,
+          "win_rate_pct": 62.5,
+          "mean_win_pct": 7.520646,
+          "mean_loss_pct": -7.11977,
+          "payoff_ratio": 1.0563046934263403,
+          "profit_factor": 1.760507822377234,
+          "expectancy_pct": 2.03049,
+          "stop_rate_pct": 31.25,
+          "mean_mfe_pct": 13.190941,
+          "mean_mae_pct": -3.511803,
+          "mean_first_resistance_rr": 1.107669,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 16,
+              "mean_net_pct": 2.03049
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 16.498564519000002,
+          "max_drawdown_close_liquidation_pct": -12.545221401548257,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 159,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 73,
+          "model_entries": 13,
+          "touch_rate_pct": 19.17808219178082,
+          "strict_fill_rate_pct": 17.80821917808219,
+          "missed_or_pending_pct": 82.1917808219178,
+          "completed_trades": 13,
+          "mean_net_pct": 4.269078,
+          "win_rate_pct": 46.1538,
+          "mean_win_pct": 17.515961,
+          "mean_loss_pct": -7.085394,
+          "payoff_ratio": 2.4721224310734047,
+          "profit_factor": 2.1189620837772045,
+          "expectancy_pct": 4.269078,
+          "stop_rate_pct": 53.8462,
+          "mean_mfe_pct": 19.470736,
+          "mean_mae_pct": -8.40483,
+          "mean_first_resistance_rr": 1.120948,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 13,
+              "mean_net_pct": 4.269078
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 26.95113436785006,
+          "max_drawdown_close_liquidation_pct": -12.387951734955383,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 165,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 66,
+          "model_entries": 12,
+          "touch_rate_pct": 19.696969696969695,
+          "strict_fill_rate_pct": 18.181818181818183,
+          "missed_or_pending_pct": 81.81818181818181,
+          "completed_trades": 12,
+          "mean_net_pct": -2.194694,
+          "win_rate_pct": 25.0,
+          "mean_win_pct": 12.148138,
+          "mean_loss_pct": -6.975639,
+          "payoff_ratio": 1.741509081121657,
+          "profit_factor": 0.5805030270405522,
+          "expectancy_pct": -2.194694,
+          "stop_rate_pct": 66.6667,
+          "mean_mfe_pct": 23.191463,
+          "mean_mae_pct": -10.824203,
+          "mean_first_resistance_rr": 1.034732,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 12,
+              "mean_net_pct": -2.194694
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": -12.777206420849929,
+          "max_drawdown_close_liquidation_pct": -25.013830427043505,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 172,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 35,
+          "model_entries": 15,
+          "touch_rate_pct": 42.857142857142854,
+          "strict_fill_rate_pct": 42.857142857142854,
+          "missed_or_pending_pct": 57.142857142857146,
+          "completed_trades": 15,
+          "mean_net_pct": -2.13755,
+          "win_rate_pct": 40.0,
+          "mean_win_pct": 11.2297,
+          "mean_loss_pct": -11.04905,
+          "payoff_ratio": 1.0163498509369375,
+          "profit_factor": 0.6775665672912917,
+          "expectancy_pct": -2.13755,
+          "stop_rate_pct": 46.6667,
+          "mean_mfe_pct": 10.034742,
+          "mean_mae_pct": -11.822535,
+          "mean_first_resistance_rr": 1.213167,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 8,
+              "mean_net_pct": 3.274451
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -18.557115
+            },
+            "SIDEWAYS": {
+              "n": 6,
+              "mean_net_pct": -6.616957
+            }
+          },
+          "portfolio_return_pct": -17.968792704249946,
+          "max_drawdown_close_liquidation_pct": -31.954430030768222,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 93,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 31,
+          "model_entries": 15,
+          "touch_rate_pct": 48.38709677419355,
+          "strict_fill_rate_pct": 48.38709677419355,
+          "missed_or_pending_pct": 51.61290322580645,
+          "completed_trades": 14,
+          "mean_net_pct": -6.659861,
+          "win_rate_pct": 21.4286,
+          "mean_win_pct": 11.561358,
+          "mean_loss_pct": -11.629284,
+          "payoff_ratio": 0.9941590746436301,
+          "profit_factor": 0.27113429308462633,
+          "expectancy_pct": -6.659861,
+          "stop_rate_pct": 71.4286,
+          "mean_mfe_pct": 10.991391,
+          "mean_mae_pct": -16.719018,
+          "mean_first_resistance_rr": 1.21959,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 8,
+              "mean_net_pct": -5.228414
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -18.557115
+            },
+            "SIDEWAYS": {
+              "n": 5,
+              "mean_net_pct": -6.570724
+            }
+          },
+          "portfolio_return_pct": -40.964071608399976,
+          "max_drawdown_close_liquidation_pct": -47.07667031484516,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 97,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 26,
+          "model_entries": 12,
+          "touch_rate_pct": 46.15384615384615,
+          "strict_fill_rate_pct": 46.15384615384615,
+          "missed_or_pending_pct": 53.84615384615385,
+          "completed_trades": 10,
+          "mean_net_pct": -8.91169,
+          "win_rate_pct": 10.0,
+          "mean_win_pct": 17.772652,
+          "mean_loss_pct": -11.876616,
+          "payoff_ratio": 1.4964407130238,
+          "profit_factor": 0.1662711903359778,
+          "expectancy_pct": -8.91169,
+          "stop_rate_pct": 90.0,
+          "mean_mfe_pct": 18.243954,
+          "mean_mae_pct": -21.307083,
+          "mean_first_resistance_rr": 1.156662,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 5,
+              "mean_net_pct": -9.835868
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -18.557115
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": -5.34511
+            }
+          },
+          "portfolio_return_pct": -42.03308522739998,
+          "max_drawdown_close_liquidation_pct": -47.097046249595365,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 102,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    },
+    "FRESH_COSTED_LIMIT__TURNOVER20": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 80,
+          "model_entries": 10,
+          "touch_rate_pct": 12.5,
+          "strict_fill_rate_pct": 12.5,
+          "missed_or_pending_pct": 87.5,
+          "completed_trades": 10,
+          "mean_net_pct": 3.558765,
+          "win_rate_pct": 40.0,
+          "mean_win_pct": 13.940593,
+          "mean_loss_pct": -3.362454,
+          "payoff_ratio": 4.145958175800425,
+          "profit_factor": 2.7639721172002836,
+          "expectancy_pct": 3.558765,
+          "stop_rate_pct": 10.0,
+          "mean_mfe_pct": 10.433413,
+          "mean_mae_pct": -3.681458,
+          "mean_first_resistance_rr": 1.087325,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": 4.396472
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -3.980601
+            }
+          },
+          "portfolio_return_pct": 16.494402272300036,
+          "max_drawdown_close_liquidation_pct": -10.627903272849004,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 173,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 68,
+          "model_entries": 8,
+          "touch_rate_pct": 11.764705882352942,
+          "strict_fill_rate_pct": 11.764705882352942,
+          "missed_or_pending_pct": 88.23529411764706,
+          "completed_trades": 8,
+          "mean_net_pct": 5.073704,
+          "win_rate_pct": 75.0,
+          "mean_win_pct": 9.508165,
+          "mean_loss_pct": -8.22968,
+          "payoff_ratio": 1.1553505553987888,
+          "profit_factor": 3.4660516661963667,
+          "expectancy_pct": 5.073704,
+          "stop_rate_pct": 12.5,
+          "mean_mfe_pct": 18.709463,
+          "mean_mae_pct": -4.309564,
+          "mean_first_resistance_rr": 1.054707,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 7,
+              "mean_net_pct": 2.716536
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 21.573883
+            }
+          },
+          "portfolio_return_pct": 20.86221745375003,
+          "max_drawdown_close_liquidation_pct": -11.231866102521003,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 185,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 57,
+          "model_entries": 7,
+          "touch_rate_pct": 12.280701754385966,
+          "strict_fill_rate_pct": 12.280701754385966,
+          "missed_or_pending_pct": 87.71929824561404,
+          "completed_trades": 7,
+          "mean_net_pct": 4.064155,
+          "win_rate_pct": 71.4286,
+          "mean_win_pct": 7.889774,
+          "mean_loss_pct": -5.499892,
+          "payoff_ratio": 1.4345324363662646,
+          "profit_factor": 3.5863310909156616,
+          "expectancy_pct": 4.064155,
+          "stop_rate_pct": 28.5714,
+          "mean_mfe_pct": 24.569426,
+          "mean_mae_pct": -5.949901,
+          "mean_first_resistance_rr": 1.102827,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 7,
+              "mean_net_pct": 4.064155
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 14.917733851100001,
+          "max_drawdown_close_liquidation_pct": -14.168627589198135,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 196,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 37,
+          "model_entries": 9,
+          "touch_rate_pct": 24.324324324324323,
+          "strict_fill_rate_pct": 24.324324324324323,
+          "missed_or_pending_pct": 75.67567567567568,
+          "completed_trades": 9,
+          "mean_net_pct": -4.246859,
+          "win_rate_pct": 33.3333,
+          "mean_win_pct": 6.05185,
+          "mean_loss_pct": -9.396213,
+          "payoff_ratio": 0.6440732761347672,
+          "profit_factor": 0.3220366380673836,
+          "expectancy_pct": -4.246859,
+          "stop_rate_pct": 33.3333,
+          "mean_mfe_pct": 4.53674,
+          "mean_mae_pct": -13.366988,
+          "mean_first_resistance_rr": 1.43223,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 5,
+              "mean_net_pct": -3.024395
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -17.139176
+            },
+            "SIDEWAYS": {
+              "n": 3,
+              "mean_net_pct": -1.98686
+            }
+          },
+          "portfolio_return_pct": -17.779804880499974,
+          "max_drawdown_close_liquidation_pct": -19.696578048999967,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 98,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 34,
+          "model_entries": 10,
+          "touch_rate_pct": 29.41176470588235,
+          "strict_fill_rate_pct": 29.41176470588235,
+          "missed_or_pending_pct": 70.58823529411765,
+          "completed_trades": 9,
+          "mean_net_pct": -7.299073,
+          "win_rate_pct": 11.1111,
+          "mean_win_pct": 2.74226,
+          "mean_loss_pct": -8.55424,
+          "payoff_ratio": 0.3205731924408327,
+          "profit_factor": 0.04007164905510409,
+          "expectancy_pct": -7.299073,
+          "stop_rate_pct": 55.5556,
+          "mean_mfe_pct": 7.714909,
+          "mean_mae_pct": -17.350027,
+          "mean_first_resistance_rr": 1.492439,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 5,
+              "mean_net_pct": -4.828776
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -17.139176
+            },
+            "SIDEWAYS": {
+              "n": 3,
+              "mean_net_pct": -8.136201
+            }
+          },
+          "portfolio_return_pct": -33.087539533999966,
+          "max_drawdown_close_liquidation_pct": -37.4640268435506,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 101,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 32,
+          "model_entries": 9,
+          "touch_rate_pct": 28.125,
+          "strict_fill_rate_pct": 28.125,
+          "missed_or_pending_pct": 71.875,
+          "completed_trades": 6,
+          "mean_net_pct": -10.427001,
+          "win_rate_pct": 16.6667,
+          "mean_win_pct": 2.432795,
+          "mean_loss_pct": -12.99896,
+          "payoff_ratio": 0.1871530633312601,
+          "profit_factor": 0.03743061266625202,
+          "expectancy_pct": -10.427001,
+          "stop_rate_pct": 83.3333,
+          "mean_mfe_pct": 9.052515,
+          "mean_mae_pct": -22.286564,
+          "mean_first_resistance_rr": 1.582474,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 4,
+              "mean_net_pct": -9.208315
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -17.139176
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -8.589572
+            }
+          },
+          "portfolio_return_pct": -38.72038349849999,
+          "max_drawdown_close_liquidation_pct": -42.45172683572454,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 103,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    },
+    "FRESH_COSTED_LIMIT__STOCK_RS20": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 84,
+          "model_entries": 10,
+          "touch_rate_pct": 11.904761904761905,
+          "strict_fill_rate_pct": 11.904761904761905,
+          "missed_or_pending_pct": 88.0952380952381,
+          "completed_trades": 10,
+          "mean_net_pct": -3.510285,
+          "win_rate_pct": 20.0,
+          "mean_win_pct": 7.831217,
+          "mean_loss_pct": -6.345661,
+          "payoff_ratio": 1.2341058271426446,
+          "profit_factor": 0.30852645678566115,
+          "expectancy_pct": -3.510285,
+          "stop_rate_pct": 20.0,
+          "mean_mfe_pct": 6.824529,
+          "mean_mae_pct": -5.649155,
+          "mean_first_resistance_rr": 1.101551,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": -3.458028
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -3.980601
+            }
+          },
+          "portfolio_return_pct": -16.460405043100014,
+          "max_drawdown_close_liquidation_pct": -19.261013082568656,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 169,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 76,
+          "model_entries": 10,
+          "touch_rate_pct": 13.157894736842104,
+          "strict_fill_rate_pct": 13.157894736842104,
+          "missed_or_pending_pct": 86.84210526315789,
+          "completed_trades": 10,
+          "mean_net_pct": -0.680043,
+          "win_rate_pct": 40.0,
+          "mean_win_pct": 13.008524,
+          "mean_loss_pct": -9.805754,
+          "payoff_ratio": 1.3266215599065863,
+          "profit_factor": 0.8844143732710577,
+          "expectancy_pct": -0.680043,
+          "stop_rate_pct": 50.0,
+          "mean_mfe_pct": 12.685809,
+          "mean_mae_pct": -9.899646,
+          "mean_first_resistance_rr": 1.088272,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": -3.152701
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 21.573883
+            }
+          },
+          "portfolio_return_pct": -4.471311905100006,
+          "max_drawdown_close_liquidation_pct": -17.144812548831144,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 177,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 69,
+          "model_entries": 8,
+          "touch_rate_pct": 11.594202898550725,
+          "strict_fill_rate_pct": 11.594202898550725,
+          "missed_or_pending_pct": 88.40579710144928,
+          "completed_trades": 8,
+          "mean_net_pct": 0.366591,
+          "win_rate_pct": 50.0,
+          "mean_win_pct": 8.582891,
+          "mean_loss_pct": -7.849709,
+          "payoff_ratio": 1.0934024171849033,
+          "profit_factor": 1.0934024171849033,
+          "expectancy_pct": 0.366591,
+          "stop_rate_pct": 50.0,
+          "mean_mfe_pct": 19.227559,
+          "mean_mae_pct": -11.905531,
+          "mean_first_resistance_rr": 1.082314,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 7,
+              "mean_net_pct": -0.46044
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 6.155804
+            }
+          },
+          "portfolio_return_pct": 0.5281092861000314,
+          "max_drawdown_close_liquidation_pct": -15.585295516626918,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 184,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 38,
+          "model_entries": 8,
+          "touch_rate_pct": 21.05263157894737,
+          "strict_fill_rate_pct": 21.05263157894737,
+          "missed_or_pending_pct": 78.94736842105263,
+          "completed_trades": 8,
+          "mean_net_pct": -8.384734,
+          "win_rate_pct": 25.0,
+          "mean_win_pct": 4.506963,
+          "mean_loss_pct": -12.681966,
+          "payoff_ratio": 0.35538362641741617,
+          "profit_factor": 0.1184612088058054,
+          "expectancy_pct": -8.384734,
+          "stop_rate_pct": 25.0,
+          "mean_mfe_pct": 3.010701,
+          "mean_mae_pct": -16.639341,
+          "mean_first_resistance_rr": 1.611847,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 3,
+              "mean_net_pct": -10.466516
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -17.139176
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": -4.634787
+            }
+          },
+          "portfolio_return_pct": -29.037950902950016,
+          "max_drawdown_close_liquidation_pct": -30.658992765284587,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 97,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 36,
+          "model_entries": 8,
+          "touch_rate_pct": 22.22222222222222,
+          "strict_fill_rate_pct": 22.22222222222222,
+          "missed_or_pending_pct": 77.77777777777777,
+          "completed_trades": 8,
+          "mean_net_pct": -9.27771,
+          "win_rate_pct": 12.5,
+          "mean_win_pct": 2.74226,
+          "mean_loss_pct": -10.994848,
+          "payoff_ratio": 0.24941316650612527,
+          "profit_factor": 0.03563045235801789,
+          "expectancy_pct": -9.27771,
+          "stop_rate_pct": 37.5,
+          "mean_mfe_pct": 7.128147,
+          "mean_mae_pct": -18.131824,
+          "mean_first_resistance_rr": 1.611847,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 3,
+              "mean_net_pct": -6.983003
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -17.139176
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": -9.033373
+            }
+          },
+          "portfolio_return_pct": -31.766247481350007,
+          "max_drawdown_close_liquidation_pct": -38.735736208134874,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 99,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 28,
+          "model_entries": 8,
+          "touch_rate_pct": 28.571428571428573,
+          "strict_fill_rate_pct": 28.571428571428573,
+          "missed_or_pending_pct": 71.42857142857143,
+          "completed_trades": 5,
+          "mean_net_pct": -10.631314,
+          "win_rate_pct": 20.0,
+          "mean_win_pct": 2.432795,
+          "mean_loss_pct": -13.897342,
+          "payoff_ratio": 0.1750547190792835,
+          "profit_factor": 0.043763679769820873,
+          "expectancy_pct": -10.631314,
+          "stop_rate_pct": 60.0,
+          "mean_mfe_pct": 10.040166,
+          "mean_mae_pct": -18.262844,
+          "mean_first_resistance_rr": 1.693299,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 2,
+              "mean_net_pct": -9.293147
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -17.139176
+            },
+            "SIDEWAYS": {
+              "n": 2,
+              "mean_net_pct": -8.715551
+            }
+          },
+          "portfolio_return_pct": -39.93533786454997,
+          "max_drawdown_close_liquidation_pct": -45.38624607855367,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 1,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 107,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    },
+    "FRESH_COSTED_LIMIT__SECTOR_LEADER": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 88,
+          "model_entries": 10,
+          "touch_rate_pct": 11.363636363636363,
+          "strict_fill_rate_pct": 11.363636363636363,
+          "missed_or_pending_pct": 88.63636363636364,
+          "completed_trades": 10,
+          "mean_net_pct": 2.297378,
+          "win_rate_pct": 40.0,
+          "mean_win_pct": 13.199398,
+          "mean_loss_pct": -4.970635,
+          "payoff_ratio": 2.6554751852280285,
+          "profit_factor": 1.770316790152019,
+          "expectancy_pct": 2.297378,
+          "stop_rate_pct": 10.0,
+          "mean_mfe_pct": 11.298454,
+          "mean_mae_pct": -3.724034,
+          "mean_first_resistance_rr": 1.024237,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": 1.500038
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 9.473438
+            }
+          },
+          "portfolio_return_pct": 10.073223897650019,
+          "max_drawdown_close_liquidation_pct": -7.708854135831156,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 165,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 79,
+          "model_entries": 8,
+          "touch_rate_pct": 10.126582278481013,
+          "strict_fill_rate_pct": 10.126582278481013,
+          "missed_or_pending_pct": 89.87341772151899,
+          "completed_trades": 8,
+          "mean_net_pct": 1.949187,
+          "win_rate_pct": 50.0,
+          "mean_win_pct": 12.617968,
+          "mean_loss_pct": -8.719594,
+          "payoff_ratio": 1.4470820887273155,
+          "profit_factor": 1.4470820887273155,
+          "expectancy_pct": 1.949187,
+          "stop_rate_pct": 37.5,
+          "mean_mfe_pct": 17.620187,
+          "mean_mae_pct": -7.109763,
+          "mean_first_resistance_rr": 1.02671,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 7,
+              "mean_net_pct": -0.854341
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 21.573883
+            }
+          },
+          "portfolio_return_pct": 6.462732294700002,
+          "max_drawdown_close_liquidation_pct": -16.557489955659722,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 174,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 67,
+          "model_entries": 8,
+          "touch_rate_pct": 11.940298507462687,
+          "strict_fill_rate_pct": 11.940298507462687,
+          "missed_or_pending_pct": 88.05970149253731,
+          "completed_trades": 8,
+          "mean_net_pct": 1.804006,
+          "win_rate_pct": 50.0,
+          "mean_win_pct": 12.558369,
+          "mean_loss_pct": -8.950357,
+          "payoff_ratio": 1.4031137503001938,
+          "profit_factor": 1.4031137503001938,
+          "expectancy_pct": 1.804006,
+          "stop_rate_pct": 50.0,
+          "mean_mfe_pct": 21.794419,
+          "mean_mae_pct": -11.348765,
+          "mean_first_resistance_rr": 1.02671,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 7,
+              "mean_net_pct": -2.606539
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 32.677821
+            }
+          },
+          "portfolio_return_pct": 4.824493570849997,
+          "max_drawdown_close_liquidation_pct": -17.24364630910514,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 186,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 34,
+          "model_entries": 9,
+          "touch_rate_pct": 26.470588235294116,
+          "strict_fill_rate_pct": 26.470588235294116,
+          "missed_or_pending_pct": 73.52941176470588,
+          "completed_trades": 9,
+          "mean_net_pct": -7.254822,
+          "win_rate_pct": 22.2222,
+          "mean_win_pct": 10.067197,
+          "mean_loss_pct": -12.20397,
+          "payoff_ratio": 0.8249116218221945,
+          "profit_factor": 0.2356890348063413,
+          "expectancy_pct": -7.254822,
+          "stop_rate_pct": 33.3333,
+          "mean_mfe_pct": 4.219987,
+          "mean_mae_pct": -16.615061,
+          "mean_first_resistance_rr": 1.355463,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 4,
+              "mean_net_pct": -7.403768
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -17.139176
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": -4.634787
+            }
+          },
+          "portfolio_return_pct": -29.300814644199946,
+          "max_drawdown_close_liquidation_pct": -29.569195994199948,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 101,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 32,
+          "model_entries": 9,
+          "touch_rate_pct": 28.125,
+          "strict_fill_rate_pct": 28.125,
+          "missed_or_pending_pct": 71.875,
+          "completed_trades": 9,
+          "mean_net_pct": -8.61306,
+          "win_rate_pct": 11.1111,
+          "mean_win_pct": 8.782386,
+          "mean_loss_pct": -10.787491,
+          "payoff_ratio": 0.8141268487289459,
+          "profit_factor": 0.10176585609111824,
+          "expectancy_pct": -8.61306,
+          "stop_rate_pct": 44.4444,
+          "mean_mfe_pct": 7.595573,
+          "mean_mae_pct": -18.214937,
+          "mean_first_resistance_rr": 1.355463,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 4,
+              "mean_net_pct": -6.061219
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -17.139176
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": -9.033373
+            }
+          },
+          "portfolio_return_pct": -33.197552226349956,
+          "max_drawdown_close_liquidation_pct": -36.36329501210411,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 103,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 27,
+          "model_entries": 8,
+          "touch_rate_pct": 29.62962962962963,
+          "strict_fill_rate_pct": 29.62962962962963,
+          "missed_or_pending_pct": 70.37037037037037,
+          "completed_trades": 5,
+          "mean_net_pct": -12.985072,
+          "win_rate_pct": 0.0,
+          "mean_win_pct": null,
+          "mean_loss_pct": -12.985072,
+          "payoff_ratio": null,
+          "profit_factor": 0.0,
+          "expectancy_pct": -12.985072,
+          "stop_rate_pct": 80.0,
+          "mean_mfe_pct": 8.242413,
+          "mean_mae_pct": -25.609399,
+          "mean_first_resistance_rr": 1.352188,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 2,
+              "mean_net_pct": -15.177541
+            },
+            "DOWN": {
+              "n": 1,
+              "mean_net_pct": -17.139176
+            },
+            "SIDEWAYS": {
+              "n": 2,
+              "mean_net_pct": -8.715551
+            }
+          },
+          "portfolio_return_pct": -43.31014883579998,
+          "max_drawdown_close_liquidation_pct": -45.37486024205551,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 1,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 108,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    },
+    "FRESH_COSTED_LIMIT__SECTOR_LEADER__CAUSAL_EDGE_GATE": {
+      "DEVELOPMENT": {
+        "5": {
+          "orders": 0,
+          "model_entries": 0,
+          "touch_rate_pct": null,
+          "strict_fill_rate_pct": null,
+          "missed_or_pending_pct": null,
+          "completed_trades": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "payoff_ratio": null,
+          "profit_factor": null,
+          "expectancy_pct": null,
+          "stop_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "mean_first_resistance_rr": null,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 0.0,
+          "max_drawdown_close_liquidation_pct": 0.0,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 253,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 4,
+          "model_entries": 1,
+          "touch_rate_pct": 25.0,
+          "strict_fill_rate_pct": 25.0,
+          "missed_or_pending_pct": 75.0,
+          "completed_trades": 1,
+          "mean_net_pct": 21.573883,
+          "win_rate_pct": 100.0,
+          "mean_win_pct": 21.573883,
+          "mean_loss_pct": null,
+          "payoff_ratio": null,
+          "profit_factor": null,
+          "expectancy_pct": 21.573883,
+          "stop_rate_pct": 0.0,
+          "mean_mfe_pct": 39.052405,
+          "mean_mae_pct": 0,
+          "mean_first_resistance_rr": 1.001283,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 21.573883
+            }
+          },
+          "portfolio_return_pct": 10.785679027899997,
+          "max_drawdown_close_liquidation_pct": -5.469070162955969,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 249,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 0,
+          "model_entries": 0,
+          "touch_rate_pct": null,
+          "strict_fill_rate_pct": null,
+          "missed_or_pending_pct": null,
+          "completed_trades": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "payoff_ratio": null,
+          "profit_factor": null,
+          "expectancy_pct": null,
+          "stop_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "mean_first_resistance_rr": null,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 0.0,
+          "max_drawdown_close_liquidation_pct": 0.0,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 253,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "orders": 0,
+          "model_entries": 0,
+          "touch_rate_pct": null,
+          "strict_fill_rate_pct": null,
+          "missed_or_pending_pct": null,
+          "completed_trades": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "payoff_ratio": null,
+          "profit_factor": null,
+          "expectancy_pct": null,
+          "stop_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "mean_first_resistance_rr": null,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 0.0,
+          "max_drawdown_close_liquidation_pct": 0.0,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 135,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "10": {
+          "orders": 0,
+          "model_entries": 0,
+          "touch_rate_pct": null,
+          "strict_fill_rate_pct": null,
+          "missed_or_pending_pct": null,
+          "completed_trades": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "payoff_ratio": null,
+          "profit_factor": null,
+          "expectancy_pct": null,
+          "stop_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "mean_first_resistance_rr": null,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 0.0,
+          "max_drawdown_close_liquidation_pct": 0.0,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 135,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        },
+        "20": {
+          "orders": 0,
+          "model_entries": 0,
+          "touch_rate_pct": null,
+          "strict_fill_rate_pct": null,
+          "missed_or_pending_pct": null,
+          "completed_trades": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "payoff_ratio": null,
+          "profit_factor": null,
+          "expectancy_pct": null,
+          "stop_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "mean_first_resistance_rr": null,
+          "mean_ci95_month_clusters": null,
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "portfolio_return_pct": 0.0,
+          "max_drawdown_close_liquidation_pct": 0.0,
+          "prefix_max_drawdown_if_censored": null,
+          "censored": null,
+          "open_positions_at_end": 0,
+          "pending_orders_at_end": 0,
+          "signals_not_reservable": 135,
+          "untradable_close_marks": 0,
+          "liquidation_mark_is_not_guaranteed_execution": true,
+          "intraday_drawdown_verified": false,
+          "actual_fills_verified": false
+        }
+      }
+    }
+  },
+  "protocol": {
+    "shared_frozen_decisions": true,
+    "baseline_is_geometry_not_historical_live_ranking": true,
+    "limit_rule": "AT_OPEN_OR_ONE_TICK_TRADE_THROUGH",
+    "slot_count": 2,
+    "initial_cash": 10000000,
+    "quote_units_source": "https://regulation.krx.co.kr/contents/RGL/03/03010100/RGL03010100T3.jsp",
+    "integer_shares": true,
+    "buy_cost": 0.0015,
+    "sell_cost": 0.005,
+    "slippage_each_side": 0.001,
+    "primary_hypothesis": "FRESH_COSTED_LIMIT__SECTOR_LEADER",
+    "edge_gate_window_days": 120,
+    "edge_gate_min_n": 20,
+    "edge_gate_min_tickers": 10,
+    "full_scheduled_maturity_required_for_edge_evidence": true,
+    "future_fill_cannot_free_slots_early": true,
+    "current_sector_mapping_not_pit": true,
+    "prior_holdout_already_seen": true,
+    "fundamental_news_and_investor_flows_not_scored_without_pit_history": true,
+    "stop_is_structural_not_fixed_pct": true,
+    "code_sha256": "8ca4285b417bef487cf3d05220a19bcda2f167522fee9ce2b8b130124f339de1"
+  },
+  "decision": "CASH",
+  "live_strategy_adopted": null,
+  "orders_enabled": false
+}
