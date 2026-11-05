@@ -1,0 +1,1759 @@
+{
+  "schema": "C3_DAILY_TOP2_V4",
+  "audit": {
+    "panel_sha256": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
+    "audit_sha256": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
+    "members_sha256": "e0107a372d5cc6ff318294dfdd178d605e8363b3e50c24bc370e596b0830f19e",
+    "raw_source_rows": 1012593,
+    "raw_source_tickers": 2909,
+    "effective_start": "2025-05-02",
+    "effective_end": "2026-11-03",
+    "published_sessions": 366,
+    "unpublished_requested_tail": [
+      {
+        "date": "2026-11-04",
+        "market": "KOSDAQ"
+      },
+      {
+        "date": "2026-11-04",
+        "market": "KOSPI"
+      }
+    ],
+    "cohort_tickers": 111,
+    "cohort_bars": 40626,
+    "excluded_prior_exploratory_tickers": [
+      "000660",
+      "003670",
+      "007810",
+      "009540",
+      "010140",
+      "012330",
+      "012450",
+      "042000",
+      "042660",
+      "051600",
+      "058610",
+      "071970",
+      "074600",
+      "086280",
+      "095340",
+      "329180"
+    ],
+    "confirmation_tickers": [
+      "000270",
+      "000500",
+      "001440",
+      "003160",
+      "003570",
+      "005290",
+      "005380",
+      "005850",
+      "005930",
+      "006260",
+      "006340",
+      "006400",
+      "010120",
+      "010690",
+      "011210",
+      "014680",
+      "015750",
+      "017510",
+      "017960",
+      "032820",
+      "033100",
+      "033500",
+      "034020",
+      "035420",
+      "035720",
+      "036540",
+      "036830",
+      "036930",
+      "039030",
+      "039440",
+      "042370",
+      "042700",
+      "047810",
+      "052690",
+      "056080",
+      "058470",
+      "062040",
+      "064350",
+      "064760",
+      "066970",
+      "077970",
+      "078600",
+      "079370",
+      "082740",
+      "083450",
+      "083650",
+      "084370",
+      "086520",
+      "089030",
+      "090360",
+      "090710",
+      "093370",
+      "095610",
+      "100840",
+      "103140",
+      "103590",
+      "105840",
+      "108490",
+      "117730",
+      "121600",
+      "130660",
+      "137400",
+      "147830",
+      "160190",
+      "166090",
+      "181710",
+      "204320",
+      "222800",
+      "232140",
+      "240810",
+      "247540",
+      "262260",
+      "267260",
+      "270660",
+      "272210",
+      "277810",
+      "278280",
+      "281820",
+      "298040",
+      "319660",
+      "348210",
+      "348340",
+      "348370",
+      "353200",
+      "357780",
+      "365340",
+      "372170",
+      "373220",
+      "382840",
+      "388720",
+      "389500",
+      "403870",
+      "450080",
+      "454910",
+      "466100"
+    ],
+    "selection_scope": "RETROSPECTIVE_CURATED_NON_BIOTECH_NOT_FULL_MARKET_STRATEGY_VALIDATION",
+    "point_in_time_sector_membership_verified": false,
+    "survivorship_bias_removed": false,
+    "regular_only_certified": false,
+    "official_calendar_verified": false,
+    "no_future_action_adjustment": true,
+    "source_basis": "OFFICIAL_DATED_RAW_PRICE_UNITS"
+  },
+  "cohort_used": 95,
+  "candidate_counts": {
+    "PULLBACK": 5350,
+    "BREAKOUT": 647
+  },
+  "rejections": {
+    "NO_UPTREND": 12547,
+    "RS_NOT_POSITIVE": 2581,
+    "BREAKOUT:BREAKOUT_NOT_CONFIRMED": 4728,
+    "NO_VALID_CONFIRMED_STRUCTURE": 71,
+    "MARKET_DOWN_OR_UNKNOWN": 3399,
+    "PULLBACK:NO_USABLE_PRICE_BAND": 25
+  },
+  "metrics": {
+    "FIXED26_PULLBACK": {
+      "DEVELOPMENT": {
+        "5": {
+          "completed": 17,
+          "model_entries": 17,
+          "orders": 121,
+          "mean_net_pct": 6.419118,
+          "win_rate_pct": 58.8235,
+          "mean_win_pct": 14.387096,
+          "mean_loss_pct": -4.963707,
+          "profit_factor": 4.140654,
+          "stop_rate_pct": 11.7647,
+          "touch_rate_pct": 15.702479338842975,
+          "fill_rate_pct": 14.049586776859504,
+          "mean_mfe_pct": 14.415236,
+          "mean_mae_pct": -5.520756,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": 62.086174,
+          "max_drawdown_close_pct": -20.361331,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 3804,
+            "untradable_marks": 0,
+            "fixed_clock_suppressed": 3459,
+            "already_entered_structure": 29
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 15,
+              "mean_net_pct": 7.726045
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 2,
+              "mean_net_pct": -3.382834
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 13,
+          "model_entries": 13,
+          "orders": 110,
+          "mean_net_pct": 3.67773,
+          "win_rate_pct": 61.5385,
+          "mean_win_pct": 9.364847,
+          "mean_loss_pct": -5.421658,
+          "profit_factor": 2.763685,
+          "stop_rate_pct": 15.3846,
+          "touch_rate_pct": 14.545454545454545,
+          "fill_rate_pct": 11.818181818181818,
+          "mean_mfe_pct": 15.305908,
+          "mean_mae_pct": -7.480438,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": 25.329747,
+          "max_drawdown_close_pct": -17.531309,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 3804,
+            "untradable_marks": 0,
+            "fixed_clock_suppressed": 3466,
+            "already_entered_structure": 22
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 12,
+              "mean_net_pct": 4.087237
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -1.236363
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 11,
+          "model_entries": 11,
+          "orders": 82,
+          "mean_net_pct": -3.772465,
+          "win_rate_pct": 36.3636,
+          "mean_win_pct": 8.186236,
+          "mean_loss_pct": -10.606009,
+          "profit_factor": 0.441057,
+          "stop_rate_pct": 54.5455,
+          "touch_rate_pct": 15.853658536585366,
+          "fill_rate_pct": 13.414634146341463,
+          "mean_mfe_pct": 17.098758,
+          "mean_mae_pct": -10.491624,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -19.524926,
+          "max_drawdown_close_pct": -36.153205,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 3804,
+            "untradable_marks": 0,
+            "fixed_clock_suppressed": 3473,
+            "already_entered_structure": 15
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 10,
+              "mean_net_pct": -3.402364
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -7.473471
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "completed": 10,
+          "model_entries": 10,
+          "orders": 52,
+          "mean_net_pct": 8.315933,
+          "win_rate_pct": 70.0,
+          "mean_win_pct": 13.879947,
+          "mean_loss_pct": -4.666765,
+          "profit_factor": 6.939827,
+          "stop_rate_pct": 10.0,
+          "touch_rate_pct": 19.23076923076923,
+          "fill_rate_pct": 19.23076923076923,
+          "mean_mfe_pct": 14.207909,
+          "mean_mae_pct": -6.44006,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": 43.683197,
+          "max_drawdown_close_pct": -10.499965,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 1546,
+            "fixed_clock_suppressed": 1372,
+            "untradable_marks": 0,
+            "already_entered_structure": 16
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 5,
+              "mean_net_pct": 1.496492
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 5,
+              "mean_net_pct": 15.135375
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 10,
+          "model_entries": 10,
+          "orders": 39,
+          "mean_net_pct": 4.683657,
+          "win_rate_pct": 40.0,
+          "mean_win_pct": 26.560928,
+          "mean_loss_pct": -9.901191,
+          "profit_factor": 1.7884,
+          "stop_rate_pct": 50.0,
+          "touch_rate_pct": 25.641025641025642,
+          "fill_rate_pct": 25.641025641025642,
+          "mean_mfe_pct": 19.439763,
+          "mean_mae_pct": -9.825717,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": 17.529514,
+          "max_drawdown_close_pct": -19.67195,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 1546,
+            "fixed_clock_suppressed": 1373,
+            "untradable_marks": 0,
+            "already_entered_structure": 15
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 5,
+              "mean_net_pct": -3.92567
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 5,
+              "mean_net_pct": 13.292984
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 6,
+          "model_entries": 8,
+          "orders": 41,
+          "mean_net_pct": -1.023272,
+          "win_rate_pct": 33.3333,
+          "mean_win_pct": 14.248199,
+          "mean_loss_pct": -8.659008,
+          "profit_factor": 0.822739,
+          "stop_rate_pct": 50.0,
+          "touch_rate_pct": 19.51219512195122,
+          "fill_rate_pct": 19.51219512195122,
+          "mean_mfe_pct": 25.442635,
+          "mean_mae_pct": -15.081608,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -15.444506,
+          "max_drawdown_close_pct": -24.786053,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 1546,
+            "fixed_clock_suppressed": 1374,
+            "untradable_marks": 0,
+            "already_entered_structure": 14
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 2,
+              "mean_net_pct": -9.142657
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": 3.036421
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      },
+      "UNSEEN": {
+        "5": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      }
+    },
+    "DAILY_PULLBACK": {
+      "DEVELOPMENT": {
+        "5": {
+          "completed": 17,
+          "model_entries": 17,
+          "orders": 174,
+          "mean_net_pct": 0.555108,
+          "win_rate_pct": 35.2941,
+          "mean_win_pct": 11.001466,
+          "mean_loss_pct": -5.142905,
+          "profit_factor": 1.166811,
+          "stop_rate_pct": 17.6471,
+          "touch_rate_pct": 10.344827586206897,
+          "fill_rate_pct": 9.770114942528735,
+          "mean_mfe_pct": 7.21743,
+          "mean_mae_pct": -5.349904,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": 1.222692,
+          "max_drawdown_close_pct": -18.126947,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 3804,
+            "untradable_marks": 0,
+            "already_entered_structure": 35,
+            "already_reserved_ticker": 28
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 15,
+              "mean_net_pct": 1.212467
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 2,
+              "mean_net_pct": -4.375086
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 4,
+          "model_entries": 6,
+          "orders": 22,
+          "mean_net_pct": -5.290628,
+          "win_rate_pct": 0.0,
+          "mean_win_pct": null,
+          "mean_loss_pct": -5.290628,
+          "profit_factor": 0.0,
+          "stop_rate_pct": 75.0,
+          "touch_rate_pct": 27.272727272727273,
+          "fill_rate_pct": 27.272727272727273,
+          "mean_mfe_pct": 2.605023,
+          "mean_mae_pct": -5.758073,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": {
+            "date": "2025-09-29",
+            "ticker": "108490",
+            "reason": "UNPRICED_SECURITY_OR_ACTION"
+          },
+          "open_at_end": 2,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 1045,
+            "untradable_marks": 0,
+            "already_entered_structure": 11,
+            "already_reserved_ticker": 25
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 4,
+              "mean_net_pct": -5.290628
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 3,
+          "model_entries": 5,
+          "orders": 22,
+          "mean_net_pct": -7.173975,
+          "win_rate_pct": 0.0,
+          "mean_win_pct": null,
+          "mean_loss_pct": -7.173975,
+          "profit_factor": 0.0,
+          "stop_rate_pct": 100.0,
+          "touch_rate_pct": 22.727272727272727,
+          "fill_rate_pct": 22.727272727272727,
+          "mean_mfe_pct": 3.143797,
+          "mean_mae_pct": -8.977846,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": {
+            "date": "2025-09-29",
+            "ticker": "108490",
+            "reason": "UNPRICED_SECURITY_OR_ACTION"
+          },
+          "open_at_end": 2,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 1045,
+            "untradable_marks": 0,
+            "already_entered_structure": 11,
+            "already_reserved_ticker": 25
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 3,
+              "mean_net_pct": -7.173975
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "completed": 16,
+          "model_entries": 16,
+          "orders": 80,
+          "mean_net_pct": -3.634071,
+          "win_rate_pct": 37.5,
+          "mean_win_pct": 11.241773,
+          "mean_loss_pct": -12.559578,
+          "profit_factor": 0.537045,
+          "stop_rate_pct": 37.5,
+          "touch_rate_pct": 20.0,
+          "fill_rate_pct": 20.0,
+          "mean_mfe_pct": 6.56368,
+          "mean_mae_pct": -8.900952,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -24.593065,
+          "max_drawdown_close_pct": -28.685258,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 1546,
+            "untradable_marks": 0,
+            "already_entered_structure": 25,
+            "already_reserved_ticker": 19
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 5,
+              "mean_net_pct": -2.077635
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 11,
+              "mean_net_pct": -4.341542
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 11,
+          "model_entries": 12,
+          "orders": 59,
+          "mean_net_pct": -3.207045,
+          "win_rate_pct": 36.3636,
+          "mean_win_pct": 14.762589,
+          "mean_loss_pct": -13.475408,
+          "profit_factor": 0.626012,
+          "stop_rate_pct": 36.3636,
+          "touch_rate_pct": 20.338983050847457,
+          "fill_rate_pct": 20.338983050847457,
+          "mean_mfe_pct": 13.111487,
+          "mean_mae_pct": -11.658474,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -26.502229,
+          "max_drawdown_close_pct": -30.490816,
+          "censored": null,
+          "open_at_end": 1,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 1546,
+            "untradable_marks": 0,
+            "already_entered_structure": 18,
+            "already_reserved_ticker": 38
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 4,
+              "mean_net_pct": -2.772603
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 7,
+              "mean_net_pct": -3.455298
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 9,
+          "model_entries": 10,
+          "orders": 54,
+          "mean_net_pct": -10.285584,
+          "win_rate_pct": 11.1111,
+          "mean_win_pct": 26.929878,
+          "mean_loss_pct": -14.937516,
+          "profit_factor": 0.225354,
+          "stop_rate_pct": 77.7778,
+          "touch_rate_pct": 18.51851851851852,
+          "fill_rate_pct": 18.51851851851852,
+          "mean_mfe_pct": 10.603811,
+          "mean_mae_pct": -23.384238,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -37.011258,
+          "max_drawdown_close_pct": -40.429539,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 1546,
+            "untradable_marks": 0,
+            "already_entered_structure": 20,
+            "already_reserved_ticker": 32
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 3,
+              "mean_net_pct": -13.580116
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 6,
+              "mean_net_pct": -8.638317
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      },
+      "UNSEEN": {
+        "5": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      }
+    },
+    "FIXED26_BREAKOUT": {
+      "DEVELOPMENT": {
+        "5": {
+          "completed": 32,
+          "model_entries": 32,
+          "orders": 47,
+          "mean_net_pct": 2.281119,
+          "win_rate_pct": 56.25,
+          "mean_win_pct": 9.111867,
+          "mean_loss_pct": -6.501272,
+          "profit_factor": 1.801995,
+          "stop_rate_pct": 0.0,
+          "touch_rate_pct": 68.08510638297872,
+          "fill_rate_pct": 68.08510638297872,
+          "mean_mfe_pct": 11.485737,
+          "mean_mae_pct": -6.665625,
+          "ci95_month_clusters": [
+            -1.38547,
+            5.82885
+          ],
+          "portfolio_return_pct": 35.312846,
+          "max_drawdown_close_pct": -15.734036,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 486,
+            "untradable_marks": 0,
+            "fixed_clock_suppressed": 266,
+            "already_entered_structure": 24
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 29,
+              "mean_net_pct": 1.664258
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 3,
+              "mean_net_pct": 8.244105
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 21,
+          "model_entries": 21,
+          "orders": 32,
+          "mean_net_pct": 8.998075,
+          "win_rate_pct": 61.9048,
+          "mean_win_pct": 22.690269,
+          "mean_loss_pct": -13.251739,
+          "profit_factor": 2.782404,
+          "stop_rate_pct": 4.7619,
+          "touch_rate_pct": 65.625,
+          "fill_rate_pct": 65.625,
+          "mean_mfe_pct": 24.182352,
+          "mean_mae_pct": -9.599614,
+          "ci95_month_clusters": [
+            -3.34673,
+            22.18545
+          ],
+          "portfolio_return_pct": 103.59253,
+          "max_drawdown_close_pct": -31.192086,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 486,
+            "untradable_marks": 1,
+            "fixed_clock_suppressed": 272,
+            "already_entered_structure": 18
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 19,
+              "mean_net_pct": 8.347116
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 2,
+              "mean_net_pct": 15.182184
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 12,
+          "model_entries": 12,
+          "orders": 18,
+          "mean_net_pct": 2.504207,
+          "win_rate_pct": 50.0,
+          "mean_win_pct": 16.240786,
+          "mean_loss_pct": -11.232373,
+          "profit_factor": 1.445891,
+          "stop_rate_pct": 8.3333,
+          "touch_rate_pct": 66.66666666666667,
+          "fill_rate_pct": 66.66666666666667,
+          "mean_mfe_pct": 20.108652,
+          "mean_mae_pct": -10.47581,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": 8.533087,
+          "max_drawdown_close_pct": -27.411615,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 486,
+            "untradable_marks": 0,
+            "fixed_clock_suppressed": 283,
+            "already_entered_structure": 7
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 11,
+              "mean_net_pct": 2.986285
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -2.798652
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "completed": 18,
+          "model_entries": 18,
+          "orders": 24,
+          "mean_net_pct": -4.689875,
+          "win_rate_pct": 16.6667,
+          "mean_win_pct": 14.340788,
+          "mean_loss_pct": -8.496007,
+          "profit_factor": 0.337589,
+          "stop_rate_pct": 11.1111,
+          "touch_rate_pct": 75.0,
+          "fill_rate_pct": 75.0,
+          "mean_mfe_pct": 9.114987,
+          "mean_mae_pct": -11.108148,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -35.490829,
+          "max_drawdown_close_pct": -36.117052,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 161,
+            "fixed_clock_suppressed": 73,
+            "untradable_marks": 0,
+            "already_entered_structure": 7
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": -5.505623
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 9,
+              "mean_net_pct": -3.874127
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 14,
+          "model_entries": 14,
+          "orders": 20,
+          "mean_net_pct": -7.111096,
+          "win_rate_pct": 35.7143,
+          "mean_win_pct": 7.20353,
+          "mean_loss_pct": -15.063666,
+          "profit_factor": 0.26567,
+          "stop_rate_pct": 14.2857,
+          "touch_rate_pct": 70.0,
+          "fill_rate_pct": 70.0,
+          "mean_mfe_pct": 10.100161,
+          "mean_mae_pct": -16.024201,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -39.42451,
+          "max_drawdown_close_pct": -44.37863,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 161,
+            "fixed_clock_suppressed": 73,
+            "untradable_marks": 0,
+            "already_entered_structure": 7
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 6,
+              "mean_net_pct": -6.752049
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 8,
+              "mean_net_pct": -7.380382
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 9,
+          "model_entries": 11,
+          "orders": 18,
+          "mean_net_pct": -17.863391,
+          "win_rate_pct": 11.1111,
+          "mean_win_pct": 4.566939,
+          "mean_loss_pct": -20.667182,
+          "profit_factor": 0.027622,
+          "stop_rate_pct": 55.5556,
+          "touch_rate_pct": 61.111111111111114,
+          "fill_rate_pct": 61.111111111111114,
+          "mean_mfe_pct": 15.489792,
+          "mean_mae_pct": -27.286379,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -64.329559,
+          "max_drawdown_close_pct": -64.329559,
+          "censored": null,
+          "open_at_end": 1,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 161,
+            "fixed_clock_suppressed": 75,
+            "untradable_marks": 0,
+            "already_entered_structure": 5
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 5,
+              "mean_net_pct": -16.805286
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 4,
+              "mean_net_pct": -19.186022
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      },
+      "UNSEEN": {
+        "5": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      }
+    },
+    "DAILY_BREAKOUT": {
+      "DEVELOPMENT": {
+        "5": {
+          "completed": 9,
+          "model_entries": 10,
+          "orders": 13,
+          "mean_net_pct": 2.140831,
+          "win_rate_pct": 55.5556,
+          "mean_win_pct": 7.438991,
+          "mean_loss_pct": -4.481869,
+          "profit_factor": 2.074746,
+          "stop_rate_pct": 0.0,
+          "touch_rate_pct": 84.61538461538461,
+          "fill_rate_pct": 76.92307692307692,
+          "mean_mfe_pct": 7.612129,
+          "mean_mae_pct": -3.917334,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": {
+            "date": "2025-09-29",
+            "ticker": "108490",
+            "reason": "UNPRICED_SECURITY_OR_ACTION"
+          },
+          "open_at_end": 1,
+          "pending_at_end": 1,
+          "counts": {
+            "raw_plans": 138,
+            "untradable_marks": 0,
+            "already_entered_structure": 4,
+            "already_reserved_ticker": 2
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 9,
+              "mean_net_pct": 2.140831
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 22,
+          "model_entries": 22,
+          "orders": 29,
+          "mean_net_pct": 0.386243,
+          "win_rate_pct": 50.0,
+          "mean_win_pct": 11.25081,
+          "mean_loss_pct": -10.478323,
+          "profit_factor": 1.073722,
+          "stop_rate_pct": 0.0,
+          "touch_rate_pct": 75.86206896551724,
+          "fill_rate_pct": 75.86206896551724,
+          "mean_mfe_pct": 13.568447,
+          "mean_mae_pct": -8.780579,
+          "ci95_month_clusters": [
+            -5.11627,
+            5.84073
+          ],
+          "portfolio_return_pct": 0.646368,
+          "max_drawdown_close_pct": -24.142916,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 486,
+            "untradable_marks": 0,
+            "already_entered_structure": 15,
+            "already_reserved_ticker": 2
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 21,
+              "mean_net_pct": 0.044664
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": 7.559413
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 13,
+          "model_entries": 13,
+          "orders": 17,
+          "mean_net_pct": 6.549434,
+          "win_rate_pct": 53.8462,
+          "mean_win_pct": 21.705229,
+          "mean_loss_pct": -11.132326,
+          "profit_factor": 2.274706,
+          "stop_rate_pct": 7.6923,
+          "touch_rate_pct": 76.47058823529412,
+          "fill_rate_pct": 76.47058823529412,
+          "mean_mfe_pct": 23.058608,
+          "mean_mae_pct": -8.260322,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": 44.534547,
+          "max_drawdown_close_pct": -19.316854,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 486,
+            "untradable_marks": 0,
+            "already_entered_structure": 10,
+            "already_reserved_ticker": 1
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 12,
+              "mean_net_pct": 7.328442
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 1,
+              "mean_net_pct": -2.798652
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      },
+      "HOLDOUT": {
+        "5": {
+          "completed": 20,
+          "model_entries": 20,
+          "orders": 25,
+          "mean_net_pct": -4.52597,
+          "win_rate_pct": 20.0,
+          "mean_win_pct": 14.084794,
+          "mean_loss_pct": -9.178661,
+          "profit_factor": 0.383629,
+          "stop_rate_pct": 5.0,
+          "touch_rate_pct": 80.0,
+          "fill_rate_pct": 80.0,
+          "mean_mfe_pct": 9.583813,
+          "mean_mae_pct": -12.115906,
+          "ci95_month_clusters": [
+            -6.65823,
+            -1.06067
+          ],
+          "portfolio_return_pct": -36.094583,
+          "max_drawdown_close_pct": -36.720806,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 161,
+            "untradable_marks": 0,
+            "already_entered_structure": 9,
+            "already_reserved_ticker": 1
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 11,
+              "mean_net_pct": -6.818302
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 9,
+              "mean_net_pct": -1.724232
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 15,
+          "model_entries": 15,
+          "orders": 19,
+          "mean_net_pct": -12.676907,
+          "win_rate_pct": 20.0,
+          "mean_win_pct": 12.80269,
+          "mean_loss_pct": -19.046807,
+          "profit_factor": 0.168042,
+          "stop_rate_pct": 20.0,
+          "touch_rate_pct": 78.94736842105263,
+          "fill_rate_pct": 78.94736842105263,
+          "mean_mfe_pct": 6.993108,
+          "mean_mae_pct": -20.280622,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -63.88197,
+          "max_drawdown_close_pct": -64.610079,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 161,
+            "untradable_marks": 0,
+            "already_entered_structure": 6,
+            "already_reserved_ticker": 1
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 8,
+              "mean_net_pct": -11.274847
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 7,
+              "mean_net_pct": -14.279261
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 8,
+          "model_entries": 9,
+          "orders": 12,
+          "mean_net_pct": -10.616644,
+          "win_rate_pct": 25.0,
+          "mean_win_pct": 16.637498,
+          "mean_loss_pct": -19.701358,
+          "profit_factor": 0.281495,
+          "stop_rate_pct": 25.0,
+          "touch_rate_pct": 75.0,
+          "fill_rate_pct": 75.0,
+          "mean_mfe_pct": 23.123112,
+          "mean_mae_pct": -20.811672,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": -40.755166,
+          "max_drawdown_close_pct": -40.755166,
+          "censored": null,
+          "open_at_end": 1,
+          "pending_at_end": 0,
+          "counts": {
+            "raw_plans": 161,
+            "untradable_marks": 0,
+            "already_reserved_ticker": 2,
+            "already_entered_structure": 6
+          },
+          "market_regimes": {
+            "UP": {
+              "n": 5,
+              "mean_net_pct": -9.444563
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 3,
+              "mean_net_pct": -12.570112
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      },
+      "UNSEEN": {
+        "5": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "10": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        },
+        "20": {
+          "completed": 0,
+          "model_entries": 0,
+          "orders": 0,
+          "mean_net_pct": null,
+          "win_rate_pct": null,
+          "mean_win_pct": null,
+          "mean_loss_pct": null,
+          "profit_factor": null,
+          "stop_rate_pct": null,
+          "touch_rate_pct": null,
+          "fill_rate_pct": null,
+          "mean_mfe_pct": null,
+          "mean_mae_pct": null,
+          "ci95_month_clusters": null,
+          "portfolio_return_pct": null,
+          "max_drawdown_close_pct": null,
+          "censored": null,
+          "open_at_end": 0,
+          "pending_at_end": 0,
+          "counts": {},
+          "market_regimes": {
+            "UP": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_net_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_net_pct": null
+            }
+          },
+          "actual_fills_verified": false,
+          "intraday_mdd_verified": false
+        }
+      }
+    }
+  },
+  "protocol": {
+    "buy_cost": 0.0015,
+    "sell_cost": 0.005,
+    "slippage_each_side": 0.001,
+    "initial_cash": 10000000,
+    "slots": 2,
+    "order_validity_next_session_only": true,
+    "fixed26_clock_starts_at_proposal_even_if_not_selected": true,
+    "rank": "UPTREND_AND_POSITIVE_RS_THEN_TURNOVER20",
+    "market_down_new_entries": false,
+    "pivot_left_right": 2,
+    "structure_window_sessions": 20,
+    "atr_buffer": 0.5,
+    "atr_frozen_at_pivot_confirmation": true,
+    "fixed_stop_percentage": false,
+    "hard_first_resistance_rr_filter": false,
+    "one_fill_per_structure": true,
+    "daily_uses_only_closed_bars": true,
+    "signal_close_is_not_a_fill": true,
+    "code_sha256": "77df9d02ea0681a9a861bbcc007f3fdf0ccba20fb1f0aa8b1f4c93e5a9192a0a",
+    "full_market_historical_biotech_classification_verified": false,
+    "old_comparison_period_already_seen": true
+  },
+  "unseen": {
+    "first_decision_not_before": "2026-11-06",
+    "completed_by_model": {
+      "FIXED26_PULLBACK": {
+        "5": 0,
+        "10": 0,
+        "20": 0
+      },
+      "DAILY_PULLBACK": {
+        "5": 0,
+        "10": 0,
+        "20": 0
+      },
+      "FIXED26_BREAKOUT": {
+        "5": 0,
+        "10": 0,
+        "20": 0
+      },
+      "DAILY_BREAKOUT": {
+        "5": 0,
+        "10": 0,
+        "20": 0
+      }
+    },
+    "status": "FORWARD_WINDOWS_NOT_AVAILABLE_NO_PERFORMANCE_CLAIM",
+    "schedules_created": false
+  },
+  "current_action": "CASH",
+  "adopted_model": null,
+  "orders_enabled": false
+}

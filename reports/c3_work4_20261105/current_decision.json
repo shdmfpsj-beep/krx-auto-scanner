@@ -1,0 +1,56 @@
+{
+  "schema": "C3_FULL_MARKET_FORWARD_AUDIT_V4",
+  "known_at": "2026-11-05T05:45:46.276756+00:00",
+  "price_asof": "2026-11-04",
+  "issuer_asof": "2026-11-03",
+  "price_source_hashes": {
+    "KOSPI": "d2414f8045ef1b304e7918253217030d27523815063d283cc6e40d3497bc7d5a",
+    "KOSDAQ": "dd2e830f9d3be94ad51b2d4935ec6011f7e27d423057211e51d07d7f0f6fa3ed"
+  },
+  "counts": {
+    "price_rows": 2769,
+    "history_ready_65": 2424,
+    "PHARMA_BIOTECH_EXCLUDED": 152,
+    "BUSINESS_SCOPE_UNVERIFIED_OUTSIDE_CURATED_COHORT": 2345,
+    "COMMON_SHARE_UNCONFIRMED_OR_SPECIAL": 161,
+    "NO_UPTREND": 106,
+    "ELIGIBLE_RESEARCH_ONLY": 2,
+    "RS_NOT_POSITIVE": 1,
+    "CONTINUOUS_HISTORY_OR_CORPORATE_BASIS_UNVERIFIED": 2
+  },
+  "research_scope_size": 111,
+  "research_setups": 2,
+  "research_names": [
+    {
+      "ticker": "006400",
+      "name": "삼성SDI",
+      "setups": [
+        "PULLBACK"
+      ]
+    },
+    {
+      "ticker": "121600",
+      "name": "나노신소재",
+      "setups": [
+        "PULLBACK",
+        "BREAKOUT"
+      ]
+    }
+  ],
+  "all_source_price_codes_audited": true,
+  "complete_nonbio_classification": false,
+  "full_market_historical_strategy_validation": false,
+  "regular_only_certified": false,
+  "historical_current_registry_not_used_as_past_signal": true,
+  "top2": [],
+  "current_action": "CASH",
+  "buy_prices": null,
+  "structural_stops": null,
+  "resistances": null,
+  "blockers": [
+    "UNSEEN_PROFITABILITY_NOT_ESTABLISHED",
+    "REGULAR_SESSION_SCOPE_UNCERTIFIED",
+    "BUSINESS_CLASSIFICATION_COVERAGE_INCOMPLETE"
+  ],
+  "orders_enabled": false
+}

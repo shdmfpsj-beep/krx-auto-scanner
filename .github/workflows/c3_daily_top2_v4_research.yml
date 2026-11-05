@@ -1,0 +1,78 @@
+name: C3 daily versus fixed26 pullback breakout research
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_daily*_v4.py'
+      - 'scripts/test_c3_daily*_v4.py'
+      - 'reports/c3_work4_20261105/inputs.json'
+      - 'reports/c3_work4_20261105/daily_comparison.csv'
+      - '.github/workflows/c3_daily_top2_v4_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  daily-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing research dependencies
+        run: pip install pandas==2.2.3 pykrx==1.2.9 'matplotlib>=3.8,<4'
+      - name: Preserve 513 regressions and run new daily/structure tests once
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          mkdir -p /tmp/c3-daily/validation
+          python - <<'PY'
+          import sys,json,unittest
+          from pathlib import Path
+          sys.path.insert(0,'scripts');loader=unittest.TestLoader()
+          suites=[loader.discover('scripts',pattern=p) for p in ('test_c3_*.py','test_krx_official_eod_v65.py','test_hma60_first_pullback_v11.py')]
+          counts=[s.countTestCases() for s in suites]
+          result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
+          Path('/tmp/c3-daily/validation/tests.json').write_text(json.dumps(dict(counts=counts,total=result.testsRun,failures=len(result.failures),errors=len(result.errors))))
+          if not result.wasSuccessful():raise SystemExit(1)
+          PY
+      - name: Reuse three pinned source archives; no market API collection or old benchmark replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,subprocess,zipfile
+          from pathlib import Path
+          m=json.loads(Path('reports/c3_work4_20261105/inputs.json').read_text())
+          root=Path('/tmp/c3-daily/inputs');root.mkdir(parents=True,exist_ok=True)
+          for key,item in m['artifacts'].items():
+              p=root/(key+'.zip')
+              with p.open('wb') as f:subprocess.run(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(item['id'])+'/zip'],stdout=f,check=True)
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==item['sha256'],'PINNED_SOURCE_HASH_MISMATCH'
+              dest=root/key;dest.mkdir(exist_ok=True)
+              with zipfile.ZipFile(p) as z:
+                  assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in z.namelist())
+                  z.extractall(dest)
+          PY
+      - name: Compare only four predeclared cadence and entry combinations
+        run: |
+          python scripts/c3_daily_top2_v4.py --panel /tmp/c3-daily/inputs/panel/official_panel.csv.gz --audit /tmp/c3-daily/inputs/panel/quality_audit.json --outdir /tmp/c3-daily/study
+          cmp reports/c3_work4_20261105/daily_comparison.csv /tmp/c3-daily/study/daily_comparison.csv
+      - name: Audit every current price code with receipt timestamps and produce CASH report
+        run: |
+          known_at=$(python -c "import json; print(json.load(open('reports/c3_work4_20261105/inputs.json'))['known_at'])")
+          python scripts/c3_daily_report_v4.py --panel /tmp/c3-daily/inputs/panel/official_panel.csv.gz --audit /tmp/c3-daily/inputs/panel/quality_audit.json --latest /tmp/c3-daily/inputs/latest/requested-date-probe/2026-11-04 --basic /tmp/c3-daily/inputs/issuer/basic --known-at "$known_at" --study /tmp/c3-daily/study --outdir /tmp/c3-daily/mobile
+          cmp reports/c3_work4_20261105/current_decision.json /tmp/c3-daily/mobile/current_decision.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-daily-top2-v4
+          path: |
+            /tmp/c3-daily/study/
+            /tmp/c3-daily/mobile/
+            /tmp/c3-daily/validation/
+          retention-days: 90
+          if-no-files-found: error
