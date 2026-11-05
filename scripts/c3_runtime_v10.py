@@ -1,5 +1,5 @@
 """Research operations guards. No strategy, orders, or notification changes."""
-import argparse,csv,gzip,hashlib,json,math,os,re,zipfile
+import argparse,csv,gzip,hashlib,json,math,os,re,subprocess,zipfile
 from datetime import datetime,timezone,timedelta
 from pathlib import Path
 from urllib.request import Request,urlopen
@@ -104,8 +104,10 @@ def quarantine(folder,ledger,outdir,audit):
 
 
 def download_scanner(audit,outdir):
-    root=Path(outdir);root.mkdir(parents=True,exist_ok=True);req=Request('https://api.github.com/repos/'+REPO+'/actions/artifacts/'+str(audit['artifact_id'])+'/zip',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN']})
-    with urlopen(req,timeout=45) as f:body=f.read(60*1024*1024+1)
+    root=Path(outdir);root.mkdir(parents=True,exist_ok=True)
+    # gh handles the signed cross-host redirect without forwarding the API
+    # Authorization header to blob storage. urllib's default redirect did not.
+    body=subprocess.check_output(['gh','api','repos/'+REPO+'/actions/artifacts/'+str(audit['artifact_id'])+'/zip'],timeout=60)
     if len(body)>60*1024*1024:raise ValueError('SCANNER_ARCHIVE_TOO_LARGE')
     p=root/'source.zip';p.write_bytes(body)
     required={'status.json','c3_source_runtime_v1.json','c3_universe_capture_v1.json','c3_source_observations_v1.jsonl'}
@@ -120,11 +122,21 @@ def download_scanner(audit,outdir):
 def probe_free(day,outdir,control):
     """Separate KRX website cross-section experiment; never an implicit fallback."""
     import inspect
+    import requests
     from pykrx import stock
     root=Path(outdir)/day;root.mkdir(parents=True,exist_ok=True);parts=[];allrows=[]
     for market in ('KOSPI','KOSDAQ'):
-        started=now()
+        started=now();transport=[];original=requests.sessions.Session.request
+        def traced(session,method,url,**kwargs):
+            from urllib.parse import urlsplit
+            r=original(session,method,url,**kwargs)
+            try:keys=sorted(r.json()) if isinstance(r.json(),dict) else []
+            except ValueError:keys=[]
+            data=kwargs.get('data') or {};data=data if isinstance(data,dict) else {}
+            transport.append(dict(method=method,host=urlsplit(url).hostname,path=urlsplit(url).path,request_fields=sorted(data),date_parameter=data.get('trdDd'),http_status=r.status_code,content_type=r.headers.get('Content-Type'),body_bytes=len(r.content),body_sha256=sha(r.content),json_keys=keys,received_at=now()))
+            return r
         try:
+            requests.sessions.Session.request=traced
             df=stock.get_market_ohlcv_by_ticker(day.replace('-',''),market=market)
             rows=[]
             for ticker,r in df.iterrows():
@@ -136,6 +148,9 @@ def probe_free(day,outdir,control):
                 allrows+=rows
             parts.append(dict(market=market,status='PROVISIONAL_PUBLIC_WEBSITE' if rows else 'PUBLIC_WEBSITE_EMPTY',rows=len(rows),started_at=started,received_at=now()))
         except Exception as e:parts.append(dict(market=market,status='PUBLIC_WEBSITE_FAILED',error_type=type(e).__name__,started_at=started,received_at=now()))
+        finally:
+            requests.sessions.Session.request=original
+            parts[-1]['transport']=transport
     source=inspect.getsource(inspect.unwrap(stock.get_market_ohlcv_by_ticker))
     old={r['ticker']:r for r in control if r['asof']==day}
     compared=[r for r in allrows if r['ticker'] in old];mismatches=[r['ticker'] for r in compared if any(float(r[k])!=float(old[r['ticker']][k]) for k in ('open','high','low','close','volume','turnover_krw'))]

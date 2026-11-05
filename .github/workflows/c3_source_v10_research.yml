@@ -26,7 +26,7 @@ jobs:
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
         run: python scripts/c3_eod_source_v9.py --asof 2026-11-04 2026-11-05 2026-11-06 --outdir /tmp/c3-source10/official
-      - name: Probe free KRX website cross-sections in a separate directory
+      - name: Probe free KRX website cross-sections with sanitized HTTP metadata
         run: |
           python - <<'PY'
           from pathlib import Path

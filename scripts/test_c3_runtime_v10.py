@@ -94,5 +94,12 @@ class RuntimeV10Tests(unittest.TestCase):
             m=market(0);freeze_market(tmp,m,'2026-11-06T08:00:00Z');other=copy.deepcopy(m);other['source']['provider']='DIFFERENT_PROVIDER'
             with self.assertRaisesRegex(ValueError,'PROVIDER_OR_BASIS'):freeze_market(tmp,other,'2026-11-06T08:01:00Z')
 
+    def test_artifact_download_uses_cli_redirect_handling_without_token_in_arguments(self):
+        from unittest.mock import patch
+        from c3_runtime_v10 import download_scanner
+        with tempfile.TemporaryDirectory() as tmp,patch('c3_runtime_v10.subprocess.check_output',return_value=b'x'*(60*1024*1024+1)) as call:
+            with self.assertRaisesRegex(ValueError,'ARCHIVE_TOO_LARGE'):download_scanner(dict(artifact_id=8),tmp)
+            self.assertEqual(call.call_args.args[0],['gh','api','repos/'+REPO+'/actions/artifacts/8/zip'])
+
 
 if __name__=='__main__':unittest.main()

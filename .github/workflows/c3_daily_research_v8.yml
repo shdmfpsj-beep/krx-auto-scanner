@@ -93,7 +93,7 @@ jobs:
           counts=[s.countTestCases() for s in suites]
           result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
           Path('/tmp/c3-forward8/result/validation/tests.json').write_text(json.dumps(dict(counts=counts,total=result.testsRun,failures=len(result.failures),errors=len(result.errors),skipped=len(result.skipped),new_integration_fixtures_are_synthetic=True)))
-          assert counts==[621,14,21], 'PRESERVED_TEST_COUNT_CHANGED'
+          assert counts==[622,14,21], 'PRESERVED_TEST_COUNT_CHANGED'
           if not result.wasSuccessful():raise SystemExit(1)
           PY
       - name: Reuse the three hash-pinned bootstrap inputs
