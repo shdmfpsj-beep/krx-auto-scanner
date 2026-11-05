@@ -5,7 +5,7 @@ on:
     types: [completed]
     branches: [main]
   schedule:
-    # Retry windows, not a provider publication SLA. KST 22:15 and 08:20.
+    # Retry windows, not a publication SLA. KST 22:15 and 08:20.
     - cron: '15 13 * * 1-5'
     - cron: '20 23 * * 0-4'
   workflow_dispatch:
@@ -28,13 +28,13 @@ jobs:
           sparse-checkout: |
             /.github/workflows/c3_research_daily_caller.yml
           sparse-checkout-cone-mode: false
-      - name: Validate the one-file deployment pin without running collection
+      - name: Check the pinned caller without running production collection
         run: |
           python - <<'PYCODE'
+          import re
           from pathlib import Path
           p=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
-          import re
-          pin='e759e56f2e3f240b97ffa3f5422ff62244b68ba7'
+          pin='384a5189af79be1bc415ab3d04451efadd457749'
           job=p.split('\n  research:\n',1)[1]
           called=re.search(r'uses: shdmfpsj-beep/krx-auto-scanner/\.github/workflows/c3_daily_research_v8\.yml@([a-f0-9]{40})',job)
           configured=re.search(r'^      engine_ref: ([a-f0-9]{40})$',job,re.M)
@@ -42,17 +42,51 @@ jobs:
           secrets=job.split('\n    secrets:\n',1)[1]
           assert 'inherit' not in secrets
           assert set(re.findall(r'^      ([A-Z_]+):',secrets,re.M))=={'KRX_AUTH_KEY'}
+          assert 'needs: source-ready' in job and 'needs.source-ready.outputs.run_id' in job
           assert 'caller_mode: approved_daily' in job and 'refs/heads/main' in job
-          print('Pinned research caller manifest valid; production invocation remains disabled on PR')
+          pre=p.split('\n  source-ready:\n',1)[1].split('\n  research:\n',1)[0]
+          assert 'ref: '+pin in pre and 'scripts/c3_runtime_v10.py' in pre and 'persist-credentials: false' in pre
+          print('Pinned engine, read-only source preflight and explicit single secret valid; production disabled on PR')
           PYCODE
-  research:
+  source-ready:
     if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run_id: ${{ steps.source.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 384a5189af79be1bc415ab3d04451efadd457749
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_runtime_v10.py
+          sparse-checkout-cone-mode: false
+      - name: Require actual collection and source artifact success
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+        run: python scripts/c3_runtime_v10.py --upstream-run-id "$UPSTREAM_RUN_ID" --outdir /tmp/c3-source-preflight
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-caller-source-preflight
+          path: /tmp/c3-source-preflight/
+          retention-days: 90
+          if-no-files-found: warn
+  research:
+    needs: source-ready
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     permissions:
       contents: write
       actions: read
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@e759e56f2e3f240b97ffa3f5422ff62244b68ba7
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@384a5189af79be1bc415ab3d04451efadd457749
     with:
-      engine_ref: e759e56f2e3f240b97ffa3f5422ff62244b68ba7
+      engine_ref: 384a5189af79be1bc415ab3d04451efadd457749
       caller_mode: approved_daily
+      upstream_run_id: ${{ needs.source-ready.outputs.run_id }}
     secrets:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
