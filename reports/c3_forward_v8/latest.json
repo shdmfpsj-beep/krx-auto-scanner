@@ -1,13 +1,13 @@
 {
   "schema": "C3_DAILY_RESEARCH_V8",
-  "generated_at": "2026-11-05T19:52:55.872224+00:00",
+  "generated_at": "2026-11-05T23:52:43.778364+00:00",
   "report_day_kst": "2026-11-06",
-  "source_run_id": "42097964158",
-  "source_price_asof": null,
-  "source_received_at": null,
+  "source_run_id": "42132626779",
+  "source_price_asof": "2026-11-05",
+  "source_received_at": "2026-11-05T23:52:39.010721+00:00",
   "attempted_price_asof": "2026-11-05",
-  "probe_received_at": "2026-11-05T19:52:52.449096+00:00",
-  "last_confirmed_price_asof": "2026-11-04",
+  "probe_received_at": "2026-11-05T23:52:39.010721+00:00",
+  "last_confirmed_price_asof": "2026-11-05",
   "source_diagnostics": [
     {
       "market": "KOSPI",
@@ -22,19 +22,20 @@
         "AUTH_KEY",
         "Accept"
       ],
-      "started_at": "2026-11-05T19:52:52.449152+00:00",
+      "started_at": "2026-11-05T23:52:39.010814+00:00",
       "http_status": 200,
       "content_type": "application/json; charset=utf-8",
-      "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
-      "body_bytes": 17,
+      "body_sha256": "290b7d94486656cad2ff7f4be1ac68501907c57dab1d405e350fc3060594201b",
+      "body_bytes": 292158,
       "json_top_keys": [
         "OutBlock_1"
       ],
       "outblock_type": "list",
-      "outblock_rows": 0,
-      "status": "OUTBLOCK_EMPTY",
+      "outblock_rows": 938,
+      "status": "NORMALIZED",
       "provider_error": {},
-      "received_at": "2026-11-05T19:52:54.194006+00:00"
+      "received_at": "2026-11-05T23:52:41.268303+00:00",
+      "normalized_rows": 938
     },
     {
       "market": "KOSDAQ",
@@ -49,27 +50,79 @@
         "AUTH_KEY",
         "Accept"
       ],
-      "started_at": "2026-11-05T19:52:54.194085+00:00",
+      "started_at": "2026-11-05T23:52:41.276071+00:00",
       "http_status": 200,
       "content_type": "application/json; charset=utf-8",
-      "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
-      "body_bytes": 17,
+      "body_sha256": "6038da378f86d284b64416efedb17f5fd88f25f9ecfd47a8c767b18303dce02c",
+      "body_bytes": 599762,
       "json_top_keys": [
         "OutBlock_1"
       ],
       "outblock_type": "list",
-      "outblock_rows": 0,
-      "status": "OUTBLOCK_EMPTY",
+      "outblock_rows": 1831,
+      "status": "NORMALIZED",
       "provider_error": {},
-      "received_at": "2026-11-05T19:52:55.713973+00:00"
+      "received_at": "2026-11-05T23:52:43.532652+00:00",
+      "normalized_rows": 1831
     }
   ],
-  "source_collection_status": "OFFICIAL_MARKETS_NOT_COMPLETE",
-  "source_quality_gate": null,
-  "current_scope": null,
+  "source_collection_status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+  "data_quality_state": "OFFICIAL_VERIFIED",
+  "source_provider": "KRX_OFFICIAL_EOD",
+  "source_regular_only_certified": false,
+  "source_validation_sha256": null,
+  "ledger_lane": "lanes/krx_unadjusted_v12",
+  "source_prices_encrypted_at_rest": true,
+  "primary_collection_status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+  "research_preview_only": true,
+  "source_quality_gate": {
+    "status": "QUALITY_GATE_PASSED",
+    "errors": [],
+    "markets": {
+      "KOSPI": {
+        "rows": 938,
+        "baseline_rows": 938,
+        "retained_baseline_fraction": 1.0,
+        "newly_observed": [],
+        "no_longer_observed": [],
+        "invalid_ohlc": [],
+        "halt_like": 26,
+        "listing_or_delisting_cause_confirmed": false
+      },
+      "KOSDAQ": {
+        "rows": 1831,
+        "baseline_rows": 1831,
+        "retained_baseline_fraction": 1.0,
+        "newly_observed": [],
+        "no_longer_observed": [],
+        "invalid_ohlc": [],
+        "halt_like": 85,
+        "listing_or_delisting_cause_confirmed": false
+      }
+    },
+    "full_current_listing_census_verified": false,
+    "coverage_alarm_floor": 0.95,
+    "asof": "2026-11-05"
+  },
+  "current_scope": {
+    "price_rows": 2769,
+    "classification_counts": {
+      "PHARMA_BIOTECH_EXCLUDED": 296,
+      "VERIFIED_NONBIO_COMMON_AS_REPORTED": 2166,
+      "COMMON_SHARE_UNCONFIRMED_OR_SPECIAL": 161,
+      "CURRENT_KRX_TRADABILITY_UNCONFIRMED": 85,
+      "SPAC_WITHOUT_OPERATING_BUSINESS": 53,
+      "KIND_INDUSTRY_OR_BUSINESS_UNVERIFIED": 8
+    },
+    "continuous_history": 2412,
+    "analysis_eligible": 1986,
+    "a_candidates": 116,
+    "b_candidates": 105,
+    "history_excluded": 357
+  },
   "last_confirmed_scope": 1983,
   "errors": [
-    "OFFICIAL_MARKETS_NOT_COMPLETE"
+    "SOURCE_BEFORE_FORWARD_START"
   ],
   "new_decision_registered": false,
   "new_registered_signals": 0,
@@ -79,25 +132,40 @@
       "ticker": "028050",
       "name": "삼성E&A",
       "market": "KOSPI",
-      "price_asof": "2026-11-04",
-      "close": 65500.0,
-      "turnover20": 195572910183.1,
-      "rs20": 54.43360184650797,
-      "market_regime": "DOWN",
       "industry": "건설",
-      "own_rs20": 54.43360184650797,
-      "rs_accel5": 13.300175040852025,
+      "market_regime": "DOWN",
+      "return20": 32.3045267489712,
+      "rs20": 53.17637965686225,
+      "turnover20": 200939672518.1,
+      "close": 64300.0,
+      "own_rs20": 53.17637965686225,
+      "rs_accel5": 6.403070906169255,
       "trend60": true,
       "high252_ratio": null,
-      "turnover_ratio": 0.8820457647784522,
-      "volume_ratio": 0.7934913264492235,
+      "turnover_ratio": 0.8429513059186586,
+      "volume_ratio": 0.7608027260622544,
       "higher_lows": true,
+      "signal_id": "C3V8-839efd709803bc9a5f155d94",
+      "model": "B",
+      "model_version": "V7_CURRENT_NATIVE_BOARD",
       "rank": 1,
+      "decision_date": "2026-11-05",
+      "registered_at": null,
+      "source_received_at": "2026-11-05T23:52:39.010721+00:00",
+      "source_run_id": "42132626779",
+      "source_price_asof": "2026-11-05",
+      "reference_close": 64300.0,
+      "selection_reasons": [
+        "CLOSE_GT_MA20_GT_MA50",
+        "POSITIVE_OWN_BOARD_RS20",
+        "TURNOVER20_RANK",
+        "OWN_BOARD_RS_IMPROVING_5"
+      ],
       "entry_plans": {
         "A_SUPPORT_LIMIT": {
           "plan": {
             "ticker": "028050",
-            "decision_date": "2026-11-04",
+            "decision_date": "2026-11-05",
             "method": "PULLBACK",
             "signal_key": "028050:2026-11-02",
             "segment": 0,
@@ -108,14 +176,14 @@
             "support_date": "2026-11-02",
             "known_on": "2026-11-04",
             "atr": 3857.1428571428573,
-            "reference_close": 65500.0,
-            "resistance": null,
+            "reference_close": 64300.0,
+            "resistance": 65500.0,
             "resistance2": null,
-            "breakout_level": 65500.0,
-            "net_r1_rr": null,
+            "breakout_level": 65700.0,
+            "net_r1_rr": 0.22974435135820423,
             "risk_pct": 9.133858267716535,
-            "rank_turnover": 195572910183.1,
-            "rs20": 54.43360184650797,
+            "rank_turnover": 200939672518.1,
+            "rs20": 53.17637965686225,
             "regime": "DOWN",
             "signal_rule": "A_SUPPORT_LIMIT",
             "execution_model": "ONE_SESSION_LIMIT"
@@ -131,1027 +199,78 @@
           "reason": "BREAKOUT_NOT_CONFIRMED"
         }
       },
-      "structure_reason": null,
-      "technical_only": true,
-      "trade_approved": false,
-      "chart_bars": [
-        {
-          "open": 44750.0,
-          "high": 45550.0,
-          "low": 43000.0,
-          "close": 43950.0,
-          "volume": 1741833.0,
-          "turnover_krw": 77024058000.0,
-          "date": "2026-06-24",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 44600.0,
-          "high": 45400.0,
-          "low": 43000.0,
-          "close": 43200.0,
-          "volume": 1189536.0,
-          "turnover_krw": 51965993200.0,
-          "date": "2026-06-25",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 42350.0,
-          "high": 42900.0,
-          "low": 39550.0,
-          "close": 41450.0,
-          "volume": 1530973.0,
-          "turnover_krw": 63202512325.0,
-          "date": "2026-06-26",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 42800.0,
-          "high": 48050.0,
-          "low": 42050.0,
-          "close": 47650.0,
-          "volume": 3001472.0,
-          "turnover_krw": 138690288375.0,
-          "date": "2026-06-29",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 47400.0,
-          "high": 48300.0,
-          "low": 46550.0,
-          "close": 47600.0,
-          "volume": 1630350.0,
-          "turnover_krw": 77578911275.0,
-          "date": "2026-06-30",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48650.0,
-          "high": 53500.0,
-          "low": 47450.0,
-          "close": 51700.0,
-          "volume": 5588262.0,
-          "turnover_krw": 284406572800.0,
-          "date": "2026-07-01",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 50900.0,
-          "high": 51700.0,
-          "low": 47750.0,
-          "close": 49000.0,
-          "volume": 3121732.0,
-          "turnover_krw": 155360300425.0,
-          "date": "2026-07-02",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49300.0,
-          "high": 49350.0,
-          "low": 45000.0,
-          "close": 48100.0,
-          "volume": 2740108.0,
-          "turnover_krw": 128824336375.0,
-          "date": "2026-07-03",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48550.0,
-          "high": 50300.0,
-          "low": 47350.0,
-          "close": 48300.0,
-          "volume": 2097553.0,
-          "turnover_krw": 102004206100.0,
-          "date": "2026-07-06",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 47850.0,
-          "high": 48700.0,
-          "low": 46200.0,
-          "close": 47550.0,
-          "volume": 2044854.0,
-          "turnover_krw": 96806346300.0,
-          "date": "2026-07-07",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 46500.0,
-          "high": 46500.0,
-          "low": 42650.0,
-          "close": 43500.0,
-          "volume": 2509327.0,
-          "turnover_krw": 110934692575.0,
-          "date": "2026-07-08",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 43550.0,
-          "high": 44650.0,
-          "low": 41400.0,
-          "close": 42050.0,
-          "volume": 2660438.0,
-          "turnover_krw": 114062068650.0,
-          "date": "2026-07-09",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 42150.0,
-          "high": 45250.0,
-          "low": 42150.0,
-          "close": 44100.0,
-          "volume": 1827018.0,
-          "turnover_krw": 80995452425.0,
-          "date": "2026-07-10",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 43900.0,
-          "high": 44750.0,
-          "low": 40800.0,
-          "close": 41100.0,
-          "volume": 1719102.0,
-          "turnover_krw": 72866889900.0,
-          "date": "2026-07-13",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 41100.0,
-          "high": 41650.0,
-          "low": 38300.0,
-          "close": 40150.0,
-          "volume": 2548936.0,
-          "turnover_krw": 101672874875.0,
-          "date": "2026-07-14",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 41700.0,
-          "high": 43850.0,
-          "low": 41500.0,
-          "close": 42550.0,
-          "volume": 1486703.0,
-          "turnover_krw": 63468401925.0,
-          "date": "2026-07-15",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 41500.0,
-          "high": 42300.0,
-          "low": 39900.0,
-          "close": 40850.0,
-          "volume": 914936.0,
-          "turnover_krw": 37378183100.0,
-          "date": "2026-07-16",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 39300.0,
-          "high": 40450.0,
-          "low": 38900.0,
-          "close": 39200.0,
-          "volume": 1133403.0,
-          "turnover_krw": 44797089975.0,
-          "date": "2026-07-20",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 38650.0,
-          "high": 41750.0,
-          "low": 38550.0,
-          "close": 41300.0,
-          "volume": 1415172.0,
-          "turnover_krw": 57449608475.0,
-          "date": "2026-07-21",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 42450.0,
-          "high": 42650.0,
-          "low": 41150.0,
-          "close": 41300.0,
-          "volume": 1442516.0,
-          "turnover_krw": 60245617500.0,
-          "date": "2026-07-22",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 41700.0,
-          "high": 49700.0,
-          "low": 41000.0,
-          "close": 46650.0,
-          "volume": 7112328.0,
-          "turnover_krw": 330855525100.0,
-          "date": "2026-07-23",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 46750.0,
-          "high": 49350.0,
-          "low": 45500.0,
-          "close": 47600.0,
-          "volume": 4928841.0,
-          "turnover_krw": 235502912150.0,
-          "date": "2026-07-24",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48100.0,
-          "high": 48550.0,
-          "low": 45650.0,
-          "close": 47650.0,
-          "volume": 1865410.0,
-          "turnover_krw": 88004508250.0,
-          "date": "2026-07-27",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 46650.0,
-          "high": 47150.0,
-          "low": 43800.0,
-          "close": 44150.0,
-          "volume": 2011830.0,
-          "turnover_krw": 90480344500.0,
-          "date": "2026-07-28",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 45050.0,
-          "high": 45150.0,
-          "low": 38500.0,
-          "close": 39750.0,
-          "volume": 2898163.0,
-          "turnover_krw": 118621159225.0,
-          "date": "2026-07-29",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 38900.0,
-          "high": 43300.0,
-          "low": 38900.0,
-          "close": 41000.0,
-          "volume": 2218636.0,
-          "turnover_krw": 91857881775.0,
-          "date": "2026-07-30",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 43000.0,
-          "high": 43800.0,
-          "low": 42200.0,
-          "close": 43800.0,
-          "volume": 1856844.0,
-          "turnover_krw": 80106559350.0,
-          "date": "2026-07-31",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 42850.0,
-          "high": 45800.0,
-          "low": 42150.0,
-          "close": 44400.0,
-          "volume": 1897787.0,
-          "turnover_krw": 84155518050.0,
-          "date": "2026-08-03",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 44400.0,
-          "high": 48000.0,
-          "low": 44200.0,
-          "close": 47750.0,
-          "volume": 2750339.0,
-          "turnover_krw": 127671559100.0,
-          "date": "2026-08-04",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48600.0,
-          "high": 49650.0,
-          "low": 47100.0,
-          "close": 49100.0,
-          "volume": 2451641.0,
-          "turnover_krw": 119721176825.0,
-          "date": "2026-08-05",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49300.0,
-          "high": 51400.0,
-          "low": 48300.0,
-          "close": 49450.0,
-          "volume": 2198958.0,
-          "turnover_krw": 109245448050.0,
-          "date": "2026-08-06",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49150.0,
-          "high": 49950.0,
-          "low": 47300.0,
-          "close": 48100.0,
-          "volume": 1781140.0,
-          "turnover_krw": 85610071300.0,
-          "date": "2026-08-07",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48150.0,
-          "high": 49100.0,
-          "low": 47400.0,
-          "close": 48800.0,
-          "volume": 1221377.0,
-          "turnover_krw": 59296571125.0,
-          "date": "2026-08-10",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48600.0,
-          "high": 49750.0,
-          "low": 47750.0,
-          "close": 48950.0,
-          "volume": 1380168.0,
-          "turnover_krw": 67693967150.0,
-          "date": "2026-08-11",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48800.0,
-          "high": 50100.0,
-          "low": 48450.0,
-          "close": 49300.0,
-          "volume": 1407550.0,
-          "turnover_krw": 69373928850.0,
-          "date": "2026-08-12",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49450.0,
-          "high": 50400.0,
-          "low": 48650.0,
-          "close": 49000.0,
-          "volume": 1780130.0,
-          "turnover_krw": 87799965125.0,
-          "date": "2026-08-13",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49200.0,
-          "high": 50800.0,
-          "low": 48450.0,
-          "close": 49800.0,
-          "volume": 1592948.0,
-          "turnover_krw": 78818866300.0,
-          "date": "2026-08-14",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49350.0,
-          "high": 49650.0,
-          "low": 47150.0,
-          "close": 47900.0,
-          "volume": 1247136.0,
-          "turnover_krw": 60458353150.0,
-          "date": "2026-08-18",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 45900.0,
-          "high": 49600.0,
-          "low": 45300.0,
-          "close": 48500.0,
-          "volume": 1557136.0,
-          "turnover_krw": 74676118850.0,
-          "date": "2026-08-19",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48500.0,
-          "high": 49950.0,
-          "low": 47700.0,
-          "close": 48050.0,
-          "volume": 1350895.0,
-          "turnover_krw": 65719876875.0,
-          "date": "2026-08-20",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 47400.0,
-          "high": 47750.0,
-          "low": 45000.0,
-          "close": 45150.0,
-          "volume": 1553910.0,
-          "turnover_krw": 70549916600.0,
-          "date": "2026-08-21",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 44900.0,
-          "high": 45850.0,
-          "low": 44150.0,
-          "close": 44800.0,
-          "volume": 1121597.0,
-          "turnover_krw": 50192392975.0,
-          "date": "2026-08-24",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 44850.0,
-          "high": 46200.0,
-          "low": 43450.0,
-          "close": 45850.0,
-          "volume": 1124728.0,
-          "turnover_krw": 50786578300.0,
-          "date": "2026-08-25",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 47000.0,
-          "high": 48600.0,
-          "low": 46100.0,
-          "close": 48250.0,
-          "volume": 2241390.0,
-          "turnover_krw": 106727783675.0,
-          "date": "2026-08-26",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48450.0,
-          "high": 51000.0,
-          "low": 47650.0,
-          "close": 50100.0,
-          "volume": 2479469.0,
-          "turnover_krw": 123687259775.0,
-          "date": "2026-08-27",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49650.0,
-          "high": 50500.0,
-          "low": 48050.0,
-          "close": 48750.0,
-          "volume": 1391713.0,
-          "turnover_krw": 67940639875.0,
-          "date": "2026-08-28",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48000.0,
-          "high": 48000.0,
-          "low": 46100.0,
-          "close": 47100.0,
-          "volume": 844108.0,
-          "turnover_krw": 39568517250.0,
-          "date": "2026-08-31",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 46750.0,
-          "high": 47000.0,
-          "low": 45250.0,
-          "close": 45800.0,
-          "volume": 939375.0,
-          "turnover_krw": 43107140175.0,
-          "date": "2026-09-01",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 44250.0,
-          "high": 44700.0,
-          "low": 43500.0,
-          "close": 43700.0,
-          "volume": 1031956.0,
-          "turnover_krw": 45250119250.0,
-          "date": "2026-09-02",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 44050.0,
-          "high": 47000.0,
-          "low": 43800.0,
-          "close": 46100.0,
-          "volume": 1488007.0,
-          "turnover_krw": 67726417575.0,
-          "date": "2026-09-03",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 46050.0,
-          "high": 46050.0,
-          "low": 44950.0,
-          "close": 45850.0,
-          "volume": 917565.0,
-          "turnover_krw": 41738549850.0,
-          "date": "2026-09-04",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 45900.0,
-          "high": 48300.0,
-          "low": 45050.0,
-          "close": 48000.0,
-          "volume": 1308050.0,
-          "turnover_krw": 61522110025.0,
-          "date": "2026-09-07",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48550.0,
-          "high": 51600.0,
-          "low": 48350.0,
-          "close": 49150.0,
-          "volume": 3107412.0,
-          "turnover_krw": 156807279175.0,
-          "date": "2026-09-08",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49250.0,
-          "high": 50900.0,
-          "low": 48950.0,
-          "close": 50800.0,
-          "volume": 1682372.0,
-          "turnover_krw": 84755756150.0,
-          "date": "2026-09-09",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49650.0,
-          "high": 51200.0,
-          "low": 48400.0,
-          "close": 50400.0,
-          "volume": 1811125.0,
-          "turnover_krw": 90336358375.0,
-          "date": "2026-09-10",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 50500.0,
-          "high": 51300.0,
-          "low": 49650.0,
-          "close": 51000.0,
-          "volume": 1770303.0,
-          "turnover_krw": 89518607025.0,
-          "date": "2026-09-11",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 50100.0,
-          "high": 51800.0,
-          "low": 49150.0,
-          "close": 50800.0,
-          "volume": 1281767.0,
-          "turnover_krw": 65108493100.0,
-          "date": "2026-09-14",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 50100.0,
-          "high": 51500.0,
-          "low": 49400.0,
-          "close": 50800.0,
-          "volume": 1342637.0,
-          "turnover_krw": 67956911175.0,
-          "date": "2026-09-15",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 50400.0,
-          "high": 50900.0,
-          "low": 49900.0,
-          "close": 50500.0,
-          "volume": 1281209.0,
-          "turnover_krw": 64626095457.0,
-          "date": "2026-09-16",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 50600.0,
-          "high": 52000.0,
-          "low": 50200.0,
-          "close": 51100.0,
-          "volume": 1332808.0,
-          "turnover_krw": 68197747500.0,
-          "date": "2026-09-17",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 51600.0,
-          "high": 55200.0,
-          "low": 51500.0,
-          "close": 51800.0,
-          "volume": 5629132.0,
-          "turnover_krw": 298865625900.0,
-          "date": "2026-09-18",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 52000.0,
-          "high": 53200.0,
-          "low": 50700.0,
-          "close": 52000.0,
-          "volume": 1599481.0,
-          "turnover_krw": 82674932850.0,
-          "date": "2026-09-21",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 52600.0,
-          "high": 53200.0,
-          "low": 50900.0,
-          "close": 51200.0,
-          "volume": 1598565.0,
-          "turnover_krw": 82793920150.0,
-          "date": "2026-09-22",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 51600.0,
-          "high": 51600.0,
-          "low": 48600.0,
-          "close": 49350.0,
-          "volume": 2237039.0,
-          "turnover_krw": 110184302725.0,
-          "date": "2026-09-23",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49450.0,
-          "high": 50600.0,
-          "low": 48050.0,
-          "close": 50000.0,
-          "volume": 1547444.0,
-          "turnover_krw": 77146508125.0,
-          "date": "2026-09-28",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 49200.0,
-          "high": 49450.0,
-          "low": 46750.0,
-          "close": 47150.0,
-          "volume": 1660410.0,
-          "turnover_krw": 79191832100.0,
-          "date": "2026-09-29",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 47800.0,
-          "high": 48850.0,
-          "low": 47550.0,
-          "close": 47700.0,
-          "volume": 1795221.0,
-          "turnover_krw": 86058090386.0,
-          "date": "2026-09-30",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48100.0,
-          "high": 48850.0,
-          "low": 46700.0,
-          "close": 47350.0,
-          "volume": 1106700.0,
-          "turnover_krw": 52350798750.0,
-          "date": "2026-10-01",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 47500.0,
-          "high": 47950.0,
-          "low": 47150.0,
-          "close": 47750.0,
-          "volume": 1065918.0,
-          "turnover_krw": 50673762950.0,
-          "date": "2026-10-02",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48000.0,
-          "high": 48400.0,
-          "low": 47550.0,
-          "close": 48050.0,
-          "volume": 1199929.0,
-          "turnover_krw": 57512736725.0,
-          "date": "2026-10-06",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48050.0,
-          "high": 49650.0,
-          "low": 47350.0,
-          "close": 48600.0,
-          "volume": 1885866.0,
-          "turnover_krw": 92241796850.0,
-          "date": "2026-10-07",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 48400.0,
-          "high": 48950.0,
-          "low": 47600.0,
-          "close": 48250.0,
-          "volume": 1427224.0,
-          "turnover_krw": 68791413275.0,
-          "date": "2026-10-08",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 47750.0,
-          "high": 48100.0,
-          "low": 45250.0,
-          "close": 46050.0,
-          "volume": 1795874.0,
-          "turnover_krw": 82601271525.0,
-          "date": "2026-10-12",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 44400.0,
-          "high": 45450.0,
-          "low": 43100.0,
-          "close": 45350.0,
-          "volume": 1780041.0,
-          "turnover_krw": 78991015650.0,
-          "date": "2026-10-13",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 45100.0,
-          "high": 46350.0,
-          "low": 44700.0,
-          "close": 45400.0,
-          "volume": 1387898.0,
-          "turnover_krw": 63365619150.0,
-          "date": "2026-10-14",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 43350.0,
-          "high": 44050.0,
-          "low": 41650.0,
-          "close": 42200.0,
-          "volume": 1556492.0,
-          "turnover_krw": 66305967075.0,
-          "date": "2026-10-15",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 42600.0,
-          "high": 45200.0,
-          "low": 42600.0,
-          "close": 43600.0,
-          "volume": 1060196.0,
-          "turnover_krw": 46827966450.0,
-          "date": "2026-10-16",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 43300.0,
-          "high": 45300.0,
-          "low": 42400.0,
-          "close": 45300.0,
-          "volume": 858858.0,
-          "turnover_krw": 37730254450.0,
-          "date": "2026-10-19",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 44500.0,
-          "high": 45500.0,
-          "low": 43100.0,
-          "close": 43600.0,
-          "volume": 848904.0,
-          "turnover_krw": 37242831925.0,
-          "date": "2026-10-20",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 44400.0,
-          "high": 48300.0,
-          "low": 44200.0,
-          "close": 47700.0,
-          "volume": 2262565.0,
-          "turnover_krw": 105988827550.0,
-          "date": "2026-10-21",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 51000.0,
-          "high": 56500.0,
-          "low": 50500.0,
-          "close": 55400.0,
-          "volume": 12335423.0,
-          "turnover_krw": 678976117400.0,
-          "date": "2026-10-22",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 56300.0,
-          "high": 61300.0,
-          "low": 56200.0,
-          "close": 59800.0,
-          "volume": 13099086.0,
-          "turnover_krw": 780042481500.0,
-          "date": "2026-10-23",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 59400.0,
-          "high": 60900.0,
-          "low": 57700.0,
-          "close": 59800.0,
-          "volume": 5666914.0,
-          "turnover_krw": 337035956850.0,
-          "date": "2026-10-26",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 60700.0,
-          "high": 63900.0,
-          "low": 60100.0,
-          "close": 62200.0,
-          "volume": 4853393.0,
-          "turnover_krw": 302310292500.0,
-          "date": "2026-10-27",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 63000.0,
-          "high": 64900.0,
-          "low": 62200.0,
-          "close": 64200.0,
-          "volume": 4237254.0,
-          "turnover_krw": 270485105850.0,
-          "date": "2026-10-28",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 64200.0,
-          "high": 65500.0,
-          "low": 62400.0,
-          "close": 62800.0,
-          "volume": 3393336.0,
-          "turnover_krw": 215186532412.0,
-          "date": "2026-10-29",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 62300.0,
-          "high": 62800.0,
-          "low": 60400.0,
-          "close": 61700.0,
-          "volume": 2293307.0,
-          "turnover_krw": 140777283900.0,
-          "date": "2026-10-30",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 60700.0,
-          "high": 64000.0,
-          "low": 59700.0,
-          "close": 63200.0,
-          "volume": 1850653.0,
-          "turnover_krw": 116173169600.0,
-          "date": "2026-11-02",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 62900.0,
-          "high": 64000.0,
-          "low": 61600.0,
-          "close": 61600.0,
-          "volume": 1913027.0,
-          "turnover_krw": 120101748450.0,
-          "date": "2026-11-03",
-          "name": "삼성E&A",
-          "segment": 0
-        },
-        {
-          "open": 62500.0,
-          "high": 65700.0,
-          "low": 62400.0,
-          "close": 65500.0,
-          "volume": 4173981.0,
-          "turnover_krw": 270282551300.0,
-          "date": "2026-11-04",
-          "name": "삼성E&A",
-          "segment": 0
-        }
+      "support_review": {
+        "status": "MOST_RECENT_ALREADY_CONFIRMED_PIVOT",
+        "pivot_date": "2026-11-02",
+        "confirmed_on": "2026-11-04",
+        "pivot_age_sessions": 3,
+        "confirmation_age_sessions": 1,
+        "support": 59700.0,
+        "structure_stop": 57700,
+        "distance_from_close_pct": 10.26438569206843,
+        "distance_from_close_current_atr": 1.6830601092896174,
+        "plans": {
+          "A_SUPPORT_LIMIT": {
+            "distance_pct": 9.133858267716535,
+            "costed_r1_rr": 0.22974435135820423,
+            "r1_unknown": false
+          }
+        },
+        "stop_moved_for_existing_signal": false,
+        "buy_approved": false,
+        "not_a_new_profitability_rule": true
+      },
+      "order_validity_sessions": 1,
+      "invalidation": [
+        "CLOSE_BELOW_FROZEN_STOP_THEN_NEXT_TRADABLE_OPEN",
+        "EXPIRED_ONE_ENTRY_SESSION",
+        "MISSING_OR_ACTION_DATA_CENSORED"
       ],
-      "registered_at": null,
-      "analysis_known_at": "2026-11-05T19:52:55.872224+00:00"
+      "source_regular_only_certified": false,
+      "price_basis": "UNADJUSTED_AS_TRADED",
+      "buy_approved": false,
+      "live_action": "CASH",
+      "analysis_known_at": "2026-11-05T23:52:43.778364+00:00",
+      "trade_approved": false
     },
     {
       "ticker": "030530",
       "name": "원익홀딩스",
       "market": "KOSDAQ",
-      "price_asof": "2026-11-04",
-      "close": 30100.0,
-      "turnover20": 66655218530.0,
-      "rs20": 20.64729840105447,
-      "market_regime": "DOWN",
       "industry": "반도체와반도체장비",
-      "own_rs20": 20.64729840105447,
-      "rs_accel5": 9.000393563652555,
+      "market_regime": "DOWN",
+      "return20": -7.2289156626506035,
+      "rs20": 17.260471379189045,
+      "turnover20": 70013626618.75,
+      "close": 26950.0,
+      "own_rs20": 17.260471379189045,
+      "rs_accel5": 0.4454932419183706,
       "trend60": true,
       "high252_ratio": null,
-      "turnover_ratio": 2.556570575915266,
-      "volume_ratio": 2.393188588416919,
+      "turnover_ratio": 2.4555343692760334,
+      "volume_ratio": 2.2967963598187153,
       "higher_lows": true,
+      "signal_id": "C3V8-196772c50c43b1ff0caa1809",
+      "model": "B",
+      "model_version": "V7_CURRENT_NATIVE_BOARD",
       "rank": 2,
+      "decision_date": "2026-11-05",
+      "registered_at": null,
+      "source_received_at": "2026-11-05T23:52:39.010721+00:00",
+      "source_run_id": "42132626779",
+      "source_price_asof": "2026-11-05",
+      "reference_close": 26950.0,
+      "selection_reasons": [
+        "CLOSE_GT_MA20_GT_MA50",
+        "POSITIVE_OWN_BOARD_RS20",
+        "TURNOVER20_RANK",
+        "OWN_BOARD_RS_IMPROVING_5"
+      ],
       "entry_plans": {
         "A_SUPPORT_LIMIT": {
           "plan": {
             "ticker": "030530",
-            "decision_date": "2026-11-04",
+            "decision_date": "2026-11-05",
             "method": "PULLBACK",
             "signal_key": "030530:2026-10-23",
             "segment": 0,
@@ -1162,14 +281,14 @@
             "support_date": "2026-10-23",
             "known_on": "2026-10-27",
             "atr": 1939.2857142857142,
-            "reference_close": 30100.0,
+            "reference_close": 26950.0,
             "resistance": 30400.0,
             "resistance2": 31900.0,
-            "breakout_level": 34000.0,
+            "breakout_level": 34500.0,
             "net_r1_rr": 2.160401355197114,
             "risk_pct": 12.340425531914894,
-            "rank_turnover": 66655218530.0,
-            "rs20": 20.64729840105447,
+            "rank_turnover": 70013626618.75,
+            "rs20": 17.260471379189045,
             "regime": "DOWN",
             "signal_rule": "A_SUPPORT_LIMIT",
             "execution_model": "ONE_SESSION_LIMIT"
@@ -1185,1020 +304,198 @@
           "reason": "BREAKOUT_NOT_CONFIRMED"
         }
       },
-      "structure_reason": null,
-      "technical_only": true,
-      "trade_approved": false,
-      "chart_bars": [
-        {
-          "open": 22000.0,
-          "high": 23200.0,
-          "low": 21550.0,
-          "close": 21700.0,
-          "volume": 559175.0,
-          "turnover_krw": 12413011075.0,
-          "date": "2026-06-24",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 21900.0,
-          "high": 22900.0,
-          "low": 20700.0,
-          "close": 20700.0,
-          "volume": 681488.0,
-          "turnover_krw": 14643805550.0,
-          "date": "2026-06-25",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 20350.0,
-          "high": 20750.0,
-          "low": 19630.0,
-          "close": 20100.0,
-          "volume": 915087.0,
-          "turnover_krw": 18339565430.0,
-          "date": "2026-06-26",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 20100.0,
-          "high": 21550.0,
-          "low": 19860.0,
-          "close": 21350.0,
-          "volume": 484476.0,
-          "turnover_krw": 10194326220.0,
-          "date": "2026-06-29",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 21550.0,
-          "high": 21650.0,
-          "low": 20500.0,
-          "close": 20950.0,
-          "volume": 433520.0,
-          "turnover_krw": 9079431325.0,
-          "date": "2026-06-30",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 20950.0,
-          "high": 22150.0,
-          "low": 20300.0,
-          "close": 20600.0,
-          "volume": 647194.0,
-          "turnover_krw": 13618185350.0,
-          "date": "2026-07-01",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19780.0,
-          "high": 19900.0,
-          "low": 18420.0,
-          "close": 18540.0,
-          "volume": 847609.0,
-          "turnover_krw": 15961929840.0,
-          "date": "2026-07-02",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 18410.0,
-          "high": 19100.0,
-          "low": 17370.0,
-          "close": 19020.0,
-          "volume": 693381.0,
-          "turnover_krw": 12642455655.0,
-          "date": "2026-07-03",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19020.0,
-          "high": 19050.0,
-          "low": 17770.0,
-          "close": 18760.0,
-          "volume": 537637.0,
-          "turnover_krw": 9927096355.0,
-          "date": "2026-07-06",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 18000.0,
-          "high": 19320.0,
-          "low": 17590.0,
-          "close": 17880.0,
-          "volume": 564272.0,
-          "turnover_krw": 10307341545.0,
-          "date": "2026-07-07",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 16930.0,
-          "high": 17840.0,
-          "low": 16210.0,
-          "close": 16400.0,
-          "volume": 637497.0,
-          "turnover_krw": 10745693440.0,
-          "date": "2026-07-08",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 16190.0,
-          "high": 18460.0,
-          "low": 16190.0,
-          "close": 16960.0,
-          "volume": 758073.0,
-          "turnover_krw": 13135929945.0,
-          "date": "2026-07-09",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 17140.0,
-          "high": 19490.0,
-          "low": 17140.0,
-          "close": 18790.0,
-          "volume": 617020.0,
-          "turnover_krw": 11522600880.0,
-          "date": "2026-07-10",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 18800.0,
-          "high": 20800.0,
-          "low": 17550.0,
-          "close": 17600.0,
-          "volume": 725042.0,
-          "turnover_krw": 13772585865.0,
-          "date": "2026-07-13",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 17520.0,
-          "high": 17800.0,
-          "low": 16000.0,
-          "close": 16890.0,
-          "volume": 530768.0,
-          "turnover_krw": 8925240160.0,
-          "date": "2026-07-14",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 17500.0,
-          "high": 18680.0,
-          "low": 17490.0,
-          "close": 18580.0,
-          "volume": 443527.0,
-          "turnover_krw": 8098888375.0,
-          "date": "2026-07-15",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 18180.0,
-          "high": 18180.0,
-          "low": 16570.0,
-          "close": 16790.0,
-          "volume": 432699.0,
-          "turnover_krw": 7357414160.0,
-          "date": "2026-07-16",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 16000.0,
-          "high": 16450.0,
-          "low": 15440.0,
-          "close": 15540.0,
-          "volume": 369897.0,
-          "turnover_krw": 5828908420.0,
-          "date": "2026-07-20",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 15470.0,
-          "high": 16740.0,
-          "low": 14980.0,
-          "close": 16230.0,
-          "volume": 578231.0,
-          "turnover_krw": 9158823120.0,
-          "date": "2026-07-21",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 17760.0,
-          "high": 18630.0,
-          "low": 17100.0,
-          "close": 17100.0,
-          "volume": 1025207.0,
-          "turnover_krw": 18310056610.0,
-          "date": "2026-07-22",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 17980.0,
-          "high": 19470.0,
-          "low": 17270.0,
-          "close": 18510.0,
-          "volume": 1092017.0,
-          "turnover_krw": 20004692110.0,
-          "date": "2026-07-23",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 18310.0,
-          "high": 18330.0,
-          "low": 16340.0,
-          "close": 16400.0,
-          "volume": 560578.0,
-          "turnover_krw": 9439549575.0,
-          "date": "2026-07-24",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 17270.0,
-          "high": 17720.0,
-          "low": 16640.0,
-          "close": 16960.0,
-          "volume": 507766.0,
-          "turnover_krw": 8658768005.0,
-          "date": "2026-07-27",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 16000.0,
-          "high": 16180.0,
-          "low": 14730.0,
-          "close": 14920.0,
-          "volume": 496491.0,
-          "turnover_krw": 7602339710.0,
-          "date": "2026-07-28",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 15400.0,
-          "high": 16370.0,
-          "low": 13210.0,
-          "close": 14160.0,
-          "volume": 970594.0,
-          "turnover_krw": 14158995735.0,
-          "date": "2026-07-29",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 13250.0,
-          "high": 14750.0,
-          "low": 13250.0,
-          "close": 13400.0,
-          "volume": 530832.0,
-          "turnover_krw": 7361191165.0,
-          "date": "2026-07-30",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 14720.0,
-          "high": 15610.0,
-          "low": 14190.0,
-          "close": 15280.0,
-          "volume": 879411.0,
-          "turnover_krw": 13242463045.0,
-          "date": "2026-07-31",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 15280.0,
-          "high": 19860.0,
-          "low": 14850.0,
-          "close": 19860.0,
-          "volume": 4036150.0,
-          "turnover_krw": 76475675945.0,
-          "date": "2026-08-03",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19860.0,
-          "high": 21250.0,
-          "low": 19610.0,
-          "close": 20400.0,
-          "volume": 3352946.0,
-          "turnover_krw": 68144492720.0,
-          "date": "2026-08-04",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 20400.0,
-          "high": 20950.0,
-          "low": 19220.0,
-          "close": 20900.0,
-          "volume": 1819499.0,
-          "turnover_krw": 37091881940.0,
-          "date": "2026-08-05",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 21150.0,
-          "high": 21200.0,
-          "low": 19050.0,
-          "close": 19720.0,
-          "volume": 1414934.0,
-          "turnover_krw": 28224434730.0,
-          "date": "2026-08-06",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19810.0,
-          "high": 20500.0,
-          "low": 18300.0,
-          "close": 19050.0,
-          "volume": 939464.0,
-          "turnover_krw": 17843154855.0,
-          "date": "2026-08-07",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19050.0,
-          "high": 21350.0,
-          "low": 18720.0,
-          "close": 21000.0,
-          "volume": 1328991.0,
-          "turnover_krw": 27136580480.0,
-          "date": "2026-08-10",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 20350.0,
-          "high": 20900.0,
-          "low": 19600.0,
-          "close": 20300.0,
-          "volume": 709409.0,
-          "turnover_krw": 14332762330.0,
-          "date": "2026-08-11",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 20050.0,
-          "high": 20450.0,
-          "low": 19550.0,
-          "close": 20100.0,
-          "volume": 496272.0,
-          "turnover_krw": 9905480640.0,
-          "date": "2026-08-12",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 20200.0,
-          "high": 20900.0,
-          "low": 19890.0,
-          "close": 20800.0,
-          "volume": 537838.0,
-          "turnover_krw": 11017576665.0,
-          "date": "2026-08-13",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 20800.0,
-          "high": 21600.0,
-          "low": 19930.0,
-          "close": 21000.0,
-          "volume": 691681.0,
-          "turnover_krw": 14388563145.0,
-          "date": "2026-08-14",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 21500.0,
-          "high": 21650.0,
-          "low": 19510.0,
-          "close": 19760.0,
-          "volume": 609809.0,
-          "turnover_krw": 12553437420.0,
-          "date": "2026-08-18",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 18710.0,
-          "high": 19960.0,
-          "low": 18460.0,
-          "close": 19590.0,
-          "volume": 321398.0,
-          "turnover_krw": 6227995435.0,
-          "date": "2026-08-19",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19850.0,
-          "high": 20700.0,
-          "low": 19520.0,
-          "close": 20100.0,
-          "volume": 355306.0,
-          "turnover_krw": 7129245570.0,
-          "date": "2026-08-20",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19850.0,
-          "high": 19850.0,
-          "low": 18750.0,
-          "close": 19250.0,
-          "volume": 306235.0,
-          "turnover_krw": 5842351275.0,
-          "date": "2026-08-21",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19260.0,
-          "high": 19630.0,
-          "low": 18800.0,
-          "close": 19250.0,
-          "volume": 198313.0,
-          "turnover_krw": 3822154725.0,
-          "date": "2026-08-24",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19690.0,
-          "high": 19800.0,
-          "low": 18160.0,
-          "close": 19700.0,
-          "volume": 286548.0,
-          "turnover_krw": 5463838910.0,
-          "date": "2026-08-25",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19900.0,
-          "high": 20250.0,
-          "low": 18840.0,
-          "close": 19240.0,
-          "volume": 371006.0,
-          "turnover_krw": 7204817965.0,
-          "date": "2026-08-26",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 19200.0,
-          "high": 20400.0,
-          "low": 18870.0,
-          "close": 20250.0,
-          "volume": 596224.0,
-          "turnover_krw": 11708700775.0,
-          "date": "2026-08-27",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 20850.0,
-          "high": 24700.0,
-          "low": 17970.0,
-          "close": 19080.0,
-          "volume": 7945528.0,
-          "turnover_krw": 166895562560.0,
-          "date": "2026-08-28",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 18360.0,
-          "high": 19420.0,
-          "low": 17530.0,
-          "close": 18780.0,
-          "volume": 3067199.0,
-          "turnover_krw": 56981092875.0,
-          "date": "2026-08-31",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 18600.0,
-          "high": 18920.0,
-          "low": 17730.0,
-          "close": 17730.0,
-          "volume": 902012.0,
-          "turnover_krw": 16223315295.0,
-          "date": "2026-09-01",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 17000.0,
-          "high": 17980.0,
-          "low": 16810.0,
-          "close": 17440.0,
-          "volume": 592035.0,
-          "turnover_krw": 10334298790.0,
-          "date": "2026-09-02",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 17600.0,
-          "high": 18530.0,
-          "low": 17090.0,
-          "close": 17320.0,
-          "volume": 2211322.0,
-          "turnover_krw": 39370754460.0,
-          "date": "2026-09-03",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 17500.0,
-          "high": 22500.0,
-          "low": 17500.0,
-          "close": 22500.0,
-          "volume": 7144949.0,
-          "turnover_krw": 145138338300.0,
-          "date": "2026-09-04",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 23100.0,
-          "high": 24000.0,
-          "low": 21500.0,
-          "close": 22350.0,
-          "volume": 6139238.0,
-          "turnover_krw": 139925772775.0,
-          "date": "2026-09-07",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 22400.0,
-          "high": 24650.0,
-          "low": 21350.0,
-          "close": 22550.0,
-          "volume": 5811594.0,
-          "turnover_krw": 134908749900.0,
-          "date": "2026-09-08",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 22550.0,
-          "high": 24150.0,
-          "low": 22050.0,
-          "close": 23250.0,
-          "volume": 1993878.0,
-          "turnover_krw": 46119858975.0,
-          "date": "2026-09-09",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 23850.0,
-          "high": 24000.0,
-          "low": 22625.0,
-          "close": 23250.0,
-          "volume": 2081646.0,
-          "turnover_krw": 48516754425.0,
-          "date": "2026-09-10",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 22300.0,
-          "high": 23150.0,
-          "low": 22100.0,
-          "close": 22350.0,
-          "volume": 786366.0,
-          "turnover_krw": 17700297300.0,
-          "date": "2026-09-11",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 21750.0,
-          "high": 22500.0,
-          "low": 21300.0,
-          "close": 21900.0,
-          "volume": 833412.0,
-          "turnover_krw": 18337632750.0,
-          "date": "2026-09-14",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 21700.0,
-          "high": 26750.0,
-          "low": 21500.0,
-          "close": 25050.0,
-          "volume": 9961088.0,
-          "turnover_krw": 252024840000.0,
-          "date": "2026-09-15",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 25100.0,
-          "high": 26000.0,
-          "low": 24300.0,
-          "close": 25300.0,
-          "volume": 2717982.0,
-          "turnover_krw": 68274770800.0,
-          "date": "2026-09-16",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 25650.0,
-          "high": 25900.0,
-          "low": 24725.0,
-          "close": 25500.0,
-          "volume": 1524886.0,
-          "turnover_krw": 38763647375.0,
-          "date": "2026-09-17",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 25950.0,
-          "high": 26050.0,
-          "low": 25000.0,
-          "close": 26050.0,
-          "volume": 1723549.0,
-          "turnover_krw": 44203608000.0,
-          "date": "2026-09-18",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 26150.0,
-          "high": 27850.0,
-          "low": 25800.0,
-          "close": 26900.0,
-          "volume": 2924137.0,
-          "turnover_krw": 78523988900.0,
-          "date": "2026-09-21",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 27100.0,
-          "high": 27500.0,
-          "low": 26300.0,
-          "close": 26500.0,
-          "volume": 1212583.0,
-          "turnover_krw": 32275386950.0,
-          "date": "2026-09-22",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 27100.0,
-          "high": 30400.0,
-          "low": 26950.0,
-          "close": 28300.0,
-          "volume": 6640185.0,
-          "turnover_krw": 192893126575.0,
-          "date": "2026-09-23",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 28200.0,
-          "high": 28800.0,
-          "low": 27200.0,
-          "close": 27250.0,
-          "volume": 1128228.0,
-          "turnover_krw": 31471462525.0,
-          "date": "2026-09-28",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 28000.0,
-          "high": 28050.0,
-          "low": 26000.0,
-          "close": 26600.0,
-          "volume": 1040907.0,
-          "turnover_krw": 27719336600.0,
-          "date": "2026-09-29",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 26750.0,
-          "high": 27000.0,
-          "low": 26100.0,
-          "close": 26400.0,
-          "volume": 659119.0,
-          "turnover_krw": 17448397525.0,
-          "date": "2026-09-30",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 26200.0,
-          "high": 28000.0,
-          "low": 26100.0,
-          "close": 28000.0,
-          "volume": 1244407.0,
-          "turnover_krw": 34013148375.0,
-          "date": "2026-10-01",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 28000.0,
-          "high": 29800.0,
-          "low": 27700.0,
-          "close": 29200.0,
-          "volume": 1787220.0,
-          "turnover_krw": 52017405400.0,
-          "date": "2026-10-02",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 29450.0,
-          "high": 31900.0,
-          "low": 29250.0,
-          "close": 30600.0,
-          "volume": 1958359.0,
-          "turnover_krw": 60454448775.0,
-          "date": "2026-10-06",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 30350.0,
-          "high": 30900.0,
-          "low": 29000.0,
-          "close": 29050.0,
-          "volume": 791629.0,
-          "turnover_krw": 23402200200.0,
-          "date": "2026-10-07",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 29450.0,
-          "high": 29500.0,
-          "low": 28200.0,
-          "close": 28400.0,
-          "volume": 689160.0,
-          "turnover_krw": 19805710250.0,
-          "date": "2026-10-08",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 28300.0,
-          "high": 28550.0,
-          "low": 25700.0,
-          "close": 25950.0,
-          "volume": 1053165.0,
-          "turnover_krw": 28025359475.0,
-          "date": "2026-10-12",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 24950.0,
-          "high": 25550.0,
-          "low": 23700.0,
-          "close": 25150.0,
-          "volume": 843632.0,
-          "turnover_krw": 21004282625.0,
-          "date": "2026-10-13",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 25200.0,
-          "high": 25500.0,
-          "low": 24050.0,
-          "close": 24500.0,
-          "volume": 698828.0,
-          "turnover_krw": 17321238625.0,
-          "date": "2026-10-14",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 23000.0,
-          "high": 23450.0,
-          "low": 21500.0,
-          "close": 22100.0,
-          "volume": 956728.0,
-          "turnover_krw": 21228626025.0,
-          "date": "2026-10-15",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 22400.0,
-          "high": 23650.0,
-          "low": 21950.0,
-          "close": 23100.0,
-          "volume": 603313.0,
-          "turnover_krw": 13877166225.0,
-          "date": "2026-10-16",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 22000.0,
-          "high": 24350.0,
-          "low": 21950.0,
-          "close": 24250.0,
-          "volume": 612123.0,
-          "turnover_krw": 14446204450.0,
-          "date": "2026-10-19",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 24550.0,
-          "high": 24750.0,
-          "low": 22750.0,
-          "close": 23150.0,
-          "volume": 636587.0,
-          "turnover_krw": 14934268025.0,
-          "date": "2026-10-20",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 23500.0,
-          "high": 24050.0,
-          "low": 23050.0,
-          "close": 23600.0,
-          "volume": 462508.0,
-          "turnover_krw": 10897562850.0,
-          "date": "2026-10-21",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 23450.0,
-          "high": 24150.0,
-          "low": 22900.0,
-          "close": 23100.0,
-          "volume": 723217.0,
-          "turnover_krw": 16912995800.0,
-          "date": "2026-10-22",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 22300.0,
-          "high": 22550.0,
-          "low": 21600.0,
-          "close": 22200.0,
-          "volume": 647278.0,
-          "turnover_krw": 14242255150.0,
-          "date": "2026-10-23",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 22050.0,
-          "high": 24750.0,
-          "low": 22050.0,
-          "close": 23550.0,
-          "volume": 2116045.0,
-          "turnover_krw": 50319932800.0,
-          "date": "2026-10-26",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 23750.0,
-          "high": 24850.0,
-          "low": 23000.0,
-          "close": 23750.0,
-          "volume": 1112615.0,
-          "turnover_krw": 26824949300.0,
-          "date": "2026-10-27",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 24200.0,
-          "high": 29900.0,
-          "low": 24200.0,
-          "close": 28000.0,
-          "volume": 6642274.0,
-          "turnover_krw": 187817766675.0,
-          "date": "2026-10-28",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 27550.0,
-          "high": 28750.0,
-          "low": 27000.0,
-          "close": 28050.0,
-          "volume": 2951661.0,
-          "turnover_krw": 83009881700.0,
-          "date": "2026-10-29",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 27850.0,
-          "high": 30400.0,
-          "low": 27650.0,
-          "close": 29500.0,
-          "volume": 4995151.0,
-          "turnover_krw": 146354379950.0,
-          "date": "2026-10-30",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 29100.0,
-          "high": 34000.0,
-          "low": 29100.0,
-          "close": 32350.0,
-          "volume": 8333354.0,
-          "turnover_krw": 265289936100.0,
-          "date": "2026-11-02",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 31600.0,
-          "high": 33300.0,
-          "low": 30000.0,
-          "close": 32350.0,
-          "volume": 5608289.0,
-          "turnover_krw": 179227347350.0,
-          "date": "2026-11-03",
-          "name": "원익홀딩스",
-          "segment": 0
-        },
-        {
-          "open": 33600.0,
-          "high": 34500.0,
-          "low": 28400.0,
-          "close": 30100.0,
-          "volume": 5798196.0,
-          "turnover_krw": 178162307025.0,
-          "date": "2026-11-04",
-          "name": "원익홀딩스",
-          "segment": 0
-        }
+      "support_review": {
+        "status": "MOST_RECENT_ALREADY_CONFIRMED_PIVOT",
+        "pivot_date": "2026-10-23",
+        "confirmed_on": "2026-10-27",
+        "pivot_age_sessions": 9,
+        "confirmation_age_sessions": 7,
+        "support": 21600.0,
+        "structure_stop": 20600,
+        "distance_from_close_pct": 23.562152133580707,
+        "distance_from_close_current_atr": 2.1577669902912624,
+        "plans": {
+          "A_SUPPORT_LIMIT": {
+            "distance_pct": 12.340425531914894,
+            "costed_r1_rr": 2.160401355197114,
+            "r1_unknown": false
+          }
+        },
+        "stop_moved_for_existing_signal": false,
+        "buy_approved": false,
+        "not_a_new_profitability_rule": true
+      },
+      "order_validity_sessions": 1,
+      "invalidation": [
+        "CLOSE_BELOW_FROZEN_STOP_THEN_NEXT_TRADABLE_OPEN",
+        "EXPIRED_ONE_ENTRY_SESSION",
+        "MISSING_OR_ACTION_DATA_CENSORED"
       ],
-      "registered_at": null,
-      "analysis_known_at": "2026-11-05T19:52:55.872224+00:00"
+      "source_regular_only_certified": false,
+      "price_basis": "UNADJUSTED_AS_TRADED",
+      "buy_approved": false,
+      "live_action": "CASH",
+      "analysis_known_at": "2026-11-05T23:52:43.778364+00:00",
+      "trade_approved": false
     }
   ],
   "research_top2_is_registered_today": false,
   "research_top2_registered_for_source_session": false,
-  "registration_timing": "NO_COMPLETED_PRICE_SOURCE",
-  "preview_price_asof": "2026-11-04",
+  "registration_timing": "SOURCE_BEFORE_FORWARD_START",
+  "preview_price_asof": "2026-11-05",
   "performance": {
     "registered_decision_days": 0,
+    "registered_source_sessions": 0,
     "registered_signals": 0,
-    "new_completed": {
-      "5": 0,
-      "10": 0,
-      "20": 0
+    "unique_registered_tickers": 0,
+    "latest_observed_session": "2026-11-05",
+    "selection": {
+      "A": {
+        "5": {
+          "total_records": 0,
+          "completed_nonoverlap": 0,
+          "incomplete_or_excluded": 0,
+          "mean_move_pct": null,
+          "mean_excess_pct": null,
+          "rise_rate_pct": null,
+          "regimes": {
+            "UP": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_excess_pct": null
+            }
+          }
+        },
+        "10": {
+          "total_records": 0,
+          "completed_nonoverlap": 0,
+          "incomplete_or_excluded": 0,
+          "mean_move_pct": null,
+          "mean_excess_pct": null,
+          "rise_rate_pct": null,
+          "regimes": {
+            "UP": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_excess_pct": null
+            }
+          }
+        },
+        "20": {
+          "total_records": 0,
+          "completed_nonoverlap": 0,
+          "incomplete_or_excluded": 0,
+          "mean_move_pct": null,
+          "mean_excess_pct": null,
+          "rise_rate_pct": null,
+          "regimes": {
+            "UP": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_excess_pct": null
+            }
+          }
+        }
+      },
+      "B": {
+        "5": {
+          "total_records": 0,
+          "completed_nonoverlap": 0,
+          "incomplete_or_excluded": 0,
+          "mean_move_pct": null,
+          "mean_excess_pct": null,
+          "rise_rate_pct": null,
+          "regimes": {
+            "UP": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_excess_pct": null
+            }
+          }
+        },
+        "10": {
+          "total_records": 0,
+          "completed_nonoverlap": 0,
+          "incomplete_or_excluded": 0,
+          "mean_move_pct": null,
+          "mean_excess_pct": null,
+          "rise_rate_pct": null,
+          "regimes": {
+            "UP": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_excess_pct": null
+            }
+          }
+        },
+        "20": {
+          "total_records": 0,
+          "completed_nonoverlap": 0,
+          "incomplete_or_excluded": 0,
+          "mean_move_pct": null,
+          "mean_excess_pct": null,
+          "rise_rate_pct": null,
+          "regimes": {
+            "UP": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "SIDEWAYS": {
+              "n": 0,
+              "mean_excess_pct": null
+            },
+            "DOWN": {
+              "n": 0,
+              "mean_excess_pct": null
+            }
+          }
+        }
+      }
     },
-    "selection": {},
-    "paper": {},
-    "current_action": "CASH"
+    "paper": {
+      "A": {},
+      "B": {}
+    },
+    "overlapping_selection_records": 0,
+    "actual_broker_fills": 0,
+    "orders_enabled": false,
+    "current_action": "CASH",
+    "not_a_capital_constrained_portfolio": true
   },
   "observations": [],
   "forward_start": "2026-11-06",
@@ -2214,27 +511,27 @@
     "panel": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
     "audit": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
     "classification": "449e7187b4aa7b39e9ef4452a0399ac629de9cce105ced6ead48d968c0de674d",
-    "index_manifest": "f209a1d3e15929d6c158fd234b580635ae3b26f93776079ace04869a072dbc77",
-    "pipeline_code": "c5671b5aacabf47a12c6cba00d7f6833361867bc0bd76f38ab9741004723d909",
-    "ledger_code": "14131622631b0178a32ca9abe4e9f063c12cf1f35923cb97399efa7af9859f21",
+    "index_manifest": "8c7ed106b19c25639fae221d797a05a4c7eecdffeab6fa7044378b30ca31951f",
+    "pipeline_code": "e0af885f4b19204fcb5043238cf9d425fafdc48350b48e2f5ee3658bf7847733",
+    "ledger_code": "089f33544e22f578eea4d5b94719c34908b4768ce1e16f24a6ef5c72122f8c6d",
     "entry_code": "fb2a4d7eadd64030feb7b5943aee25125c7233022ddeeee14a484a5f66ecb396",
     "protocol": "bfa7dc1aa6a476fa70273bac23989eaf6c30143b2a7c8f2021c1801c75df674c",
     "runtime_protocol": "74ec49e2db83c5740fa61be96e53a8294b35f3b2083a9bf3a3bf963a63d94d11"
   },
   "invocation": {
     "event": "push",
-    "mode": "research_smoke",
-    "engine_sha": "384a5189af79be1bc415ab3d04451efadd457749",
+    "mode": "research_direct",
+    "engine_sha": "73d3f2345735267f17b6a9f8a6f3f873719d85c9",
     "upstream": null,
     "automatic_event_observed": false,
     "calendar_schedule_deployed_claimed": false,
     "source_of_truth": "GITHUB_EVENT_CONTEXT_NOT_USER_REQUEST_DATE",
     "orders_enabled": false,
-    "state_sha": "7b20f5dc86d83d0b32c890b48d86c46f35d92626",
-    "caller_commit": "7b20f5dc86d83d0b32c890b48d86c46f35d92626",
+    "state_sha": "73d3f2345735267f17b6a9f8a6f3f873719d85c9",
+    "caller_commit": "73d3f2345735267f17b6a9f8a6f3f873719d85c9",
     "expected_completed_session": "2026-11-05",
     "duplicate_current_session_skipped": false,
-    "run_id": "42097964158"
+    "run_id": "42132626779"
   },
   "upstream_validation": {
     "status": "VALIDATED_COLLECTION_AND_ARTIFACT",
@@ -2246,7 +543,7 @@
     ],
     "artifact_id": 13416241119,
     "artifact_expires_at": "2027-02-03T12:09:31Z",
-    "validated_at": "2026-11-05T19:52:48.637785+00:00",
+    "validated_at": "2026-11-05T23:52:35.272017+00:00",
     "prices_not_implicitly_certified": true,
     "rejected_prior_runs": []
   },
