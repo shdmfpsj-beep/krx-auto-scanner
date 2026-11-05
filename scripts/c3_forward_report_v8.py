@@ -1,0 +1,61 @@
+"""Mobile research status, dated price charts and separate selection/trade results."""
+import argparse,html,json,statistics
+from pathlib import Path
+
+
+def render(latest,outdir):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
+    from matplotlib.ticker import FuncFormatter
+    data=json.loads(Path(latest).read_text());root=Path(outdir);root.mkdir(parents=True,exist_ok=True);cards=[]
+    price=lambda v:'미확인' if v is None else f'{v:,.0f}원'
+    md=['# C3 연구용 TOP2·가상매매 일일 통합 보고','',f"- 보고일(KST): {data['report_day_kst']} / 실행: {data['source_run_id']}",
+        f"- 실제 신규 가격 기준일: {data['source_price_asof'] or '미확보'} / 수집: {data['source_received_at'] or '미확보'}",
+        f"- 마지막 확인 가격: {data['preview_price_asof']} / 오늘 등록된 결정: {data['new_decision_registered']}",
+        f"- 신규 신호: {data['new_registered_signals']} / 신규 고유 종목: {data['new_registered_unique_tickers']}",'- 실전 행동: CASH / 실제 브로커 주문·체결 0','',
+        '오늘 등록되지 않은 아래 후보는 이전 확인일의 연구 미리보기이며 현재 매수 지시가 아닙니다.','']
+    for r in data['research_top2']:
+        p=r['entry_plans']['A_SUPPORT_LIMIT']['plan'];bars=r.get('chart_bars',[]);rows=[('종목',r['name']+' '+r['ticker']),('기준 거래일',data['preview_price_asof']),
+            ('기준 종가',price(r.get('reference_close',r['close']))),('선정 근거',f"시장 대비 RS20 {r['own_rs20']:+.2f}%p · 5일 RS 개선 {r['rs_accel5']:+.2f}%p"),
+            ('매수 관찰가',price(p['high']) if p else '신호 없음'),('연구 매수 범위',f"{price(p['low'])}~{price(p['high'])}" if p else '미성립'),
+            ('구조손절가',price(p['stop']) if p else '미확인'),('손절 거리(범위 상단)',f"{p['risk_pct']:.2f}%" if p else '미확인'),
+            ('1차 저항',price(p['resistance']) if p else '미확인'),('2차 저항',price(p['resistance2']) if p else '미확인'),('실전 행동','CASH')]
+        md+=['## '+r['name']+' '+r['ticker'],'','|항목|값|','|---|---|']+['|'+k+'|'+v+'|' for k,v in rows]+['']
+        table='<table>'+''.join('<tr><th>'+html.escape(k)+'</th><td>'+html.escape(v)+'</td></tr>' for k,v in rows)+'</table>'
+        if bars:
+            fig,(ax,vol)=plt.subplots(2,1,figsize=(6.3,9),sharex=True,gridspec_kw={'height_ratios':[4,1]})
+            for i,b in enumerate(bars):
+                c='#c64d5b' if b['close']>=b['open'] else '#417cac';ax.vlines(i,b['low'],b['high'],color=c,lw=.8)
+                ax.add_patch(Rectangle((i-.28,min(b['open'],b['close'])),.56,max(abs(b['open']-b['close']),b['close']*.0002),color=c));vol.bar(i,b['volume']/1_000_000,color=c,width=.65)
+            for n,c in ((5,'#c99a2e'),(10,'#6a9c6b'),(20,'#8974a5')):
+                ax.plot(range(n-1,len(bars)),[statistics.mean(b['close'] for b in bars[j-n+1:j+1]) for j in range(n-1,len(bars))],color=c,lw=1,label=f'MA{n}')
+            if p:
+                ax.axhspan(p['low'],p['high'],color='#398f84',alpha=.18,label=f"Research band {p['low']:,}-{p['high']:,}")
+                for v,label,c in ((p['support'],'Support','#708397'),(p['stop'],'Stop','#b63c52'),(p['resistance'],'R1','#a07c2e'),(p['resistance2'],'R2','#bf9e43')):
+                    if v is not None:ax.axhline(v,color=c,ls='--',label=f'{label} {v:,.0f}')
+            ax.axhline(r.get('reference_close',r['close']),color='#34465a',ls=':',label='Dated reference close')
+            ax.set_title(f"RESEARCH ONLY | {r['ticker']} | {data['preview_price_asof']}\nCASH / registration today: {data['research_top2_is_registered_today']}",fontsize=10)
+            ax.legend(fontsize=8,loc='upper left');ax.grid(alpha=.15);ax.yaxis.set_major_formatter(FuncFormatter(lambda v,pos:f'{v:,.0f}'))
+            ticks=list(range(0,len(bars),max(1,len(bars)//5)));vol.set_xticks(ticks,[bars[i]['date'][5:] for i in ticks],rotation=25);vol.set_ylabel('Volume / million',fontsize=8)
+            fig.tight_layout();name=r['ticker']+'_structure.png';fig.savefig(root/name,dpi=160);plt.close(fig);table+=f'<img src="{name}" alt="Dated research structure">';md+=['!['+r['name']+']('+name+')','']
+        cards.append('<section>'+table+'</section>')
+    performance=data['performance'];counts=performance.get('registered_signals',0)
+    md+=['## 신규 연구 성과','',f"- 보존된 선정 기록: {counts}개. A/B는 별도 비교하며 같은 종목을 합쳐 독립 거래 수로 제시하지 않습니다.",
+        '- 선정 성과: 결정 종가→5/10/20일 종가와 자기 시장 지수 초과수익. 같은 종목의 20세션 중복 관찰 제외.',
+        '- 타점 성과: 기존 진입 조건·1세션 유효·보수적 접촉/체결 구분·비용과 슬리피지·종가 손절 뒤 다음 거래 가능 시가.',
+        '- 조기 청산 손익과 관찰기간 완료 여부를 분리하고, 청산 뒤에도 해당 종목의 관측을 계속합니다.']
+    for model in ('A','B'):
+        for h in (5,10,20):
+            x=performance.get('selection',{}).get(model,{}).get(str(h),{});n=x.get('completed_nonoverlap',0);v=x.get('mean_excess_pct')
+            md.append(f"- {model} 선정 {h}일 완료 {n}개 / 지수 대비 평균 "+('미확정' if v is None else f'{v:+.2f}%p'))
+    md+=['','## 수집·실행 상태','']+['- '+s for s in data['errors']]+['','새 정기 실행은 배포되지 않았습니다. 검증된 실행 경로는 연구 브랜치의 요청 파일 push이며, 현재 ChatGPT 알림의 일정·활성 상태는 변경하지 않았습니다.','실전 승인 TOP2 없음. GPT 실행·유료 API·실계좌 주문 없음.']
+    (root/'mobile_report.md').write_text('\n'.join(md)+'\n')
+    top='<section><h1>C3 연구용 TOP2·가상매매</h1><strong style="color:#a83e51">실전 행동: CASH</strong><p>보고일 '+data['report_day_kst']+' · 가격 '+data['preview_price_asof']+' · 신규 신호 '+str(data['new_registered_signals'])+'개</p><p>신규 가격 미확보 또는 신규 기간 전에는 지난 후보를 신규 결정으로 등록하지 않습니다. 종목 선정과 진입 성과를 분리하며 미완성 수익률은 미확정으로 둡니다.</p></section>'
+    doc='<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>C3 전방 연구</title><style>body{font:16px/1.65 system-ui;background:#f1f4f8;color:#203047;max-width:780px;margin:auto;padding:16px}section{background:white;margin:14px 0;padding:16px;border-radius:12px}h1{font-size:25px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}table,img{width:100%}img{height:auto}</style>'+top+''.join(cards)+'<section><h2>오류와 검증 한계</h2><p>'+html.escape(' / '.join(data['errors']) or '이번 실행에서 수집 오류 없음')+'</p><p>신규 완료 표본이 없으면 성과 미확정입니다. 기존 과거 수익률은 재사용하지 않았습니다. 정규장 원천 인증·기업행위 전수 대조·기간 외 수익성은 별도 검증이 필요합니다.</p></section></html>'
+    (root/'mobile_report.html').write_text(doc)
+
+
+if __name__=='__main__':
+    p=argparse.ArgumentParser();p.add_argument('--latest',required=True);p.add_argument('--outdir',required=True);a=p.parse_args();render(a.latest,a.outdir)

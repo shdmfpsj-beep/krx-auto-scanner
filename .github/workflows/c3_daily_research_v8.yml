@@ -1,0 +1,147 @@
+name: C3 prospective research TOP2 and paper ledger
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_*_v8.py'
+      - 'scripts/test_c3_forward_ledger_v8.py'
+      - 'config/c3_forward_v8_*.json'
+      - 'reports/c3_work8_20261105/inputs.json'
+      - '.github/workflows/c3_daily_research_v8.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-research-v8-prospective-only
+  cancel-in-progress: false
+jobs:
+  validate-and-run:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/research/c3-ledger-integrity-audit-20261104'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install the existing research dependencies
+        run: pip install pandas==2.2.3 pykrx==1.2.9 'matplotlib>=3.8,<4'
+      - name: Preserve 591 regressions and validate prospective integration
+        run: |
+          mkdir -p /tmp/c3-forward8/result/validation
+          python - <<'PY'
+          import json,sys,unittest
+          from pathlib import Path
+          sys.path.insert(0,'scripts');loader=unittest.TestLoader()
+          suites=[loader.discover('scripts',pattern=p) for p in ('test_c3_*.py','test_krx_official_eod_v65.py','test_hma60_first_pullback_v11.py')]
+          counts=[s.countTestCases() for s in suites]
+          result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
+          Path('/tmp/c3-forward8/result/validation/tests.json').write_text(json.dumps(dict(counts=counts,total=result.testsRun,failures=len(result.failures),errors=len(result.errors),skipped=len(result.skipped),new_integration_fixtures_are_synthetic=True)))
+          assert counts==[582,14,21], 'PRESERVED_TEST_COUNT_CHANGED'
+          if not result.wasSuccessful():raise SystemExit(1)
+          PY
+      - name: Reuse the three hash-pinned bootstrap inputs
+        run: |
+          python - <<'PY'
+          import hashlib,json,subprocess,zipfile
+          from pathlib import Path
+          m=json.loads(Path('reports/c3_work8_20261105/inputs.json').read_text())
+          for name,item in m['artifacts'].items():
+              root=Path('/tmp/c3-forward8/inputs')/name;root.mkdir(parents=True,exist_ok=True);p=root/'input.zip'
+              with p.open('wb') as f:subprocess.run(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(item['id'])+'/zip'],stdout=f,check=True)
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==item['sha256'],'PINNED_SOURCE_HASH_MISMATCH:'+name
+              with zipfile.ZipFile(p) as z:
+                  assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in z.namelist());z.extractall(root)
+          PY
+      - name: Read dated board indices and request only missing recent official sessions
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: |
+          python - <<'PY'
+          import csv,json,shutil,subprocess,sys
+          from pathlib import Path
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from c3_daily_research_v8 import collect_indices
+          from c3_forward_ledger_v8 import read_record
+          root=Path('/tmp/c3-forward8/result');today=datetime.now(ZoneInfo('Asia/Seoul')).date().isoformat();indices=root/'indices'
+          try:collect_indices(indices,today)
+          except Exception as exc:
+              shutil.copytree('reports/c3_work7_20261105/sources',indices,dirs_exist_ok=True)
+              (indices/'collection_error.json').write_text(json.dumps(dict(status='INDEX_COLLECTION_FAILED_DATED_CACHE_ONLY',error_type=type(exc).__name__)))
+          with (indices/'KOSPI_index.csv').open() as f:dates=[r['date'] for r in csv.DictReader(f)]
+          existing={read_record(p)['asof'] for p in Path('reports/c3_forward_v8/markets').glob('*.json.gz')}
+          missing=[d for d in dates if '2026-11-04'<d<=today and d not in existing]
+          requested=sorted(set(missing[:4]+[today]))
+          (root/'collection_plan.json').write_text(json.dumps(dict(today=today,missing_index_sessions=missing,requested_dates=requested,request_budget_dates=5,not_a_new_decision_for_old_dates=True)))
+          subprocess.run([sys.executable,'scripts/c3_official_snapshot_probe_v1.py','--asof',*requested,'--prices','reports/c3_work_20261104/inputs/top2_provisional_ohlcv.csv','--outdir',str(root/'fresh')],check=True)
+          (root/'runtime_day.txt').write_text(today)
+          (root/'validated_commit.txt').write_text(__import__('os').environ['GITHUB_SHA'])
+          PY
+      - name: Connect current selection to immutable registration and post-entry observations
+        run: |
+          day=$(cat /tmp/c3-forward8/result/runtime_day.txt)
+          python scripts/c3_daily_research_v8.py --panel /tmp/c3-forward8/inputs/panel/official_panel.csv.gz --audit /tmp/c3-forward8/inputs/panel/quality_audit.json --baseline /tmp/c3-forward8/inputs/latest/requested-date-probe/2026-11-04 --basic /tmp/c3-forward8/inputs/issuer/basic --scope reports/c3_work5_20261105/sources --indices /tmp/c3-forward8/result/indices --fresh "/tmp/c3-forward8/result/fresh/$day" --ledger reports/c3_forward_v8 --outdir /tmp/c3-forward8/result/current --run-id '${{ github.run_id }}'
+          python scripts/c3_forward_report_v8.py --latest /tmp/c3-forward8/result/current/latest.json --outdir /tmp/c3-forward8/result/mobile
+          python - <<'PY'
+          from pathlib import Path
+          import shutil,json
+          root=Path('/tmp/c3-forward8/result');shutil.copytree('reports/c3_forward_v8',root/'ledger',dirs_exist_ok=True) if Path('reports/c3_forward_v8').exists() else (root/'ledger').mkdir()
+          j=json.loads((root/'current/latest.json').read_text());assert not j['orders_enabled'] and j['current_action']=='CASH'
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-forward-v8-prospective-evidence
+          path: /tmp/c3-forward8/result/
+          retention-days: 90
+          if-no-files-found: error
+  preserve-research-only:
+    needs: validate-and-run
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/research/c3-ledger-integrity-audit-20261104'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: c3-forward-v8-prospective-evidence
+          path: /tmp/c3-forward8-validated
+      - name: Preserve source records and derived report on the research branch only
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import os,shutil,subprocess
+          from pathlib import Path
+          assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==os.environ['EXPECTED_HEAD'],'RESEARCH_HEAD_CHANGED_RETRY_NO_FORCE'
+          incoming=Path('/tmp/c3-forward8-validated');root=Path('reports/c3_forward_v8')
+          for folder in ('markets','decisions','observations','corrections'):
+              for src in (incoming/'ledger'/folder).rglob('*'):
+                  if not src.is_file():continue
+                  dest=root/folder/src.relative_to(incoming/'ledger'/folder)
+                  if dest.exists():assert dest.read_bytes()==src.read_bytes(),'IMMUTABLE_RECORD_WOULD_CHANGE'
+                  else:dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(src,dest)
+          root.mkdir(parents=True,exist_ok=True);shutil.copyfile(incoming/'current/latest.json',root/'latest.json')
+          shutil.copytree(incoming/'mobile',root/'mobile',dirs_exist_ok=True)
+          shutil.copyfile(incoming/'collection_plan.json',root/'collection_plan.json')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- reports/c3_forward_v8
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'research: preserve prospective C3 decision and paper status (NO ORDERS)'
+          git push origin HEAD:refs/heads/research/c3-ledger-integrity-audit-20261104

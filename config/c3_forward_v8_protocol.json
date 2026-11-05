@@ -1,0 +1,35 @@
+{
+  "schema": "C3_FORWARD_V8_PROTOCOL",
+  "forward_start": "2026-11-06",
+  "selection_A": "V7_CURRENT_NATIVE_BOARD_UPTREND_RS20_TURNOVER",
+  "selection_B": "SAME_A_AND_OWN_RS20_IMPROVING_5",
+  "primary_research_model": "B",
+  "max_per_model": 2,
+  "entry_methods": [
+    "A_SUPPORT_LIMIT",
+    "B_CONFIRMED_PULLBACK",
+    "C_LIMITED_BREAKOUT"
+  ],
+  "order_validity_sessions": 1,
+  "stop_rule": "UNCHANGED_MOST_RECENT_TWO_LEFT_TWO_RIGHT_CONFIRMED_PIVOT_FROZEN_ATR",
+  "close_stop_execution": "NEXT_ACTUALLY_TRADABLE_OPEN_WITH_GAP_AND_SLIPPAGE",
+  "costs": {
+    "buy": 0.0015,
+    "sell": 0.005,
+    "slippage_each_side": 0.001
+  },
+  "horizons": [
+    5,
+    10,
+    20
+  ],
+  "decision_registration": "CURRENT_SESSION_ONLY_APPEND_EXCLUSIVE_NO_BACKFILL",
+  "selection_overlap_window_sessions": 20,
+  "trade_scope": "PER_SIGNAL_SHADOW_PATH_NOT_CAPITAL_CONSTRAINED_PORTFOLIO",
+  "regular_scope": "OFFICIAL_EOD_UNCERTIFIED_NO_KNOWN_AFTERMARKET_OR_ADJUSTED_DATA",
+  "require_unadjusted_prices": true,
+  "current_industries_not_backfilled_to_historical_decisions": true,
+  "new_strategy_promoted": false,
+  "orders_enabled": false,
+  "live_action": "CASH"
+}
