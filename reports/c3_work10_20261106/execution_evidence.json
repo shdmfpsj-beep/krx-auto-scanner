@@ -1,0 +1,158 @@
+{
+  "schema": "C3_WORK10_EXECUTION_EVIDENCE",
+  "recorded_at": "2026-11-05T19:57:59.295840+00:00",
+  "preserved_work9_commit": "7f9a16c9313ee6039a1a0ad2b109ca4a6f01550d",
+  "engine_commit": "384a5189af79be1bc415ab3d04451efadd457749",
+  "first_code_checkpoint": "e97c2ce2770987befd70baba2172ed647d23ecf0",
+  "smoke_caller_commit": "7b20f5dc86d83d0b32c890b48d86c46f35d92626",
+  "direct_saved_commit": "e7e90425b5d73e65aafeb12d91dfd1ae6cb99be1",
+  "reusable_saved_commit": "78905da2a48b2bec210be9abe8cca76dac5e4bf8",
+  "tests": {
+    "preserved": 641,
+    "added": 16,
+    "passed": 657,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "fixtures_are_synthetic_not_market_returns": true
+  },
+  "runs": {
+    "initial_failure": 42097075868,
+    "initial_failed_job": 127489801177,
+    "failure_reason": "SCANNER_ARTIFACT_CROSS_HOST_REDIRECT_AUTHORIZATION_HTTP401",
+    "fix": "REUSE_GH_API_ARTIFACT_DOWNLOAD_HANDLING",
+    "source_diagnostic": 42097465559,
+    "direct_pipeline": 42097465305,
+    "reusable_preflight_and_pipeline": 42097964158,
+    "deployment_review": 42097556370
+  },
+  "artifacts": [
+    {
+      "id": 13447613160,
+      "run_id": 42097465559,
+      "sha256": "44a4ff299618f1b72a79d359ef16b05aa4756b653a925f2d504bc0a7f1134bab"
+    },
+    {
+      "id": 13447528539,
+      "run_id": 42097465305,
+      "sha256": "ba59208ed032bfa4d5dff6cf911968181ecb521f1e80274a8c4bf8780f9091d3"
+    },
+    {
+      "id": 13448093165,
+      "run_id": 42097964158,
+      "sha256": "894c5002d1501be16c11ebfe9e019c6f497559860cb154c749fe86e58fe24200"
+    },
+    {
+      "id": 13416241119,
+      "run_id": 42024764636,
+      "sha256": "c18ae45329a63edd4717e9f56186c68c259ef8fc6d50b13d5417a152295f86cd"
+    }
+  ],
+  "latest_collection": {
+    "official": "FAILED_OUTBLOCK_EMPTY",
+    "attempted_asof": "2026-11-05",
+    "received_at": "2026-11-05T19:52:52.449096+00:00",
+    "rows": 0,
+    "last_verified_official": "2026-11-04",
+    "control_rows": 2769,
+    "current_official_universe": null,
+    "current_analysis_eligible": null,
+    "regular_only_certified": false,
+    "exact_official_publication_time_or_root_cause_confirmed": false,
+    "free_krx_website": "HTTP400_LOGOUT_NOT_PARSED",
+    "provisional": {
+      "status": "PROVISIONAL_CLOSE_ONLY_UNAPPROVED",
+      "source_run_id": "42024764636",
+      "source_artifact_id": 13416241119,
+      "source_price_asof": "2026-11-05",
+      "rows": 2625,
+      "universe_rows": 2625,
+      "missing_or_invalid": [],
+      "last_received_at": "2026-11-05T12:47:13.699076+00:00",
+      "price_basis": "ADJUSTED_TRUE_AS_REQUESTED",
+      "provider": "PYKRX_NAVER",
+      "record_path": "provisional/2026-11-05/743586c10786fc26cfd76b659fffe60cb6c8d4c95631045f607906b032fe952d.json.gz",
+      "record_sha256": "cb21a5b0b39349e68d2c0f03afa2babdcae3575d5a018028cff50a09d1b2041a",
+      "regular_only_certified": false,
+      "ohlcv_and_turnover_complete": false,
+      "used_for_selection": false,
+      "used_for_paper_fills": false,
+      "used_for_certified_returns": false
+    }
+  },
+  "prospective": {
+    "source_start": "2026-11-06",
+    "registered_decisions": 0,
+    "new_signals": 0,
+    "paper_entries": 0,
+    "unfilled_registered": 0,
+    "stops": 0,
+    "exits": 0,
+    "completed": {
+      "5": 0,
+      "10": 0,
+      "20": 0
+    },
+    "incomplete_registered": {
+      "5": 0,
+      "10": 0,
+      "20": 0
+    },
+    "current_session_not_completed": true,
+    "returns": "UNCONFIRMED_NO_NEW_SAMPLES",
+    "live_action": "CASH"
+  },
+  "handoff": {
+    "report_day_kst": "2026-11-06",
+    "generated_at": "2026-11-05T19:52:55.872224+00:00",
+    "source_run_id": "42097964158",
+    "timestamps_consistent": true,
+    "git_outputs": {
+      "latest.json": {
+        "sha256": "172fb4cd00da0c5cd4d282a055ec7bdbe0b1b6d06ef5f3c6e6016175cd8e9c34",
+        "saved_git_result_equals_downloaded_artifact": true
+      },
+      "mobile/summary.json": {
+        "sha256": "28036017bd6783b31863f472e49e3877c81d6391b35f50c7ec7d0e6db672d128",
+        "saved_git_result_equals_downloaded_artifact": true
+      },
+      "mobile/mobile_report.md": {
+        "sha256": "945370a0c3cc78a4b995ec5940b3a3fa9608ea84ccf3ae8957fa6687bbd039f5",
+        "saved_git_result_equals_downloaded_artifact": true
+      }
+    },
+    "github_three_report_files_read": true,
+    "actual_new_2230_delivery_confirmed": false,
+    "automation_changed": false
+  },
+  "idempotence": {
+    "actual_provisional_receipts": 1,
+    "identical_actual_source_processed_in_two_runs": true,
+    "original_provisional_bytes_unchanged": true,
+    "real_signal_duplicate_test": "NOT_EXECUTABLE_NO_NEW_OFFICIAL_SESSION",
+    "synthetic_signal_duplicates_regression_passed": true
+  },
+  "deployment": {
+    "pr": 31,
+    "head": "f798214eb897c1640dfa709c68c92fe0958f7930",
+    "changed_files": [
+      ".github/workflows/c3_research_daily_caller.yml"
+    ],
+    "draft": true,
+    "merged": false,
+    "deployed": false,
+    "preflight_reusable_smoke_success": true,
+    "main_workflow_run_or_schedule_not_executed": true,
+    "needs_user_merge_approval": true
+  },
+  "strategy_files_unchanged": [
+    "scripts/c3_entry_practical_v7.py",
+    "scripts/c3_daily_top2_v4.py",
+    "scripts/c3_selection_factors_v6.py"
+  ],
+  "bootstrap_expiry_dependency_removed": false,
+  "orders_enabled": false,
+  "paid_api_calls": 0,
+  "notifications_modified": false,
+  "main_modified": false
+}

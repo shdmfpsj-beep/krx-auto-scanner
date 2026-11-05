@@ -1,0 +1,147 @@
+{
+  "results": [
+    {
+      "asof": "2026-11-04",
+      "provider": "PYKRX_KRX_WEBSITE_SINGLE_DATE_CROSS_SECTION",
+      "module": "pykrx.stock.stock_api",
+      "adapter_sha256": "9957bcaaa0c89d08e0937590650de5f562d9eb05d1c7f53f0d6d7f17b8bcb024",
+      "adjusted_history_not_requested": true,
+      "session_scope_certified": false,
+      "parts": [
+        {
+          "market": "KOSPI",
+          "status": "PUBLIC_WEBSITE_FAILED",
+          "error_type": "KeyError",
+          "started_at": "2026-11-05T19:49:18.494605+00:00",
+          "received_at": "2026-11-05T19:49:18.953924+00:00",
+          "transport": [
+            {
+              "method": "POST",
+              "host": "data.krx.co.kr",
+              "path": "/comm/bldAttendant/getJsonData.cmd",
+              "request_fields": [
+                "bld",
+                "mktId",
+                "trdDd"
+              ],
+              "date_parameter": "20261104",
+              "http_status": 400,
+              "content_type": "text/html; charset=utf-8",
+              "body_bytes": 6,
+              "body_sha256": "377b375adcc04b5ba5998c978372401a4c6327ccc218e17e383f72861085cb95",
+              "json_keys": [],
+              "received_at": "2026-11-05T19:49:18.951770+00:00",
+              "body_hash_matches_literal_LOGOUT": true
+            }
+          ]
+        },
+        {
+          "market": "KOSDAQ",
+          "status": "PUBLIC_WEBSITE_FAILED",
+          "error_type": "KeyError",
+          "started_at": "2026-11-05T19:49:18.953938+00:00",
+          "received_at": "2026-11-05T19:49:19.244199+00:00",
+          "transport": [
+            {
+              "method": "POST",
+              "host": "data.krx.co.kr",
+              "path": "/comm/bldAttendant/getJsonData.cmd",
+              "request_fields": [
+                "bld",
+                "mktId",
+                "trdDd"
+              ],
+              "date_parameter": "20261104",
+              "http_status": 400,
+              "content_type": "text/html; charset=utf-8",
+              "body_bytes": 6,
+              "body_sha256": "377b375adcc04b5ba5998c978372401a4c6327ccc218e17e383f72861085cb95",
+              "json_keys": [],
+              "received_at": "2026-11-05T19:49:19.242522+00:00",
+              "body_hash_matches_literal_LOGOUT": true
+            }
+          ]
+        }
+      ],
+      "rows": 0,
+      "control_comparison_count": 0,
+      "control_mismatches": [],
+      "used_for_selection": false,
+      "used_for_paper_fills": false,
+      "orders_enabled": false
+    },
+    {
+      "asof": "2026-11-05",
+      "provider": "PYKRX_KRX_WEBSITE_SINGLE_DATE_CROSS_SECTION",
+      "module": "pykrx.stock.stock_api",
+      "adapter_sha256": "9957bcaaa0c89d08e0937590650de5f562d9eb05d1c7f53f0d6d7f17b8bcb024",
+      "adjusted_history_not_requested": true,
+      "session_scope_certified": false,
+      "parts": [
+        {
+          "market": "KOSPI",
+          "status": "PUBLIC_WEBSITE_FAILED",
+          "error_type": "KeyError",
+          "started_at": "2026-11-05T19:49:19.247582+00:00",
+          "received_at": "2026-11-05T19:49:19.573806+00:00",
+          "transport": [
+            {
+              "method": "POST",
+              "host": "data.krx.co.kr",
+              "path": "/comm/bldAttendant/getJsonData.cmd",
+              "request_fields": [
+                "bld",
+                "mktId",
+                "trdDd"
+              ],
+              "date_parameter": "20261105",
+              "http_status": 400,
+              "content_type": "text/html; charset=utf-8",
+              "body_bytes": 6,
+              "body_sha256": "377b375adcc04b5ba5998c978372401a4c6327ccc218e17e383f72861085cb95",
+              "json_keys": [],
+              "received_at": "2026-11-05T19:49:19.572222+00:00",
+              "body_hash_matches_literal_LOGOUT": true
+            }
+          ]
+        },
+        {
+          "market": "KOSDAQ",
+          "status": "PUBLIC_WEBSITE_FAILED",
+          "error_type": "KeyError",
+          "started_at": "2026-11-05T19:49:19.573821+00:00",
+          "received_at": "2026-11-05T19:49:19.868415+00:00",
+          "transport": [
+            {
+              "method": "POST",
+              "host": "data.krx.co.kr",
+              "path": "/comm/bldAttendant/getJsonData.cmd",
+              "request_fields": [
+                "bld",
+                "mktId",
+                "trdDd"
+              ],
+              "date_parameter": "20261105",
+              "http_status": 400,
+              "content_type": "text/html; charset=utf-8",
+              "body_bytes": 6,
+              "body_sha256": "377b375adcc04b5ba5998c978372401a4c6327ccc218e17e383f72861085cb95",
+              "json_keys": [],
+              "received_at": "2026-11-05T19:49:19.866753+00:00",
+              "body_hash_matches_literal_LOGOUT": true
+            }
+          ]
+        }
+      ],
+      "rows": 0,
+      "control_comparison_count": 0,
+      "control_mismatches": [],
+      "used_for_selection": false,
+      "used_for_paper_fills": false,
+      "orders_enabled": false
+    }
+  ],
+  "official_api_key_failure_not_inferred": true,
+  "web_login_not_bypassed": true,
+  "empty_public_payload_not_a_current_universe": true
+}

@@ -1,0 +1,86 @@
+{
+  "schema": "C3_K100_KRX_OPENAPI_COLLECTION_V65",
+  "asof": "2026-11-05",
+  "retrieval_utc": "2026-11-05T19:52:52.449096+00:00",
+  "api_reference_base": "https://data-dbg.krx.co.kr/svc/apis/sto/",
+  "endpoints": [
+    "stk_bydd_trd",
+    "ksq_bydd_trd"
+  ],
+  "authentication_secret_persisted": false,
+  "krx_eod_authenticated": false,
+  "official_dataset_usable": false,
+  "independent_1530_regular_session_certified": false,
+  "session_scope_includes_aftermarket_verified": false,
+  "source_price_authorized_for_trading": false,
+  "trade_approved": false,
+  "orders_enabled": false,
+  "decision": "CASH",
+  "official_market_rows": 0,
+  "unmatched_nonshort_codes": 0,
+  "market_file_sha256": {},
+  "raw_response_sha256": {
+    "KOSPI": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+    "KOSDAQ": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90"
+  },
+  "response_diagnostics": [
+    {
+      "market": "KOSPI",
+      "asof": "2026-11-05",
+      "endpoint": "stk_bydd_trd",
+      "method": "GET",
+      "query": {
+        "basDd": "20261105"
+      },
+      "credential_present": true,
+      "request_header_names": [
+        "AUTH_KEY",
+        "Accept"
+      ],
+      "started_at": "2026-11-05T19:52:52.449152+00:00",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+      "body_bytes": 17,
+      "json_top_keys": [
+        "OutBlock_1"
+      ],
+      "outblock_type": "list",
+      "outblock_rows": 0,
+      "status": "OUTBLOCK_EMPTY",
+      "provider_error": {},
+      "received_at": "2026-11-05T19:52:54.194006+00:00"
+    },
+    {
+      "market": "KOSDAQ",
+      "asof": "2026-11-05",
+      "endpoint": "ksq_bydd_trd",
+      "method": "GET",
+      "query": {
+        "basDd": "20261105"
+      },
+      "credential_present": true,
+      "request_header_names": [
+        "AUTH_KEY",
+        "Accept"
+      ],
+      "started_at": "2026-11-05T19:52:54.194085+00:00",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+      "body_bytes": 17,
+      "json_top_keys": [
+        "OutBlock_1"
+      ],
+      "outblock_type": "list",
+      "outblock_rows": 0,
+      "status": "OUTBLOCK_EMPTY",
+      "provider_error": {},
+      "received_at": "2026-11-05T19:52:55.713973+00:00"
+    }
+  ],
+  "price_basis": "UNADJUSTED_AS_REPORTED",
+  "quality": {},
+  "status": "OFFICIAL_MARKETS_NOT_COMPLETE",
+  "successful_partial_markets": []
+}
