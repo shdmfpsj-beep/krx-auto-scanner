@@ -1,18 +1,74 @@
 {
   "schema": "C3_DAILY_RESEARCH_V8",
-  "generated_at": "2026-11-05T13:16:58.071332+00:00",
-  "report_day_kst": "2026-11-05",
-  "source_run_id": "42034308985",
+  "generated_at": "2026-11-05T19:06:59.902338+00:00",
+  "report_day_kst": "2026-11-06",
+  "source_run_id": "42090678857",
   "source_price_asof": null,
   "source_received_at": null,
   "attempted_price_asof": "2026-11-05",
-  "probe_received_at": "2026-11-05T13:16:57.522866+00:00",
+  "probe_received_at": "2026-11-05T19:06:56.495088+00:00",
   "last_confirmed_price_asof": "2026-11-04",
+  "source_diagnostics": [
+    {
+      "market": "KOSPI",
+      "asof": "2026-11-05",
+      "endpoint": "stk_bydd_trd",
+      "method": "GET",
+      "query": {
+        "basDd": "20261105"
+      },
+      "credential_present": true,
+      "request_header_names": [
+        "AUTH_KEY",
+        "Accept"
+      ],
+      "started_at": "2026-11-05T19:06:56.495156+00:00",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+      "body_bytes": 17,
+      "json_top_keys": [
+        "OutBlock_1"
+      ],
+      "outblock_type": "list",
+      "outblock_rows": 0,
+      "status": "OUTBLOCK_EMPTY",
+      "provider_error": {},
+      "received_at": "2026-11-05T19:06:58.177787+00:00"
+    },
+    {
+      "market": "KOSDAQ",
+      "asof": "2026-11-05",
+      "endpoint": "ksq_bydd_trd",
+      "method": "GET",
+      "query": {
+        "basDd": "20261105"
+      },
+      "credential_present": true,
+      "request_header_names": [
+        "AUTH_KEY",
+        "Accept"
+      ],
+      "started_at": "2026-11-05T19:06:58.177861+00:00",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+      "body_bytes": 17,
+      "json_top_keys": [
+        "OutBlock_1"
+      ],
+      "outblock_type": "list",
+      "outblock_rows": 0,
+      "status": "OUTBLOCK_EMPTY",
+      "provider_error": {},
+      "received_at": "2026-11-05T19:06:59.723590+00:00"
+    }
+  ],
+  "source_collection_status": "OFFICIAL_MARKETS_NOT_COMPLETE",
   "current_scope": null,
   "last_confirmed_scope": 1983,
   "errors": [
-    "FORWARD_NOT_STARTED_NO_RETROACTIVE_DECISION",
-    "OFFICIAL_RESPONSE_MISSING_OR_EMPTY_OUTBLOCK"
+    "OFFICIAL_MARKETS_NOT_COMPLETE"
   ],
   "new_decision_registered": false,
   "new_registered_signals": 0,
@@ -1068,7 +1124,9 @@
           "name": "삼성E&A",
           "segment": 0
         }
-      ]
+      ],
+      "registered_at": null,
+      "analysis_known_at": "2026-11-05T19:06:59.902338+00:00"
     },
     {
       "ticker": "030530",
@@ -2120,10 +2178,14 @@
           "name": "원익홀딩스",
           "segment": 0
         }
-      ]
+      ],
+      "registered_at": null,
+      "analysis_known_at": "2026-11-05T19:06:59.902338+00:00"
     }
   ],
   "research_top2_is_registered_today": false,
+  "research_top2_registered_for_source_session": false,
+  "registration_timing": "NO_COMPLETED_PRICE_SOURCE",
   "preview_price_asof": "2026-11-04",
   "performance": {
     "registered_decision_days": 0,
@@ -2151,10 +2213,26 @@
     "panel": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
     "audit": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
     "classification": "449e7187b4aa7b39e9ef4452a0399ac629de9cce105ced6ead48d968c0de674d",
-    "index_manifest": "30e602c6ad8d312cb1de5f92cc0981bfc14d1f366c7dfc11bae843782e8d5545",
-    "pipeline_code": "42379dcbbeb8ac1c1362b3e85f28a794802e3e5b2c5687c87ce547733665624e",
-    "ledger_code": "408b73b870b00eeb72b2190daa9e6e583061ea038cf96b59dd7386cfd9f3be7f",
+    "index_manifest": "f7730be4c7d80e29fea3e38fabab23943fe41a0fc87800d744c5db615b43eab6",
+    "pipeline_code": "4c7f243c3acde5c7251f6b60657c942efa9405a83fa5fdb4b10c1ac8b9eee43b",
+    "ledger_code": "d1a0c4874de95cf7ccca051338b55f0116ff1389e777a4e88381a38e302fc4bf",
     "entry_code": "fb2a4d7eadd64030feb7b5943aee25125c7233022ddeeee14a484a5f66ecb396",
-    "protocol": "bfa7dc1aa6a476fa70273bac23989eaf6c30143b2a7c8f2021c1801c75df674c"
+    "protocol": "bfa7dc1aa6a476fa70273bac23989eaf6c30143b2a7c8f2021c1801c75df674c",
+    "runtime_protocol": "74ec49e2db83c5740fa61be96e53a8294b35f3b2083a9bf3a3bf963a63d94d11"
+  },
+  "invocation": {
+    "event": "push",
+    "mode": "research_direct",
+    "engine_sha": "e759e56f2e3f240b97ffa3f5422ff62244b68ba7",
+    "upstream": null,
+    "automatic_event_observed": false,
+    "calendar_schedule_deployed_claimed": false,
+    "source_of_truth": "GITHUB_EVENT_CONTEXT_NOT_USER_REQUEST_DATE",
+    "orders_enabled": false,
+    "state_sha": "e759e56f2e3f240b97ffa3f5422ff62244b68ba7",
+    "caller_commit": "e759e56f2e3f240b97ffa3f5422ff62244b68ba7",
+    "expected_completed_session": "2026-11-05",
+    "duplicate_current_session_skipped": false,
+    "run_id": "42090678857"
   }
 }

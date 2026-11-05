@@ -1,6 +1,6 @@
 # C3 연구용 TOP2·가상매매 일일 통합 보고
 
-- 보고일(KST): 2026-11-05 / 실행: 42034308985
+- 보고일(KST): 2026-11-06 / 실행: 42090678857
 - 실제 신규 가격 기준일: 미확보 / 수집: 미확보
 - 마지막 확인 가격: 2026-11-04 / 오늘 등록된 결정: False
 - 신규 신호: 0 / 신규 고유 종목: 0
@@ -73,8 +73,12 @@
 
 ## 수집·실행 상태
 
-- FORWARD_NOT_STARTED_NO_RETROACTIVE_DECISION
-- OFFICIAL_RESPONSE_MISSING_OR_EMPTY_OUTBLOCK
+- OFFICIAL_MARKETS_NOT_COMPLETE
 
-새 정기 실행은 배포되지 않았습니다. 검증된 실행 경로는 연구 브랜치의 요청 파일 push이며, 현재 ChatGPT 알림의 일정·활성 상태는 변경하지 않았습니다.
+현재 호출의 이벤트를 위 원장과 별도로 기록합니다. 정기 배포와 실제 자동 실행 관측은 구분하며, 현재 ChatGPT 알림의 일정·활성 상태는 변경하지 않았습니다.
 실전 승인 TOP2 없음. GPT 실행·유료 API·실계좌 주문 없음.
+
+- 호출: research_direct / 원본 이벤트: push / 실제 자동 이벤트 관측: False
+- 완료 일봉 확인 대상: 2026-11-05 / 같은 원본 중복 갱신 생략: False
+- 가격 응답 KOSPI 2026-11-05: HTTP 200 / OUTBLOCK_EMPTY / OutBlock 행 0
+- 가격 응답 KOSDAQ 2026-11-05: HTTP 200 / OUTBLOCK_EMPTY / OutBlock 행 0
