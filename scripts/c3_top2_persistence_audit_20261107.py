@@ -162,16 +162,23 @@ def main():
     qa=BASE/"inputs/panel/quality_audit.json"
     old=BASE/"inputs/latest/requested-date-probe/2026-11-04"
     basic=BASE/"inputs/issuer/basic"
-    _,basics,kind,secondary,_=load_sources(old,basic,"reports/c3_work5_20261105/sources",
+    baseline_prices,basics,kind,secondary,_=load_sources(old,basic,"reports/c3_work5_20261105/sources",
                                                 datetime.now(timezone.utc).isoformat())
+    # The bootstrap panel stops BEFORE the 2026-11-04 reference-price bar.
+    # The engine explicitly appends its dated 11/04 baseline snapshot before
+    # appending 11/05 and 11/06. Without this bridge, every long history is
+    # rejected by its continuity grid, yielding zero candidates.
+    must(all(p["asof"]=="2026-11-04" for p in baseline_prices.values()),
+         "BOOTSTRAP_BASELINE_SESSION_NOT_2026_11_04")
+    baseline=dict(asof="2026-11-04",rows={t:dict(p,date="2026-11-04") for t,p in baseline_prices.items()})
     stored={}
     for day in DAYS:
         path=SOURCE_LANE/"markets"/(day+".json.gz")
         must(path.is_file(),"MISSING_IMMUTABLE_DATED_MARKET_"+day)
         stored[day]=read_record(path)
     source_5=stored[DAYS[0]];source_6=stored[DAYS[1]]
-    five,models5=reconstructed_day(DAYS[0],source_5,{},panel,qa,basics,kind,secondary)
-    six,models6=reconstructed_day(DAYS[1],source_6,{DAYS[0]:source_5},panel,qa,basics,kind,secondary)
+    five,models5=reconstructed_day(DAYS[0],source_5,{"2026-11-04":baseline},panel,qa,basics,kind,secondary)
+    six,models6=reconstructed_day(DAYS[1],source_6,{"2026-11-04":baseline,DAYS[0]:source_5},panel,qa,basics,kind,secondary)
 
     decision=read_record(SOURCE_LANE/"decisions/2026-11-06.json")
     frozenb=decision["models"]["B"]
