@@ -147,10 +147,7 @@ def build_message(latest, summary):
     header = [
         "📊 C3 TOP2 정규장 연구 보고",
         "원본 거래일: " + asof,
-        "실제 수집: " + received,
         "전체 " + f"{scope['price_rows']:,}" + "종목 / 분석 가능 " + f"{scope['analysis_eligible']:,}" + "종목",
-        "신규 신호 등록: " + str(registered) + "건",
-        "정규장 전용 독립 인증: " + ("완료" if latest.get("source_regular_only_certified") else "미완료"),
         "",
     ]
     picks = latest.get("research_top2") or []
@@ -162,6 +159,16 @@ def build_message(latest, summary):
         status = "전방 등록" if is_registered else "미등록 미리보기"
         header.extend([f"TOP{i} | {name} ({ticker}) [{status}]",
                        "확인 종가: " + number(item.get("close"))])
+        factors = item.get("selection_reasons") or []
+        labels = {"CLOSE_GT_MA20_GT_MA50": "종가 > 20일선 > 50일선", "POSITIVE_OWN_BOARD_RS20": "시장 대비 상대강도 우위", "TURNOVER20_RANK": "최근 20일 거래대금 상위권", "OWN_BOARD_RS_IMPROVING_5": "최근 5일 상대강도 개선"}
+        header.append("선정 근거:")
+        header.extend("• " + labels[f] for f in factors if f in labels)
+        for key, label in (("rs20", "20일 상대강도"), ("rs_accel5", "5일 상대강도 개선")):
+            value = item.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                header.append(f"• {label} {value:+.1f}%p")
+        if not factors and not any(isinstance(item.get(k), (int, float)) for k in ("rs20", "rs_accel5")):
+            header.append("• 상세 근거 미확인")
         entry = ((item.get("entry_plans") or {}).get("A_SUPPORT_LIMIT") or {}).get("plan")
         if entry:
             header.append("매수 관찰범위: " + number(entry.get("low")) + " ~ " + number(entry.get("high")))
@@ -173,8 +180,6 @@ def build_message(latest, summary):
     header.extend([
         "⚪ 실전 판단: CASH (매수 승인이 아닌 연구 정보)",
         "가상매매는 실제 체결이 아닙니다.",
-        "원본: https://github.com/" + REPO + "/blob/" + BRANCH + "/" + ROOT + "/mobile/mobile_report.md",
-        "실행 ID: " + str(latest.get("source_run_id", "미확인")),
     ])
     text = "\n".join(header)
     if len(text) > 3900:
