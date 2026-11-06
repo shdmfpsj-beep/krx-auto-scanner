@@ -1,12 +1,12 @@
 {
   "schema": "C3_DAILY_RESEARCH_V8",
-  "generated_at": "2026-11-06T07:01:15.922260+00:00",
+  "generated_at": "2026-11-06T11:42:17.904258+00:00",
   "report_day_kst": "2026-11-06",
-  "source_run_id": "42178044446",
+  "source_run_id": "42212094443",
   "source_price_asof": null,
   "source_received_at": null,
   "attempted_price_asof": "2026-11-06",
-  "probe_received_at": "2026-11-06T07:01:15.674696+00:00",
+  "probe_received_at": "2026-11-06T11:42:17.647819+00:00",
   "last_confirmed_price_asof": "2026-11-04",
   "source_diagnostics": [],
   "source_collection_status": "UNAVAILABLE",
@@ -88,7 +88,7 @@
       "technical_only": true,
       "trade_approved": false,
       "registered_at": null,
-      "analysis_known_at": "2026-11-06T07:01:15.812278+00:00"
+      "analysis_known_at": "2026-11-06T11:42:17.792255+00:00"
     },
     {
       "ticker": "030530",
@@ -150,7 +150,7 @@
       "technical_only": true,
       "trade_approved": false,
       "registered_at": null,
-      "analysis_known_at": "2026-11-06T07:01:15.812278+00:00"
+      "analysis_known_at": "2026-11-06T11:42:17.792255+00:00"
     }
   ],
   "research_top2_is_registered_today": false,
@@ -326,7 +326,7 @@
     "panel": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
     "audit": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
     "classification": "449e7187b4aa7b39e9ef4452a0399ac629de9cce105ced6ead48d968c0de674d",
-    "index_manifest": "59317df90c4bc585aa95ed3bc044477d2281268c11ee03b5c6218c484df448b8",
+    "index_manifest": "fc9f6ddeabe54a1aba5b8c2d8da39dc4341b114ffdcebb67a2a1803bf0242f74",
     "pipeline_code": "2c5602e5f809c20c6d430a96594a758703dd901a961eb826bf8abdbb2710d6e7",
     "ledger_code": "089f33544e22f578eea4d5b94719c34908b4768ce1e16f24a6ef5c72122f8c6d",
     "entry_code": "fb2a4d7eadd64030feb7b5943aee25125c7233022ddeeee14a484a5f66ecb396",
@@ -336,17 +336,17 @@
   "invocation": {
     "event": "push",
     "mode": "research_direct",
-    "engine_sha": "90babeb29500f6374f3e175a55ff8774a4c0eae9",
+    "engine_sha": "d0c29ca5d67f2fb33465a9a987ac6d416e1fdaeb",
     "upstream": null,
     "automatic_event_observed": false,
     "calendar_schedule_deployed_claimed": false,
     "source_of_truth": "GITHUB_EVENT_CONTEXT_NOT_USER_REQUEST_DATE",
     "orders_enabled": false,
-    "state_sha": "90babeb29500f6374f3e175a55ff8774a4c0eae9",
-    "caller_commit": "90babeb29500f6374f3e175a55ff8774a4c0eae9",
+    "state_sha": "d0c29ca5d67f2fb33465a9a987ac6d416e1fdaeb",
+    "caller_commit": "d0c29ca5d67f2fb33465a9a987ac6d416e1fdaeb",
     "expected_completed_session": "2026-11-06",
     "duplicate_current_session_skipped": false,
-    "run_id": "42178044446"
+    "run_id": "42212094443"
   },
   "automatic_event_observed": false,
   "upstream_validation": {
@@ -359,7 +359,7 @@
     ],
     "artifact_id": 13416241119,
     "artifact_expires_at": "2027-02-03T12:09:31Z",
-    "validated_at": "2026-11-06T07:01:08.151217+00:00",
+    "validated_at": "2026-11-06T11:42:10.083481+00:00",
     "prices_not_implicitly_certified": true,
     "rejected_prior_runs": []
   },
@@ -397,16 +397,16 @@
         "http_status": 200,
         "attempt": 1,
         "status": "RECEIVED",
-        "received_at": "2026-11-06T07:01:11.901097+00:00",
+        "received_at": "2026-11-06T11:42:14.405935+00:00",
         "sha256": "60f8f6e4abfa361e3cec0563d37ab4811f12ce8174b8d5b1068e4aefe0e09c7f",
         "bytes": 3747,
-        "seconds": 0.35471393100000626
+        "seconds": 0.3717500889999883
       }
     ]
   },
   "private_storage_audit": {
     "scope": "FULL_CURRENT_INVENTORY",
-    "records_verified": 11,
+    "records_verified": 12,
     "original_archives_verified": 2,
     "bootstrap_archives_verified": 3,
     "mutations": 0,
