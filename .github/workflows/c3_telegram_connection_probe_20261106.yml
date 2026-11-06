@@ -1,0 +1,29 @@
+name: C3 Telegram one-time connection check 20261106
+on:
+  push:
+    branches: [main]
+    paths: ['reports/.c3_telegram_connection_probe_20261106.txt']
+permissions:
+  contents: read
+concurrency:
+  group: c3-telegram-one-time-connection-check
+  cancel-in-progress: false
+jobs:
+  check:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_telegram_notify.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Send connection-only Telegram test (no trading signals)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/c3_telegram_notify.py --mode test
