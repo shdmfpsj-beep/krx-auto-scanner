@@ -1,0 +1,61 @@
+name: C3 data operations deployment checks (read only)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/c3_artifact_audit_v18.py'
+      - 'scripts/test_c3_artifact_audit_v18.py'
+      - '.github/workflows/source_provenance_v64_daily.yml'
+      - '.github/workflows/krx_recovery_scan.yml'
+      - '.github/workflows/c3_research_daily_caller.yml'
+      - '.github/workflows/c3_operations_deploy_v18.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  artifact-and-pinned-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_artifact_audit_v18.py
+            /scripts/test_c3_artifact_audit_v18.py
+            /scripts/c3_report_handoff.py
+            /.github/workflows/c3_research_daily_caller.yml
+            /.github/workflows/c3_top2_telegram.yml
+            /.github/workflows/source_provenance_v64_daily.yml
+            /.github/workflows/krx_recovery_scan.yml
+          sparse-checkout-cone-mode: false
+      - name: Verify unavailable, expired, renamed, wrong-day and corrupt archives
+        run: python -m unittest discover -s scripts -p 'test_c3_artifact_audit_v18.py' -v
+      - name: Check schedules, retention and coherent engine pins
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          pin='077113ac2f5e93fecc4c47850b36e5eda2173e3d'
+          caller=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
+          sender=Path('.github/workflows/c3_top2_telegram.yml').read_text()
+          assert caller.count(pin)==4
+          assert sender.count(pin)==4
+          assert "ENGINE='"+pin+"'" in Path('scripts/c3_report_handoff.py').read_text()
+          assert "'15 13 * * 1-5'" in caller and "'45 13 * * 1-5'" in sender
+          assert 'retention-days: 90' in Path('.github/workflows/krx_recovery_scan.yml').read_text()
+          assert 'retention-days: 14' not in Path('.github/workflows/krx_recovery_scan.yml').read_text()
+          assert 'TELEGRAM_' not in caller
+          print('Matched pins and preserved schedules; zero registration or send entry points')
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
+          path: engine-preflight
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_fast_ops_v18.py
+            /scripts/c3_artifact_audit_v18.py
+          sparse-checkout-cone-mode: false
+      - name: Execute the actual sparse preflight without market requests
+        run: python engine-preflight/scripts/c3_fast_ops_v18.py --outdir /tmp/c3-price-preflight

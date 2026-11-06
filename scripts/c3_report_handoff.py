@@ -9,7 +9,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 from c3_telegram_inputs import GitHub,RESEARCH,ROOT,canonical,digest,report_pair,ServiceError
 
-ENGINE='0f6ebc67bd755b00945388d431e32d94183ba7fe'
+ENGINE='077113ac2f5e93fecc4c47850b36e5eda2173e3d'
 SCHEMA='C3_PRESENTATION_HANDOFF_V1'
 FIELDS=('ticker','name','market','industry','model','rank','signal_id','reference_close','close','own_rs20','rs20','rs_accel5','turnover20','volume_ratio','turnover_ratio','market_regime','entry_plans','structure_reason','registered_at')
 CONTEXT=('business','events','quarters','sources','missing','dart_status','collected_at','price_asof','selection_use','content_sha256')
