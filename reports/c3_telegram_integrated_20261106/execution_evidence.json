@@ -1,0 +1,109 @@
+{
+  "schema": "C3_INTEGRATED_TELEGRAM_OPERATION_EVIDENCE",
+  "report_pr": 35,
+  "tested_code_sha": "04961b5a079b75923adeff7376a214ca968f0cfc",
+  "deployment_merge_sha": "f7507bee1c7611f7ef60b371370bd055ab18d401",
+  "predeployment_actions": {
+    "run_id": 42194380428,
+    "tests": 35,
+    "failures": 0,
+    "errors": 0,
+    "preview_artifact_id": 13490504452,
+    "preview_artifact_sha256": "86aa8a1f3e6282e3eaf70736477c58e86d1f72bfc097b2af4f149e124a9e3771",
+    "telegram_send_attempts": 0
+  },
+  "actual_delivery": {
+    "run_id": 42195022969,
+    "event": "push",
+    "source_asof": "2026-11-05",
+    "explicit_past_example": true,
+    "status": "DELIVERED",
+    "message_ids": [
+      26,
+      27
+    ],
+    "media_group_hash": "64ea1d63b2193966f1fb95f1ba42b14519c1e32293645691f2a49a34aea30c82",
+    "photos": 2,
+    "captions_present": false,
+    "text_present": false,
+    "key": "integrated-white-gold-20261106/2026-11-05-0289a5f01e43a4ed",
+    "source_date": "2026-11-05",
+    "mode": "past_example",
+    "send_attempts": 1,
+    "recorded_at": "2026-11-06T18:26:39.230865+09:00",
+    "sender_run_id": "42195022969",
+    "receipt_claim_read_back": true,
+    "receipt_outcome_read_back": true,
+    "receipt_store_branch": "delivery/c3-top2-telegram",
+    "recipient_group_verified": true,
+    "raw_chat_id_or_tokens_exposed": false,
+    "artifact_id": 13492350469,
+    "artifact_sha256": "dcc670348040e195a72a3c0a2598df37da1b58b5fb5bee0180e86bb8741487de"
+  },
+  "data": {
+    "source_rows_per_stock": 91,
+    "visible_sessions": 30,
+    "moving_averages": [
+      5,
+      20,
+      60
+    ],
+    "price_basis": "KRX_UNADJUSTED_AS_TRADED",
+    "ultimate_vendor_count": 1,
+    "cache_sha256": "edf8e19a7efa3d3d870ca31eda640a21b6cd144bc05b2e53dcf3705dd49cd9cd",
+    "second_entry_unverified_not_fabricated": true,
+    "financials_news_flow_not_collected_not_inferred": true,
+    "independent_regular_only_certification": false,
+    "images": {
+      "028050": "1c674d708ff027cd51dacd498ab6a9d7123b67129135c9031a2b181a8d894ebe",
+      "030530": "2171366d9ce5dfcd04d388bd8f2617706661e07296c5199dd41082325e262a2a"
+    }
+  },
+  "duplicate_root_cause": {
+    "legacy_direct_demo_bypassed_formal_receipts": true,
+    "observed_delivered_runs": [
+      42182176842,
+      42182271221,
+      42185606254,
+      42186402466
+    ],
+    "current_automatic_sender_count": 1,
+    "renderer_has_sender": false,
+    "text_connection_test_removed": true
+  },
+  "operating_limits": {
+    "main_push_validated": true,
+    "new_schedule_event_observed": false,
+    "existing_schedule_preserved_kst": [
+      "22:45 weekdays",
+      "09:00 weekdays"
+    ],
+    "chatgpt_2230_unchanged": true,
+    "chatgpt_actual_current_delivery_confirmed": false,
+    "new_20261106_registered_report_available": false,
+    "live_action_guard_preserved": "CASH; orders disabled",
+    "strategy_or_paper_ledger_or_scanner_changed": false
+  },
+  "hardening_after_first_send": {
+    "receipt_anchor_commit": "42780e6ab695d217445ea43ca301057f96f4cddd",
+    "branch_or_anchor_missing_requires_manual_reconciliation": true,
+    "additional_telegram_posts_performed": false,
+    "local_related_tests": 38
+  },
+  "final_receipt_guard": {
+    "pr": 36,
+    "tested_sha": "4d70680fa47298603641fc68930a95694f5badb0",
+    "main_merge_sha": "c1560806ec92a9664252f3c13ca7568817b4f481",
+    "actions_run_id": 42196989606,
+    "related_tests": 38,
+    "failures": 0,
+    "errors": 0,
+    "actual_existing_git_receipt_check": "DUPLICATE_BLOCKED",
+    "actual_duplicate_check_send_attempts": 0,
+    "telegram_token_available_to_duplicate_check": false,
+    "branch_and_anchor_missing_requires_manual_reconciliation": true,
+    "automatic_store_recreation": false,
+    "one_time_request_unchanged": true,
+    "no_additional_album_sent": true
+  }
+}

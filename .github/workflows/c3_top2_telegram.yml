@@ -1,0 +1,157 @@
+name: C3 TOP2 Telegram notification
+on:
+  workflow_run:
+    workflows: ['C3 approved research daily caller']
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '45 13 * * 1-5' # KST weekdays 22:45, after existing research caller
+    - cron: '0 0 * * 1-5'   # KST weekdays 09:00 fallback
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'live: new registered TOP2; past_example: one approved historical album; preview: no delivery'
+        type: choice
+        default: live
+        options: [live, past_example, preview]
+  push:
+    branches: [main]
+    paths: ['config/c3_telegram_example_request.json']
+  pull_request:
+    paths:
+      - '.github/workflows/c3_top2_telegram.yml'
+      - 'scripts/c3_telegram_notify.py'
+      - 'scripts/c3_telegram_inputs.py'
+      - 'scripts/c3_classic_theme.py'
+      - 'scripts/test_c3_telegram_notify.py'
+      - 'config/c3_telegram_example_request.json'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-top2-telegram-notify
+  cancel-in-progress: false
+jobs:
+  self-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_telegram_notify.py
+            scripts/c3_telegram_inputs.py
+            scripts/c3_classic_theme.py
+            scripts/test_c3_telegram_notify.py
+            config/c3_telegram_example_request.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install report font and existing image dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow requests cryptography --disable-pip-version-check
+      - name: Verify numerical charts, stale-data gates and at-most-once photo delivery
+        run: PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
+      - name: Render the two real historical cards without delivery secrets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/c3_telegram_notify.py --mode preview --outdir /tmp/c3-integrated-preview
+      - name: Verify real persisted duplicate protection without a Telegram token
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import os,json,base64
+          from pathlib import Path
+          from c3_telegram_inputs import GitHub
+          from c3_telegram_notify import ReceiptStore,RECEIPT_BRANCH,deliver
+          gh=GitHub(os.environ['GH_TOKEN'])
+          marker=json.loads(gh.file('receipts/STORE_V1.json',RECEIPT_BRANCH))
+          blob=gh.api('git/blobs/'+marker['first_verified_outcome_blob_sha'])
+          previous=json.loads(base64.b64decode(blob['content']))
+          assert previous['status']=='DELIVERED' and previous['photos']==2
+          class NeverSend:
+              fingerprint=previous['key'].rsplit('-',1)[1]
+              def verify_group(self):raise AssertionError('DUPLICATE_MUST_STOP_BEFORE_RECIPIENT_REQUEST')
+              def send_album(self,paths):raise AssertionError('NO_SECOND_TELEGRAM_SEND_ALLOWED')
+          root=Path('/tmp/c3-integrated-preview')
+          result=deliver([root/'028050_integrated.png',root/'030530_integrated.png'],{'source_price_asof':'2026-11-05'},ReceiptStore(gh),NeverSend(),'past_example')
+          assert result['status']=='DUPLICATE_BLOCKED' and result['send_attempts']==0
+          (root/'real_duplicate_check.json').write_text(json.dumps(result,indent=2)+'\n')
+          print(json.dumps(result))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-integrated-preview
+          path: /tmp/c3-integrated-preview/
+          retention-days: 90
+          if-no-files-found: warn
+  notify:
+    if: >-
+      github.repository == 'shdmfpsj-beep/krx-auto-scanner' &&
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_telegram_notify.py
+            scripts/c3_telegram_inputs.py
+            scripts/c3_classic_theme.py
+            config/c3_telegram_example_request.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+          path: engine
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_supply_v11.py
+            scripts/c3_archive_keys_v13.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install report font and image dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow requests cryptography --disable-pip-version-check
+      - name: Validate explicit one-time historical request
+        if: github.event_name == 'push'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          q=json.loads(Path('config/c3_telegram_example_request.json').read_text())
+          assert q=={'request_id':'integrated-white-gold-20261106','source_asof':'2026-11-05','mode':'past_example','photos':2,'caption':False,'text':False}
+          PY
+      - name: Render and deliver a single photo-only album, or record a silent skip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          MODE: ${{ github.event_name == 'push' && 'past_example' || github.event.inputs.mode || 'live' }}
+        run: python scripts/c3_telegram_notify.py --mode "$MODE" --outdir /tmp/c3-integrated-delivery
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-integrated-delivery-evidence
+          path: /tmp/c3-integrated-delivery/
+          retention-days: 90
+          if-no-files-found: warn
