@@ -250,3 +250,5 @@ if __name__=="__main__":
 # Manual full-market re-screen request on 2026-11-06 14:39 KST: recheck completed EOD only; selection/entry/stop logic unchanged.
 
 # On-demand 2026-11-06 post-close C3 TOP2 audit requested at 15:57 KST; preserve current selection, risk controls and registration semantics.
+
+# EOD retrieval retry after 16:00 KST on 2026-11-06; no ranking, registration or source-quality override.
