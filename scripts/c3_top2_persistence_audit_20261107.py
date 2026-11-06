@@ -175,7 +175,11 @@ def main():
 
     decision=read_record(SOURCE_LANE/"decisions/2026-11-06.json")
     frozenb=decision["models"]["B"]
-    must([r["ticker"] for r in frozenb]==six["B_top2"],"REGISTERED_11_06_B_TOP2_REPLAY_DIFFERENCE")
+    if [r["ticker"] for r in frozenb]!=six["B_top2"]:
+        diagnostic=dict(type="REGISTERED_VS_RECONSTRUCTED_TOP2",registered=[dict(ticker=r["ticker"],rank=r["rank"],turnover20=r["turnover20"],rs20=r["rs20"],close=r["reference_close"]) for r in frozenb],reconstructed=six["chosen"],five=five["B_top2"],six=six["B_top2"],counts={d:{k:v for k,v in j.items() if k in ("a_candidates","b_candidates","analysis_eligible")} for d,j in [("five",five),("six",six)]},reason_to_investigate="DATED_INPUT_CLASSIFICATION_OR_PANEL_INDEX_DATA_BASIS")
+        (BASE/"replay_mismatch_diagnostic.json").write_text(json.dumps(diagnostic,ensure_ascii=False,indent=2)+"\n")
+        print("C3_REPRO_MISMATCH="+json.dumps(diagnostic,ensure_ascii=False),flush=True)
+        raise ValueError("REGISTERED_11_06_B_TOP2_REPLAY_DIFFERENCE")
     for calc,orig in zip(models6["B"],frozenb):
         must(calc["ticker"]==orig["ticker"],"FROZEN_IDENTITY_DIFFERENCE")
         must(abs(calc["reference_close"]-orig["reference_close"])<1e-8,"FROZEN_PRICE_DIFFERENCE")
