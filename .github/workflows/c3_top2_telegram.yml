@@ -101,6 +101,22 @@ jobs:
           (root/'real_duplicate_check.json').write_text(json.dumps(result,indent=2)+'\n')
           print(json.dumps(result))
           PY
+      - name: Verify actual trusted-run financial collection, not just PNG creation
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/tmp/c3-integrated-preview')
+          c=json.loads((root/'company_context.json').read_text())
+          assert not c['errors'], 'ACTUAL_COMPANY_CONTEXT_COLLECTION_FAILED'
+          assert c['selection_hash_before']==c['selection_hash_after']
+          for ticker in ('028050','030530'):
+              x=c['companies'][ticker]
+              assert x['dart_status']=='COLLECTED', 'ACTUAL_DART_COLLECTION_NOT_COMPLETED'
+              assert len(x['quarters'])==4 and len(x['dart']['periodic_statements'])>=4
+          print(json.dumps({'actual_dart_companies':2,'quarters_each':4,'selection_unchanged':True}))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:

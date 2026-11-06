@@ -1,12 +1,14 @@
 """Rendering and dated-fact faults, not simulated trading-performance evidence."""
-import copy,json,tempfile,unittest
+import copy,json,tempfile,unittest,time
 from datetime import date,timedelta
 from pathlib import Path
 from unittest.mock import Mock
+from unittest.mock import patch
+from datetime import datetime,timezone
 import requests
 from c3_classic_theme import validate_bars,moving_average,audit_averages,chart_geometry,notes,create_cards,MA_COLORS
 from PIL import Image,ImageColor
-from c3_report_context import publication_ok,parse_statement,quarter_series,attach_context,DartClient
+from c3_report_context import publication_ok,parse_statement,quarter_series,attach_context,DartClient,digest
 
 
 def bars():
@@ -134,6 +136,23 @@ class DatedContextTests(unittest.TestCase):
             c=DartClient('SYNTHETIC_SECRET',tmp,Mock());c.requests=28
             with self.assertRaisesRegex(ValueError,'BUDGET'):c.fetch('list.json',{})
             c.session.get.assert_not_called()
+    def test_public_mapping_cache_avoids_another_full_corporation_download(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp,'mapping.json');mapping={'000001':'00123456'}
+            path.write_text(json.dumps({'mapping':mapping,'sha256':digest(mapping),'collected_at':datetime.now(timezone.utc).isoformat()}))
+            c=DartClient('SYNTHETIC_SECRET',tmp,Mock())
+            with patch.dict('os.environ',{'C3_DART_CORP_CACHE':str(path)}):self.assertEqual(c.mapping(),mapping)
+            c.session.get.assert_not_called()
+    def test_slow_cold_mapping_does_not_prevent_the_financial_phase(self):
+        class SlowMapping:
+            audit=[]
+            def mapping(self):self.started=time.monotonic()-300;return {'000001':'00123456'}
+            def company(self,*args):
+                if time.monotonic()-self.started>180:raise ValueError('DART_REPORT_CONTEXT_REQUEST_BUDGET')
+                return {'status':'COLLECTED','quarters':[],'periodic_statements':[],'recent_disclosures':[]}
+        report={'source_price_asof':'2026-11-05','research_top2':[{'ticker':'000001'}]}
+        with tempfile.TemporaryDirectory() as tmp:attach_context(report,tmp,SlowMapping())
+        self.assertEqual(report['research_top2'][0]['company_context']['dart_status'],'COLLECTED')
 
 
 if __name__=='__main__':unittest.main()

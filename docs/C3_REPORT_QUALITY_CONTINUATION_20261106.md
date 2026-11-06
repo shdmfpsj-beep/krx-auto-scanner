@@ -24,3 +24,10 @@
 - Preview/duplicate guard passed, but company financial collection DID NOT complete. The public corporation ZIP (3,635,260 bytes, SHA256 a15d06c93c5d5ffa879ad1d8650e31f5b90063f68c5f4604c25957f285ab4b83) arrived after about 232 seconds and exhausted the original 180-second global budget. Both company requests stopped before financial API calls. Do not misreport that first green workflow as successful financial collection.
 - Fix: cache the public listed corporation mapping, start the bounded financial phase after cold mapping acquisition, verify stock-code/corporation identity via company.json, request periodic filings separately from the recent-28-day list so high filing volume cannot hide older quarters.
 - Added real PNG pixel-boundary/layout regression (no MA pixel beyond last candle); local 57 tests passed. New Actions verification is pending.
+
+## Actual financial connection succeeded
+- Fixed-code run 42204266098 at 1c3bb1945ac348d234c6d7ecd40c152af0b29303 succeeded: 17 OpenDART requests, both stocks COLLECTED, four completed quarters per stock, no context errors. Artifact 13496086878 SHA256 a43bc44715f2c52fa493d85c4efcd05c21d689b937121ec21679be525ee23c04.
+- Verified corporation identities: Samsung E&A 00126308 / 028050, Wonik Holdings 00216647 / 030530. Reviewed seeds plus company.json identity confirmation avoid downloading the 3.6 MB corporation archive for these two on every report. Other tickers use a cached official mapping.
+- Samsung latest 2026Q3: company preliminary CFS release on Oct22, revenue 29,105억원, operating profit 5,006억원, YoY +45.8%/+183.6%. Four-quarter comparison and H1 cash flow/debt are stored.
+- Wonik latest 2026Q2: CFS revenue 176,453,030,786 KRW, operating profit 12,778,540,649 KRW; revenue +11.99% and loss-to-profit YoY (no misleading percentage from negative base). 2025Q3/Q4 and 2026Q1 were operating losses. H1 CF 41,505,670,225 KRW; debt/equity 53.5164%.
+- New trusted PR gate verifies actual financial collection and invariant selection hashes rather than accepting PNG creation alone. Final 59-test CI, visual review, deployment and research evidence preservation are the remaining steps.

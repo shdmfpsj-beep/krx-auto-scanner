@@ -74,7 +74,8 @@ def quarter_note(q):
         return f' (전년비 {v:+.1f}%)' if isinstance(v,(int,float)) else ''
     op=f"영업익 {q['operating_profit_krw']/1e8:,.0f}억원"+growth('operating_profit')
     if q.get('profit_transition')=='LOSS_TO_PROFIT':op+=' · 전년비 흑자전환'
-    return f"{q['period']} {basis} · 매출 {q['revenue_krw']/1e8:,.0f}억원"+growth('revenue')+'. '+op+'.'
+    published=q.get('published_on','')[5:].replace('-','/')
+    return f"{q['period']} {basis}"+(f' ({published} 발표)' if published else '')+f" · 매출 {q['revenue_krw']/1e8:,.0f}억원"+growth('revenue')+'. '+op+'.'
 
 
 def notes(r,p):
@@ -89,7 +90,9 @@ def notes(r,p):
     if events:issue=events[0]['text']
     else:
         receipts=(ctx.get('dart') or {}).get('recent_disclosures') or []
-        issue=(f"{receipts[0]['published_on'][5:].replace('-','/')} 공시 제목: {receipts[0]['title']}. 내용 검토와 구분." if receipts else liquidity+' 당일 거래량·등락은 위 차트에서 별도로 확인합니다.')
+        last=(r.get('chart_bars') or [{}])[-1]
+        trade=f"당일 거래대금 {last['turnover_krw']/1e8:,.0f}억원 · 거래량 {last['volume']/1e4:,.1f}만주. " if isinstance(last.get('turnover_krw'),(int,float)) and isinstance(last.get('volume'),(int,float)) else ''
+        issue=(f"{receipts[0]['published_on'][5:].replace('-','/')} 공시 제목: {receipts[0]['title'].strip()}. 내용 검토와 구분." if receipts else trade+liquidity)
     risk=ctx.get('business_risk') if business else None
     rr=p.get('net_r1_rr') if p else None
     risk=(risk or '가격 구조가 훼손되면 관찰 가설을 재점검합니다.')+(f' 첫 저항 손익비 {rr:.2f}배.' if isinstance(rr,(int,float)) else '')

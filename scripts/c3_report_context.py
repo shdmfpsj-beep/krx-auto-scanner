@@ -155,7 +155,7 @@ def parse_statement(rows, year, code, filings, asof):
         if any(r.get('currency','KRW') not in ('KRW','원') for r in matches):raise ValueError('DART_FINANCIAL_CURRENCY_MISMATCH')
         values={(amount(r.get('thstrm_amount')),amount(r.get('thstrm_add_amount')),amount(r.get('frmtrm_q_amount'))) for r in matches}
         if len(values)!=1:raise ValueError('DART_FINANCIAL_AMBIGUOUS_ACCOUNT')
-        a,b,c=next(iter(values));return {'amount_krw':a,'ytd_krw':b,'prior_quarter_krw':c}
+        a,b,c=next(iter(values));return {'amount_krw':a,'ytd_krw':b,'prior_same_quarter_krw':c}
     revenue=account({'매출액','수익(매출액)','영업수익'}, {'ifrs-full_Revenue'}, ('IS','CIS'))
     op=account({'영업이익','영업이익(손실)','영업손익'}, {'dart_OperatingIncomeLoss'}, ('IS','CIS'))
     cf=account({'영업활동현금흐름','영업활동으로인한현금흐름'}, {'ifrs-full_CashFlowsFromUsedInOperatingActivities'}, ('CF',))
@@ -169,7 +169,7 @@ def quarter_series(statements):
     for s in statements:
         record={k:s[k] for k in ('period','fs_div','published_on','url','receipt_no')}
         for key in ('revenue','operating_profit'):
-            v=s[key]['amount_krw'];prior=s[key]['prior_quarter_krw']
+            v=s[key]['amount_krw'];prior=s[key]['prior_same_quarter_krw']
             if s['report_code']=='11011':
                 q3=next((p for p in statements if p['year']==s['year'] and p['report_code']=='11014'),None)
                 if not q3 or q3[key]['ytd_krw'] is None:v=None
