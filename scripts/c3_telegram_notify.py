@@ -233,7 +233,8 @@ def main():
         if receipt_exists(github_token, asof):
             print("SKIP_DUPLICATE_TRADING_DAY_" + asof)
             return 0
-        body = build_message(latest, summary)
+        from c3_classic_theme import create_cards, send_album
+        photos = create_cards(latest)
         receipt = {"source_date": asof, "source_run_id": latest["source_run_id"],
                    "status": "CLAIMED_BEFORE_SEND", "claimed_at": current.isoformat(),
                    "note": "Do not automatically resend after any uncertain delivery."}
@@ -243,12 +244,11 @@ def main():
             print("SKIP_RECEIPT_CLAIM_FAILED_HTTP_" + str(exc.code))
             return 1
         try:
-            sent = telegram_api(bot_token, "sendMessage", {"chat_id": chat_id, "text": body,
-                              "link_preview_options": {"is_disabled": True}})
+            sent = send_album(photos)
             receipt["status"] = "DELIVERED"
             receipt["delivered_at"] = now_kst().isoformat()
-            receipt["telegram_message_id"] = sent.get("result", {}).get("message_id")
-            print("TELEGRAM_MESSAGE_ACCEPTED_FOR_SESSION_" + asof)
+            receipt["telegram_message_ids"] = [x.get("message_id") for x in sent.get("result", [])]
+            print("TELEGRAM_IMAGE_ALBUM_ACCEPTED_FOR_SESSION_" + asof)
         except Exception as exc:
             receipt["status"] = "SEND_FAILED_REVIEW_REQUIRED"
             receipt["error_type"] = type(exc).__name__
