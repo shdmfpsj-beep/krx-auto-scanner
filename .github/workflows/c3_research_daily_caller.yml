@@ -34,7 +34,7 @@ jobs:
           import re
           from pathlib import Path
           p=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
-          pin='497b7a60f7feb60acff22cd65df4db1784b83de8'
+          pin='0f6ebc67bd755b00945388d431e32d94183ba7fe'
           job=p.split('\n  research:\n',1)[1]
           called=re.search(r'uses: shdmfpsj-beep/krx-auto-scanner/\.github/workflows/c3_daily_research_v8\.yml@([a-f0-9]{40})',job)
           configured=re.search(r'^      engine_ref: ([a-f0-9]{40})$',job,re.M)
@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 497b7a60f7feb60acff22cd65df4db1784b83de8
+          ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
           persist-credentials: false
           sparse-checkout: |
             /scripts/c3_runtime_v10.py
@@ -83,9 +83,9 @@ jobs:
     permissions:
       contents: write
       actions: read
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@497b7a60f7feb60acff22cd65df4db1784b83de8
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@0f6ebc67bd755b00945388d431e32d94183ba7fe
     with:
-      engine_ref: 497b7a60f7feb60acff22cd65df4db1784b83de8
+      engine_ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
       caller_mode: approved_daily
       upstream_run_id: ${{ needs.source-ready.outputs.run_id }}
     secrets:
