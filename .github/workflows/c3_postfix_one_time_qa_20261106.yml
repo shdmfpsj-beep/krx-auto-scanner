@@ -1,0 +1,89 @@
+name: C3 final post-fix visual album single QA
+on:
+  push:
+    branches: [main]
+    paths: ['config/.c3_postfix_visual_qa_20261106.txt']
+permissions:
+  contents: write
+concurrency:
+  group: c3-top2-telegram-notify
+  cancel-in-progress: false
+jobs:
+  send:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_telegram_notify.py
+            scripts/c3_telegram_inputs.py
+            scripts/c3_classic_theme.py
+            scripts/c3_report_context.py
+            scripts/krx_opendart_financial_v91.py
+            config/c3_company_context_verified.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install verified renderer dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow requests cryptography --disable-pip-version-check
+      - name: Render approved historical TOP2 after final Work fix and send exactly one photo-only album
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import os,json
+          from pathlib import Path
+          from datetime import datetime,timezone
+          from c3_telegram_inputs import GitHub,load_example
+          from c3_report_context import attach_context,DartClient
+          from c3_classic_theme import create_cards
+          from c3_telegram_notify import Telegram,ReceiptStore,validate_photos
+          gh=GitHub(os.environ['GH_TOKEN'])
+          report=load_example(gh)
+          if report['source_price_asof']!='2026-11-05' or [x['ticker'] for x in report['research_top2']]!=['028050','030530']:
+              raise SystemExit('UNEXPECTED_HISTORICAL_EXAMPLE_SOURCE')
+          out=Path('/tmp/c3-postfix-qa');out.mkdir(parents=True,exist_ok=True)
+          key=os.getenv('OPENDART_API_KEY','').strip()
+          report=attach_context(report,out,DartClient(key,out/'company_raw') if key else None)
+          paths=create_cards(report,out)
+          hashes=validate_photos(paths)
+          bot=Telegram(os.environ['TELEGRAM_BOT_TOKEN'].strip(),os.environ['TELEGRAM_CHAT_ID'].strip())
+          store=ReceiptStore(gh);store.initialize()
+          receipt='postfix-pr37-user-approved-qa-20261106/'+report['source_price_asof']+'-'+bot.fingerprint
+          if store.exists(receipt):
+              print('POSTFIX_QA_DUPLICATE_BLOCKED');raise SystemExit(0)
+          bot.verify_group()
+          claim={'schema':'C3_PHOTO_ONLY_DELIVERY_V1','source_date':report['source_price_asof'],'purpose':'USER_REQUESTED_FINAL_FIX_TEST','status':'CLAIMED_BEFORE_SEND','sha256':hashes,'sender_run_id':os.environ.get('GITHUB_RUN_ID'),'automatic_resend_allowed':False}
+          if not store.reserve(receipt,claim):
+              print('POSTFIX_QA_DUPLICATE_BLOCKED');raise SystemExit(0)
+          try:
+              result=bot.send_album(paths)
+              outcome={'status':'DELIVERED','photos':result['photos'],'captions_present':result['captions_present'],'text_present':result['text_present'],'message_ids':result['message_ids'],'source_date':report['source_price_asof']}
+          except Exception as exc:
+              outcome={'status':'REVIEW_REQUIRED_NO_AUTOMATIC_RESEND','error_type':type(exc).__name__,'source_date':report['source_price_asof']}
+          try:store.finish(receipt,outcome)
+          except Exception:print('POSTFIX_QA_OUTCOME_WRITE_FAILED_CLAIM_REMAINS')
+          (out/'delivery_result.json').write_text(json.dumps(outcome,ensure_ascii=False,indent=2)+'\n')
+          print('POSTFIX_QA_RESULT='+outcome['status'])
+          if outcome['status']!='DELIVERED':raise SystemExit(1)
+          print('POSTFIX_QA_PHOTOS='+str(outcome['photos']))
+          print('POSTFIX_QA_CAPTIONS='+str(outcome['captions_present']))
+          print('POSTFIX_QA_TEXT='+str(outcome['text_present']))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-postfix-pr37-visual-qa
+          path: /tmp/c3-postfix-qa/
+          retention-days: 30
+          if-no-files-found: warn
