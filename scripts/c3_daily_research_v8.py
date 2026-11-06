@@ -246,3 +246,5 @@ if __name__=="__main__":
         result['scheduler_deployed']=result['invocation']['mode']=='approved_daily'
         result['automatic_event_observed']=result['invocation']['automatic_event_observed']
         (Path(a.outdir)/'latest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+
+# Manual full-market re-screen request on 2026-11-06 14:39 KST: recheck completed EOD only; selection/entry/stop logic unchanged.
