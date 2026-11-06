@@ -1,0 +1,92 @@
+{
+  "schema": "C3_REPORT_QUALITY_DEPLOYMENT_EVIDENCE_V1",
+  "pr": 37,
+  "tested_code_sha": "6fa882a161b180fb2531f9775bc9e14bc85432e2",
+  "deployment_main_sha": "c98114a1bdc115c850b2ee2d2565e70a3bd785fc",
+  "main_tree_exactly_matches_tested_tree": true,
+  "actions": {
+    "run_id": 42205886016,
+    "event": "pull_request",
+    "tests_passed": 59,
+    "failures": 0,
+    "errors": 0,
+    "artifact_id": 13496622518,
+    "artifact_sha256": "7e1bb1d91b4eff3e9207f212b7c091d485d7c94d35fe31ab009fd77036d6945d"
+  },
+  "original_observed_image_run": 42195022969,
+  "chart": {
+    "source_date": "2026-11-05",
+    "bars_each": 91,
+    "tickers": [
+      "028050",
+      "030530"
+    ],
+    "maximum_pandas_ma_difference_krw": 0,
+    "periods": [
+      5,
+      20,
+      60
+    ],
+    "last_five_bars_and_averages_preserved": true,
+    "root_cause": "DISPLACED_PRICE_LEVEL_LABEL_LEADERS_NOT_EXTRA_MARKET_OR_MA_POINTS",
+    "fix": "STRAIGHT_CURRENT_PRICE_BADGE_NO_DIAGONAL_LEADERS",
+    "actual_price_declines_preserved": true,
+    "wonik_actual_ma5_decline_preserved": true,
+    "visual_review": "PASS_BOTH_CI_IMAGES_AND_MAGNIFIED_ENDPOINTS",
+    "local_ci_bytes_identical": false,
+    "ci_images_independently_inspected": true,
+    "png_sha256": {
+      "028050": "34d96fab0f5298939a6e1dbeb377803cc43fb53d0f8bf131ac452fa06ff3a37a",
+      "030530": "a661658af9bf679f3072a75858fd0fcef05f73b552f7776d3fa9f4807de45488"
+    }
+  },
+  "company_context": {
+    "cause": "HARDCODED_MISSING_INFORMATION_NOTES_WITHOUT_FINANCIAL_CONNECTION",
+    "actual_final_api_requests": 16,
+    "actual_companies_collected": 2,
+    "quarters_per_company": 4,
+    "collection_errors": 0,
+    "corporation_zip_downloads_final_run": 0,
+    "earlier_verified_probe_run": 42204266098,
+    "cold_mapping_budget_obstacle_run": 42203277626,
+    "sources": "OpenDART CFS periodic statements, dated disclosure list and official company IR",
+    "selection_use": "POST_SELECTION_ONLY_NOT_RETROACTIVE_SCORING",
+    "selection_hash_before_after_equal": true,
+    "raw_snapshot_restated_values_not_historical_signal_input": true,
+    "standalone_vs_consolidated_and_quarter_vs_ytd_separated": true,
+    "negative_prior_profit_is_transition_not_fake_positive_yoy": true,
+    "official_same_day_date_only_and_future_sources_excluded": true
+  },
+  "telegram": {
+    "new_send_attempts": 0,
+    "new_albums_sent": 0,
+    "actual_existing_receipt_check": "DUPLICATE_BLOCKED",
+    "actual_duplicate_send_attempts": 0,
+    "photos_per_approved_report": 2,
+    "caption": false,
+    "separate_text": false,
+    "receipt_policy_ast_unchanged": true,
+    "original_one_time_request_unchanged": true,
+    "schedule_preserved_kst": [
+      "22:45 weekdays",
+      "09:00 weekdays"
+    ],
+    "postdeployment_schedule_send_observed": false,
+    "chatgpt_2230_schedule_unchanged": true,
+    "actual_chatgpt_delivery_not_claimed": true
+  },
+  "scope": {
+    "strategy_algorithm_entry_stop_or_paper_ledger_changed": false,
+    "operating_scanner_changed": false,
+    "orders_enabled": false,
+    "internal_action": "CASH",
+    "new_nov6_market_signal_claimed": false,
+    "historical_699_tests_rerun": false
+  },
+  "remaining": [
+    "FOREIGN_INSTITUTION_FLOW_NOT_COLLECTED",
+    "WHOLE_SECTOR_STRENGTH_NOT_COLLECTED",
+    "INDEPENDENT_REGULAR_ONLY_PRICE_CERTIFICATION_INCOMPLETE",
+    "NEXT_SCHEDULED_SEND_NOT_YET_OBSERVED"
+  ]
+}
