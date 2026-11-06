@@ -23,6 +23,9 @@ on:
       - 'scripts/c3_telegram_notify.py'
       - 'scripts/c3_telegram_inputs.py'
       - 'scripts/c3_classic_theme.py'
+      - 'scripts/c3_report_context.py'
+      - 'scripts/test_c3_report_quality.py'
+      - 'config/c3_company_context_verified.json'
       - 'scripts/test_c3_telegram_notify.py'
       - 'config/c3_telegram_example_request.json'
 permissions:
@@ -35,6 +38,7 @@ jobs:
   self-test:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,7 +47,11 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_report_context.py
+            scripts/krx_opendart_financial_v91.py
+            scripts/test_c3_report_quality.py
             scripts/test_c3_telegram_notify.py
+            config/c3_company_context_verified.json
             config/c3_telegram_example_request.json
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
@@ -55,10 +63,13 @@ jobs:
           sudo apt-get install -y fonts-nanum >/dev/null
           python -m pip install pillow requests cryptography --disable-pip-version-check
       - name: Verify numerical charts, stale-data gates and at-most-once photo delivery
-        run: PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
+        run: |
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_quality.py' -v
       - name: Render the two real historical cards without delivery secrets
         env:
           GH_TOKEN: ${{ github.token }}
+          OPENDART_API_KEY: ${{ github.event.pull_request.head.repo.full_name == github.repository && secrets.OPENDART_API_KEY || '' }}
         run: python scripts/c3_telegram_notify.py --mode preview --outdir /tmp/c3-integrated-preview
       - name: Verify real persisted duplicate protection without a Telegram token
         env:
@@ -112,6 +123,9 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_report_context.py
+            scripts/krx_opendart_financial_v91.py
+            config/c3_company_context_verified.json
             config/c3_telegram_example_request.json
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
@@ -146,6 +160,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
           MODE: ${{ github.event_name == 'push' && 'past_example' || github.event.inputs.mode || 'live' }}
         run: python scripts/c3_telegram_notify.py --mode "$MODE" --outdir /tmp/c3-integrated-delivery
       - uses: actions/upload-artifact@v4
