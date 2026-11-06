@@ -26,6 +26,15 @@ def read_retry(read,pause=time.sleep):
         pause(attempt+1)
 
 
+def active_research(gh):
+    active=[]
+    for workflow in ('c3_research_daily_caller.yml','c3_daily_research_v8.yml'):
+        runs=read_retry(lambda:gh.api('actions/workflows/'+workflow+'/runs?per_page=10')).get('workflow_runs',[])
+        active += [r for r in runs if str(r.get('id'))!=os.environ.get('GITHUB_RUN_ID') and
+                   r.get('status') in ('queued','in_progress','waiting','pending','requested')]
+    return active
+
+
 def packet(report,ref,result,clock,outdir,dry_run=False,render_validated=None):
     from c3_telegram_notify import expected_session
     ready=bool(render_validated) if render_validated is not None else result.get('status') in ('DRY_RUN_VALIDATED_NO_DELIVERY','DELIVERED','DUPLICATE_BLOCKED')
@@ -82,6 +91,9 @@ def publish(gh,manifest):
     """Optimistic Git transaction: immutable run packet + derived pointer only."""
     if manifest.get('schema')!=SCHEMA or manifest.get('orders_enabled') is not False:raise ValueError('HANDOFF_SCHEMA_REJECTED')
     for _ in range(2):
+        # The engine leases the research HEAD while building its immutable result.
+        # Even a derived report commit must defer while that writer is active.
+        if active_research(gh):return {'status':'RESEARCH_ACTIVE_HANDOFF_DEFERRED'}
         head=read_retry(lambda:gh.head(RESEARCH))
         current=json.loads(read_retry(lambda:gh.file(ROOT+'/latest.json',head)))
         if digest(canonical(current))!=manifest['source_report_sha256']:return {'status':'SOURCE_CHANGED_NOT_PUBLISHED','ref':head}
@@ -92,6 +104,7 @@ def publish(gh,manifest):
         entries=[{'path':p,'mode':'100644','type':'blob','content':canonical(manifest).decode()+'\n'} for p in (archive,ROOT+'/presentation/latest.json')]
         tree=gh.api('git/trees',method='POST',payload={'base_tree':commit['tree']['sha'],'tree':entries})
         saved=gh.api('git/commits',method='POST',payload={'message':'report: preserve same-source C3 presentation handoff','tree':tree['sha'],'parents':[head]})
+        if active_research(gh):return {'status':'RESEARCH_ACTIVE_HANDOFF_DEFERRED'}
         try:
             gh.api('git/refs/heads/'+RESEARCH,method='PATCH',payload={'sha':saved['sha'],'force':False})
             return {'status':'PUBLISHED_RESEARCH_ONLY','commit':saved['sha'],'source_report_sha256':manifest['source_report_sha256']}
