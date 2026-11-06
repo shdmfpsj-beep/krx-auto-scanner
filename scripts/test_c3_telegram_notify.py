@@ -26,6 +26,8 @@ class TelegramNotifyTests(unittest.TestCase):
             "research_top2_registered_for_source_session": False,
             "research_top2": [
                 {"name": "가상종목", "ticker": "000001", "close": 50000,
+                 "selection_reasons": ["CLOSE_GT_MA20_GT_MA50", "TURNOVER20_RANK"],
+                 "rs20": 15.2, "rs_accel5": 3.4,
                  "entry_plans": {"A_SUPPORT_LIMIT": {"plan": {"low": 48000, "high": 49000,
                                                          "stop": 45000, "resistance": 54000,
                                                          "resistance2": 58000}}}}
@@ -95,6 +97,14 @@ class TelegramNotifyTests(unittest.TestCase):
         self.assertIn("45,000원", msg)
         self.assertIn("미등록 미리보기", msg)
         self.assertIn("CASH", msg)
+        self.assertIn("선정 근거:", msg)
+        self.assertIn("최근 20일 거래대금 상위권", msg)
+        self.assertIn("20일 상대강도 +15.2%p", msg)
+        self.assertNotIn("github.com", msg)
+        self.assertNotIn("실행 ID", msg)
+        self.assertNotIn("원본:", msg)
+        self.assertNotIn("실제 수집:", msg)
+        self.assertNotIn("12345", msg)
 
     def test_receipt_path_blocks_injection(self):
         with self.assertRaises(ValueError):
