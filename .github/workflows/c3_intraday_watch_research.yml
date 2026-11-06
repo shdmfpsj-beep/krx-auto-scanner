@@ -1,0 +1,93 @@
+name: C3 TOP2 intraday watch research checks (NO LIVE QUOTES)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-intraday-watch-20261102]
+    paths:
+      - 'scripts/c3_intraday_watch_v1.py'
+      - 'scripts/c3_public_quote_gate_v1.py'
+      - 'scripts/test_c3_public_quote_gate_v1.py'
+      - 'scripts/c3_kis_intraday_quotes_v1.py'
+      - 'scripts/c3_intraday_mobile_summary_v1.py'
+      - 'scripts/test_c3_intraday_mobile_summary_v1.py'
+      - 'scripts/test_c3_kis_intraday_quotes_v1.py'
+      - 'scripts/test_c3_intraday_watch_v1.py'
+      - 'scripts/c3_free_source_diagnostic_v1.py'
+      - 'scripts/test_c3_free_source_diagnostic_v1.py'
+      - 'scripts/c3_free_mobile_report_v1.py'
+      - 'scripts/test_c3_free_mobile_report_v1.py'
+      - '.github/workflows/c3_intraday_watch_research.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_intraday_watch_v1.py
+            /scripts/test_c3_intraday_watch_v1.py
+            /scripts/c3_intraday_mobile_summary_v1.py
+            /scripts/test_c3_intraday_mobile_summary_v1.py
+            /scripts/c3_public_quote_gate_v1.py
+            /scripts/test_c3_public_quote_gate_v1.py
+            /scripts/c3_kis_intraday_quotes_v1.py
+            /scripts/test_c3_kis_intraday_quotes_v1.py
+            /scripts/c3_intraday_ledger_v1.py
+            /scripts/test_c3_intraday_ledger_v1.py
+            /scripts/c3_intraday_persistent_v1.py
+            /scripts/test_c3_intraday_persistent_v1.py
+            /scripts/c3_intraday_episodes_v1.py
+            /scripts/test_c3_intraday_episodes_v1.py
+            /scripts/c3_intraday_outcomes_v1.py
+            /scripts/test_c3_intraday_outcomes_v1.py
+            /scripts/test_c3_intraday_integration_v1.py
+            /scripts/test_c3_intraday_timestamp_safety_v1.py
+            /scripts/c3_free_paper_audit_v1.py
+            /scripts/test_c3_free_paper_audit_v1.py
+            /scripts/c3_free_source_diagnostic_v1.py
+            /scripts/test_c3_free_source_diagnostic_v1.py
+            /scripts/c3_free_mobile_report_v1.py
+            /scripts/test_c3_free_mobile_report_v1.py
+            /scripts/kis_regular_minute_cli.py
+            /scripts/kis_regular_minute.py
+            /config/c3_paper_top2_plans.csv
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Unit tests only; never request or simulate a market quote
+        run: |
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_watch_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_kis_intraday_quotes_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_public_quote_gate_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_mobile_summary_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_ledger_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_persistent_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_episodes_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_outcomes_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_integration_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_intraday_timestamp_safety_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_free_paper_audit_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_free_source_diagnostic_v1.py -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p test_c3_free_mobile_report_v1.py -v
+      - name: Read-only KIS quote probe (push or manual; never orders)
+        env:
+          KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+        run: |
+          PYTHONPATH=scripts python scripts/c3_kis_intraday_quotes_v1.py --out output/c3_intraday_quotes.json
+          PYTHONPATH=scripts python scripts/c3_intraday_watch_v1.py --quotes output/c3_intraday_quotes.json --out output/c3_intraday_watch.json
+          PYTHONPATH=scripts python scripts/c3_intraday_mobile_summary_v1.py --quotes output/c3_intraday_quotes.json --watch output/c3_intraday_watch.json --out output/c3_intraday_mobile.md
+          PYTHONPATH=scripts python scripts/c3_intraday_ledger_v1.py --watch output/c3_intraday_watch.json --out output/c3_intraday_observations.csv
+          cat output/c3_intraday_mobile.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-intraday-readonly-research
+          path: |
+            output/c3_intraday_quotes.json
+            output/c3_intraday_watch.json
+            output/c3_intraday_mobile.md
+            output/c3_intraday_observations.csv
+          retention-days: 7

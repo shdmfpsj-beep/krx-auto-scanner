@@ -1,0 +1,71 @@
+name: C3 TOP2 intraday manual capture and persistent ledger (RESEARCH ONLY)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-intraday-research-persistent
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+      KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-intraday-watch-20261102
+          sparse-checkout: |
+            /scripts/c3_intraday_watch_v1.py
+            /scripts/c3_kis_intraday_quotes_v1.py
+            /scripts/c3_intraday_ledger_v1.py
+            /scripts/c3_intraday_persistent_v1.py
+            /scripts/c3_intraday_episodes_v1.py
+            /scripts/c3_intraday_outcomes_v1.py
+            /scripts/kis_regular_minute_cli.py
+            /scripts/kis_regular_minute.py
+            /config/c3_paper_top2_plans.csv
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Restore latest completed research artifact if available
+        shell: bash
+        run: |
+          mkdir -p history output
+          ids="$(gh api "repos/$GH_REPO/actions/workflows/c3_intraday_manual_capture.yml/runs?branch=research%2Fc3-intraday-watch-20261102&status=success&per_page=15" --jq '.workflow_runs[].id' || true)"
+          for id in $ids; do
+            if gh run download "$id" -R "$GH_REPO" -n c3-intraday-persistent-research -D history >/dev/null 2>&1; then
+              if [ -f history/output/c3_intraday_observations.csv ]; then
+                cp history/output/c3_intraday_observations.csv history/c3_intraday_observations.csv
+              fi
+              echo "RESTORED_FROM_RUN=$id"
+              break
+            fi
+          done
+      - name: Read-only KIS KRX quotes, never orders
+        run: |
+          python scripts/c3_kis_intraday_quotes_v1.py --out output/c3_intraday_quotes.json
+          python scripts/c3_intraday_watch_v1.py --quotes output/c3_intraday_quotes.json --out output/c3_intraday_watch.json
+          python scripts/c3_intraday_persistent_v1.py --watch output/c3_intraday_watch.json --previous history/c3_intraday_observations.csv --out output/c3_intraday_observations.csv --summary output/c3_intraday_summary.json
+          python scripts/c3_intraday_episodes_v1.py --ledger output/c3_intraday_observations.csv --out output/c3_intraday_episodes.json
+          python scripts/c3_intraday_outcomes_v1.py --ledger output/c3_intraday_observations.csv --out output/c3_intraday_outcomes.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-intraday-persistent-research
+          path: |
+            output/c3_intraday_quotes.json
+            output/c3_intraday_watch.json
+            output/c3_intraday_observations.csv
+            output/c3_intraday_summary.json
+            output/c3_intraday_episodes.json
+            output/c3_intraday_outcomes.json
+          retention-days: 30
