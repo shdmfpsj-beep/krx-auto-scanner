@@ -1,12 +1,12 @@
 {
   "schema": "C3_DAILY_RESEARCH_V8",
-  "generated_at": "2026-11-06T11:42:17.904258+00:00",
+  "generated_at": "2026-11-06T12:39:33.613251+00:00",
   "report_day_kst": "2026-11-06",
-  "source_run_id": "42212094443",
+  "source_run_id": "42219249335",
   "source_price_asof": null,
   "source_received_at": null,
   "attempted_price_asof": "2026-11-06",
-  "probe_received_at": "2026-11-06T11:42:17.647819+00:00",
+  "probe_received_at": "2026-11-06T12:39:33.362858+00:00",
   "last_confirmed_price_asof": "2026-11-04",
   "source_diagnostics": [],
   "source_collection_status": "UNAVAILABLE",
@@ -88,7 +88,7 @@
       "technical_only": true,
       "trade_approved": false,
       "registered_at": null,
-      "analysis_known_at": "2026-11-06T11:42:17.792255+00:00"
+      "analysis_known_at": "2026-11-06T12:39:33.502583+00:00"
     },
     {
       "ticker": "030530",
@@ -150,7 +150,7 @@
       "technical_only": true,
       "trade_approved": false,
       "registered_at": null,
-      "analysis_known_at": "2026-11-06T11:42:17.792255+00:00"
+      "analysis_known_at": "2026-11-06T12:39:33.502583+00:00"
     }
   ],
   "research_top2_is_registered_today": false,
@@ -319,63 +319,69 @@
   "gpt_actual_model_runs": 0,
   "paid_api_calls": 0,
   "orders_enabled": false,
-  "scheduler_deployed": false,
+  "scheduler_deployed": true,
   "default_branch_modified": false,
   "notifications_modified": false,
   "source_hashes": {
     "panel": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
     "audit": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
     "classification": "449e7187b4aa7b39e9ef4452a0399ac629de9cce105ced6ead48d968c0de674d",
-    "index_manifest": "fc9f6ddeabe54a1aba5b8c2d8da39dc4341b114ffdcebb67a2a1803bf0242f74",
-    "pipeline_code": "2c5602e5f809c20c6d430a96594a758703dd901a961eb826bf8abdbb2710d6e7",
+    "index_manifest": "e64a718cb1b40c9c6905503371709b967238cb3feacab823ca4b4b499c2cb37b",
+    "pipeline_code": "84ac12433679c4844f65a5e1e722550d47efa3e7137ca6e15125e892b0a9c545",
     "ledger_code": "089f33544e22f578eea4d5b94719c34908b4768ce1e16f24a6ef5c72122f8c6d",
     "entry_code": "fb2a4d7eadd64030feb7b5943aee25125c7233022ddeeee14a484a5f66ecb396",
     "protocol": "bfa7dc1aa6a476fa70273bac23989eaf6c30143b2a7c8f2021c1801c75df674c",
     "runtime_protocol": "74ec49e2db83c5740fa61be96e53a8294b35f3b2083a9bf3a3bf963a63d94d11"
   },
   "invocation": {
-    "event": "push",
-    "mode": "research_direct",
-    "engine_sha": "d0c29ca5d67f2fb33465a9a987ac6d416e1fdaeb",
-    "upstream": null,
-    "automatic_event_observed": false,
+    "event": "workflow_run",
+    "mode": "approved_daily",
+    "engine_sha": "0f6ebc67bd755b00945388d431e32d94183ba7fe",
+    "upstream": {
+      "id": 42214603333,
+      "name": "KRX daily candidate scan",
+      "head_branch": "main",
+      "conclusion": "success",
+      "repository": "shdmfpsj-beep/krx-auto-scanner"
+    },
+    "automatic_event_observed": true,
     "calendar_schedule_deployed_claimed": false,
     "source_of_truth": "GITHUB_EVENT_CONTEXT_NOT_USER_REQUEST_DATE",
     "orders_enabled": false,
-    "state_sha": "d0c29ca5d67f2fb33465a9a987ac6d416e1fdaeb",
-    "caller_commit": "d0c29ca5d67f2fb33465a9a987ac6d416e1fdaeb",
+    "state_sha": "831ad831db289dd2506b92b61612011f0632e2ab",
+    "caller_commit": "1e84a20dc8c8b1608b88dc19cdc77043d6ed78eb",
     "expected_completed_session": "2026-11-06",
     "duplicate_current_session_skipped": false,
-    "run_id": "42212094443"
+    "run_id": "42219249335"
   },
-  "automatic_event_observed": false,
+  "automatic_event_observed": true,
   "upstream_validation": {
     "status": "VALIDATED_COLLECTION_AND_ARTIFACT",
-    "run_id": "42024764636",
-    "head_sha": "4ae44e87ef989c1a620a7b39c4f2be4ea804f962",
+    "run_id": "42214603333",
+    "head_sha": "fc3caeaab7ae31738fc346a2254eafde7fafa560",
     "event": "schedule",
     "job_ids": [
-      127236088664
+      127881360269
     ],
-    "artifact_id": 13416241119,
-    "artifact_expires_at": "2027-02-03T12:09:31Z",
-    "validated_at": "2026-11-06T11:42:10.083481+00:00",
+    "artifact_id": 13503065933,
+    "artifact_expires_at": "2027-02-04T12:02:11Z",
+    "validated_at": "2026-11-06T12:39:26.227437+00:00",
     "prices_not_implicitly_certified": true,
     "rejected_prior_runs": []
   },
   "provisional_source": {
     "status": "PROVISIONAL_CLOSE_ONLY_UNAPPROVED",
-    "source_run_id": "42024764636",
-    "source_artifact_id": 13416241119,
-    "source_price_asof": "2026-11-05",
+    "source_run_id": "42214603333",
+    "source_artifact_id": 13503065933,
+    "source_price_asof": "2026-11-06",
     "rows": 2625,
     "universe_rows": 2625,
     "missing_or_invalid": [],
-    "last_received_at": "2026-11-05T12:47:13.699076+00:00",
+    "last_received_at": "2026-11-06T12:36:40.269997+00:00",
     "price_basis": "ADJUSTED_TRUE_AS_REQUESTED",
     "provider": "PYKRX_NAVER",
-    "record_path": "provisional/2026-11-05/743586c10786fc26cfd76b659fffe60cb6c8d4c95631045f607906b032fe952d.json.gz",
-    "record_sha256": "cb21a5b0b39349e68d2c0f03afa2babdcae3575d5a018028cff50a09d1b2041a",
+    "record_path": "provisional/2026-11-06/b19108db0d61aebac4cef84d678cb11e1aaf301684ba74f1b55ffe26c4b33f18.json.gz",
+    "record_sha256": "de9bb92e8df503da1d54096c2997f5463c295ac0883983251bf4b554c37abd33",
     "regular_only_certified": false,
     "ohlcv_and_turnover_complete": false,
     "used_for_selection": false,
@@ -397,17 +403,17 @@
         "http_status": 200,
         "attempt": 1,
         "status": "RECEIVED",
-        "received_at": "2026-11-06T11:42:14.405935+00:00",
+        "received_at": "2026-11-06T12:39:30.253792+00:00",
         "sha256": "60f8f6e4abfa361e3cec0563d37ab4811f12ce8174b8d5b1068e4aefe0e09c7f",
         "bytes": 3747,
-        "seconds": 0.3717500889999883
+        "seconds": 0.24013962199998673
       }
     ]
   },
   "private_storage_audit": {
-    "scope": "FULL_CURRENT_INVENTORY",
-    "records_verified": 12,
-    "original_archives_verified": 2,
+    "scope": "LATEST_RECORDS_AND_ALL_BOOTSTRAP",
+    "records_verified": 2,
+    "original_archives_verified": 1,
     "bootstrap_archives_verified": 3,
     "mutations": 0,
     "key_values_returned": false
