@@ -50,9 +50,12 @@ def notes(r,p):
 
 def wrap(d,value,width,size=31):
     lines=[];line=''
-    for c in value:
-        if d.textlength(line+c,font=font(size))>width:lines.append(line);line=c
-        else:line+=c
+    for word in value.split():
+        candidate=(line+' '+word).strip()
+        if d.textlength(candidate,font=font(size))>width:
+            if not line or d.textlength(word,font=font(size))>width:raise ValueError('VERIFIED_NOTE_TOKEN_TOO_LONG')
+            lines.append(line);line=word
+        else:line=candidate
     if line:lines.append(line)
     if len(lines)>3:raise ValueError('VERIFIED_NOTE_TOO_LONG_FOR_CARD')
     return lines
@@ -102,7 +105,7 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards'):
         text(d,54,123,r['name'],65,INK,True);text(d,54,205,f"{r['ticker']} · {r.get('industry','업종 미확인')} · TOP{rank}",30,SUB)
         text(d,1345,125,won(close),61,INK,True,anchor='ra');previous=float(bars[-2]['close']);change=close-previous;pct=100*change/previous
         text(d,1345,204,f'{change:+,.0f}원 ({pct:+.2f}%)',31,RED if change>0 else BLUE if change<0 else SUB,True,anchor='ra')
-        banner='과거 연구 예시 · '+asof+' 미등록 후보' if report.get('example_only') else asof+' 정규장 기준 · 연구 관찰용'
+        banner='과거 연구 예시 · '+asof+' 미등록 후보' if report.get('example_only') else asof+' 종가 기준 · 연구 관찰용'
         d.rectangle((48,252,1352,294),fill='#F0EBDD');text(d,700,258,banner,27,GOLD,True,anchor='ma')
         d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2);text(d,74,333,'일봉 · 가격과 거래량',31,INK,True)
         for i,n in enumerate((5,20,60)):

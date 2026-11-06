@@ -130,6 +130,12 @@ class DeliveryFaultTests(unittest.TestCase):
         for title,kind in [('other','group'),('강현 AI','private')]:
             response=Mock(status_code=200);response.json.return_value={'ok':True,'result':{'id':-1001234567890,'title':title,'type':kind}}
             with patch('c3_telegram_notify.requests.post',return_value=response),self.assertRaises(ValueError):bot.verify_group()
+    def test_caption_or_different_album_response_is_never_confirmed(self):
+        bot=Telegram('SYNTHETIC','-1001234567890')
+        for change in ({'caption':'unexpected'},{'media_group_id':'another'}):
+            messages=[{'message_id':i,'media_group_id':'one','photo':[{'file_id':'synthetic'}],'chat':{'id':-1001234567890}} for i in (11,12)]
+            messages[1].update(change);response=Mock(status_code=200);response.json.return_value={'ok':True,'result':messages}
+            with patch('c3_telegram_notify.requests.post',return_value=response),self.assertRaises(ValueError):bot.send_album(self.files)
     def test_atomic_api_conflict_is_duplicate_only_if_claim_is_present(self):
         gh=Mock();gh.create.side_effect=ServiceError(409);store=ReceiptStore(gh);store.exists=Mock(return_value=True)
         self.assertFalse(store.reserve('synthetic',{}));store.exists.return_value=False
@@ -154,5 +160,30 @@ class ChartTruthTests(unittest.TestCase):
         sections=notes({'industry':'SYNTHETIC','market':'KOSPI'},None)
         self.assertEqual(len(sections),4);self.assertIn('미수집',sections[1][1]);self.assertIn('미확인',sections[2][1])
         self.assertEqual(set(TRADE_COLORS),{'first','second','stop','r1','r2'})
+
+class FrozenDecisionTests(unittest.TestCase):
+    def sample(self):
+        row={'ticker':'000001','signal_id':'SYNTHETIC','reference_close':100,'entry_plans':{'A':None},'model':'B','rank':1,'chart_bars':[{'date':'2026-11-06','close':100}]}
+        payload={'price_asof':'2026-11-06','models':{'B':[row]}}
+        from c3_telegram_inputs import canonical,digest
+        record={'payload':payload,'sha256':digest(canonical(payload))}
+        report={'source_price_asof':'2026-11-06','ledger_lane':'lanes/krx_unadjusted_v12','research_top2':[{k:v for k,v in row.items() if k!='chart_bars'}]}
+        return report,record
+    def load(self,report,record):
+        from c3_telegram_inputs import frozen_live_bars
+        import types,sys
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp,'c3_supply_v11.py').write_text('# SYNTHETIC ARCHIVE READER PLACEHOLDER')
+            reader=types.SimpleNamespace(open_sealed=lambda *args:json.dumps(record).encode());gh=Mock();gh.api.return_value=[];gh.file.return_value=b'SYNTHETIC_CIPHERTEXT'
+            with patch.dict('os.environ',{'C3_ARCHIVE_READER_PATH':tmp,'KRX_AUTH_KEY':'SYNTHETIC_NOT_REAL'}),patch.dict(sys.modules,{'c3_supply_v11':reader}):return frozen_live_bars(gh,report,'a'*40)
+    def test_live_chart_comes_from_same_authenticated_frozen_decision(self):
+        report,record=self.sample();r=self.load(report,record)
+        self.assertEqual(r['research_top2'][0]['chart_bars'],record['payload']['models']['B'][0]['chart_bars'])
+        self.assertEqual(r['research_top2'][0]['chart_price_basis'],'KRX_UNADJUSTED_AS_TRADED')
+    def test_bad_hash_or_public_trade_plan_cannot_change_frozen_chart(self):
+        report,record=self.sample();record['sha256']='0'*64
+        with self.assertRaisesRegex(ValueError,'HASH'):self.load(report,record)
+        report,record=self.sample();report['research_top2'][0]['entry_plans']={'A':'changed'}
+        with self.assertRaisesRegex(ValueError,'MISMATCH'):self.load(report,record)
 
 if __name__=='__main__':unittest.main()
