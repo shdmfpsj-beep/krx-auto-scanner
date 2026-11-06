@@ -1,0 +1,48 @@
+{
+  "checked_at_utc": "2026-11-06T02:20:33.474Z",
+  "pr31_head": "5ba5781ac6abd82413855c1cdcf49acd98306267",
+  "draft": true,
+  "merged": false,
+  "merge_approval_observed": false,
+  "changed_file": ".github/workflows/c3_research_daily_caller.yml",
+  "changed_files_count": 1,
+  "added_lines": 92,
+  "existing_scanner_changed": false,
+  "engine_sha": "0f6ebc67bd755b00945388d431e32d94183ba7fe",
+  "four_engine_pins_match": true,
+  "source_workflow": "KRX daily candidate scan",
+  "source_branch": "main",
+  "validate_actual_collector_steps_and_artifact": true,
+  "upstream_explicit_failure_never_substituted": true,
+  "schedules": [
+    {
+      "cron_utc": "15 13 * * 1-5",
+      "kst": "Monday-Friday 22:15"
+    },
+    {
+      "cron_utc": "20 23 * * 0-4",
+      "kst": "Monday-Friday 08:20"
+    }
+  ],
+  "secret_names": [
+    "KRX_AUTH_KEY"
+  ],
+  "secrets_inherit": false,
+  "source_preflight_permissions": {
+    "contents": "read",
+    "actions": "read"
+  },
+  "research_permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "write_branch": "research/c3-ledger-integrity-audit-20261104",
+  "caller_concurrency": "c3-approved-daily-caller",
+  "engine_concurrency": "c3-research-v8-prospective-only",
+  "cancel_in_progress": false,
+  "head_lease_and_immutable_comparison": true,
+  "rollback": "Disable or revert the single added caller workflow; keep existing scanner and research ledger.",
+  "actual_main_schedule_event_observed": false,
+  "actual_main_workflow_run_observed": false,
+  "orders_or_paid_calls_or_alert_changes": false
+}
