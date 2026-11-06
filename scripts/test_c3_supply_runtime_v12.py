@@ -74,6 +74,47 @@ class SupplyRuntimeV12Tests(unittest.TestCase):
             m=collect_session('2026-11-05',base,Path(tmp)/'fresh','2026-11-04',official=official,alternative=forbidden)
             self.assertEqual(m['data_quality_state'],'OFFICIAL_VERIFIED');self.assertEqual(len(m['supply_attempts']),1)
 
+    def test_official_adapter_failure_reaches_qualified_mirror_without_logging_exception_body(self):
+        secret='SYNTHETIC_REQUEST_HEADER_NOT_A_REAL_KEY';calls=[]
+        def broken(day,folder,key):raise ValueError('unexpected response containing '+secret)
+        def alternative(day,control,folder,wire,previous_day):calls.append(day);return fixture(folder,day,True)
+        with tempfile.TemporaryDirectory() as tmp,patch('c3_supply_runtime_v12.completed_day',return_value='2026-11-05'):
+            base=Path(tmp)/'base';fixture(base,'2026-11-04')
+            m=collect_session('2026-11-05',base,Path(tmp)/'fresh','2026-11-04',official=broken,alternative=alternative)
+            self.assertEqual(m['data_quality_state'],'RESEARCH_VALIDATED');self.assertEqual(calls,['2026-11-05'])
+            self.assertEqual(m['primary_collection_status'],'OFFICIAL_ADAPTER_FAILURE');self.assertNotIn(secret,json.dumps(m))
+
+    def test_truncated_official_response_retries_only_once_then_recovers_whole_dataset(self):
+        from http.client import IncompleteRead
+        calls=[];pauses=[]
+        def broken(day,folder,key):calls.append(day);raise IncompleteRead(b'SYNTHETIC_PARTIAL_BODY',50)
+        def alternative(day,control,folder,wire,previous_day):return fixture(folder,day,True)
+        with tempfile.TemporaryDirectory() as tmp,patch('c3_supply_runtime_v12.completed_day',return_value='2026-11-05'):
+            base=Path(tmp)/'base';fixture(base,'2026-11-04')
+            m=collect_session('2026-11-05',base,Path(tmp)/'fresh','2026-11-04',official=broken,alternative=alternative,pause=pauses.append)
+            self.assertEqual(m['data_quality_state'],'RESEARCH_VALIDATED');self.assertEqual(len(calls),2);self.assertEqual(pauses,[1]);self.assertEqual(len(m['supply_attempts']),3)
+
+    def test_official_csv_hash_failure_cannot_block_or_splice_with_alternative(self):
+        def broken(day,folder,key):
+            m=fixture(folder,day);p=Path(folder)/'KOSPI_official.csv';p.write_bytes(p.read_bytes()+b'CORRUPTED');return m
+        def alternative(day,control,folder,wire,previous_day):return fixture(folder,day,True)
+        with tempfile.TemporaryDirectory() as tmp,patch('c3_supply_runtime_v12.completed_day',return_value='2026-11-05'):
+            base=Path(tmp)/'base';fixture(base,'2026-11-04');out=Path(tmp)/'fresh'
+            m=collect_session('2026-11-05',base,out,'2026-11-04',official=broken,alternative=alternative)
+            self.assertEqual(m['data_quality_state'],'RESEARCH_VALIDATED');self.assertEqual(m['supply_attempts'][0]['error_code'],'FRESH_PRICE_HASH_MISMATCH')
+            self.assertFalse(list(out.glob('*_official.csv')));self.assertEqual(len(fresh_snapshot(out)[0]),2)
+
+    def test_bad_official_ohlc_is_rejected_in_attempt_status_before_fallback(self):
+        def broken(day,folder,key):
+            m=fixture(folder,day);p=Path(folder)/'KOSPI_official.csv';p.write_text(p.read_text(encoding='utf-8-sig').replace(',90,',',9000,'),encoding='utf-8-sig')
+            m['market_file_sha256']['KOSPI']=digest(p.read_bytes());write(Path(folder)/'krx_v65_collect_status.json',m);return m
+        def alternative(day,control,folder,wire,previous_day):return fixture(folder,day,True)
+        with tempfile.TemporaryDirectory() as tmp,patch('c3_supply_runtime_v12.completed_day',return_value='2026-11-05'):
+            base=Path(tmp)/'base';fixture(base,'2026-11-04')
+            m=collect_session('2026-11-05',base,Path(tmp)/'fresh','2026-11-04',official=broken,alternative=alternative)
+            self.assertEqual(m['primary_collection_status'],'OFFICIAL_QUALITY_REJECTED');self.assertEqual(m['data_quality_state'],'RESEARCH_VALIDATED')
+            self.assertIn('INVALID_OHLC:KOSPI',m['supply_attempts'][0]['quality']['errors'])
+
     def test_partial_market_cannot_be_supplemented_from_another_provider(self):
         def partial(day,folder,key):
             m=empty(day,folder,key);m['successful_partial_markets']=['KOSPI'];write(Path(folder)/'KOSPI_official.csv',{'not':'a_complete_dataset'});return m

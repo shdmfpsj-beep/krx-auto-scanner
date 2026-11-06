@@ -5,6 +5,7 @@ full OHLCV/actual turnover and original provider are required. NAVER adjusted
 prices never supply missing fields. Raw market files stay outside public output.
 """
 import argparse,json,os,shutil,time
+from http.client import HTTPException
 from pathlib import Path
 from urllib.parse import urlencode
 from c3_eod_source_v9 import collect_day
@@ -42,9 +43,23 @@ def collect_session(day,control,outdir,previous_session,official=collect_day,alt
         if p.name in ('krx_v65_collect_status.json','KOSPI_official.csv','KOSDAQ_official.csv'):shutil.copyfile(p,control_copy/p.name)
     for n in (1,2):
         folder=root/'_attempts'/('official_'+str(n))
-        m=official(day,folder,os.environ.get('KRX_AUTH_KEY'))
-        prices,_=fresh_snapshot(folder);q=quality(prices,baseline,day) if prices else None
-        attempts.append(dict(provider='KRX_OFFICIAL_EOD',attempt=n,status=m['status'],rows=m['official_market_rows'],quality=q,response_diagnostics=m.get('response_diagnostics',[])))
+        try:
+            m=official(day,folder,os.environ.get('KRX_AUTH_KEY'))
+            prices,_=fresh_snapshot(folder);q=quality(prices,baseline,day) if prices else None
+            status='OFFICIAL_QUALITY_REJECTED' if q and q['errors'] else m['status']
+            attempt=dict(provider='KRX_OFFICIAL_EOD',attempt=n,status=status,declared_status=m['status'],rows=m['official_market_rows'],quality=q,response_diagnostics=m.get('response_diagnostics',[]))
+        except (ValueError,KeyError,TypeError,OSError,HTTPException) as exc:
+            # A broken adapter or corrupt response must not prevent the qualified
+            # whole-market alternative. Never log exception text: it may carry
+            # a request header, URL, provider body or credential.
+            prices=None;q=None
+            safe_codes={'FRESH_PRICE_HASH_MISMATCH','FRESH_PRICE_DATE_OR_MARKET_MISMATCH','FRESH_PRICE_COUNT_MISMATCH','PRICE_FILE_OUTSIDE_SNAPSHOT'}
+            code=str(exc) if str(exc) in safe_codes else 'OFFICIAL_TRANSPORT_OR_SCHEMA_FAILURE'
+            attempt=dict(provider='KRX_OFFICIAL_EOD',attempt=n,status='OFFICIAL_ADAPTER_FAILURE',rows=0,quality=None,response_diagnostics=[],error_type=type(exc).__name__,error_code=code)
+            attempts.append(dict(attempt,completed_at=now()))
+            if isinstance(exc,(OSError,HTTPException)) and n==1:pause(1);continue
+            break
+        attempts.append(dict(attempt,completed_at=now()))
         if prices and not q['errors']:
             selected=folder;break
         diagnostics=m.get('response_diagnostics',[])
@@ -64,7 +79,7 @@ def collect_session(day,control,outdir,previous_session,official=collect_day,alt
             if q['errors']:raise ValueError('MIRROR_QUALITY_REJECTED')
             selected=folder;state='RESEARCH_VALIDATED'
             attempts.append(dict(provider='FINANCEDATA_KRX_CACHE',status=state,rows=len(prices),quality=q,transport=m.get('transport',[])))
-        except (ValueError,KeyError,TypeError,OSError) as exc:
+        except (ValueError,KeyError,TypeError,OSError,HTTPException) as exc:
             status_path=folder/'supply_validation.json'
             details=json.loads(status_path.read_text()) if status_path.exists() else {}
             wire=root/'_attempts'/'mirror_wire'/'transport.json'

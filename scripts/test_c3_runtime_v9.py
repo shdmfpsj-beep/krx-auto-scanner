@@ -125,5 +125,19 @@ class RuntimeV9Tests(unittest.TestCase):
         new=checked_report(old,dict(mode='research_smoke',automatic_event_observed=False),'2026-11-06T08:00:00Z','2026-11-06')
         self.assertTrue(new['research_top2_is_registered_today']);self.assertFalse(new['new_decision_registered']);self.assertEqual(new['new_registered_signals'],0);self.assertFalse(new['scheduler_deployed'])
 
+    def test_report_does_not_turn_research_validation_into_main_deployment(self):
+        from c3_forward_report_v8 import deployment_status
+        for mode in ('research_smoke','research_direct'):
+            r=deployment_status(dict(scheduler_deployed=True,invocation=dict(mode=mode,event='push',automatic_event_observed=True)))
+            self.assertEqual(r['state'],'RESEARCH_VALIDATION_ONLY');self.assertFalse(r['main_caller_observed']);self.assertFalse(r['automatic_event_observed'])
+        self.assertEqual(deployment_status(dict(scheduler_deployed=True))['state'],'DEPLOYMENT_UNVERIFIED')
+
+    def test_main_dispatch_workflow_run_and_schedule_are_reported_separately_from_chatgpt_delivery(self):
+        from c3_forward_report_v8 import deployment_status
+        for event in ('workflow_dispatch','workflow_run','schedule'):
+            r=deployment_status(dict(scheduler_deployed=True,invocation=dict(mode='approved_daily',event=event,automatic_event_observed=event!='workflow_dispatch')))
+            self.assertTrue(r['main_caller_observed']);self.assertEqual(r['automatic_event_observed'],event!='workflow_dispatch')
+            self.assertEqual(r['schedule_event_observed'],event=='schedule');self.assertFalse(r['chatgpt_notification_delivery_verified'])
+
 
 if __name__=='__main__':unittest.main()
