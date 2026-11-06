@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 384a5189af79be1bc415ab3d04451efadd457749
+          ref: 9d64972b17eed55d04ab19f4ba2e4fb377359601
           persist-credentials: false
           sparse-checkout: |
             /scripts/c3_runtime_v10.py
@@ -35,9 +35,9 @@ jobs:
           retention-days: 90
   pipeline:
     needs: source
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@384a5189af79be1bc415ab3d04451efadd457749
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@9d64972b17eed55d04ab19f4ba2e4fb377359601
     with:
-      engine_ref: 384a5189af79be1bc415ab3d04451efadd457749
+      engine_ref: 9d64972b17eed55d04ab19f4ba2e4fb377359601
       caller_mode: research_smoke
       upstream_run_id: ${{ needs.source.outputs.run_id }}
     secrets:
