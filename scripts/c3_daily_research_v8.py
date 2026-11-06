@@ -248,3 +248,5 @@ if __name__=="__main__":
         (Path(a.outdir)/'latest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
 
 # Manual full-market re-screen request on 2026-11-06 14:39 KST: recheck completed EOD only; selection/entry/stop logic unchanged.
+
+# On-demand 2026-11-06 post-close C3 TOP2 audit requested at 15:57 KST; preserve current selection, risk controls and registration semantics.
