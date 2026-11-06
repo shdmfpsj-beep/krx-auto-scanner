@@ -8,6 +8,13 @@ from c3_runtime_v10 import quality
 FIELDS=('open','high','low','close','volume','turnover_krw')
 
 
+def audit_due(previous,day,clock=None):
+    if not previous or previous.get('asof')!=day:return True
+    try:age=((clock or datetime.now(timezone.utc))-datetime.fromisoformat(previous['audited_at'])).total_seconds()
+    except (KeyError,TypeError,ValueError):return True
+    return previous.get('official_status')!='OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED' and age>=1800
+
+
 def comparison(left,right,day):
     def index(rows):
         out={}
@@ -55,12 +62,17 @@ def run(day,ledger,outdir):
     from c3_eod_source_v9 import collect_day
     from official_issuer_entry_v610 import retrieve,load_basic
     from c3_artifact_audit_v18 import write
-    root=Path(outdir);private=root.parent/'private-v18';private.mkdir(parents=True,exist_ok=True);started=time.monotonic()
+    root=Path(outdir);private=root.parent.parent/'private-v18';private.mkdir(parents=True,exist_ok=True);started=time.monotonic()
     def protected():
         base=Path(ledger)/'lanes'
         return {str(p.relative_to(base)):hashlib.sha256(p.read_bytes()).hexdigest() for p in base.rglob('*') if p.is_file()}
     preserved=protected()
-    path=Path(ledger)/'lanes/krx_unadjusted_v12/markets'/(day+'.json.gz');before=path.read_bytes();record=read_record(path)
+    path=Path(ledger)/'lanes/krx_unadjusted_v12/markets'/(day+'.json.gz')
+    if not path.exists():
+        result=dict(schema='C3_DATA_AUDIT_V18',asof=day,audited_at=datetime.now(timezone.utc).isoformat(),status='NO_FROZEN_CURRENT_SOURCE',
+            regular_only_certified=False,trade_approved=False,orders_enabled=False,registered_signals_changed=False)
+        write(root/'data_audit.json',result);return result
+    before=path.read_bytes();record=read_record(path)
     if record['asof']!=day:raise ValueError('FROZEN_MARKET_DATE_MISMATCH')
     prices=[dict(r,ticker=t,asof=day) for t,r in record['rows'].items()]
     m=record['source']['supply_manifest'];v=m.get('validation',{});q=quality(prices,prices,day)

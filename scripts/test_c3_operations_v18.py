@@ -2,7 +2,7 @@ import hashlib,io,json,subprocess,tempfile,unittest,zipfile
 from pathlib import Path
 from unittest.mock import patch
 from c3_artifact_audit_v18 import Resolver,SourceUnavailable,safe_archive
-from c3_data_audit_v18 import comparison,census
+from c3_data_audit_v18 import comparison,census,audit_due
 from c3_fast_ops_v18 import cached_current,bounded_collect,optional_scanner
 
 DAY='2026-11-06';RUN=39923708922
@@ -66,6 +66,15 @@ class ArtifactTests(unittest.TestCase):
 
 
 class DataTests(unittest.TestCase):
+    def test_qualified_audit_reused_and_unavailable_audit_retry_is_bounded(self):
+        from datetime import datetime,timezone,timedelta
+        clock=datetime(2026,11,6,22,0,tzinfo=timezone.utc)
+        previous=dict(asof=DAY,audited_at=clock.isoformat(),official_status='OFFICIAL_MARKETS_NOT_COMPLETE')
+        self.assertFalse(audit_due(previous,DAY,clock+timedelta(minutes=10)))
+        self.assertTrue(audit_due(previous,DAY,clock+timedelta(minutes=31)))
+        previous['official_status']='OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED'
+        self.assertFalse(audit_due(previous,DAY,clock+timedelta(days=1)))
+        self.assertTrue(audit_due(previous,'2026-11-09',clock))
     def test_matching_values_do_not_certify_regular_or_independent(self):
         q=comparison([row()],[row()],DAY)
         self.assertEqual(q['matched_rows'],1);self.assertFalse(q['regular_only_certified']);self.assertFalse(q['independent_vendor_certified'])

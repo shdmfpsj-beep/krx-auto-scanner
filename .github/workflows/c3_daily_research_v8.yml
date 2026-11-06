@@ -176,6 +176,10 @@ jobs:
           j['alternative_cache_readiness']=json.loads((root/'validation/cache_readiness.json').read_text())
           j['private_storage_audit']=json.loads((root/'validation/private_storage.json').read_text())
           j['bootstrap_input_sources']=json.loads((root/'validation/bootstrap.json').read_text())
+          from c3_data_audit_v18 import run as audit_source,audit_due
+          previous=json.loads(Path('reports/c3_forward_v8/latest.json').read_text()).get('source_data_audit')
+          target=(root/'target_session.txt').read_text().strip()
+          j['source_data_audit']=audit_source(target,'reports/c3_forward_v8',root/'data_audit') if audit_due(previous,target) else previous
           p.write_text(json.dumps(j,ensure_ascii=False,indent=2)+'\n')
           PYCODE
           python scripts/c3_forward_report_v8.py --latest /tmp/c3-forward8/result/current/latest.json --outdir /tmp/c3-forward8/result/mobile
