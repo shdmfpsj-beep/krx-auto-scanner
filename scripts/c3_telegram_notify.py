@@ -136,7 +136,7 @@ def deliver(paths,report,store,bot,mode='live',clock=None):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--mode',choices=('live','past_example','preview'),default='live');p.add_argument('--outdir',default='/tmp/c3-integrated-cards');p.add_argument('--dry-run',action='store_true');a=p.parse_args()
-    out=Path(a.outdir);out.mkdir(parents=True,exist_ok=True);result=None;source=None;ref=None;report=None
+    out=Path(a.outdir);out.mkdir(parents=True,exist_ok=True);result=None;source=None;ref=None;report=None;render_validated=False
     try:
         gh=GitHub(os.environ.get('GH_TOKEN',''))
         if a.mode in ('past_example','preview'):report=load_example(gh)
@@ -154,6 +154,7 @@ def main():
             paths=create_cards(report,out)
             (out/'input_diagnostics.json').write_text(json.dumps({'source_asof':report['source_price_asof'],'example_only':bool(report.get('example_only')),'provenance':report.get('input_provenance'),'sources':gh.sources},ensure_ascii=False,indent=2)+'\n')
             hashes=validate_photos(paths)
+            render_validated=True
             if a.dry_run:result={'status':'DRY_RUN_VALIDATED_NO_DELIVERY','photos':len(paths),'card_sha256':hashes,'send_attempts':0};return_code=0
             elif a.mode=='preview':result={'status':'PREVIEW_ONLY_NO_DELIVERY','photos':len(paths),'send_attempts':0};return_code=0
             else:
@@ -165,7 +166,7 @@ def main():
         from c3_report_handoff import packet
         try:
             # Hash the original public report; attach only verified rendered facts.
-            handoff=packet(report if report is not None else source,ref,result,now_kst(),out,a.dry_run)
+            handoff=packet(report if report is not None else source,ref,result,now_kst(),out,a.dry_run,render_validated=render_validated)
             handoff['source_report_sha256']=sha(canonical(source))
             (out/'presentation.json').write_text(json.dumps(handoff,ensure_ascii=False,indent=2)+'\n')
         except Exception:

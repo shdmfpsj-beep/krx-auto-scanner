@@ -3,7 +3,8 @@
 Only derived presentation paths may be written. A missing/old price source
 produces an empty packet, never the historical preview candidates.
 """
-import argparse,copy,json,os,re
+import argparse,copy,json,os,re,time
+import requests
 from datetime import datetime,timezone
 from pathlib import Path
 from c3_telegram_inputs import GitHub,RESEARCH,ROOT,canonical,digest,report_pair,ServiceError
@@ -14,9 +15,20 @@ FIELDS=('ticker','name','market','industry','model','rank','signal_id','referenc
 CONTEXT=('business','events','quarters','sources','missing','dart_status','collected_at','price_asof','selection_use','content_sha256')
 
 
-def packet(report,ref,result,clock,outdir,dry_run=False):
+def read_retry(read,pause=time.sleep):
+    """Only idempotent GitHub reads; never retry any Telegram operation."""
+    for attempt in range(3):
+        try:return read()
+        except ServiceError as exc:
+            if exc.status not in (429,500,502,503,504) or attempt==2:raise
+        except (requests.Timeout,requests.ConnectionError):
+            if attempt==2:raise
+        pause(attempt+1)
+
+
+def packet(report,ref,result,clock,outdir,dry_run=False,render_validated=None):
     from c3_telegram_notify import expected_session
-    ready=result.get('status') in ('DRY_RUN_VALIDATED_NO_DELIVERY','DELIVERED','DUPLICATE_BLOCKED')
+    ready=bool(render_validated) if render_validated is not None else result.get('status') in ('DRY_RUN_VALIDATED_NO_DELIVERY','DELIVERED','DUPLICATE_BLOCKED')
     out={'schema':SCHEMA,'generated_at':clock.isoformat(),'expected_price_session':expected_session(clock),
          'research_ref':ref,'source_report_sha256':digest(canonical(report)),
          'source_price_asof':report.get('source_price_asof'),'attempted_price_asof':report.get('attempted_price_asof'),
@@ -70,13 +82,13 @@ def publish(gh,manifest):
     """Optimistic Git transaction: immutable run packet + derived pointer only."""
     if manifest.get('schema')!=SCHEMA or manifest.get('orders_enabled') is not False:raise ValueError('HANDOFF_SCHEMA_REJECTED')
     for _ in range(2):
-        head=gh.head(RESEARCH)
-        current=json.loads(gh.file(ROOT+'/latest.json',head))
+        head=read_retry(lambda:gh.head(RESEARCH))
+        current=json.loads(read_retry(lambda:gh.file(ROOT+'/latest.json',head)))
         if digest(canonical(current))!=manifest['source_report_sha256']:return {'status':'SOURCE_CHANGED_NOT_PUBLISHED','ref':head}
         identity=digest(canonical(manifest));archive=ROOT+'/presentation/runs/'+identity+'.json'
-        prior=gh.file(archive,head,missing_ok=True)
+        prior=read_retry(lambda:gh.file(archive,head,missing_ok=True))
         if prior is not None and json.loads(prior)!=manifest:raise ValueError('HANDOFF_IMMUTABLE_CONFLICT')
-        commit=gh.api('git/commits/'+head)
+        commit=read_retry(lambda:gh.api('git/commits/'+head))
         entries=[{'path':p,'mode':'100644','type':'blob','content':canonical(manifest).decode()+'\n'} for p in (archive,ROOT+'/presentation/latest.json')]
         tree=gh.api('git/trees',method='POST',payload={'base_tree':commit['tree']['sha'],'tree':entries})
         saved=gh.api('git/commits',method='POST',payload={'message':'report: preserve same-source C3 presentation handoff','tree':tree['sha'],'parents':[head]})
@@ -84,7 +96,13 @@ def publish(gh,manifest):
             gh.api('git/refs/heads/'+RESEARCH,method='PATCH',payload={'sha':saved['sha'],'force':False})
             return {'status':'PUBLISHED_RESEARCH_ONLY','commit':saved['sha'],'source_report_sha256':manifest['source_report_sha256']}
         except ServiceError as exc:
-            if exc.status not in (409,422):raise
+            if exc.status not in (409,422,500,502,503,504):raise
+            # An uncertain Git response is reconciled by reading the actual ref.
+            # This never invokes album delivery or removes its claim.
+            actual=read_retry(lambda:gh.head(RESEARCH))
+            stored=read_retry(lambda:gh.file(ROOT+'/presentation/latest.json',actual,missing_ok=True))
+            if stored is not None and json.loads(stored)==manifest:
+                return {'status':'PUBLISHED_RESEARCH_ONLY','commit':actual,'confirmed_after_uncertain_git_response':True,'source_report_sha256':manifest['source_report_sha256']}
     raise ValueError('HANDOFF_SAVE_RACE_REQUIRES_REVIEW')
 
 
@@ -92,9 +110,9 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('command',choices=('recovery','publish'));p.add_argument('--outdir',required=True);a=p.parse_args()
     out=Path(a.outdir);out.mkdir(parents=True,exist_ok=True);gh=GitHub(os.environ.get('GH_TOKEN',''))
     if a.command=='recovery':
-        latest,summary,_=report_pair(gh);runs=[]
+        latest,summary,_=read_retry(lambda:report_pair(gh));runs=[]
         for workflow in ('c3_research_daily_caller.yml','c3_daily_research_v8.yml'):
-            runs+=gh.api('actions/workflows/'+workflow+'/runs?per_page=10').get('workflow_runs',[])
+            runs+=read_retry(lambda:gh.api('actions/workflows/'+workflow+'/runs?per_page=10')).get('workflow_runs',[])
         runs=[r for r in runs if str(r['id'])!=os.environ.get('GITHUB_RUN_ID')]
         value=recovery_plan(latest,summary,datetime.now(timezone.utc),os.environ.get('GITHUB_EVENT_NAME'),os.environ.get('MODE','live'),runs)
         with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('recover='+str(value['recover']).lower()+'\n')

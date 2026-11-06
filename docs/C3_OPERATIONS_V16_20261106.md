@@ -20,10 +20,19 @@ Scope: report/data plumbing only. No strategy, risk, order, scanner, or receipt-
 
 ## Verification and continuation
 
-- Local focused tests: 73 passed before CI (59 preserved + 14 boundary tests).
+- Focused tests: 59 preserved + 18 boundary tests after Git-transient handling.
 - AST comparison: `ReceiptStore`, `Telegram`, `deliver`, `delivery_key`, `report_error`, `expected_session`, `validate_photos` unchanged.
 - PR CI must exercise current live dry-run, actual saved receipt diagnostics, two read-only prior-session control requests, historical real-image regressions and a **zero-send** persisted duplicate check.
 - CI must then publish the same-source derived packet to the research branch without Telegram credentials.
 - After CI, merge only this report/operations patch; do not merge research PR #30 or change example-request configuration.
 - Read `reports/c3_forward_v8/presentation/latest.json` only when its source hash/run/date matches `latest.json`. `NOT_READY` has no current TOP2/images. The immutable evidence for old successful cards is not a new live report.
 - Tonight's actual schedule events and ChatGPT delivery remain unobserved until they occur. If prices remain unavailable, CASH/no new signal/no Telegram album is the correct safe outcome.
+
+## Actual CI evidence / corrected failures
+
+- First PR rehearsal `42214409864`: tests/live silent skip passed; diagnostic adapter import failed because its transitive standard-library-only modules were missing from sparse checkout. Added the six real dependencies.
+- Second rehearsal `42214668670`: all 73 tests, live no-send gate, actual source diagnostics, two real historical PNGs, DART 2 companies x 4 quarters, and persisted duplicate check passed. Publication hit a GitHub `502` during a read, before any Git write.
+- At 21:03:09 KST the same official key/request returned 2026-11-05 KOSPI 938 and KOSDAQ 1,831 rows. The saved actual 20:42:14-16 KST 2026-11-06 attempts both returned HTTP 200 / 17-byte JSON / empty `OutBlock_1`, twice. Cache failure was `DATED_CACHE_NOT_PUBLISHED_AFTER_CLOSE`.
+- Evidence supports date-dependent source availability, rather than a general authentication/parser failure. Exact official publication SLA was not confirmed from accessible primary documentation; do not assert a particular next-day publication time as proven.
+- Added bounded retries to idempotent handoff Git reads only. An uncertain Git-ref update is reconciled by reading the real saved packet; Telegram POST is never retried by this code.
+- Chart readiness and delivery status are separate. Verified images/company analysis can remain available to ChatGPT if Telegram delivery is uncertain, with the original no-resend claim preserved.

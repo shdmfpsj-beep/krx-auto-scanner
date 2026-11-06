@@ -3,7 +3,7 @@ import copy,json,tempfile,unittest,os
 from pathlib import Path
 from unittest.mock import patch,Mock
 from c3_telegram_inputs import canonical,digest,ServiceError
-from c3_report_handoff import packet,publish,recovery_plan,ROOT,RESEARCH
+from c3_report_handoff import packet,publish,recovery_plan,read_retry,ROOT,RESEARCH
 from test_c3_telegram_notify import fixture
 
 
@@ -42,6 +42,31 @@ class HandoffTests(unittest.TestCase):
             self.assertEqual(n.main(),0);bot.assert_not_called()
             x=json.loads(Path(tmp,'presentation.json').read_text());self.assertEqual(x['status'],'NOT_READY')
             self.assertEqual(json.loads(Path(tmp,'delivery_status.json').read_text())['send_attempts'],0)
+    def test_successful_live_dry_run_never_claims_or_constructs_sender(self):
+        import c3_telegram_notify as n
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as tmp:
+            def render(report,out):
+                files=[];cards=[]
+                for i,row in enumerate(report['research_top2']):
+                    path=Path(out,row['ticker']+'_integrated.png');Image.new('RGB',(4,4),('white','black')[i]).save(path);files.append(path)
+                    cards.append(dict(ticker=row['ticker'],asof=report['source_price_asof'],sha256=digest(path.read_bytes())))
+                Path(out,'render_diagnostics.json').write_text(json.dumps({'example_only':False,'cards':cards}));return files
+            with patch.object(n,'GitHub',return_value=Mock(sources=[])),patch.object(n,'Telegram') as bot,patch.object(n,'ReceiptStore') as receipts,patch.object(n,'report_pair',return_value=(self.report,self.summary,'a'*40)),patch.object(n,'frozen_live_bars',side_effect=lambda g,r,ref:r),patch.object(n,'now_kst',return_value=self.clock),patch('c3_report_context.attach_context',side_effect=lambda r,*args:r),patch('c3_classic_theme.create_cards',side_effect=render),patch('sys.argv',['notify','--mode','live','--dry-run','--outdir',tmp]):
+                self.assertEqual(n.main(),0);bot.assert_not_called();receipts.assert_not_called()
+            x=json.loads(Path(tmp,'presentation.json').read_text());self.assertEqual(x['status'],'READY');self.assertEqual(len(x['images']),2)
+            self.assertEqual(x['delivery']['send_attempts'],0);self.assertEqual(x['source_report_sha256'],digest(canonical(self.report)))
+    def test_valid_chart_remains_available_when_delivery_is_uncertain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cards=[]
+            for row in self.report['research_top2']:
+                body=row['ticker'].encode();Path(tmp,row['ticker']+'_integrated.png').write_bytes(body)
+                cards.append(dict(ticker=row['ticker'],asof=self.report['source_price_asof'],sha256=digest(body)))
+            Path(tmp,'render_diagnostics.json').write_text(json.dumps({'example_only':False,'cards':cards}))
+            result={'status':'REVIEW_REQUIRED_NO_AUTOMATIC_RESEND','send_attempts':1}
+            x=packet(self.report,'a'*40,result,self.clock,tmp,render_validated=True)
+            self.assertEqual(x['status'],'READY');self.assertEqual(x['delivery']['status'],result['status'])
+            self.assertFalse(x['chatgpt_delivery_verified'])
 
 
 class RecoveryTests(unittest.TestCase):
@@ -90,6 +115,22 @@ class PublisherTests(unittest.TestCase):
     def test_existing_archive_cannot_be_replaced(self):
         self.gh.file.side_effect=lambda path,ref,missing_ok=False:canonical(self.r) if path==ROOT+'/latest.json' else b'{}'
         with self.assertRaisesRegex(ValueError,'IMMUTABLE'):publish(self.gh,self.manifest)
+    def test_transient_git_read_retries_but_permission_failure_does_not(self):
+        read=Mock(side_effect=[ServiceError(502),{'verified':'actual_read'}]);pause=Mock()
+        self.assertEqual(read_retry(read,pause=pause),{'verified':'actual_read'});self.assertEqual(read.call_count,2)
+        read=Mock(side_effect=ServiceError(403))
+        with self.assertRaises(ServiceError):read_retry(read,pause=pause)
+        self.assertEqual(read.call_count,1)
+    def test_uncertain_git_update_is_confirmed_without_another_write(self):
+        def api(path,method='GET',payload=None):
+            if method=='PATCH':
+                self.gh.file.side_effect=lambda path,ref,missing_ok=False:canonical(self.manifest)
+                raise ServiceError(502)
+            return {'tree':{'sha':'c'*40},'sha':'d'*40}
+        self.gh.api.side_effect=api
+        result=publish(self.gh,self.manifest)
+        self.assertTrue(result['confirmed_after_uncertain_git_response'])
+        self.assertEqual(sum(c.kwargs.get('method')=='PATCH' for c in self.gh.api.call_args_list),1)
 
 
 if __name__=='__main__':unittest.main()
