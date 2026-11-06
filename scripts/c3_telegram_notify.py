@@ -147,7 +147,6 @@ def build_message(latest, summary):
     header = [
         "📊 C3 TOP2 정규장 연구 보고",
         "원본 거래일: " + asof,
-        "전체 " + f"{scope['price_rows']:,}" + "종목 / 분석 가능 " + f"{scope['analysis_eligible']:,}" + "종목",
         "",
     ]
     picks = latest.get("research_top2") or []
