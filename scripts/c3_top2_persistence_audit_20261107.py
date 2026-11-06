@@ -121,6 +121,28 @@ def reconstructed_day(day, market, snapshots, panel, audit, basics,kind,secondar
             proximity<=3 and entry["rr"] is not None and
             entry["rr"]>=1.5 and entry["stop_risk_pct"]<=8):
             actionable.append(r)
+    # Sensitivity: a near-entry observation is NOT a simulated fill. Avoid
+    # promoting the two small-turnover "actionable" research names as BUY.
+    candidate_entry={r["ticker"]:candidate(r,histories_by_ticker[r["ticker"]],idx) for r in b}
+    sensitivity=[]
+    for liquidity in (0,1_000_000_000,3_000_000_000,5_000_000_000):
+        for max_premium_pct in (3,5):
+            for min_net_rr in (1.0,1.5):
+                for max_risk in (8,10):
+                    valid=[]
+                    for r in b:
+                        e=candidate_entry[r["ticker"]]
+                        if not e["plan"] or r["turnover20"]<liquidity or e["rr"] is None or e["rr"]<min_net_rr or e["stop_risk_pct"]>max_risk:
+                            continue
+                        # Include close in the plan band, or up to premium%
+                        # above high. Close below low is not an eligible entry.
+                        if not e["low"]<=r["close"]<=e["high"]*(1+max_premium_pct/100):
+                            continue
+                        valid.append(r)
+                    sensitivity.append(dict(min_average_daily_turnover_krw=liquidity,max_premium_above_entry_high_pct=max_premium_pct,
+                        min_costed_r1_reward_risk=min_net_rr,max_plan_risk_pct=max_risk,
+                        candidates=len(valid),shortlist=[dict(ticker=r["ticker"],name=r["name"],turnover20_krw=num(r["turnover20"]),
+                            entry=candidate_entry[r["ticker"]]) for r in valid[:5]]))
     # Same date frozen reference close is deliberately not a next-day fill.
     result=dict(
         asof=day,
@@ -140,6 +162,7 @@ def reconstructed_day(day, market, snapshots, panel, audit, basics,kind,secondar
         B_acceleration_first_top10=[summarize(r,histories_by_ticker,idx,bby[r["ticker"]],False) for r in by_accel[:10]],
         B_accessible_entry_candidates=len(actionable),
         B_accessible_entry_top10=[summarize(r,histories_by_ticker,idx,bby[r["ticker"]]) for r in actionable[:10]],
+        B_entry_liquidity_sensitivity=sensitivity,
         chosen=[summarize(r,histories_by_ticker,idx,bby[r["ticker"]]) for r in b[:2]],
         no_holdover_bonus_in_code=True,
         ranking_sort="descending_20d_average_turnover_then_descending_rs20_then_ticker",
@@ -246,6 +269,8 @@ def main():
         "11_06_B_top10":six["B_turnover_top10"],
         "11_06_B_rs_top10":six["B_rs_first_top10"],
         "11_06_accessible_top10":six["B_accessible_entry_top10"],
+        "11_06_entry_liquidity_sensitivity":six["B_entry_liquidity_sensitivity"],
+        "B_top10_shared_names":sorted(set(z["ticker"] for z in five["B_turnover_top10"])&set(z["ticker"] for z in six["B_turnover_top10"])),
         "orders_enabled":False,"telegram_sends":0
     }
     print("C3_TWO_DAY_PERSISTENCE_AUDIT="+json.dumps(slim,ensure_ascii=False,allow_nan=False),flush=True)
