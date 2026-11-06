@@ -60,7 +60,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
-          ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
           path: engine
           persist-credentials: false
           sparse-checkout: |
@@ -254,9 +254,9 @@ jobs:
     permissions:
       contents: write
       actions: read
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@0f6ebc67bd755b00945388d431e32d94183ba7fe
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@077113ac2f5e93fecc4c47850b36e5eda2173e3d
     with:
-      engine_ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+      engine_ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
       caller_mode: approved_daily
     secrets:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
@@ -291,7 +291,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
-          ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
           path: engine
           persist-credentials: false
           sparse-checkout: |

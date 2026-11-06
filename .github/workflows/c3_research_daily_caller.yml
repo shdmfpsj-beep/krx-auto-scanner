@@ -34,7 +34,7 @@ jobs:
           import re
           from pathlib import Path
           p=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
-          pin='0f6ebc67bd755b00945388d431e32d94183ba7fe'
+          pin='077113ac2f5e93fecc4c47850b36e5eda2173e3d'
           job=p.split('\n  research:\n',1)[1]
           called=re.search(r'uses: shdmfpsj-beep/krx-auto-scanner/\.github/workflows/c3_daily_research_v8\.yml@([a-f0-9]{40})',job)
           configured=re.search(r'^      engine_ref: ([a-f0-9]{40})$',job,re.M)
@@ -45,7 +45,7 @@ jobs:
           assert 'needs: source-ready' in job and 'needs.source-ready.outputs.run_id' in job
           assert 'caller_mode: approved_daily' in job and 'refs/heads/main' in job
           pre=p.split('\n  source-ready:\n',1)[1].split('\n  research:\n',1)[0]
-          assert 'ref: '+pin in pre and 'scripts/c3_runtime_v10.py' in pre and 'persist-credentials: false' in pre
+          assert 'ref: '+pin in pre and 'scripts/c3_fast_ops_v18.py' in pre and 'persist-credentials: false' in pre
           print('Pinned engine, read-only source preflight and explicit single secret valid; production disabled on PR')
           PYCODE
   source-ready:
@@ -59,17 +59,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
           persist-credentials: false
           sparse-checkout: |
-            /scripts/c3_runtime_v10.py
+            /scripts/c3_fast_ops_v18.py
+            /scripts/c3_artifact_audit_v18.py
           sparse-checkout-cone-mode: false
-      - name: Require actual collection and source artifact success
+      - name: Validate pinned independent price-supply preflight
         id: source
         env:
           GH_TOKEN: ${{ github.token }}
           UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id || '' }}
-        run: python scripts/c3_runtime_v10.py --upstream-run-id "$UPSTREAM_RUN_ID" --outdir /tmp/c3-source-preflight
+        run: python scripts/c3_fast_ops_v18.py --run-id "$UPSTREAM_RUN_ID" --outdir /tmp/c3-source-preflight
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -83,9 +84,9 @@ jobs:
     permissions:
       contents: write
       actions: read
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@0f6ebc67bd755b00945388d431e32d94183ba7fe
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@077113ac2f5e93fecc4c47850b36e5eda2173e3d
     with:
-      engine_ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+      engine_ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
       caller_mode: approved_daily
       upstream_run_id: ${{ needs.source-ready.outputs.run_id }}
     secrets:
