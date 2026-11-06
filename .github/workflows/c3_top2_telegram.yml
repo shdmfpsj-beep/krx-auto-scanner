@@ -24,6 +24,8 @@ on:
       - 'scripts/c3_telegram_inputs.py'
       - 'scripts/c3_classic_theme.py'
       - 'scripts/c3_report_context.py'
+      - 'scripts/c3_report_handoff.py'
+      - 'scripts/test_c3_report_handoff.py'
       - 'scripts/test_c3_report_quality.py'
       - 'config/c3_company_context_verified.json'
       - 'scripts/test_c3_telegram_notify.py'
@@ -48,11 +50,30 @@ jobs:
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
             scripts/c3_report_context.py
+            scripts/c3_report_handoff.py
+            scripts/test_c3_report_handoff.py
             scripts/krx_opendart_financial_v91.py
             scripts/test_c3_report_quality.py
             scripts/test_c3_telegram_notify.py
             config/c3_company_context_verified.json
             config/c3_telegram_example_request.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+          path: engine
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_supply_v11.py
+            scripts/c3_archive_keys_v13.py
+            scripts/c3_eod_source_v9.py
+            scripts/krx_official_eod_v65.py
+            scripts/forward_ledger_v63.py
+            scripts/source_consensus_v64.py
+            scripts/entry_strategy_v58.py
+            scripts/free_structural_v52.py
+            scripts/first_pullback_v55.py
+            scripts/shadow_five_day_v59.py
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
@@ -66,6 +87,45 @@ jobs:
         run: |
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_quality.py' -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_handoff.py' -v
+      - name: Rehearse current live input without any Telegram credentials
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+        run: python scripts/c3_telegram_notify.py --mode live --dry-run --outdir /tmp/c3-live-rehearsal
+      - name: Diagnose actual failed receipt and same-key prior-session control
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          PYTHONPATH: scripts:engine/scripts
+        run: |
+          python - <<'PY'
+          import json,os,tempfile
+          from pathlib import Path
+          from c3_telegram_inputs import GitHub,ROOT,canonical,digest,report_pair
+          from c3_supply_v11 import open_sealed
+          from c3_eod_source_v9 import collect_day
+          gh=GitHub(os.environ['GH_TOKEN']);latest,summary,ref=report_pair(gh)
+          out=Path('/tmp/c3-live-rehearsal');audit={'research_ref':ref,'source_run_id':latest.get('source_run_id'),'supply_attempts':[]}
+          with tempfile.TemporaryDirectory() as tmp:
+              day=latest.get('attempted_price_asof');rid=latest.get('source_run_id')
+              if day and rid:
+                  listing=gh.api('contents/'+ROOT+'/lanes/krx_unadjusted_v12/supply_receipts/'+day+'?ref='+ref)
+                  match=[x for x in listing if x['name'].startswith(str(rid)+'-')]
+                  if len(match)==1:
+                      p=Path(tmp,'receipt.aesgcm');p.write_bytes(gh.file(match[0]['path'],ref))
+                      r=json.loads(open_sealed(p,os.environ['KRX_AUTH_KEY']));payload=r['payload']
+                      assert r['sha256']==digest(canonical(payload))
+                      audit['supply_attempts']=payload['supply_attempts']
+              # Exactly two read-only control requests. Raw market CSVs stay in tmp.
+              m=collect_day('2026-11-05',Path(tmp,'control'),os.environ['KRX_AUTH_KEY'])
+              audit['prior_session_control']={k:m[k] for k in ('asof','retrieval_utc','status','official_market_rows','response_diagnostics','quality')}
+          (out/'supply_diagnostics.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps({'prior_control_rows':m['official_market_rows'],'prior_control_diagnostics':m['response_diagnostics'],'target_attempts':[{'provider':a['provider'],'status':a['status'],'rows':a.get('rows'),'response_diagnostics':a.get('response_diagnostics'),'error_code':a.get('error_code')} for a in audit['supply_attempts']]}))
+          PY
       - name: Reuse public OpenDART corporation mapping
         uses: actions/cache@v4
         with:
@@ -124,8 +184,86 @@ jobs:
           path: /tmp/c3-integrated-preview/
           retention-days: 90
           if-no-files-found: warn
-  notify:
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-current-live-rehearsal
+          path: /tmp/c3-live-rehearsal/
+          retention-days: 90
+          if-no-files-found: warn
+  publish-rehearsal:
+    needs: self-test
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_report_handoff.py
+            scripts/c3_telegram_inputs.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests --disable-pip-version-check
+      - uses: actions/download-artifact@v4
+        with:
+          name: c3-current-live-rehearsal
+          path: /tmp/c3-live-rehearsal
+      - name: Verify atomic research-only handoff storage, without send secrets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          C3_PRESENTATION_ARTIFACT_NAME: c3-current-live-rehearsal
+        run: python scripts/c3_report_handoff.py publish --outdir /tmp/c3-live-rehearsal
+  recovery-check:
     if: >-
+      github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' ||
+       (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'live'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      recover: ${{ steps.plan.outputs.recover }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_report_handoff.py
+            scripts/c3_telegram_inputs.py
+            scripts/c3_telegram_notify.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests pillow --disable-pip-version-check
+      - name: Check late data and existing research runs before bounded recovery
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ github.event.inputs.mode || 'live' }}
+        run: python scripts/c3_report_handoff.py recovery --outdir /tmp/c3-recovery-check
+  recover-data:
+    needs: recovery-check
+    if: needs.recovery-check.outputs.recover == 'true'
+    permissions:
+      contents: write
+      actions: read
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@0f6ebc67bd755b00945388d431e32d94183ba7fe
+    with:
+      engine_ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+      caller_mode: approved_daily
+    secrets:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+  notify:
+    needs: [recovery-check, recover-data]
+    if: >-
+      always() && !cancelled() &&
       github.repository == 'shdmfpsj-beep/krx-auto-scanner' &&
       github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
       (github.event_name != 'workflow_run' ||
@@ -146,6 +284,7 @@ jobs:
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
             scripts/c3_report_context.py
+            scripts/c3_report_handoff.py
             scripts/krx_opendart_financial_v91.py
             config/c3_company_context_verified.json
             config/c3_telegram_example_request.json
@@ -192,9 +331,20 @@ jobs:
           MODE: ${{ github.event_name == 'push' && 'past_example' || github.event.inputs.mode || 'live' }}
         run: python scripts/c3_telegram_notify.py --mode "$MODE" --outdir /tmp/c3-integrated-delivery
       - uses: actions/upload-artifact@v4
+        id: delivery-evidence
         if: always()
         with:
           name: c3-integrated-delivery-evidence
           path: /tmp/c3-integrated-delivery/
           retention-days: 90
           if-no-files-found: warn
+      - name: Publish only the derived same-source presentation for the existing ChatGPT report
+        if: always() && !cancelled()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ github.event_name == 'push' && 'past_example' || github.event.inputs.mode || 'live' }}
+          C3_PRESENTATION_ARTIFACT_ID: ${{ steps.delivery-evidence.outputs.artifact-id }}
+        run: |
+          if [ "$MODE" = 'live' ] && [ -f /tmp/c3-integrated-delivery/presentation.json ]; then
+            python scripts/c3_report_handoff.py publish --outdir /tmp/c3-integrated-delivery
+          fi
