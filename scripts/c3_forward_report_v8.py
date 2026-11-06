@@ -14,6 +14,12 @@ def deployment_status(data):
         chatgpt_notification_delivery_verified=False)
 
 
+def registration_note(data):
+    if data.get('research_top2_registered_for_source_session') is True:
+        return '아래 후보는 원본 거래일에 실제 등록된 연구 신호입니다. 실전 매수 승인은 아니며 정규장 가격 범위 검증은 별도입니다.'
+    return '아래 후보는 미등록 연구 미리보기입니다. 과거 후보를 당일 신규 신호로 표시하거나 소급 체결하지 않습니다.'
+
+
 def stored_chart(data,row,folder='reports/c3_forward_v8/mobile'):
     """Reuse a dated chart only when price, plan and registration label agree."""
     if not re.fullmatch('[A-Z0-9]{6}',row['ticker']):return None
@@ -43,10 +49,11 @@ def render(latest,outdir):
         f"- 분석 완료 시각: {data.get('analysis_completed_at','기존 보고')} / 보고 생성: {data['generated_at']}",
         f"- 보고 실행: {data.get('invocation',{}).get('run_id',data['source_run_id'])} / 가격 원본 실행: {data['source_run_id']}",
         f"- 데이터 상태: {data.get('data_quality_state','기존 보고')} / 원천: {data.get('source_provider','미확인')} / 정규장 전용 독립 인증: {data.get('source_regular_only_certified',False)}",
+        '- 품질검사 통과는 거래일·OHLC 수치·시장 범위의 검사 결과이며 정규장 전용 거래량·거래대금 인증과 다릅니다.',
         '- 출처: 한국거래소 통계정보. FinanceData KRX 캐시 이용 시 동일 KRX 원천의 별도 전달 경로이며 독립 가격 공급사가 아닙니다.',
         f"- 마지막 확인 가격: {data['preview_price_asof']} / 오늘 등록된 결정: {data['new_decision_registered']}",
         f"- 신규 신호: {data['new_registered_signals']} / 신규 고유 종목: {data['new_registered_unique_tickers']}",'- 실전 행동: CASH / 실제 브로커 주문·체결 0','',
-        '오늘 등록되지 않은 아래 후보는 이전 확인일의 연구 미리보기이며 현재 매수 지시가 아닙니다.','']
+        registration_note(data),'']
     for r in data['research_top2']:
         p=r['entry_plans']['A_SUPPORT_LIMIT']['plan'];bars=r.get('chart_bars',[]);rows=[('종목',r['name']+' '+r['ticker']),('기준 거래일',data['preview_price_asof']),
             ('기준 종가',price(r.get('reference_close',r['close']))),('선정 근거',f"시장 대비 RS20 {r['own_rs20']:+.2f}%p · 5일 RS 개선 {r['rs_accel5']:+.2f}%p"),
@@ -121,3 +128,4 @@ def render(latest,outdir):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--latest',required=True);p.add_argument('--outdir',required=True);a=p.parse_args();render(a.latest,a.outdir)
+

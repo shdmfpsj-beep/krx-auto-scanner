@@ -4,6 +4,8 @@ from datetime import datetime,timezone,timedelta
 from pathlib import Path
 from urllib.request import Request,urlopen
 
+from c3_data_quality_v17 import classify_bar
+
 REPO='shdmfpsj-beep/krx-auto-scanner'
 
 
@@ -57,11 +59,8 @@ def quality(prices,baseline,day):
     for m in ('KOSPI','KOSDAQ'):
         rr=[r for r in rows if r['market']==m];a={r['ticker'] for r in old if r['market']==m};b={r['ticker'] for r in rr};invalid=[];halt=0
         for r in rr:
-            try:
-                o,h,l,c,v,t=(float(r[k]) for k in ('open','high','low','close','volume','turnover_krw'))
-                valid=all(math.isfinite(x) for x in (o,h,l,c,v,t)) and 0<l<=min(o,c)<=max(o,c)<=h and v>0 and t>0
-                halted=all(math.isfinite(x) and x>=0 for x in (o,h,l,c,v,t)) and c>0 and v==0
-            except (ValueError,TypeError):valid=halted=False
+            state=classify_bar(r)
+            valid=state=='VALID_TRADED_BAR';halted=state=='NO_TRADES_OBSERVED'
             if halted:halt+=1
             elif not valid:invalid.append(r['ticker'])
         if not b:errors.append('MARKET_EMPTY:'+m)
@@ -165,3 +164,4 @@ if __name__=='__main__':
     print(json.dumps(audit))
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('run_id='+audit['run_id']+'\n')
+

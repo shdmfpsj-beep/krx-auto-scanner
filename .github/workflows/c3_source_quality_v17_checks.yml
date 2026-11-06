@@ -1,0 +1,44 @@
+name: C3 source quality regression checks (read only)
+on:
+  pull_request:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_data_quality_v17.py'
+      - 'scripts/c3_runtime_v10.py'
+      - 'scripts/c3_forward_ledger_v8.py'
+      - 'scripts/c3_forward_report_v8.py'
+      - 'scripts/test_c3_source_quality_v17.py'
+      - '.github/workflows/c3_source_quality_v17_checks.yml'
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/
+            /config/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing unit-test dependencies and report font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pandas==2.2.3 pykrx==1.2.9 'matplotlib>=3.8,<4' 'cryptography>=43,<47' requests pillow
+      - name: Preserve engine tests without running collector, registration or sender
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import unittest,json
+          loader=unittest.TestLoader()
+          suite=unittest.TestSuite([loader.discover('scripts',pattern=p) for p in ('test_c3_*.py','test_krx_official_eod_v65.py','test_hma60_first_pullback_v11.py','test_supply_private_archive_v11.py')])
+          result=unittest.TextTestRunner(verbosity=1).run(suite)
+          print(json.dumps({'tests':result.testsRun,'failures':len(result.failures),'errors':len(result.errors),'market_collection':False,'ledger_writes':False,'telegram_sends':0}))
+          assert result.testsRun>=758
+          if not result.wasSuccessful():raise SystemExit(1)
+          PY

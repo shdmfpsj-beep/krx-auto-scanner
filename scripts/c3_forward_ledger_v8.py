@@ -13,6 +13,8 @@ from c3_daily_top2_v4 import BUY,SELL,SLIP
 from c3_selection_factors_v6 import full_session_path
 from c3_selection_scope_v5 import freeze_forward
 
+from c3_data_quality_v17 import classify_bar
+
 KST=timezone(timedelta(hours=9));HORIZONS=(5,10,20)
 
 
@@ -77,8 +79,8 @@ def market_payload(prices,indices,sessions,meta):
         if p["asof"]!=day or p["market"] not in indices:raise ValueError("BAR_DATE_OR_MARKET_MISMATCH")
         vals={k:float(p[k]) for k in ("open","high","low","close","volume","turnover_krw")}
         if not all(math.isfinite(v) for v in vals.values()):raise ValueError("NONFINITE_MARKET_VALUE")
-        valid=0<vals["low"]<=min(vals["open"],vals["close"])<=max(vals["open"],vals["close"])<=vals["high"] and vals["volume"]>0 and vals["turnover_krw"]>0
-        halt=vals["close"]>0 and vals["volume"]==0 and all(v>=0 for v in vals.values())
+        state=classify_bar(vals)
+        valid=state=='VALID_TRADED_BAR';halt=state=='NO_TRADES_OBSERVED'
         rows[t]=dict(vals,name=p["name"],market=p["market"],date=day,tradable=valid,invalid_data=not(valid or halt),halt_like=halt,segment=0,action_boundary=bool(p.get("action_boundary",False)))
     if {p["market"] for p in rows.values()}!={"KOSPI","KOSDAQ"}:raise ValueError("INCOMPLETE_MARKET_COVERAGE")
     return dict(asof=day,rows=rows,indices=indices,sessions=sessions,source=meta)
@@ -265,3 +267,4 @@ def advance(root,now,run_id):
                 summary["paper"][model][variant][str(h)]=dict(status_counts=dict(Counter(p["status"] for p in pp)),completed=len(complete),
                     mean_net_pct=avg([p["net_pct"] for p in complete]),stop_exit_count=sum(p.get("exit") is not None and "STOP" in p["exit"]["reason"] for p in pp),attribution=dict(labels))
     return out,summary
+
