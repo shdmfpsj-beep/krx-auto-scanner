@@ -39,6 +39,17 @@ def already_current(report,expected,pipeline_hash):
         report.get('source_hashes',{}).get('pipeline_code')==pipeline_hash)
 
 
+def checked_report(report,context,checked_at,registered_day=None):
+    """A repeated source is a new report receipt, never a new decision or fill."""
+    clock=datetime.fromisoformat(checked_at.replace('Z','+00:00'))
+    if clock.tzinfo is None:raise ValueError('TIMEZONE_REQUIRED')
+    today=clock.astimezone(KST).date().isoformat()
+    return dict(report,generated_at=checked_at,checked_at=checked_at,report_day_kst=today,invocation=dict(context),
+        new_decision_registered=False,new_registered_signals=0,new_registered_unique_tickers=0,
+        research_top2_is_registered_today=bool(report.get('research_top2_registered_for_source_session') and registered_day==today),
+        scheduler_deployed=context['mode']=='approved_daily',automatic_event_observed=context['automatic_event_observed'])
+
+
 def registration_window(price_day,now):
     """Late EOD may inform a real decision before the next possible open.
 

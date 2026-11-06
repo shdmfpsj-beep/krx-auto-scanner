@@ -92,5 +92,38 @@ class RuntimeV9Tests(unittest.TestCase):
         b,_=batch(market(0));b,timing,eligible=finalize_decision_time(b,'2026-11-09T00:00:00Z')
         self.assertFalse(eligible);self.assertEqual(timing,'PAST_NEXT_POSSIBLE_OPEN');self.assertEqual(b['known_at'],'2026-11-09T00:00:00Z')
 
+    def test_unchanged_repeated_report_can_reuse_its_matching_dated_chart(self):
+        import json,tempfile
+        from pathlib import Path
+        from c3_forward_report_v8 import stored_chart
+        row=dict(ticker='005930',reference_close=100,entry_plans={'A':{'stop':90}});data=dict(preview_price_asof='2026-11-06',research_top2_is_registered_today=True,research_top2=[row])
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);(root/'summary.json').write_text(json.dumps(data));p=root/'005930_structure.png';p.write_bytes(b'SYNTHETIC_IMAGE_PLACEHOLDER')
+            self.assertEqual(stored_chart(data,row,root),p)
+
+    def test_old_date_price_or_plan_cannot_reuse_a_misleading_chart(self):
+        import json,tempfile
+        from pathlib import Path
+        from c3_forward_report_v8 import stored_chart
+        row=dict(ticker='005930',reference_close=100,entry_plans={'A':{'stop':90}});data=dict(preview_price_asof='2026-11-06',research_top2_is_registered_today=True,research_top2=[row])
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);(root/'summary.json').write_text(json.dumps(data));(root/'005930_structure.png').write_bytes(b'SYNTHETIC_IMAGE_PLACEHOLDER')
+            for bad in (dict(data,preview_price_asof='2026-11-09'),dict(data,research_top2_is_registered_today=False)):self.assertIsNone(stored_chart(bad,row,root))
+            self.assertIsNone(stored_chart(data,dict(row,reference_close=101),root));self.assertIsNone(stored_chart(data,dict(row,entry_plans={'A':{'stop':95}}),root))
+
+    def test_repeat_after_midnight_refreshes_report_day_without_relabeling_old_signal(self):
+        from c3_runtime_v9 import checked_report
+        old=dict(source_run_id='ORIGINAL_SOURCE_RUN',report_day_kst='2026-11-06',research_top2_registered_for_source_session=True,research_top2_is_registered_today=True,new_registered_signals=2)
+        context=dict(mode='approved_daily',automatic_event_observed=True,run_id='NEW_REPORT_RUN')
+        new=checked_report(old,context,'2026-11-06T23:20:00Z','2026-11-06')
+        self.assertEqual(new['report_day_kst'],'2026-11-07');self.assertEqual(new['source_run_id'],'ORIGINAL_SOURCE_RUN');self.assertEqual(new['invocation']['run_id'],'NEW_REPORT_RUN')
+        self.assertFalse(new['research_top2_is_registered_today']);self.assertEqual(new['new_registered_signals'],0);self.assertEqual(old['new_registered_signals'],2)
+
+    def test_same_day_repeat_is_not_an_additional_registered_signal(self):
+        from c3_runtime_v9 import checked_report
+        old=dict(research_top2_registered_for_source_session=True,source_run_id='ORIGINAL')
+        new=checked_report(old,dict(mode='research_smoke',automatic_event_observed=False),'2026-11-06T08:00:00Z','2026-11-06')
+        self.assertTrue(new['research_top2_is_registered_today']);self.assertFalse(new['new_decision_registered']);self.assertEqual(new['new_registered_signals'],0);self.assertFalse(new['scheduler_deployed'])
+
 
 if __name__=='__main__':unittest.main()

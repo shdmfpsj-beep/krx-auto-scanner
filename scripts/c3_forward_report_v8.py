@@ -1,6 +1,18 @@
 """Mobile research status, dated price charts and separate selection/trade results."""
-import argparse,html,json,statistics
+import argparse,html,json,re,shutil,statistics
 from pathlib import Path
+
+
+def stored_chart(data,row,folder='reports/c3_forward_v8/mobile'):
+    """Reuse a dated chart only when price, plan and registration label agree."""
+    if not re.fullmatch('[A-Z0-9]{6}',row['ticker']):return None
+    root=Path(folder);path=root/(row['ticker']+'_structure.png')
+    try:previous=json.loads((root/'summary.json').read_text())
+    except (OSError,ValueError):return None
+    close=lambda r:r.get('reference_close',r.get('close'))
+    same=previous.get('preview_price_asof')==data['preview_price_asof'] and previous.get('research_top2_is_registered_today')==data['research_top2_is_registered_today']
+    if same and path.exists() and any(r['ticker']==row['ticker'] and close(r)==close(row) and r.get('entry_plans')==row.get('entry_plans') for r in previous.get('research_top2',[])):return path
+    return None
 
 
 def render(latest,outdir):
@@ -17,6 +29,7 @@ def render(latest,outdir):
     md=['# C3 연구용 TOP2·가상매매 일일 통합 보고','',f"- 보고일(KST): {data['report_day_kst']} / 실행: {data['source_run_id']}",
         f"- 확보된 가격 기준일: {data['source_price_asof'] or '미확보'} / 수집: {data['source_received_at'] or '미확보'}",
         f"- 분석 완료 시각: {data.get('analysis_completed_at','기존 보고')} / 보고 생성: {data['generated_at']}",
+        f"- 보고 실행: {data.get('invocation',{}).get('run_id',data['source_run_id'])} / 가격 원본 실행: {data['source_run_id']}",
         f"- 데이터 상태: {data.get('data_quality_state','기존 보고')} / 원천: {data.get('source_provider','미확인')} / 정규장 전용 독립 인증: {data.get('source_regular_only_certified',False)}",
         '- 출처: 한국거래소 통계정보. FinanceData KRX 캐시 이용 시 동일 KRX 원천의 별도 전달 경로이며 독립 가격 공급사가 아닙니다.',
         f"- 마지막 확인 가격: {data['preview_price_asof']} / 오늘 등록된 결정: {data['new_decision_registered']}",
@@ -47,6 +60,12 @@ def render(latest,outdir):
             ax.legend(fontsize=8,loc='upper left');ax.grid(alpha=.15);ax.yaxis.set_major_formatter(FuncFormatter(lambda v,pos:f'{v:,.0f}'))
             ticks=list(range(0,len(bars),max(1,len(bars)//5)));vol.set_xticks(ticks,[bars[i]['date'][5:] for i in ticks],rotation=25);vol.set_ylabel('Volume / million',fontsize=8)
             fig.tight_layout();name=r['ticker']+'_structure.png';fig.savefig(root/name,dpi=160);plt.close(fig);table+=f'<img src="{name}" alt="Dated research structure">';md+=['!['+r['name']+']('+name+')','']
+        else:
+            cached=stored_chart(data,r)
+            if cached:
+                name=cached.name
+                if cached.resolve()!=(root/name).resolve():shutil.copyfile(cached,root/name)
+                table+=f'<img src="{name}" alt="Verified same-date research chart">';md+=['!['+r['name']+']('+name+')','']
         cards.append('<section>'+table+'</section>')
     performance=data['performance'];counts=performance.get('registered_signals',0)
     md+=['## 신규 연구 성과','',f"- 보존된 선정 기록: {counts}개. A/B는 별도 비교하며 같은 종목을 합쳐 독립 거래 수로 제시하지 않습니다.",

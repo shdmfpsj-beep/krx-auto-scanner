@@ -174,9 +174,15 @@ jobs:
           import json,os
           from pathlib import Path
           from datetime import datetime,timezone
+          from c3_runtime_v9 import checked_report
+          from c3_forward_ledger_v8 import read_record
           root=Path('/tmp/c3-forward8/result');out=root/'current';out.mkdir(exist_ok=True)
-          data=json.loads(Path('reports/c3_forward_v8/latest.json').read_text());data.update(new_decision_registered=False,new_registered_signals=0,new_registered_unique_tickers=0,checked_at=datetime.now(timezone.utc).isoformat(),invocation=json.loads((root/'invocation.json').read_text()))
-          data['invocation']['run_id']=os.environ['GITHUB_RUN_ID'];(out/'latest.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          data=json.loads(Path('reports/c3_forward_v8/latest.json').read_text());context=json.loads((root/'invocation.json').read_text());context['run_id']=os.environ['GITHUB_RUN_ID']
+          record=Path('reports/c3_forward_v8')/data.get('ledger_lane','')/'decisions'/(data['preview_price_asof']+'.json')
+          frozen=read_record(record) if record.exists() else None
+          data=checked_report(data,context,datetime.now(timezone.utc).isoformat(),frozen.get('decision_date') if frozen else None)
+          if frozen:data['research_top2']=frozen['models']['B']  # Original dated bars for a fresh report, no decision mutation.
+          (out/'latest.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
           PY
           else
             python scripts/c3_daily_research_v8.py --panel /tmp/c3-forward8/inputs/panel/official_panel.csv.gz --audit /tmp/c3-forward8/inputs/panel/quality_audit.json --baseline /tmp/c3-forward8/inputs/latest/requested-date-probe/2026-11-04 --basic /tmp/c3-forward8/inputs/issuer/basic --scope reports/c3_work5_20261105/sources --indices /tmp/c3-forward8/result/indices --fresh "/tmp/c3-forward8/private/fresh/$day" --ledger reports/c3_forward_v8 --outdir /tmp/c3-forward8/result/current --run-id '${{ github.run_id }}' --invocation /tmp/c3-forward8/result/invocation.json
