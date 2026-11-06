@@ -1,12 +1,12 @@
 {
   "schema": "C3_DAILY_RESEARCH_V8",
-  "generated_at": "2026-11-06T02:15:31.891712+00:00",
+  "generated_at": "2026-11-06T05:42:01.128596+00:00",
   "report_day_kst": "2026-11-06",
-  "source_run_id": "42149047206",
+  "source_run_id": "42169885194",
   "source_price_asof": "2026-11-05",
-  "source_received_at": "2026-11-06T02:15:23.977481+00:00",
+  "source_received_at": "2026-11-06T05:41:54.254800+00:00",
   "attempted_price_asof": "2026-11-05",
-  "probe_received_at": "2026-11-06T02:15:23.977481+00:00",
+  "probe_received_at": "2026-11-06T05:41:54.254800+00:00",
   "last_confirmed_price_asof": "2026-11-05",
   "source_diagnostics": [
     {
@@ -22,7 +22,7 @@
         "AUTH_KEY",
         "Accept"
       ],
-      "started_at": "2026-11-06T02:15:15.535052+00:00",
+      "started_at": "2026-11-06T05:41:48.716541+00:00",
       "http_status": 200,
       "content_type": "application/json; charset=utf-8",
       "body_sha256": "290b7d94486656cad2ff7f4be1ac68501907c57dab1d405e350fc3060594201b",
@@ -34,7 +34,7 @@
       "outblock_rows": 938,
       "status": "NORMALIZED",
       "provider_error": {},
-      "received_at": "2026-11-06T02:15:19.957942+00:00",
+      "received_at": "2026-11-06T05:41:51.305268+00:00",
       "normalized_rows": 938
     },
     {
@@ -50,7 +50,7 @@
         "AUTH_KEY",
         "Accept"
       ],
-      "started_at": "2026-11-06T02:15:19.966145+00:00",
+      "started_at": "2026-11-06T05:41:51.311760+00:00",
       "http_status": 200,
       "content_type": "application/json; charset=utf-8",
       "body_sha256": "6038da378f86d284b64416efedb17f5fd88f25f9ecfd47a8c767b18303dce02c",
@@ -62,7 +62,7 @@
       "outblock_rows": 1831,
       "status": "NORMALIZED",
       "provider_error": {},
-      "received_at": "2026-11-06T02:15:23.977481+00:00",
+      "received_at": "2026-11-06T05:41:54.254800+00:00",
       "normalized_rows": 1831
     }
   ],
@@ -130,7 +130,7 @@
   "research_top2_is_registered_today": false,
   "research_top2_registered_for_source_session": false,
   "registration_timing": "SOURCE_BEFORE_FORWARD_START",
-  "analysis_completed_at": "2026-11-06T02:15:31.866859+00:00",
+  "analysis_completed_at": "2026-11-06T05:42:01.107098+00:00",
   "preview_price_asof": "2026-11-05",
   "performance": {
     "registered_decision_days": 0,
@@ -299,8 +299,8 @@
     "panel": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
     "audit": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
     "classification": "449e7187b4aa7b39e9ef4452a0399ac629de9cce105ced6ead48d968c0de674d",
-    "index_manifest": "2fbff16f3f2910a774b1ae6ac4718f1e9156f6d453f0d3950f769658bb2d36e5",
-    "pipeline_code": "84ac12433679c4844f65a5e1e722550d47efa3e7137ca6e15125e892b0a9c545",
+    "index_manifest": "1699b7210007a8dfe8387adb1f1a8a1bece678150de3ef7a9de28f0eff190b10",
+    "pipeline_code": "eaa041c40d9abb9822146e061796132398a0a2c9c283ce66e2fc8ac589ec5499",
     "ledger_code": "089f33544e22f578eea4d5b94719c34908b4768ce1e16f24a6ef5c72122f8c6d",
     "entry_code": "fb2a4d7eadd64030feb7b5943aee25125c7233022ddeeee14a484a5f66ecb396",
     "protocol": "bfa7dc1aa6a476fa70273bac23989eaf6c30143b2a7c8f2021c1801c75df674c",
@@ -308,18 +308,18 @@
   },
   "invocation": {
     "event": "push",
-    "mode": "research_smoke",
-    "engine_sha": "0f6ebc67bd755b00945388d431e32d94183ba7fe",
+    "mode": "research_direct",
+    "engine_sha": "5cfed947d04b6e39ec84e6a6a896728e5843d66d",
     "upstream": null,
     "automatic_event_observed": false,
     "calendar_schedule_deployed_claimed": false,
     "source_of_truth": "GITHUB_EVENT_CONTEXT_NOT_USER_REQUEST_DATE",
     "orders_enabled": false,
-    "state_sha": "b011bc3125341163902d2f1942c3ae12885f5759",
-    "caller_commit": "b011bc3125341163902d2f1942c3ae12885f5759",
+    "state_sha": "5cfed947d04b6e39ec84e6a6a896728e5843d66d",
+    "caller_commit": "5cfed947d04b6e39ec84e6a6a896728e5843d66d",
     "expected_completed_session": "2026-11-05",
     "duplicate_current_session_skipped": false,
-    "run_id": "42149047206"
+    "run_id": "42169885194"
   },
   "automatic_event_observed": false,
   "upstream_validation": {
@@ -332,7 +332,7 @@
     ],
     "artifact_id": 13416241119,
     "artifact_expires_at": "2027-02-03T12:09:31Z",
-    "validated_at": "2026-11-06T02:15:12.109605+00:00",
+    "validated_at": "2026-11-06T05:41:44.528500+00:00",
     "prices_not_implicitly_certified": true,
     "rejected_prior_runs": []
   },
@@ -370,16 +370,16 @@
         "http_status": 200,
         "attempt": 1,
         "status": "RECEIVED",
-        "received_at": "2026-11-06T02:15:15.524025+00:00",
+        "received_at": "2026-11-06T05:41:48.707010+00:00",
         "sha256": "622de37c1f8739a3d184140af0f19c17524cba46c00ec6acdb27ab666e741189",
         "bytes": 3747,
-        "seconds": 0.28447568800000056
+        "seconds": 0.5107255879999997
       }
     ]
   },
   "private_storage_audit": {
     "scope": "FULL_CURRENT_INVENTORY",
-    "records_verified": 8,
+    "records_verified": 9,
     "original_archives_verified": 1,
     "bootstrap_archives_verified": 3,
     "mutations": 0,
@@ -435,8 +435,8 @@
       "rank": 1,
       "decision_date": "2026-11-05",
       "registered_at": null,
-      "source_received_at": "2026-11-06T02:15:23.977481+00:00",
-      "source_run_id": "42149047206",
+      "source_received_at": "2026-11-06T05:41:54.254800+00:00",
+      "source_run_id": "42169885194",
       "source_price_asof": "2026-11-05",
       "reference_close": 64300.0,
       "selection_reasons": [
@@ -514,9 +514,9 @@
       "price_basis": "UNADJUSTED_AS_TRADED",
       "buy_approved": false,
       "live_action": "CASH",
-      "analysis_completed_at": "2026-11-06T02:15:31.866859+00:00",
+      "analysis_completed_at": "2026-11-06T05:42:01.107098+00:00",
       "registration_timing": "SOURCE_BEFORE_FORWARD_START",
-      "analysis_known_at": "2026-11-06T02:15:31.866859+00:00",
+      "analysis_known_at": "2026-11-06T05:42:01.107098+00:00",
       "trade_approved": false
     },
     {
@@ -542,8 +542,8 @@
       "rank": 2,
       "decision_date": "2026-11-05",
       "registered_at": null,
-      "source_received_at": "2026-11-06T02:15:23.977481+00:00",
-      "source_run_id": "42149047206",
+      "source_received_at": "2026-11-06T05:41:54.254800+00:00",
+      "source_run_id": "42169885194",
       "source_price_asof": "2026-11-05",
       "reference_close": 26950.0,
       "selection_reasons": [
@@ -621,9 +621,9 @@
       "price_basis": "UNADJUSTED_AS_TRADED",
       "buy_approved": false,
       "live_action": "CASH",
-      "analysis_completed_at": "2026-11-06T02:15:31.866859+00:00",
+      "analysis_completed_at": "2026-11-06T05:42:01.107098+00:00",
       "registration_timing": "SOURCE_BEFORE_FORWARD_START",
-      "analysis_known_at": "2026-11-06T02:15:31.866859+00:00",
+      "analysis_known_at": "2026-11-06T05:42:01.107098+00:00",
       "trade_approved": false
     }
   ],
