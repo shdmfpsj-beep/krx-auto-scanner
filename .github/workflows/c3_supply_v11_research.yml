@@ -1,0 +1,53 @@
+name: C3 free daily supply path comparison
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths: ['scripts/c3_supply_v11.py','scripts/test_c3_supply_v11.py','config/c3_supply_v11_sample.json','.github/workflows/c3_supply_v11_research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare-sources:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: scripts
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install baseline adapters and current FinanceDataReader for recorded API verification
+        run: pip install pandas==2.2.3 pykrx==1.2.9 finance-datareader 'cryptography>=43,<47'
+      - name: Preserve 657 regressions and check source and archive safety
+        run: |
+          mkdir -p /tmp/c3-supply11/public
+          python - <<'PY'
+          import json,unittest
+          from pathlib import Path
+          loader=unittest.TestLoader();patterns=('test_c3_*.py','test_krx_official_eod_v65.py','test_hma60_first_pullback_v11.py','test_supply_private_archive_v11.py')
+          suites=[loader.discover('scripts',pattern=p) for p in patterns]
+          result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
+          Path('/tmp/c3-supply11/public/tests.json').write_text(json.dumps(dict(total=result.testsRun,failures=len(result.failures),errors=len(result.errors),skipped=len(result.skipped),preserved_baseline=657)))
+          if not result.wasSuccessful():raise SystemExit(1)
+          PY
+      - name: Probe forty dated representative securities across distinct upstream paths
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          KIWOOM_APP_KEY: ${{ secrets.KTSCA_API_KEY }}
+          KIWOOM_APP_SECRET: ${{ secrets.KIWOOM_APP_SECRET }}
+          FSC_SERVICE_KEY: ${{ secrets.FSC_SERVICE_KEY }}
+        run: python scripts/c3_supply_v11.py --outdir /tmp/c3-supply11
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-supply-v11-public-validation-and-sealed-data
+          path: |
+            /tmp/c3-supply11/public/
+            /tmp/c3-supply11/private_market_data.aesgcm
+          retention-days: 90
+          if-no-files-found: error

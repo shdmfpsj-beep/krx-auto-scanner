@@ -1,0 +1,44 @@
+name: C3 pinned reusable runtime validation
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths: ['.github/workflows/c3_reusable_runtime_v9_smoke.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run_id: ${{ steps.source.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_runtime_v10.py
+          sparse-checkout-cone-mode: false
+      - name: Verify the same read-only source preflight as the deployment caller
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/c3_runtime_v10.py --outdir /tmp/c3-source-preflight
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c3-source-preflight-smoke
+          path: /tmp/c3-source-preflight/
+          retention-days: 90
+  pipeline:
+    needs: source
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@0f6ebc67bd755b00945388d431e32d94183ba7fe
+    with:
+      engine_ref: 0f6ebc67bd755b00945388d431e32d94183ba7fe
+      caller_mode: research_smoke
+      upstream_run_id: ${{ needs.source.outputs.run_id }}
+    secrets:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}

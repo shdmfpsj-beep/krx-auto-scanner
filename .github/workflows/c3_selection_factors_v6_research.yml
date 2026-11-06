@@ -1,0 +1,80 @@
+name: C3 selection factors and blind AI comparison research
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_selection*_v6.py'
+      - 'scripts/test_c3_selection*_v6.py'
+      - 'reports/c3_work6_20261105/protocol.json'
+      - 'reports/c3_work6_20261105/inputs.json'
+      - 'reports/c3_work6_20261105/sources/**'
+      - '.github/workflows/c3_selection_factors_v6_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  selection-factors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install the existing research dependencies
+        run: pip install pandas==2.2.3 pykrx==1.2.9 'matplotlib>=3.8,<4'
+      - name: Preserve 558 regressions and verify new factor timing and deduplication
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          mkdir -p /tmp/c3-factors/validation
+          python - <<'PY'
+          import json,sys,unittest
+          from pathlib import Path
+          sys.path.insert(0,'scripts');loader=unittest.TestLoader()
+          suites=[loader.discover('scripts',pattern=p) for p in ('test_c3_*.py','test_krx_official_eod_v65.py','test_hma60_first_pullback_v11.py')]
+          counts=[s.countTestCases() for s in suites]
+          result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
+          Path('/tmp/c3-factors/validation/tests.json').write_text(json.dumps(dict(counts=counts,total=result.testsRun,failures=len(result.failures),errors=len(result.errors))))
+          assert counts==[541,14,21], 'PRESERVED_TEST_COUNT_CHANGED'
+          if not result.wasSuccessful():raise SystemExit(1)
+          PY
+      - name: Reuse the hash-pinned full-market panel; no large price recollection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,subprocess,zipfile
+          from pathlib import Path
+          m=json.loads(Path('reports/c3_work6_20261105/inputs.json').read_text());item=m['panel_artifact']
+          root=Path('/tmp/c3-factors/inputs');root.mkdir(parents=True,exist_ok=True);p=root/'panel.zip'
+          with p.open('wb') as f:subprocess.run(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(item['id'])+'/zip'],stdout=f,check=True)
+          assert hashlib.sha256(p.read_bytes()).hexdigest()==item['sha256'],'PINNED_SOURCE_HASH_MISMATCH'
+          with zipfile.ZipFile(p) as z:
+              assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in z.namelist());z.extractall(root)
+          PY
+      - name: Evaluate only prespecified factors and the unchanged two entry methods
+        run: |
+          python scripts/c3_selection_factors_v6.py --panel /tmp/c3-factors/inputs/official_panel.csv.gz --audit /tmp/c3-factors/inputs/quality_audit.json --indices reports/c3_work6_20261105/sources --protocol reports/c3_work6_20261105/protocol.json --outdir /tmp/c3-factors/study
+          cmp reports/c3_work6_20261105/factor_comparison.csv /tmp/c3-factors/study/factor_comparison.csv
+          cmp reports/c3_work6_20261105/paper_comparison.csv /tmp/c3-factors/study/paper_comparison.csv
+      - name: Probe one latest completed source date with the existing read-only connection
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: |
+          python scripts/c3_official_snapshot_probe_v1.py --asof 2026-11-05 --prices reports/c3_work_20261104/inputs/top2_provisional_ohlcv.csv --outdir /tmp/c3-factors/current-probe
+      - name: Render the mobile CASH report and first archived structure case
+        run: |
+          python scripts/c3_selection_report_v6.py --study /tmp/c3-factors/study --panel /tmp/c3-factors/inputs/official_panel.csv.gz --probe /tmp/c3-factors/current-probe/official_snapshot_probe.json --outdir /tmp/c3-factors/mobile
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-selection-factors-v6
+          path: |
+            /tmp/c3-factors/study/
+            /tmp/c3-factors/current-probe/
+            /tmp/c3-factors/mobile/
+            /tmp/c3-factors/validation/
+          retention-days: 90
+          if-no-files-found: error

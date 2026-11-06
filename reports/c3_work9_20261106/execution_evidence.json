@@ -1,0 +1,151 @@
+{
+  "schema": "C3_WORK9_EXECUTION_EVIDENCE",
+  "generated_at": "2026-11-05T19:25:34.776829+00:00",
+  "repository": "shdmfpsj-beep/krx-auto-scanner",
+  "research_branch": "research/c3-ledger-integrity-audit-20261104",
+  "research_pr": 30,
+  "work8_preserved_commit": "aa031af1c59cf42d43ed30410803944111809a0a",
+  "code_commit": "e759e56f2e3f240b97ffa3f5422ff62244b68ba7",
+  "diagnostic_commit": "2fe8e20078d8d2d71857e3d8a157fc57ae53e302",
+  "reusable_caller_commit": "02fc0df7989997cce32dac539424fd1a9d6b2664",
+  "reusable_auto_saved_commit": "49316806a26f7e37d472095e70bed44a2bb0630e",
+  "tests": {
+    "total": 641,
+    "preserved": 617,
+    "added": 24,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "synthetic_fixtures_not_market_returns": true
+  },
+  "artifacts": [
+    {
+      "name": "diagnostic",
+      "run_id": 42087607005,
+      "artifact_id": 13444336003,
+      "sha256": "1edf914fcdc89aa9b329c5716c1f145c0b9e60abf05ede7d74db3c45ffd81099"
+    },
+    {
+      "name": "direct_pipeline",
+      "run_id": 42090678857,
+      "artifact_id": 13445281342,
+      "sha256": "af837daa6c8cd2d170dd86942ab71345ba4baafcf8fafabd2511a52ab028fcd1"
+    },
+    {
+      "name": "reusable_call",
+      "run_id": 42091677209,
+      "artifact_id": 13445741932,
+      "sha256": "04658d34ced266539f6bb40bbeb345be9df73ceab2e83db0e86f5b20cca4daaf"
+    }
+  ],
+  "git_saved_outputs": {
+    "latest.json": {
+      "sha256": "fd55bfa49ede9f92d1a1f903a07a8f1d6af9e54d67b0a298daa50321ff817c88",
+      "downloaded_artifact_matches_git_result": true
+    },
+    "mobile/summary.json": {
+      "sha256": "3bc55e2daf03f6fbf9324655fdff5b4790441ee21427eaba5ef0ad8a57f2f43e",
+      "downloaded_artifact_matches_git_result": true
+    },
+    "mobile/mobile_report.md": {
+      "sha256": "2a57a2ff333df11a566b7e21da67a06c0d33b31595c48559a1f5adecc202851e",
+      "downloaded_artifact_matches_git_result": true
+    }
+  },
+  "latest_collection": {
+    "status": "FAILED_EMPTY_UPSTREAM_DATE",
+    "attempted_source_session": "2026-11-05",
+    "probe_received_at": "2026-11-05T19:13:07.167700+00:00",
+    "rows": 0,
+    "last_confirmed_source_session": "2026-11-04",
+    "control_rows": 2769,
+    "current_investable_scope": null,
+    "previous_eligible_scope": 1983,
+    "current_source_duplicates": null,
+    "current_source_missing_tickers": null,
+    "regular_only_certified": false,
+    "exact_provider_publication_cause_proven": false,
+    "free_adjusted_sources_not_mixed": true
+  },
+  "new_decisions": {
+    "forward_source_start": "2026-11-06",
+    "registered_days": 0,
+    "registered_signals": 0,
+    "registered_tickers": 0,
+    "paper_entries": 0,
+    "stops": 0,
+    "exits": 0,
+    "completed": {
+      "5": 0,
+      "10": 0,
+      "20": 0
+    },
+    "incomplete_registered": {
+      "5": 0,
+      "10": 0,
+      "20": 0
+    },
+    "profitability": "UNCONFIRMED_NO_NEW_SAMPLES",
+    "current_action": "CASH",
+    "last_day_top2_are_unregistered_stale_previews": true
+  },
+  "operation": {
+    "reusable_workflow_call_success": true,
+    "research_persistence_success": true,
+    "actual_automatic_schedule_or_workflow_run_observed": false,
+    "daily_deployed": false,
+    "deployment_pr": 31,
+    "deployment_draft": true,
+    "deployment_merged": false,
+    "deployment_head": "83ee82bd793f9d6d4e3bf471f2329912d6fdec26",
+    "deployment_files": [
+      ".github/workflows/c3_research_daily_caller.yml"
+    ],
+    "deployment_manifest_check_run_id": 42092465378,
+    "deployment_manifest_check": "success",
+    "default_branch_commit_at_review": "5fbf05d7ef365f755cf26f6e7518d33e11b0cd1b",
+    "default_branch_written_by_this_work": false,
+    "latest_report_files_read_via_github": true,
+    "actual_new_2230_report_delivery_observed": false,
+    "automation_changed": false
+  },
+  "prior_failures": {
+    "legacy_run_id": 42087618431,
+    "legacy_job_id": 127456859744,
+    "comparison_count": 170,
+    "match": 107,
+    "mismatch": 61,
+    "missing_reference": 2,
+    "fix": "COUNT_MISSING_REFERENCE_WITHOUT_COUNTING_IT_AS_MATCH",
+    "post_fix_ledger_run_id": 42091692545,
+    "post_fix_ledger_conclusion": "success",
+    "deployment_review_failed_runs": [
+      42091799823,
+      42092029247
+    ],
+    "deployment_review_fixes": [
+      "SPARSE_CHECKOUT_ONLY_NEW_CALLER_TO_AVOID_EXISTING_MALFORMED_MAIN_FILENAME",
+      "CHECK_SECRETS_IN_ACTUAL_RESEARCH_JOB_NOT_THE_CHECK_SCRIPT_LITERAL"
+    ],
+    "final_review_run": 42092465378,
+    "final_review_conclusion": "success"
+  },
+  "unchanged_strategy_files": [
+    {
+      "path": "scripts/c3_entry_practical_v7.py",
+      "sha256": "fb2a4d7eadd64030feb7b5943aee25125c7233022ddeeee14a484a5f66ecb396"
+    },
+    {
+      "path": "scripts/c3_daily_top2_v4.py",
+      "sha256": "77df9d02ea0681a9a861bbcc007f3fdf0ccba20fb1f0aa8b1f4c93e5a9192a0a"
+    },
+    {
+      "path": "scripts/c3_selection_factors_v6.py",
+      "sha256": "aaa002c02374463b9087dd0b07ba1cfadae11ec5fa193198f707dae2c3010ce3"
+    }
+  ],
+  "orders_enabled": false,
+  "paid_api_calls": 0,
+  "notifications_modified": false,
+  "default_branch_merged": false
+}

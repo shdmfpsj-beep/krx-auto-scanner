@@ -1,0 +1,49 @@
+{
+  "schema": "C3_ENTRY_PRACTICALITY_V7_PREREGISTERED",
+  "frozen_at": "2026-11-05T10:44:04.875296+00:00",
+  "preserved_commit": "0cce7dd720d064b7b84f34e587d47ae5dac7e0e5",
+  "preserved_tests": 576,
+  "historical_cohort": 95,
+  "current_baseline_scope": 1983,
+  "selection": "FROZEN_V6_B_DAILY_DECISIONS_UNCHANGED",
+  "entry_variants": {
+    "A_SUPPORT_LIMIT": "UNCHANGED_V4_CONFIRMED_SUPPORT_PLUS_0_25_TO_1_FROZEN_ATR",
+    "B_CONFIRMED_PULLBACK": "FIRST_COMPLETED_BULLISH_RECLAIM_OF_MA20_THEN_MA10_THEN_MA5_NO_TOUCH_PREVIOUS_5_SESSIONS_NEXT_OPEN",
+    "C_LIMITED_BREAKOUT": "UNCHANGED_V4_BREAKOUT_CONFIRMATION_NEXT_OPEN_WITH_CURRENT_ATR_AND_COSTED_R1_BUDGET"
+  },
+  "budgets": {
+    "next_open_max": "SIGNAL_CLOSE_PLUS_0_5_CURRENT_ATR14",
+    "known_r1": "CAP_AT_POSITIVE_COSTED_R1_RETURN_NO_FIXED_1R_REQUIREMENT",
+    "unknown_r1": "LEAVE_UNKNOWN_NO_INVENTED_TARGET",
+    "pullback_next_open_lower": "KNOWN_SUPPORT_OR_STOP_PLUS_ONE_TICK"
+  },
+  "shared_stop": "UNCHANGED_V4_PIVOT_STOP_FROZEN_AT_CONFIRMATION",
+  "holding": [
+    5,
+    10,
+    20
+  ],
+  "holding_convention": "H_FULL_ENTRY_SESSIONS_THEN_NEXT_OPEN",
+  "order_validity": "NEXT_SESSION_ONLY",
+  "cash_slots": 2,
+  "initial_cash": 10000000,
+  "buy_cost": 0.0015,
+  "sell_cost": 0.005,
+  "slippage_each_side": 0.001,
+  "development_end": "2026-03-31",
+  "embargo": "2026-04",
+  "reused_comparison": [
+    "2026-05-01",
+    "2026-11-03"
+  ],
+  "new_unseen_start": "2026-11-06",
+  "reused_period_not_new_oos": true,
+  "no_post_outcome_retuning": true,
+  "opportunity_clock": "SAME_FROZEN_SELECTED_DATES_INCLUDING_NO_SETUP_AND_NO_FILL_CASH_UNKNOWN_PATH_NOT_ZERO",
+  "current_universe": "REUSE_VERIFIED_V5_NONBIO_COMMON_HISTORY_READY_SCOPE_NATIVE_OWN_BOARD_RS_AND_ACCELERATION_CURRENT_ONLY_NO_HISTORICAL_INDUSTRY_BACKFILL",
+  "fresh_price_policy": "PREFER_VERIFIED_2026_11_05_SNAPSHOT_IF_AVAILABLE_AND_MATCHING_INDEX_DATE_OTHERWISE_EXPLICIT_2026_11_04",
+  "current_snapshot_not_performance_proof": true,
+  "ai_C": "REUSE_V6_REVIEW_HASH_AND_CLOCK_ADD_BULL_BEAR_EVIDENCE_CONTRACT_NO_PAID_API_NO_C_PERFORMANCE_WITHOUT_GENUINE_REVIEWS",
+  "orders_enabled": false,
+  "notifications_or_schedules_changed": false
+}

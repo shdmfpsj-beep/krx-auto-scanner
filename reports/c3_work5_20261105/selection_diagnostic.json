@@ -1,0 +1,356 @@
+{
+  "schema": "C3_SELECTION_DIAGNOSTIC_V5",
+  "cohort_size": 95,
+  "period": [
+    "2026-05-01",
+    "2026-11-03"
+  ],
+  "historical_current_industries_used": false,
+  "rules_retuned": false,
+  "entry_filters_used_in_selector": false,
+  "metrics": {
+    "FIXED26": {
+      "5": {
+        "selected": 80,
+        "completed": 80,
+        "incomplete_or_censored": {},
+        "unique_tickers": 58,
+        "unique_decision_dates": 46,
+        "mean_price_move_pct": -4.104754,
+        "mean_market_proxy_pct": -2.582476,
+        "mean_excess_pct": -1.522277,
+        "outperform_rate_pct": 38.75,
+        "reference_net_completed": 80,
+        "mean_costed_next_open_reference_pct": -4.25753,
+        "excess_ci95_month_clusters_descriptive": [
+          -4.32719,
+          2.02815
+        ],
+        "overlapping_labels_not_independent": true,
+        "portfolio_mdd_not_inferred": true
+      },
+      "10": {
+        "selected": 80,
+        "completed": 80,
+        "incomplete_or_censored": {},
+        "unique_tickers": 58,
+        "unique_decision_dates": 46,
+        "mean_price_move_pct": -6.618168,
+        "mean_market_proxy_pct": -4.480739,
+        "mean_excess_pct": -2.137429,
+        "outperform_rate_pct": 41.25,
+        "reference_net_completed": 80,
+        "mean_costed_next_open_reference_pct": -6.536004,
+        "excess_ci95_month_clusters_descriptive": [
+          -7.05783,
+          1.74539
+        ],
+        "overlapping_labels_not_independent": true,
+        "portfolio_mdd_not_inferred": true
+      },
+      "20": {
+        "selected": 80,
+        "completed": 69,
+        "incomplete_or_censored": {
+          "INCOMPLETE_WINDOW": 11
+        },
+        "unique_tickers": 53,
+        "unique_decision_dates": 40,
+        "mean_price_move_pct": -11.904833,
+        "mean_market_proxy_pct": -8.093751,
+        "mean_excess_pct": -3.811081,
+        "outperform_rate_pct": 31.884057971014492,
+        "reference_net_completed": 67,
+        "mean_costed_next_open_reference_pct": -12.31407,
+        "excess_ci95_month_clusters_descriptive": [
+          -9.72818,
+          -0.69345
+        ],
+        "overlapping_labels_not_independent": true,
+        "portfolio_mdd_not_inferred": true
+      }
+    },
+    "DAILY": {
+      "5": {
+        "selected": 162,
+        "completed": 162,
+        "incomplete_or_censored": {},
+        "unique_tickers": 21,
+        "unique_decision_dates": 84,
+        "mean_price_move_pct": -2.933642,
+        "mean_market_proxy_pct": -1.95882,
+        "mean_excess_pct": -0.974822,
+        "outperform_rate_pct": 37.65432098765432,
+        "reference_net_completed": 162,
+        "mean_costed_next_open_reference_pct": -3.530187,
+        "excess_ci95_month_clusters_descriptive": [
+          -4.97388,
+          3.32501
+        ],
+        "overlapping_labels_not_independent": true,
+        "portfolio_mdd_not_inferred": true
+      },
+      "10": {
+        "selected": 162,
+        "completed": 157,
+        "incomplete_or_censored": {
+          "INCOMPLETE_WINDOW": 5
+        },
+        "unique_tickers": 20,
+        "unique_decision_dates": 81,
+        "mean_price_move_pct": -5.943552,
+        "mean_market_proxy_pct": -3.593314,
+        "mean_excess_pct": -2.350238,
+        "outperform_rate_pct": 31.84713375796178,
+        "reference_net_completed": 155,
+        "mean_costed_next_open_reference_pct": -6.678957,
+        "excess_ci95_month_clusters_descriptive": [
+          -8.73782,
+          3.35798
+        ],
+        "overlapping_labels_not_independent": true,
+        "portfolio_mdd_not_inferred": true
+      },
+      "20": {
+        "selected": 162,
+        "completed": 137,
+        "incomplete_or_censored": {
+          "INCOMPLETE_WINDOW": 25
+        },
+        "unique_tickers": 18,
+        "unique_decision_dates": 71,
+        "mean_price_move_pct": -13.410586,
+        "mean_market_proxy_pct": -6.530779,
+        "mean_excess_pct": -6.879807,
+        "outperform_rate_pct": 24.817518248175183,
+        "reference_net_completed": 135,
+        "mean_costed_next_open_reference_pct": -14.022081,
+        "excess_ci95_month_clusters_descriptive": [
+          -14.32374,
+          0.87818
+        ],
+        "overlapping_labels_not_independent": true,
+        "portfolio_mdd_not_inferred": true
+      }
+    }
+  },
+  "archived_entry_attribution": {
+    "FIXED26_PULLBACK": {
+      "5": {
+        "counts": {
+          "OUTPERFORMER_NOT_FILLED": 18,
+          "SELECTION_DID_NOT_OUTPERFORM": 29,
+          "OUTPERFORMER_BUT_TRADE_LOST": 1,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 4
+        },
+        "trade_net_sum_by_label": {
+          "OUTPERFORMER_BUT_TRADE_LOST": -0.484998,
+          "SELECTION_DID_NOT_OUTPERFORM": 4.906118,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 78.738215
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 1
+      },
+      "10": {
+        "counts": {
+          "SELECTION_DID_NOT_OUTPERFORM": 25,
+          "OUTPERFORMER_NOT_FILLED": 9,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 4,
+          "OUTPERFORMER_BUT_TRADE_LOST": 1
+        },
+        "trade_net_sum_by_label": {
+          "SELECTION_DID_NOT_OUTPERFORM": -56.599434,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 106.243712,
+          "OUTPERFORMER_BUT_TRADE_LOST": -2.807711
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 1
+      },
+      "20": {
+        "counts": {
+          "SELECTION_DID_NOT_OUTPERFORM": 24,
+          "OUTPERFORMER_NOT_FILLED": 7,
+          "OUTPERFORMER_BUT_TRADE_LOST": 1,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 2,
+          "INCOMPLETE_WINDOW": 7
+        },
+        "trade_net_sum_by_label": {
+          "OUTPERFORMER_BUT_TRADE_LOST": -10.182726,
+          "SELECTION_DID_NOT_OUTPERFORM": -24.453304,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 28.496399
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 1
+      }
+    },
+    "DAILY_PULLBACK": {
+      "5": {
+        "counts": {
+          "OUTPERFORMER_NOT_FILLED": 25,
+          "SELECTION_DID_NOT_OUTPERFORM": 51,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 3,
+          "OUTPERFORMER_BUT_TRADE_LOST": 1
+        },
+        "trade_net_sum_by_label": {
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 42.541592,
+          "SELECTION_DID_NOT_OUTPERFORM": -91.456047,
+          "OUTPERFORMER_BUT_TRADE_LOST": -9.230683
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 6
+      },
+      "10": {
+        "counts": {
+          "SELECTION_DID_NOT_OUTPERFORM": 37,
+          "OUTPERFORMER_NOT_FILLED": 17,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 4,
+          "OUTPERFORMER_BUT_TRADE_LOST": 1
+        },
+        "trade_net_sum_by_label": {
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 59.050358,
+          "SELECTION_DID_NOT_OUTPERFORM": -89.348972,
+          "OUTPERFORMER_BUT_TRADE_LOST": -4.978883
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 4
+      },
+      "20": {
+        "counts": {
+          "SELECTION_DID_NOT_OUTPERFORM": 38,
+          "OUTPERFORMER_NOT_FILLED": 11,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 1,
+          "INCOMPLETE_WINDOW": 4
+        },
+        "trade_net_sum_by_label": {
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 26.929878,
+          "SELECTION_DID_NOT_OUTPERFORM": -119.50013
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 5
+      }
+    },
+    "FIXED26_BREAKOUT": {
+      "5": {
+        "counts": {
+          "OUTPERFORMER_NOT_FILLED": 3,
+          "SELECTION_DID_NOT_OUTPERFORM": 15,
+          "OUTPERFORMER_BUT_TRADE_LOST": 3,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 3
+        },
+        "trade_net_sum_by_label": {
+          "SELECTION_DID_NOT_OUTPERFORM": -109.640921,
+          "OUTPERFORMER_BUT_TRADE_LOST": -17.799186,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 43.022363
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 9
+      },
+      "10": {
+        "counts": {
+          "SELECTION_DID_NOT_OUTPERFORM": 12,
+          "OUTPERFORMER_NOT_FILLED": 4,
+          "OUTPERFORMER_BUT_TRADE_LOST": 1,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 3
+        },
+        "trade_net_sum_by_label": {
+          "SELECTION_DID_NOT_OUTPERFORM": -117.433595,
+          "OUTPERFORMER_BUT_TRADE_LOST": -14.573003,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 32.451251
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 9
+      },
+      "20": {
+        "counts": {
+          "SELECTION_DID_NOT_OUTPERFORM": 12,
+          "OUTPERFORMER_NOT_FILLED": 2,
+          "OUTPERFORMER_BUT_TRADE_LOST": 1,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 1,
+          "INCOMPLETE_WINDOW": 2
+        },
+        "trade_net_sum_by_label": {
+          "SELECTION_DID_NOT_OUTPERFORM": -138.525732,
+          "OUTPERFORMER_BUT_TRADE_LOST": -26.811726,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 4.566939
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 7
+      }
+    },
+    "DAILY_BREAKOUT": {
+      "5": {
+        "counts": {
+          "OUTPERFORMER_NOT_FILLED": 2,
+          "SELECTION_DID_NOT_OUTPERFORM": 17,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 4,
+          "OUTPERFORMER_BUT_TRADE_LOST": 2
+        },
+        "trade_net_sum_by_label": {
+          "SELECTION_DID_NOT_OUTPERFORM": -146.681546,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 56.339178,
+          "OUTPERFORMER_BUT_TRADE_LOST": -0.177036
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 8
+      },
+      "10": {
+        "counts": {
+          "SELECTION_DID_NOT_OUTPERFORM": 14,
+          "OUTPERFORMER_NOT_FILLED": 2,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 2,
+          "OUTPERFORMER_BUT_TRADE_LOST": 1
+        },
+        "trade_net_sum_by_label": {
+          "SELECTION_DID_NOT_OUTPERFORM": -210.646665,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 35.066059,
+          "OUTPERFORMER_BUT_TRADE_LOST": -14.573003
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 6
+      },
+      "20": {
+        "counts": {
+          "SELECTION_DID_NOT_OUTPERFORM": 8,
+          "OUTPERFORMER_NOT_FILLED": 1,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 2,
+          "INCOMPLETE_WINDOW": 1
+        },
+        "trade_net_sum_by_label": {
+          "SELECTION_DID_NOT_OUTPERFORM": -118.208148,
+          "OUTPERFORMER_AND_PROFITABLE_TRADE": 33.274997
+        },
+        "net_sum_is_not_portfolio_return": true,
+        "legacy_v4_exit_window_differs_from_selection_horizon": true,
+        "r1_costed_reward_nonpositive_orders": 3
+      }
+    }
+  },
+  "market_benchmark": "DATED_ALL_QUOTED_SECURITY_EQUAL_WEIGHT_OFFICIAL_CHANGE_PROXY_BY_BOARD_NOT_OFFICIAL_INDEX",
+  "selection_labels": "DECISION_CLOSE_TO_EXACT_H_LATER_CLOSE_NOT_A_FILL",
+  "costed_reference": "NEXT_OPEN_TO_OPEN_AFTER_H_FULL_SESSIONS_NO_STOP_NOT_PORTFOLIO",
+  "previous_v4_horizon": "ENTRY_SESSION_PLUS_H_ADDITIONAL_SESSIONS_THEN_NEXT_OPEN_PRESERVED_NOT_RELABELLED",
+  "old_cohort_and_comparison_period_already_seen": true,
+  "unseen_completed": {
+    "5": 0,
+    "10": 0,
+    "20": 0
+  },
+  "current_action": "CASH",
+  "source_hashes": {
+    "panel": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
+    "audit": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
+    "archived_ledger": "49f4b93f795786ef1c16b073d4074bc8983b0e7d1177c90a65423ee080946523"
+  },
+  "orders_enabled": false
+}

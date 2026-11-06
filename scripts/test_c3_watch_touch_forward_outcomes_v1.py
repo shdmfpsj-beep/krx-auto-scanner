@@ -1,0 +1,103 @@
+import unittest
+from c3_watch_touch_forward_outcomes_v1 import analyze,build
+
+PLAN=dict(ticker="271560",plan_id="test",registered_day="2026-11-01",
+          watch_low="100",watch_high="105",structure_stop="95",
+          target1="120",expires_after_sessions="2")
+def bar(o,h,l,c):
+    return dict(open=o,high=h,low=l,close=c,volume=100)
+class WatchTouchForwardTests(unittest.TestCase):
+    def test_research_cohort_accepts_more_plans_but_daily_top2_rejects(self):
+        plans=[dict(PLAN,plan_id="p1"),
+               dict(PLAN,plan_id="p2",ticker="026960"),
+               dict(PLAN,plan_id="p3",registered_day="2026-10-25")]
+        prices={(ticker,"2026-11-02"):bar(103,108,101,104)
+                for ticker in ("271560","026960")}
+        with self.assertRaisesRegex(ValueError,"EXPECTED_UNIQUE_TOP2"):
+            build(plans,prices)
+        r=build(plans,prices,require_top2=False)
+        self.assertEqual(len(r["results"]),3)
+        self.assertEqual([x["plan_id"] for x in r["results"]],["p1","p2","p3"])
+        self.assertTrue(all(x["watch_events"]==1 for x in r["results"]))
+        self.assertFalse(r["trade_approved"])
+        self.assertFalse(r["orders_enabled"])
+    def test_research_cohort_without_post_registration_prices_fails_closed(self):
+        cases=[{},
+               {("OTHER","2026-11-02"):bar(103,108,101,104)},
+               {("271560","2026-10-30"):bar(103,108,101,104),
+                ("271560",PLAN["registered_day"]):bar(103,108,101,104)}]
+        for prices in cases:
+            with self.subTest(prices=prices):
+                with self.assertRaisesRegex(ValueError,"NO_POST_REGISTRATION_PRICE_BARS"):
+                    build([PLAN],prices,require_top2=False)
+    def test_research_cohort_without_touch_in_incomplete_window_fails_closed(self):
+        prices={("271560","2026-11-02"):bar(110,112,109,111)}
+        with self.assertRaisesRegex(ValueError,"INCOMPLETE_WATCH_WINDOW"):
+            build([PLAN],prices,require_top2=False)
+    def test_research_cohort_rejects_duplicate_plan_id(self):
+        with self.assertRaisesRegex(ValueError,"DUPLICATE_PLAN_ID"):
+            build([PLAN,dict(PLAN)],{},require_top2=False)
+    def test_touch_is_not_fill_and_future_incomplete(self):
+        prices={("271560","2026-11-02"):bar(106,108,102,104),
+                ("271560","2026-11-03"):bar(107,109,106,108)}
+        r=analyze(PLAN,prices)
+        self.assertEqual(r["watch_events"],1)
+        self.assertEqual(r["events"][0]["status"],"WATCH_TOUCH_ONLY")
+        self.assertFalse(r["events"][0]["touch_day_stop_breached"])
+        self.assertFalse(r["events"][0]["outcomes"][0]["complete"])
+        self.assertIsNone(r["events"][0]["outcomes"][0]["strategy_return_pct"])
+        self.assertEqual(r["verified_fills"],0)
+        self.assertEqual(r["events"][0]["outcomes"][0]["observed_future_sessions"],1)
+        self.assertEqual(r["events"][0]["outcomes"][0]["observed_max_favorable_excursion_pct"],4.808)
+        self.assertEqual(r["events"][0]["outcomes"][0]["observed_max_adverse_excursion_pct"],1.923)
+        self.assertTrue(r["events"][0]["outcomes"][0]["reference_is_touch_day_close"])
+    def test_stop_before_target_and_same_day_ambiguity(self):
+        prices={("271560","2026-11-02"):bar(103,108,101,104),
+                ("271560","2026-11-03"):bar(100,104,94,98),
+                ("271560","2026-11-04"):bar(108,121,105,119)}
+        r=analyze(PLAN,prices)
+        h=r["events"][0]["outcomes"][0]
+        self.assertEqual(h["stop_target_touch_order"],"STOP_FIRST")
+        self.assertEqual(h["first_future_stop_touch_date"],"2026-11-03")
+        self.assertEqual(h["first_future_target_touch_date"],"2026-11-04")
+        prices[("271560","2026-11-03")]=bar(105,121,94,106)
+        prices.pop(("271560","2026-11-04"))
+        r=analyze(PLAN,prices)
+        self.assertEqual(r["events"][0]["outcomes"][0]["stop_target_touch_order"],
+                         "SAME_DAY_ORDER_UNKNOWN")
+    def test_stop_then_later_rebound_above_watch_low(self):
+        prices={("271560","2026-11-02"):bar(103,108,101,104),
+                ("271560","2026-11-03"):bar(99,102,94,97),
+                ("271560","2026-11-04"):bar(99,104,97,101)}
+        r=analyze(PLAN,prices)
+        h=r["events"][0]["outcomes"][0]
+        self.assertEqual(h["first_future_stop_touch_date"],"2026-11-03")
+        self.assertTrue(h["post_stop_rebound_observed"])
+        self.assertEqual(h["first_post_stop_rebound_date"],"2026-11-04")
+        self.assertIsNone(h["strategy_return_pct"])
+    def test_same_day_recovery_is_not_later_rebound(self):
+        prices={("271560","2026-11-02"):bar(103,108,101,104),
+                ("271560","2026-11-03"):bar(101,105,94,102)}
+        r=analyze(PLAN,prices)
+        self.assertFalse(r["events"][0]["outcomes"][0]["post_stop_rebound_observed"])
+    def test_zero_future_days_has_no_excursion(self):
+        prices={("271560","2026-11-02"):bar(106,108,102,104)}
+        r=analyze(PLAN,prices)
+        h=r["events"][0]["outcomes"][0]
+        self.assertIsNone(h["observed_max_favorable_excursion_pct"])
+        self.assertIsNone(h["observed_max_adverse_excursion_pct"])
+        self.assertFalse(h["complete"])
+    def test_stop_collision_separate(self):
+        prices={("271560","2026-11-02"):bar(103,108,94,99)}
+        r=analyze(PLAN,prices)
+        self.assertEqual(r["events"][0]["status"],"SAME_BAR_STOP_AMBIGUOUS")
+        self.assertTrue(r["events"][0]["touch_day_stop_breached"])
+        self.assertTrue(r["events"][0]["touch_day_execution_ambiguous"])
+        self.assertFalse(r["events"][0]["touch_day_gap_below_stop"])
+    def test_gap_below_stop(self):
+        prices={("271560","2026-11-02"):bar(90,102,89,101)}
+        r=analyze(PLAN,prices)
+        self.assertEqual(r["events"][0]["status"],"GAP_BELOW_STOP")
+        self.assertTrue(r["events"][0]["touch_day_gap_below_stop"])
+        self.assertTrue(r["events"][0]["touch_day_execution_ambiguous"])
+if __name__=="__main__":unittest.main()

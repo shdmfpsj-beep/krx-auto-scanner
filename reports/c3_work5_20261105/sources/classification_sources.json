@@ -1,0 +1,554 @@
+{
+  "schema": "C3_CLASSIFICATION_SOURCES_V5",
+  "frozen_at": "2026-11-05T08:23:22.640181+00:00",
+  "kind_rows": 2658,
+  "secondary_rows": 2876,
+  "industries": 79,
+  "secondary_failed_categories": [
+    {
+      "sector": "기타",
+      "sector_id": "25",
+      "error": "ValueError"
+    }
+  ],
+  "file_sha256": {
+    "kind_companies.csv": "8eb01a7d7175f2ac4fffa179cbafc1a439b80e287d57a378dbcec0975a6b53a6",
+    "secondary_industries.csv": "ccac81c62d062be8b9f8227ae5b9090ec31978ae3a217b7f2f4184c6dc66925b"
+  },
+  "receipts": [
+    {
+      "received_at": "2026-11-05T08:07:08.295427+00:00",
+      "url": "https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&marketType=kosdaqMkt&searchType=13&currentPageSize=5000&pageIndex=1",
+      "sha256": "9e53863b15fbd7a2df0dd87e3bf47480c6d6fe3632d1e600da977a525aaa3213"
+    },
+    {
+      "received_at": "2026-11-05T08:07:00.830867+00:00",
+      "url": "https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&marketType=stockMkt&searchType=13&currentPageSize=5000&pageIndex=1",
+      "sha256": "b6a2302b95bfe3617fb1552dd78cc96c55e82996d01072e26cceca97f9cf56fd"
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/261/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:35.353925+00:00",
+      "sha256": "5f198a3872faf117a6cba898ab09325c64223b8b28ae26b008c3c457661a9ae5",
+      "rows": 100
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/261/stocklist?sortType=tradingValue&sortDirection=desc&size=100&cursor=MDA2NjIw",
+      "received_at": "2026-11-05T08:16:41.826821+00:00",
+      "sha256": "85b88956dd4e6084f0f2f180ca51e3c319d58b4ae15b6e04f83c83a89c097f97",
+      "rows": 74
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/262/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:01.810555+00:00",
+      "sha256": "010d6c4a8930726462ed18daa33ed2ff65b4a7e53d8a01b0e122bd0ff6919b85",
+      "rows": 41
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/263/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:41.794278+00:00",
+      "sha256": "59dd189b3ec1609c32a6f48156e80bbf0994c348c89d444f0c2870c043be1a65",
+      "rows": 34
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/264/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:15.010311+00:00",
+      "sha256": "26f3987cb43af50a179bf6cb0d2023bd9b44ca3360408e0ad766757ecf3991ea",
+      "rows": 14
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/265/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:15.042071+00:00",
+      "sha256": "c4e3a073b625c2dbd477ce35197e8f6f3f07a4b6b61c5d80f91a9935561cf8ec",
+      "rows": 13
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/266/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:35.166126+00:00",
+      "sha256": "1bb627a85c69dbd8f87020938fad6037c8de00f931721564c27b24114db1afaa",
+      "rows": 64
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/267/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:48.386120+00:00",
+      "sha256": "3ac2540e95172831a69684d239c9b296f03bf3b67abc4e2ebe99afe65717d34f",
+      "rows": 100
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/267/stocklist?sortType=tradingValue&sortDirection=desc&size=100&cursor=MzczMTcw",
+      "received_at": "2026-11-05T08:17:54.702972+00:00",
+      "sha256": "74f17f4ba7b1b76fc7c292263895b2f9a26d33bfa8573f9f2bb2dad35b3c56c2",
+      "rows": 19
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/268/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:41.968779+00:00",
+      "sha256": "955b55c1789512c9135911568721ac78b26f75b575ebb5bda05dd97763cc5ff3",
+      "rows": 90
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/269/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:37.862094+00:00",
+      "sha256": "a7a71c391b399a2e4e4040cfcec6a3f6481b72571e71f163ca09b72eb408c539",
+      "rows": 72
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/270/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:01.914671+00:00",
+      "sha256": "4a94cae13d40878e1b80286a91f504d63d2eaec2c83d5522c6abcb1cf03e5c86",
+      "rows": 100
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/270/stocklist?sortType=tradingValue&sortDirection=desc&size=100&cursor=MjM0MTAw",
+      "received_at": "2026-11-05T08:17:08.538201+00:00",
+      "sha256": "e44da99df7650c715c75ce492088c5cfde793d0e977b0f1bafe9065f3dd0e631",
+      "rows": 53
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/271/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:34.514349+00:00",
+      "sha256": "98a16fbe824928cca1a14cf8ea48bd323dafc3f59f5cc4258c8a9cab1421aa9c",
+      "rows": 13
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/272/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:16.066106+00:00",
+      "sha256": "e22c8086af6788fd5c9fa78debed49873a3fdb7e6abca958d240ef890f63f523",
+      "rows": 100
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/272/stocklist?sortType=tradingValue&sortDirection=desc&size=100&cursor=MzMyMjkw",
+      "received_at": "2026-11-05T08:18:22.630267+00:00",
+      "sha256": "d9d618a40077c938d12bda3da27adbb007418b8d6473d1a95fd337db5ecf91ad",
+      "rows": 22
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/273/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:48.766386+00:00",
+      "sha256": "2dcf211453439eb345d951a301295d946c54f1d959e7000551bb73c37e4626ab",
+      "rows": 12
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/274/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:48.946283+00:00",
+      "sha256": "d91d6a8a1574ea1c9bc08948ae20ce1c3deabdc3e26ff26b88a43964c8ac24f9",
+      "rows": 82
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/275/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:01.746497+00:00",
+      "sha256": "6b49df467db22442cb77b42191cbd66470d181e34633af3a80e3f81305f9c060",
+      "rows": 1
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/276/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:44.410376+00:00",
+      "sha256": "5eb012f40b5cb5b4b59dfaef404f38b310c1616617ba2ecd90b991b8dc7f25fe",
+      "rows": 24
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/277/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:01.434830+00:00",
+      "sha256": "708e9684967db9ab54abf089e1321495781915fcdb67299987d310da1d27e9d5",
+      "rows": 89
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/278/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:51.454436+00:00",
+      "sha256": "33b4c984637130944bc3dacc671015df7688f87868d27c8698772892adb3dec2",
+      "rows": 100
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/278/stocklist?sortType=tradingValue&sortDirection=desc&size=100&cursor=MDUyOTAw",
+      "received_at": "2026-11-05T08:18:57.786213+00:00",
+      "sha256": "40f6160308d9acd194ef9fdb452b7b9a84c8990437eba3aa2ef51aa075574c2d",
+      "rows": 73
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/279/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:07.842228+00:00",
+      "sha256": "8ae18aa5c6a9274ebfeb5746d86b9d18ba6459211b146322f10d76745cb63d5e",
+      "rows": 78
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/280/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:01.622261+00:00",
+      "sha256": "56b1ec71542e5e77f7b7142319fb8cd4bb8f1b64d65436b9fd2db7257b387c09",
+      "rows": 30
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/281/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:34.690221+00:00",
+      "sha256": "d376fc1496ca75c70fa0cab190bc612a6508eabf82cf9cded018be0d8472b2fa",
+      "rows": 100
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/281/stocklist?sortType=tradingValue&sortDirection=desc&size=100&cursor=MjM0OTIw",
+      "received_at": "2026-11-05T08:17:40.879488+00:00",
+      "sha256": "832842582642bd7e401e1165f833bba8755013a8d4893bfd80543a17a652a449",
+      "rows": 5
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/282/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:19:05.234205+00:00",
+      "sha256": "79aba60fb57811247fb71c0cdddb05af8e0fc4a1c671bcf71d8835876fe60abc",
+      "rows": 100
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/282/stocklist?sortType=tradingValue&sortDirection=desc&size=100&cursor=MDY2OTAw",
+      "received_at": "2026-11-05T08:19:11.766150+00:00",
+      "sha256": "33d40b1aab451b6bc48bbd00146a0e530d462b3074478204faef8c5e64fef4b2",
+      "rows": 5
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/283/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:31.350295+00:00",
+      "sha256": "2088e1c75a33d3d19bfdff68477e66abcd95ce9bc272fd9dc190d161868f34ef",
+      "rows": 68
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/284/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:51.266482+00:00",
+      "sha256": "b6a0f1b1ee28db3b19a1a428d8086b212804d2533dd2add708999ade05f7e627",
+      "rows": 35
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/285/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:27.943251+00:00",
+      "sha256": "15534484e67ba6e5d626129fd2747c058c189fa1ceec3ac0047bf22a0f99d91d",
+      "rows": 58
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/286/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:48.814077+00:00",
+      "sha256": "f93022b74b734d05afbb623b3f76d9181fc843eb9d17bc3011e66c36629393e9",
+      "rows": 59
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/287/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:22.510543+00:00",
+      "sha256": "8c3d35712e917795e19b47706346cdd5d467943fc437c60c592c462aee88b6fd",
+      "rows": 76
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/288/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:54.930166+00:00",
+      "sha256": "5134de31cfcadc0947fdf1b9a3a61e5d47d2e499f3232bc3627f16e52c5d2ec7",
+      "rows": 13
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/289/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:01.317092+00:00",
+      "sha256": "f104d6e8bf5cfdf996311946f99b1cd45ba4ecc20f1c3470b6ede210432eaf3b",
+      "rows": 51
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/290/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:34.578185+00:00",
+      "sha256": "85a6ccea212e492fe40c72ba4f7146363959ac387913726abee8757c7e906b2c",
+      "rows": 24
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/291/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:37.810109+00:00",
+      "sha256": "499f74f3dbc20c004374f570d75825ac7273804e8aadfa09ffc2f01197e9b400",
+      "rows": 31
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/292/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:44.658185+00:00",
+      "sha256": "c3577dfe4624f4681d2ab25395da326f73ec5fa3ed182649501ef0ce79dbf492",
+      "rows": 57
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/293/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:48.414156+00:00",
+      "sha256": "3528660fc4497c96b9bffbec371b14a43bb855e93ae3583acd0f682211154e8e",
+      "rows": 21
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/294/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:57.790086+00:00",
+      "sha256": "7396af15d52a2c27c8156e9e9a6f12cba4ad33571a2d9f396f9876e8b22437d5",
+      "rows": 55
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/295/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:15.843731+00:00",
+      "sha256": "7ba8be7bae46c596049bca14f70257c35cdeb886faf263c56c4d69dcb9bb05a6",
+      "rows": 35
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/296/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:27.998391+00:00",
+      "sha256": "6d3d8fc6e105346be0efedeb3f8374a2a2873b8a79dca4b983bfb3528c9faba9",
+      "rows": 8
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/297/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:54.734270+00:00",
+      "sha256": "db59c0b9291e3d13e23c0679850acdaae96bfdb70e4d2e3e94af32a7651601e5",
+      "rows": 12
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/298/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:35.356066+00:00",
+      "sha256": "9ddbce226a4c640d59a50e0b754ba157ad8ee772ac75c32f681e05ee98519198",
+      "rows": 20
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/299/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:31.322095+00:00",
+      "sha256": "7aafec39ad6836cf4b2ea3938062ee1f011f796963cc7b91ab23e9d066240550",
+      "rows": 100
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/299/stocklist?sortType=tradingValue&sortDirection=desc&size=100&cursor=MTE0OTIw",
+      "received_at": "2026-11-05T08:18:37.845123+00:00",
+      "sha256": "5c73bb51cdff94187c4945b800b098c78a89cd12ff92921f2c45335cad374d75",
+      "rows": 6
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/300/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:27.590306+00:00",
+      "sha256": "dbd1c90450d095e5a0bf6e222bf5ab454ee02f52d647513c8909bf8a58c549a0",
+      "rows": 16
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/301/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:41.762299+00:00",
+      "sha256": "ec936b594da18f50dd2b8cc9389759c99b7fc499f7282a296a057edda8609107",
+      "rows": 11
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/302/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:28.202143+00:00",
+      "sha256": "a7e4c7c165aa38f589c51945bb83e64cd36f5dddf128a3615858fe3578ca69d1",
+      "rows": 7
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/303/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:15.030045+00:00",
+      "sha256": "538f7560a9548c4fd1c4df2d4e0d84e5f5470c527acc0081b32d972485840c1a",
+      "rows": 11
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/304/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:01.566138+00:00",
+      "sha256": "233debffe02c6be861f835646d3b4e74d2f6f886a17f8ed114a816c87c11e4cc",
+      "rows": 55
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/305/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:55.227638+00:00",
+      "sha256": "faa1f73eb0451e9880da5c4038fb3c590a0302575cb81769b2b4208790405096",
+      "rows": 9
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/306/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:57.958499+00:00",
+      "sha256": "c77b0460c77f2d53d5b1092925cafeb681c56fbf400943abc215fc848e541284",
+      "rows": 35
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/307/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:16.038583+00:00",
+      "sha256": "3075c5111e8c16d91ede2acd2ee59abbea0c2cfe71e70e87f6924e3f3d6c7ef5",
+      "rows": 15
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/308/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:08.458294+00:00",
+      "sha256": "392edde239f691fccee465f85808114e7cd47574008b146bbb571a2d104eab21",
+      "rows": 6
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/309/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:35.418423+00:00",
+      "sha256": "df30f863c8300530a4229247c2cdf764831f1b225e8a3252394201a44345232f",
+      "rows": 16
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/310/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:21.370194+00:00",
+      "sha256": "3e93915864b605547262601f92069a960e18fa6c4bbc6b79f01362d189f6e8c8",
+      "rows": 19
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/311/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:55.227999+00:00",
+      "sha256": "9110f21a903e63cc604cc595970da80c79b9b45376852758449b5cea8a3c55fa",
+      "rows": 27
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/312/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:07.766803+00:00",
+      "sha256": "fdb67c5e135315b0591c2cd519658b9b99dbe38639907d35ca4bae81eec06fad",
+      "rows": 12
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/313/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:51.222405+00:00",
+      "sha256": "661ec41268e1d92b8bb66dd08586c47c31ca9767dffe2d68c64806afe70a7eee",
+      "rows": 19
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/314/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:27.982291+00:00",
+      "sha256": "50add4ff9e7055ec17c700caa99a0d67ee3446ac512a92e683199ee949d7ebe6",
+      "rows": 7
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/315/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:21.680331+00:00",
+      "sha256": "af2c7035a65a5e71234e4b790050a833508710e840e72b8568237e4278e94b17",
+      "rows": 12
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/316/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:01.966447+00:00",
+      "sha256": "b783f8d190fb79830f0fc016bba919100c2a5d38d6c5c434b5372e782c0ec946",
+      "rows": 30
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/317/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:34.546592+00:00",
+      "sha256": "9814886eac72cd7692e6c2d85c36cbfe86412511461521b4a83560967644ae26",
+      "rows": 20
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/318/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:48.658498+00:00",
+      "sha256": "d6016dceb73be23f14917e91baeddf846d8e0f3130da4c993686cc01794c06b7",
+      "rows": 14
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/319/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:40.942187+00:00",
+      "sha256": "25999dd18fdf2436bc9700f044c38928eef7bb87d618fb284d2839b6b465f6b7",
+      "rows": 6
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/320/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:48.226377+00:00",
+      "sha256": "fff007324965afc6889980432c0cd3fdf2dc3a7d31948176287949c193cd3f73",
+      "rows": 11
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/321/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:41.077286+00:00",
+      "sha256": "d74f31cfe60edbe64a1b20db6590eb15512eaedccf9b4d0375875ea4658a7cd3",
+      "rows": 39
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/322/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:27.782617+00:00",
+      "sha256": "69ea92acfddca25912673fd3135ec4e98769e8a50791f2e34ccc959e127bf355",
+      "rows": 40
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/323/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:22.478103+00:00",
+      "sha256": "e2a6cbae4dbfabb761a88d242e6b5a111550a941512069df16e9278ccb2f8feb",
+      "rows": 11
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/324/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:27.966313+00:00",
+      "sha256": "1854c897f585c33ba06dbc4d8a47e5bba55fc9aa1f739f28f968f16c724b917b",
+      "rows": 31
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/325/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:08.238527+00:00",
+      "sha256": "ee56370dbd9bbe3bac8163ecee557e2978e260b34ea2d1911dec96b41f422102",
+      "rows": 5
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/326/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:54.702658+00:00",
+      "sha256": "fdeed493326848d4708a888f66413d7033bb4b4e0f724347b03353c73e312b24",
+      "rows": 13
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/327/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:08.302588+00:00",
+      "sha256": "a354ac7be90cf12423f4551c4135833132a782a219937c6679f65fecd1740908",
+      "rows": 6
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/328/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:14.976402+00:00",
+      "sha256": "a27a991ab936a2f7e8b7aca29ea925eff90f4b69b8cc9e8ed092514336780a9f",
+      "rows": 5
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/329/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:48.254422+00:00",
+      "sha256": "3f0fd016045a779371b2f5215c70056527b8b9a0de684361d6eab4dbc9684c94",
+      "rows": 8
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/330/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:44.355703+00:00",
+      "sha256": "4b35b4d45bca114caf3b4d00c58adb8c2d066716f04a046c80aefc81050a2ea4",
+      "rows": 3
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/331/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:40.943714+00:00",
+      "sha256": "e7c40cab2d859a952afdeefd22d0f8497c708b6b150b0d5cd3f6def79fb3f9fc",
+      "rows": 1
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/332/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:21.428946+00:00",
+      "sha256": "408c974c6272f531815dc3a640914f970623306e841eea6117d835cc8574ebbc",
+      "rows": 1
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/333/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:17:21.421310+00:00",
+      "sha256": "6df1fa9d775dafab6189db37c8bf8ea8d808ac42d8c24a6a6792b2bad7363bd8",
+      "rows": 4
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/334/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:31.234265+00:00",
+      "sha256": "cc5d3b2721d0f5bbafb86ea533e94c034ed6827dbd0f11a8b4d5f764ebd788fa",
+      "rows": 8
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/336/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:27.374997+00:00",
+      "sha256": "e200f46bc7fbad1cbbce1c5b01e5c21daca8e1d422e3bf3ab2631c284c8615e0",
+      "rows": 3
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/337/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:55.205235+00:00",
+      "sha256": "334b82364472f4b66fb6ccba17474e53348967325351f058734cdd7b449f666d",
+      "rows": 1
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/338/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:16:55.195892+00:00",
+      "sha256": "b49beff68a912e4265f6ac0162eaf17ed4458536df42c91d37656ef2969ba7e1",
+      "rows": 1
+    },
+    {
+      "url": "https://stock.naver.com/api/domestic/market/upjong/339/stocklist?sortType=tradingValue&sortDirection=desc&size=100",
+      "received_at": "2026-11-05T08:18:07.789167+00:00",
+      "sha256": "6342cebd811a1f136e45289dad3ec842e806859361e931fdb9109a0cdc979c22",
+      "rows": 1
+    },
+    {
+      "url": "https://stock.naver.com/api/stockSecurity/rankings/v2/domestic/industries?sortType=changeRate&sortDirection=desc&period=daily&size=100",
+      "received_at": "2026-11-05T08:12:28.566222+00:00",
+      "sha256": "a81b2538950a330ff1678bacba3895222770f18a436ed0250b94fab511c722c6"
+    }
+  ],
+  "historical_pit_verified": false,
+  "quote_fields_used": false,
+  "nxt_fields_used": false
+}

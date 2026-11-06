@@ -1,0 +1,65 @@
+{
+  "schema": "C3_CURRENT_OFFICIAL_SNAPSHOT_PROBE_V1",
+  "dates": [
+    {
+      "asof": "2026-11-03",
+      "status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+      "authenticated": true,
+      "official_market_rows": 2768,
+      "comparison": {
+        "asof": "2026-11-03",
+        "compared_rows": 2,
+        "result_counts": {
+          "MISMATCH": 2
+        },
+        "results": [
+          {
+            "ticker": "026960",
+            "date": "2026-11-03",
+            "result": "MISMATCH",
+            "fields": [
+              "close"
+            ]
+          },
+          {
+            "ticker": "271560",
+            "date": "2026-11-03",
+            "result": "MISMATCH",
+            "fields": [
+              "close"
+            ]
+          }
+        ],
+        "comparison_is_adjusted_vs_official_basis_unverified": true,
+        "regular_only_certified": false,
+        "trade_approved": false,
+        "orders_enabled": false
+      }
+    },
+    {
+      "asof": "2026-11-04",
+      "status": "OFFICIAL_RESPONSE_MISSING_OR_EMPTY_OUTBLOCK",
+      "authenticated": false,
+      "official_market_rows": 0,
+      "comparison": {
+        "asof": "2026-11-04",
+        "compared_rows": 0,
+        "result_counts": {},
+        "results": [],
+        "comparison_is_adjusted_vs_official_basis_unverified": true,
+        "regular_only_certified": false,
+        "trade_approved": false,
+        "orders_enabled": false
+      }
+    }
+  ],
+  "api_key_recorded": false,
+  "regular_only_certified": false,
+  "trade_approved": false,
+  "orders_enabled": false,
+  "decision": "CASH",
+  "source_run_id": 41836585549,
+  "source_commit": "bcb2e6f9f3e6d5a2a26074f89457cc943699e059",
+  "artifact_id": 13326755801,
+  "artifact_sha256": "634ee42081936236cc682b17eec533128d10c2abee71ac3ce1ab2c3e0e105e3e"
+}

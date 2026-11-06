@@ -1,0 +1,48 @@
+{
+  "code_commit": "bcb2e6f9f3e6d5a2a26074f89457cc943699e059",
+  "github_runs": {
+    "ict": 41836585677,
+    "integrity": 41836585637,
+    "benchmark": 41836585549
+  },
+  "tests": {
+    "c3": 407,
+    "official_source": 14,
+    "restored_hma": 21,
+    "total": 442,
+    "failed": 0
+  },
+  "reproducibility": [
+    {
+      "path": "reports/c3_work_20261104/strategy_comparison.csv",
+      "sha256": "fe2a344b77e3bc228b786eed242734072e9d2a01d796ff60438b15886a9cf741",
+      "local_equals_github": true
+    },
+    {
+      "path": "reports/c3_work_20261104/frozen_decisions.csv",
+      "sha256": "6ab79895a353398f1bc6bd9cf97ed5ce605f957d527a18007b64aa4d7b9016e8",
+      "local_equals_github": true
+    },
+    {
+      "path": "reports/c3_work_20261104/expanded/strategy_comparison.csv",
+      "sha256": "4e8e0df0455b739eb3015ee9694484547d0583ad90deb58e187da61989b45e34",
+      "local_equals_github": true
+    },
+    {
+      "path": "reports/c3_work_20261104/expanded/frozen_decisions.csv",
+      "sha256": "f922e3d0962a67bda5e810cb5746c0c2850fd3ce42bad7d1da0b4c3719684576",
+      "local_equals_github": true
+    }
+  ],
+  "protected_frozen_plans_and_ledger_unchanged": true,
+  "live_trading_configuration_changed": false,
+  "existing_alerts_or_schedules_changed": false,
+  "official_snapshot": {
+    "2026-11-03": "2768_ROWS_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+    "2026-11-04": "EMPTY_OUTBLOCK"
+  },
+  "regular_only_certified": false,
+  "strategy_profitability_verified": false,
+  "orders_enabled": false,
+  "decision": "CASH"
+}

@@ -1,0 +1,111 @@
+{
+  "schema": "C3_WORK14_FINAL_EXECUTION_EVIDENCE",
+  "engine_sha": "0f6ebc67bd755b00945388d431e32d94183ba7fe",
+  "deployment_caller_sha": "5ba5781ac6abd82413855c1cdcf49acd98306267",
+  "direct_run_id": 42148787893,
+  "reusable_run_id": 42149047206,
+  "caller_check_run_id": 42149046675,
+  "automatic_save_sha": "25ebb539b7c917def2f6529ff01d2420941f0ff7",
+  "artifact_id": 13472200280,
+  "artifact_bytes": 65369997,
+  "artifact_sha256": "70d002cb41a5cf5f9be81a8e4ee24f133dba5be8ec4c81b9cc7f1c3a14897ca7",
+  "tests": {
+    "preserved": 693,
+    "total": 699,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "new_fault_tests": 6,
+    "fixtures_are_synthetic": true
+  },
+  "source": {
+    "asof": "2026-11-05",
+    "received_at_utc": "2026-11-06T02:15:23.977481+00:00",
+    "analysis_completed_at_utc": "2026-11-06T02:15:31.866859+00:00",
+    "report_generated_at_utc": "2026-11-06T02:15:31.891712+00:00",
+    "provider": "KRX_OFFICIAL_EOD",
+    "data_quality_state": "OFFICIAL_VERIFIED",
+    "price_family": "KRX_UNADJUSTED_AS_TRADED",
+    "market_rows": {
+      "KOSPI": 938,
+      "KOSDAQ": 1831
+    },
+    "normal_ohlcv_rows": 2658,
+    "halt_like_rows": 111,
+    "invalid_ohlc_rows": 0,
+    "nonbio_classification_rows": 2166,
+    "analysis_eligible": 1986,
+    "a_pool": 116,
+    "b_pool": 105,
+    "regular_only_independently_certified": false,
+    "corporate_actions_fully_verified": false,
+    "current_listing_census_verified": false
+  },
+  "prospective": {
+    "new_decisions": 0,
+    "new_signals": 0,
+    "observing_signals": 0,
+    "model_entries": 0,
+    "nonfills": 0,
+    "stop_exits": 0,
+    "closed_trades": 0,
+    "horizons": {
+      "5": {
+        "complete": 0,
+        "incomplete_registered_samples": 0,
+        "net_return_pct": null
+      },
+      "10": {
+        "complete": 0,
+        "incomplete_registered_samples": 0,
+        "net_return_pct": null
+      },
+      "20": {
+        "complete": 0,
+        "incomplete_registered_samples": 0,
+        "net_return_pct": null
+      }
+    },
+    "registration_timing": "SOURCE_BEFORE_FORWARD_START",
+    "not_registered_because": "New 2026-11-06 session not yet completed; last source is before prospective start. No retrospective registration.",
+    "new_source_day_requested": false
+  },
+  "storage": {
+    "private_storage_audit": {
+      "scope": "FULL_CURRENT_INVENTORY",
+      "records_verified": 8,
+      "original_archives_verified": 1,
+      "bootstrap_archives_verified": 3,
+      "mutations": 0,
+      "key_values_returned": false
+    },
+    "old_bootstrap_zip_downloads": 0,
+    "original_ciphertext_mutations": 0,
+    "source_and_ledger_encrypted": true,
+    "actual_secret_rotation": false
+  },
+  "operations": {
+    "pr30_draft": true,
+    "pr31_draft": true,
+    "pr31_merged": false,
+    "separate_approval_observed": false,
+    "production_caller_file_on_main": false,
+    "main_automatic_events_observed": false,
+    "research_pinned_reusable_call_success": true,
+    "research_git_save_success": true,
+    "github_artifact_reports_byte_equal": true,
+    "alternative_cache_publication_ready": true,
+    "live_whole_pipeline_outage_recovery_observed": false,
+    "existing_alert_unchanged": true,
+    "actual_chatgpt_delivery_confirmed": false,
+    "orders_enabled": false,
+    "paid_api_calls": 0,
+    "live_action": "CASH"
+  },
+  "remaining": [
+    "Separate explicit PR31 deployment approval; no main merge performed.",
+    "Actual completed 2026-11-06+ EOD, then immutable first decision within registration window.",
+    "Subsequent actual sessions for paper entries and 5/10/20 results.",
+    "Independent regular-only scope certification remains incomplete."
+  ]
+}

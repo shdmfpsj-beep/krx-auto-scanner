@@ -1,0 +1,96 @@
+{
+  "validated_engine_sha": "9d64972b17eed55d04ab19f4ba2e4fb377359601",
+  "deployment_caller_sha": "568e96cdc889763ea8ff60d5e80a837eed24544d",
+  "reusable_run_id": "42134103563",
+  "reusable_automatic_save_sha": "2376af527c122a0793daf9c2d6045bf4549aee77",
+  "reusable_artifact_id": 13463774523,
+  "reusable_artifact_sha256": "517d96cb50f9892165dc7f9e329b68b1b707dec25eb809d16f3882604fb09b1c",
+  "deployment_validation_run_id": "42133818876",
+  "source_price_asof": "2026-11-05",
+  "source_received_at": "2026-11-06T00:05:18.597132+00:00",
+  "tests": {
+    "total": 680,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "preserved_baseline": 657
+  },
+  "immutable_repeat": {
+    "market_snapshots": 1,
+    "decisions": 0,
+    "original_market_ciphertext_unchanged": true,
+    "nonzero_real_signal_duplication_test_not_yet_possible": true
+  },
+  "file_handoff": {
+    "summary_read": true,
+    "markdown_read": true,
+    "latest_read": true,
+    "artifact_byte_comparison_pending": false,
+    "actual_scheduled_chatgpt_delivery_observed": false,
+    "git_and_artifact_bytes_equal": true
+  },
+  "production_deployed": false,
+  "notifications_modified": false,
+  "main_merged": false,
+  "orders_enabled": false,
+  "current_action": "CASH",
+  "live_full_market_mirror_validated": true,
+  "official_outage_fallback_routing_tested_synthetically": true,
+  "live_actual_outage_full_daily_fallback_not_observed": true,
+  "census": [
+    {
+      "day": "2026-11-04",
+      "csv_rows": 2876,
+      "market_counts": {
+        "STK": 938,
+        "KSQ": 1831,
+        "KNX": 107
+      },
+      "git_blob_sha": "7a249012df6ca4ea4cfb270c7aa9cd55d8bcafd5",
+      "pin": "5346b41312c4b9eddda9529e11547c56d0e97c1d"
+    },
+    {
+      "day": "2026-11-05",
+      "csv_rows": 2876,
+      "market_counts": {
+        "STK": 938,
+        "KSQ": 1831,
+        "KNX": 107
+      },
+      "git_blob_sha": "bc6a497d96b90105e0087efcbf11cc83a51bb4af",
+      "pin": "5346b41312c4b9eddda9529e11547c56d0e97c1d"
+    }
+  ],
+  "scope": {
+    "price_rows": 2769,
+    "classification_counts": {
+      "PHARMA_BIOTECH_EXCLUDED": 296,
+      "VERIFIED_NONBIO_COMMON_AS_REPORTED": 2166,
+      "COMMON_SHARE_UNCONFIRMED_OR_SPECIAL": 161,
+      "CURRENT_KRX_TRADABILITY_UNCONFIRMED": 85,
+      "SPAC_WITHOUT_OPERATING_BUSINESS": 53,
+      "KIND_INDUSTRY_OR_BUSINESS_UNVERIFIED": 8
+    },
+    "continuous_history": 2412,
+    "analysis_eligible": 1986,
+    "a_candidates": 116,
+    "b_candidates": 105,
+    "history_excluded": 357
+  },
+  "prospective": {
+    "registered_signals": 0,
+    "completed": {
+      "5": 0,
+      "10": 0,
+      "20": 0
+    },
+    "incomplete_registered": 0,
+    "unregistered_preview": 2
+  },
+  "remaining": [
+    "PR31 approval and actual main trigger verification",
+    "2026-11-06 after-close data and first prospective decision",
+    "Independent regular-session scope certification",
+    "Bootstrap source ZIP expiry from 2027-02-02 UTC"
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "schema": "C3_SUPPLY_SNAPSHOT_V11",
+  "asof": "2026-11-05",
+  "retrieval_utc": "2026-11-05T20:49:27.652674+00:00",
+  "status": "RESEARCH_VALIDATED",
+  "data_quality_state": "RESEARCH_VALIDATED",
+  "source_provider": "FINANCEDATA_KRX_CACHE",
+  "research_dataset_validated": true,
+  "krx_eod_authenticated": false,
+  "official_dataset_usable": false,
+  "official_market_rows": 2769,
+  "price_files": null,
+  "market_file_sha256": {
+    "KOSPI": "63c7dc41889951ac8341577d66a2ece3a15258a62c3f50a570609d49cab89b6f",
+    "KOSDAQ": "7cb331ab536025312d0e468a7fbab0caf991709a863e9fa7183a6ec29a89a948"
+  },
+  "price_basis": "UNADJUSTED_AS_TRADED",
+  "independent_1530_regular_session_certified": false,
+  "trade_approved": false,
+  "orders_enabled": false,
+  "validation": {
+    "official_control_complete_match": true,
+    "control_asof": "2026-11-04",
+    "control": {
+      "rows": 2769,
+      "compared": 2769,
+      "missing": [],
+      "extra": [],
+      "mismatches": [],
+      "name_differences": [],
+      "complete_match": true
+    },
+    "control_file_hashes": {
+      "KOSPI": "d2414f8045ef1b304e7918253217030d27523815063d283cc6e40d3497bc7d5a",
+      "KOSDAQ": "dd2e830f9d3be94ad51b2d4935ec6011f7e27d423057211e51d07d7f0f6fa3ed"
+    },
+    "cache_repository": "FinanceData/fdr_krx_data_cache",
+    "cache_commit": "5346b41312c4b9eddda9529e11547c56d0e97c1d",
+    "cache_commit_date": "2026-11-05T13:07:45Z",
+    "exchange_max_work_dt": "2026-11-05",
+    "requested_cache_day": "2026-11-05",
+    "previous_session_checked": "2026-11-04",
+    "quality": {
+      "status": "QUALITY_GATE_PASSED",
+      "errors": [],
+      "markets": {
+        "KOSPI": {
+          "rows": 938,
+          "baseline_rows": 938,
+          "retained_baseline_fraction": 1.0,
+          "newly_observed": [],
+          "no_longer_observed": [],
+          "invalid_ohlc": [],
+          "halt_like": 26,
+          "listing_or_delisting_cause_confirmed": false
+        },
+        "KOSDAQ": {
+          "rows": 1831,
+          "baseline_rows": 1831,
+          "retained_baseline_fraction": 1.0,
+          "newly_observed": [],
+          "no_longer_observed": [],
+          "invalid_ohlc": [],
+          "halt_like": 85,
+          "listing_or_delisting_cause_confirmed": false
+        }
+      },
+      "full_current_listing_census_verified": false,
+      "coverage_alarm_floor": 0.95,
+      "asof": "2026-11-05"
+    },
+    "reference_rebase_candidates": [
+      "072770",
+      "474930"
+    ],
+    "corporate_actions_not_inferred": true,
+    "ultimate_upstream_family": "KRX",
+    "independent_upstream_count": 1,
+    "current_direct_official_confirmation": false,
+    "current_independent_vendor_confirmation": false,
+    "validation_scope": "FULL_PRIOR_OFFICIAL_CONTROL_PLUS_EXCHANGE_DATE_AND_PINNED_SAME_BASIS_MIRROR"
+  },
+  "validation_sha256": "1b5a2cfedee061376cd643fa47124e6f9a543d986e33caaf4933afe3438b009e",
+  "response_diagnostics": [],
+  "transport": [
+    {
+      "url": "https://data.krx.co.kr/comm/bldAttendant/executeForResourceBundle.cmd?baseName=krx.mdc.i18n.component&key=B128.bld",
+      "http_status": 200,
+      "received_at": "2026-11-05T20:49:26.281639+00:00",
+      "sha256": "41b8e20fdef1cc5afbe14a74af8e862132606cd514a620f4e42844aa3af81fea",
+      "bytes": 124,
+      "seconds": 0.4423707309999969
+    },
+    {
+      "url": "https://api.github.com/repos/FinanceData/fdr_krx_data_cache/commits/master",
+      "http_status": 200,
+      "received_at": "2026-11-05T20:49:27.020901+00:00",
+      "sha256": "2f94bc13415f109f81b438870795a09637ee30595518bf80137d07b18ba8394d",
+      "bytes": 111762,
+      "seconds": 0.7389633969999991
+    },
+    {
+      "url": "https://raw.githubusercontent.com/FinanceData/fdr_krx_data_cache/5346b41312c4b9eddda9529e11547c56d0e97c1d/data/listing/krx/2026-11-04.csv",
+      "http_status": 200,
+      "received_at": "2026-11-05T20:49:27.432579+00:00",
+      "sha256": "4f7fb571d7488a3de5dd549683fea6b8caa849639a761f092817762d38bd25a0",
+      "bytes": 395396,
+      "seconds": 0.4111000609999991
+    },
+    {
+      "url": "https://raw.githubusercontent.com/FinanceData/fdr_krx_data_cache/5346b41312c4b9eddda9529e11547c56d0e97c1d/data/listing/krx/2026-11-05.csv",
+      "http_status": 200,
+      "received_at": "2026-11-05T20:49:27.652674+00:00",
+      "sha256": "edf8e19a7efa3d3d870ca31eda640a21b6cd144bc05b2e53dcf3705dd49cd9cd",
+      "bytes": 397696,
+      "seconds": 0.1760897739999976
+    }
+  ],
+  "excluded_other_market_rows": 107
+}

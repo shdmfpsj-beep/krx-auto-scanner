@@ -1,0 +1,68 @@
+name: C3 TOP2 provisional price observation research
+on:
+  push:
+    branches:
+      - research/c3-ledger-integrity-audit-20261104
+    paths:
+      - '.github/workflows/c3_top2_provisional_observation_research.yml'
+  workflow_dispatch:
+    inputs:
+      end_date:
+        description: "Completed date YYYY-MM-DD (never current unfinished session)"
+        required: false
+        type: string
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_top2_pykrx_export_v1.py
+            scripts/c3_top2_provisional_report_v1.py
+            scripts/c3_top2_mobile_summary_v1.py
+            scripts/c3_top2_cross_ticker_gap_v1.py
+            scripts/c3_top2_research_readiness_v1.py
+            scripts/c3_price_concordance_v1.py
+            scripts/c3_price_provenance_gate_v1.py
+            scripts/c3_entry_geometry_research_v1.py
+            scripts/c3_entry_style_comparison_v1.py
+            scripts/c3_no_fill_opportunity_v1.py
+            scripts/c3_forward_horizon_observation_v1.py
+            config/c3_paper_top2_plans.csv
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install collection dependency
+        run: pip install pykrx==1.2.9 pandas==2.2.3
+      - name: Collect provisional TOP2 OHLCV
+        env:
+          REQUESTED_END_DATE: ${{ inputs.end_date }}
+        run: |
+          if [ -n "$REQUESTED_END_DATE" ]; then
+            END_DATE="$REQUESTED_END_DATE"
+          else
+            END_DATE="$(TZ=Asia/Seoul date -d yesterday +%F)"
+          fi
+          echo "Research end date: $END_DATE"
+          python scripts/c3_top2_pykrx_export_v1.py --plans config/c3_paper_top2_plans.csv --end "$END_DATE" --outdir /tmp/c3-top2
+      - name: Check asymmetric ticker date gaps
+        run: |
+          python scripts/c3_top2_cross_ticker_gap_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/cross_ticker_date_gaps.json
+      - name: Produce read-only provisional analysis
+        run: |
+          python scripts/c3_top2_provisional_report_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --manifest /tmp/c3-top2/manifest.json --output /tmp/c3-top2/top2_provisional_research.json
+      - name: Render mobile research summary
+        run: |
+          python scripts/c3_top2_mobile_summary_v1.py --input /tmp/c3-top2/top2_provisional_research.json --output /tmp/c3-top2/TOP2_mobile_summary.md
+      - name: Archive observations and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-top2-provisional-research
+          path: /tmp/c3-top2/
+          if-no-files-found: warn
+          retention-days: 30

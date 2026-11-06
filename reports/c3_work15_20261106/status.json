@@ -1,0 +1,119 @@
+{
+  "schema": "C3_WORK15_STATUS",
+  "checked_at_utc": "2026-11-06T04:44:15.385081+00:00",
+  "checked_at_kst": "2026-11-06T13:44:15.385081+09:00",
+  "research_head_at_start": "6118f4914975d53dc0b2fd421b5c4cd120c62deb",
+  "main_sha": "5fbf05d7ef365f755cf26f6e7518d33e11b0cd1b",
+  "deployment_caller_sha": "5ba5781ac6abd82413855c1cdcf49acd98306267",
+  "validated_engine_sha": "0f6ebc67bd755b00945388d431e32d94183ba7fe",
+  "deployment": {
+    "draft": true,
+    "merged": false,
+    "separate_approval_observed": false,
+    "changed_files": [
+      ".github/workflows/c3_research_daily_caller.yml"
+    ],
+    "read_only_checks": {
+      "one_workflow_file": true,
+      "four_engine_pins": true,
+      "main_source_filter": true,
+      "source_workflow_name": true,
+      "cron_kst_2215": true,
+      "cron_kst_0820": true,
+      "explicit_secret_only": true,
+      "source_ready_dependency": true,
+      "source_validation_script": true,
+      "noncancelled_concurrency": true
+    },
+    "actual_main_automatic_events_observed": false
+  },
+  "source": {
+    "asof": "2026-11-05",
+    "received_at": "2026-11-06T02:15:23.977481+00:00",
+    "analysis_completed_at": "2026-11-06T02:15:31.866859+00:00",
+    "report_generated_at": "2026-11-06T02:15:31.891712+00:00",
+    "provider": "KRX_OFFICIAL_EOD",
+    "quality_state": "OFFICIAL_VERIFIED",
+    "regular_only_independently_certified": false,
+    "scope": {
+      "price_rows": 2769,
+      "classification_counts": {
+        "PHARMA_BIOTECH_EXCLUDED": 296,
+        "VERIFIED_NONBIO_COMMON_AS_REPORTED": 2166,
+        "COMMON_SHARE_UNCONFIRMED_OR_SPECIAL": 161,
+        "CURRENT_KRX_TRADABILITY_UNCONFIRMED": 85,
+        "SPAC_WITHOUT_OPERATING_BUSINESS": 53,
+        "KIND_INDUSTRY_OR_BUSINESS_UNVERIFIED": 8
+      },
+      "continuous_history": 2412,
+      "analysis_eligible": 1986,
+      "a_candidates": 116,
+      "b_candidates": 105,
+      "history_excluded": 357
+    },
+    "normal_ohlcv_rows": 2658,
+    "halt_like_rows": 111,
+    "invalid_ohlc_rows": 0
+  },
+  "prospective": {
+    "gate": "SESSION_NOT_COMPLETED",
+    "new_signals": 0,
+    "registered_signals": 0,
+    "post_decision_observation_sessions": 0,
+    "entries": 0,
+    "nonfills": 0,
+    "stops": 0,
+    "closed": 0,
+    "net_pct": null,
+    "horizons": {
+      "5": {
+        "complete": 0,
+        "incomplete_registered": 0
+      },
+      "10": {
+        "complete": 0,
+        "incomplete_registered": 0
+      },
+      "20": {
+        "complete": 0,
+        "incomplete_registered": 0
+      }
+    }
+  },
+  "preserved_validation": {
+    "tests": {
+      "counts": [
+        655,
+        14,
+        21,
+        9
+      ],
+      "total": 699,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "new_integration_fixtures_are_synthetic": true
+    },
+    "actual_reusable_run_id": 42149047206,
+    "actual_direct_run_id": 42148787893,
+    "actual_caller_check_id": 42149046675,
+    "evidence_reused_from_work14": true
+  },
+  "this_work": {
+    "new_eod_requests": 0,
+    "engine_executions": 0,
+    "full_test_suite_reruns": 0,
+    "model_or_entry_or_stop_changes": 0,
+    "main_changes": 0,
+    "orders_enabled": false,
+    "paid_api_calls": 0,
+    "alert_changes": 0,
+    "live_action": "CASH"
+  },
+  "workspace": {
+    "local_checkout_was_older_snapshot": true,
+    "existing_staged_files_preserved": true,
+    "new_evidence_staged_in_isolated_folder": true,
+    "authoritative_source": "GitHub research HEAD; do not overwrite with the older local checkout"
+  }
+}

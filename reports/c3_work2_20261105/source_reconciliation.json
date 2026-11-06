@@ -1,0 +1,589 @@
+{
+  "schema": "C3_SOURCE_RECONCILIATION_V2",
+  "comparisons": {
+    "legacy_adjusted_vs_official": {
+      "compared": 6586,
+      "left_only": 0,
+      "right_only": 2,
+      "categories": {
+        "MATCH": 5988,
+        "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 129,
+        "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 432,
+        "UNIFORM_OHLC_SCALE_CANDIDATE_NOT_CONFIRMED_ACTION": 37
+      },
+      "by_ticker": {
+        "000660": {
+          "MATCH": 333,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 11,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 22
+        },
+        "003670": {
+          "UNIFORM_OHLC_SCALE_CANDIDATE_NOT_CONFIRMED_ACTION": 27,
+          "MATCH": 307,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 7,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 25
+        },
+        "007810": {
+          "MATCH": 334,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 11,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 21
+        },
+        "009540": {
+          "MATCH": 337,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 7,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 22
+        },
+        "010140": {
+          "MATCH": 334,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 24,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 8
+        },
+        "012330": {
+          "MATCH": 334,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 26,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 6
+        },
+        "012450": {
+          "UNIFORM_OHLC_SCALE_CANDIDATE_NOT_CONFIRMED_ACTION": 10,
+          "MATCH": 323,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 30,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 1
+        },
+        "026960": {
+          "MATCH": 336,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 4,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 26
+        },
+        "042000": {
+          "MATCH": 335,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 26,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 5
+        },
+        "042660": {
+          "MATCH": 335,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 22,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 9
+        },
+        "051600": {
+          "MATCH": 335,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 7,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 24
+        },
+        "058610": {
+          "MATCH": 333,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 13,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 20
+        },
+        "071970": {
+          "MATCH": 334,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 5,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 27
+        },
+        "074600": {
+          "MATCH": 337,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 21,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 8
+        },
+        "086280": {
+          "MATCH": 333,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 31,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 2
+        },
+        "095340": {
+          "MATCH": 336,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 10,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 20
+        },
+        "271560": {
+          "MATCH": 337,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 25,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 4
+        },
+        "329180": {
+          "MATCH": 335,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 11,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 20
+        }
+      }
+    },
+    "current_adjusted_vs_official": {
+      "compared": 6588,
+      "left_only": 18,
+      "right_only": 0,
+      "categories": {
+        "MATCH": 5988,
+        "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 126,
+        "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 435,
+        "UNIFORM_OHLC_SCALE_CANDIDATE_NOT_CONFIRMED_ACTION": 39
+      },
+      "by_ticker": {
+        "000660": {
+          "MATCH": 333,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 10,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 23
+        },
+        "003670": {
+          "UNIFORM_OHLC_SCALE_CANDIDATE_NOT_CONFIRMED_ACTION": 27,
+          "MATCH": 307,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 7,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 25
+        },
+        "007810": {
+          "MATCH": 334,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 11,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 21
+        },
+        "009540": {
+          "MATCH": 337,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 7,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 22
+        },
+        "010140": {
+          "MATCH": 334,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 24,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 8
+        },
+        "012330": {
+          "MATCH": 334,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 26,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 6
+        },
+        "012450": {
+          "UNIFORM_OHLC_SCALE_CANDIDATE_NOT_CONFIRMED_ACTION": 12,
+          "MATCH": 323,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 30,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 1
+        },
+        "026960": {
+          "MATCH": 336,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 4,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 26
+        },
+        "042000": {
+          "MATCH": 335,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 26,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 5
+        },
+        "042660": {
+          "MATCH": 335,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 22,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 9
+        },
+        "051600": {
+          "MATCH": 335,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 7,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 24
+        },
+        "058610": {
+          "MATCH": 333,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 13,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 20
+        },
+        "071970": {
+          "MATCH": 334,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 5,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 27
+        },
+        "074600": {
+          "MATCH": 337,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 21,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 8
+        },
+        "086280": {
+          "MATCH": 333,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 31,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 2
+        },
+        "095340": {
+          "MATCH": 336,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 9,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 21
+        },
+        "271560": {
+          "MATCH": 337,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 25,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 4
+        },
+        "329180": {
+          "MATCH": 335,
+          "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED": 10,
+          "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED": 21
+        }
+      }
+    },
+    "legacy_vs_current_adjusted": {
+      "compared": 6586,
+      "left_only": 0,
+      "right_only": 20,
+      "categories": {
+        "MATCH": 6583,
+        "VOLUME_SCOPE_OR_PROVIDER_DIFFERENCE_UNRESOLVED": 3
+      },
+      "by_ticker": {
+        "000660": {
+          "MATCH": 365,
+          "VOLUME_SCOPE_OR_PROVIDER_DIFFERENCE_UNRESOLVED": 1
+        },
+        "003670": {
+          "MATCH": 366
+        },
+        "007810": {
+          "MATCH": 366
+        },
+        "009540": {
+          "MATCH": 366
+        },
+        "010140": {
+          "MATCH": 366
+        },
+        "012330": {
+          "MATCH": 366
+        },
+        "012450": {
+          "MATCH": 364
+        },
+        "026960": {
+          "MATCH": 366
+        },
+        "042000": {
+          "MATCH": 366
+        },
+        "042660": {
+          "MATCH": 366
+        },
+        "051600": {
+          "MATCH": 366
+        },
+        "058610": {
+          "MATCH": 366
+        },
+        "071970": {
+          "MATCH": 366
+        },
+        "074600": {
+          "MATCH": 366
+        },
+        "086280": {
+          "MATCH": 366
+        },
+        "095340": {
+          "MATCH": 365,
+          "VOLUME_SCOPE_OR_PROVIDER_DIFFERENCE_UNRESOLVED": 1
+        },
+        "271560": {
+          "MATCH": 366
+        },
+        "329180": {
+          "MATCH": 365,
+          "VOLUME_SCOPE_OR_PROVIDER_DIFFERENCE_UNRESOLVED": 1
+        }
+      }
+    }
+  },
+  "legacy_case_checks": [
+    {
+      "ticker": "000660",
+      "decision_date": "2026-09-18",
+      "legacy_net_pct": -8.45265183363727,
+      "checks": [
+        {
+          "date": "2026-09-18",
+          "classification": "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED"
+        },
+        {
+          "date": "2026-09-21",
+          "classification": "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED"
+        },
+        {
+          "date": "2026-10-08",
+          "classification": "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED"
+        }
+      ]
+    },
+    {
+      "ticker": "007810",
+      "decision_date": "2026-05-06",
+      "legacy_net_pct": -15.246332242855676,
+      "checks": [
+        {
+          "date": "2026-05-06",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-07",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-19",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "007810",
+      "decision_date": "2026-06-15",
+      "legacy_net_pct": -20.872394328524145,
+      "checks": [
+        {
+          "date": "2026-06-15",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-06-19",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-06-26",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "009540",
+      "decision_date": "2026-05-04",
+      "legacy_net_pct": -5.724456835366809,
+      "checks": [
+        {
+          "date": "2026-05-04",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-06",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-15",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "012330",
+      "decision_date": "2026-05-06",
+      "legacy_net_pct": 36.5795928283936,
+      "checks": [
+        {
+          "date": "2026-05-06",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-07",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-06-08",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "012330",
+      "decision_date": "2026-06-16",
+      "legacy_net_pct": -14.988823767518955,
+      "checks": [
+        {
+          "date": "2026-06-16",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-06-18",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-06-24",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "012450",
+      "decision_date": "2026-08-27",
+      "legacy_net_pct": -3.09136821545557,
+      "checks": [
+        {
+          "date": "2026-08-27",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-08-28",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-09-01",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "058610",
+      "decision_date": "2026-05-11",
+      "legacy_net_pct": -13.573603558626024,
+      "checks": [
+        {
+          "date": "2026-05-11",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-12",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-19",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "058610",
+      "decision_date": "2026-09-28",
+      "legacy_net_pct": -13.56772890200304,
+      "checks": [
+        {
+          "date": "2026-09-28",
+          "classification": "MULTIFIELD_PRICE_BASIS_DISAGREEMENT_UNRESOLVED"
+        },
+        {
+          "date": "2026-09-29",
+          "classification": "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED"
+        },
+        {
+          "date": "2026-10-13",
+          "classification": "CLOSE_ONLY_PROVIDER_OR_SESSION_DIFFERENCE_UNRESOLVED"
+        }
+      ]
+    },
+    {
+      "ticker": "071970",
+      "decision_date": "2026-05-04",
+      "legacy_net_pct": -11.310779207145716,
+      "checks": [
+        {
+          "date": "2026-05-04",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-06",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-12",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "074600",
+      "decision_date": "2026-05-04",
+      "legacy_net_pct": -4.564474488313397,
+      "checks": [
+        {
+          "date": "2026-05-04",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-11",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-21",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "086280",
+      "decision_date": "2026-05-13",
+      "legacy_net_pct": -14.189892235166157,
+      "checks": [
+        {
+          "date": "2026-05-13",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-14",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-18",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "095340",
+      "decision_date": "2026-05-04",
+      "legacy_net_pct": -9.261940679738444,
+      "checks": [
+        {
+          "date": "2026-05-04",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-06",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-05-18",
+          "classification": "MATCH"
+        }
+      ]
+    },
+    {
+      "ticker": "329180",
+      "decision_date": "2026-06-15",
+      "legacy_net_pct": -8.127056726737846,
+      "checks": [
+        {
+          "date": "2026-06-15",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-06-16",
+          "classification": "MATCH"
+        },
+        {
+          "date": "2026-06-23",
+          "classification": "MATCH"
+        }
+      ]
+    }
+  ],
+  "official_panel_sha256": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
+  "basis_report_sha256": "69390767b75aa10d4bf2dca33ad929c3d8890e00e70d6705a34246ff229f2c6c",
+  "original_archive_sha256": "693c404bd8ea65efb1bf1e1b6dd6a4164b43155da2031f8b188adec7e39c2752",
+  "reference_discrepancy_candidates": 1038,
+  "corrected_candidate_categories": {
+    "SHARE_COUNT_REBASE_CANDIDATE": 326,
+    "REFERENCE_PRICE_REBASE_UNRESOLVED": 712
+  },
+  "queried_raw_pykrx_failures": [
+    {
+      "ticker": "007810",
+      "mode": "unadjusted",
+      "requested_end": "2026-11-04",
+      "status": "EMPTY_RESPONSE"
+    },
+    {
+      "ticker": "012330",
+      "mode": "unadjusted",
+      "requested_end": "2026-11-04",
+      "status": "EMPTY_RESPONSE"
+    },
+    {
+      "ticker": "271560",
+      "mode": "unadjusted",
+      "requested_end": "2026-11-04",
+      "status": "EMPTY_RESPONSE"
+    }
+  ],
+  "prefix_tickers_compared": 18,
+  "prefix_days_compared": 3978,
+  "prefix_changed_days": 0,
+  "reference_disagreements_are_not_confirmed_corporate_actions": true,
+  "session_mix_causes_verified": false,
+  "dividend_total_returns_verified": false,
+  "same_retrieval_prefix_equality_is_not_historical_vintage": true,
+  "executable_price_basis": "OFFICIAL_RAW_ONLY_IN_COMPETITION_NO_ADJUSTED_QUOTES",
+  "regular_only_certified": false,
+  "trade_approved": false
+}

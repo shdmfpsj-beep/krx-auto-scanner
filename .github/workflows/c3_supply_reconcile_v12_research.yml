@@ -1,0 +1,37 @@
+name: C3 captured official and whole-market cache reconciliation
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths: ['scripts/c3_supply_reconcile_v12.py','.github/workflows/c3_supply_reconcile_v12_research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install cryptography==46.0.7
+      - name: Reuse captured controls and check the full newly available official date
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python scripts/c3_supply_reconcile_v12.py --outdir /tmp/c3-reconcile12
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-supply-v12-current-official-reconciliation
+          path: |
+            /tmp/c3-reconcile12/public/
+            /tmp/c3-reconcile12/private_market_data.aesgcm
+          retention-days: 90
+          if-no-files-found: error

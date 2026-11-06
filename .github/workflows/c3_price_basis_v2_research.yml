@@ -1,0 +1,35 @@
+name: C3 price-basis and vintage research
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_price_basis_v2.py'
+      - 'scripts/test_c3_price_basis_v2.py'
+      - '.github/workflows/c3_price_basis_v2_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  basis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install fixed research adapter
+        run: pip install pykrx==1.2.9 pandas==2.2.3
+      - name: Test unresolved basis and vintage semantics
+        env:
+          PYTHONPATH: scripts
+        run: python -m unittest discover -s scripts -p 'test_c3_price_basis_v2.py' -v
+      - name: Collect independent requested-end comparisons (not historical vintage certification)
+        run: python scripts/c3_price_basis_v2.py --cases reports/c3_work2_20261105/source_validation_cases.json --outdir /tmp/c3-basis-v2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-price-basis-vintage-v2
+          path: /tmp/c3-basis-v2/
+          retention-days: 90
+          if-no-files-found: error

@@ -1,0 +1,40 @@
+{
+  "task_id": "6ae53e1be3848191b8bdc818036ed09c",
+  "title": "C3 연구용 TOP2·가상매매 일일 보고",
+  "is_enabled": true,
+  "schedule": "BEGIN:VEVENT\nDTSTART;TZID=Asia/Seoul:20261106T223000\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\nEND:VEVENT",
+  "updated_at": "2026-11-05T11:45:39.348584+00:00",
+  "last_recorded_run_at": "2026-11-04T13:27:18.045924Z",
+  "actual_delivery_status": "unknown",
+  "latest_recorded_status": "completed",
+  "automation_modified_by_this_work": false,
+  "actual_new_report_delivery_observed": false,
+  "github_report_files": [
+    {
+      "path": "reports/c3_forward_v8/mobile/summary.json",
+      "sha": "816ff33363ff4721e1644a8bb22afb2b38206d34",
+      "source_run_id": "42097964158",
+      "generated_at": "2026-11-05T19:52:55.872224+00:00",
+      "price_asof": null,
+      "attempted": "2026-11-05",
+      "new_signals": 0,
+      "provisional_rows": 2625
+    },
+    {
+      "path": "reports/c3_forward_v8/mobile/mobile_report.md",
+      "sha": "510be8d5900a44a91e532bbbf0f63ff529ceb597",
+      "required_markdown": true
+    },
+    {
+      "path": "reports/c3_forward_v8/latest.json",
+      "sha": "4ac8dd9cab13219333ff182f1808c09a73942ccf",
+      "source_run_id": "42097964158",
+      "generated_at": "2026-11-05T19:52:55.872224+00:00",
+      "price_asof": null,
+      "attempted": "2026-11-05",
+      "new_signals": 0,
+      "provisional_rows": 2625
+    }
+  ],
+  "github_files_access_confirmed": true
+}

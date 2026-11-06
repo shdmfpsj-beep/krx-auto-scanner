@@ -1,0 +1,508 @@
+name: C3 paper ledger integrity research tests
+on:
+  push:
+    branches:
+      - research/c3-ledger-integrity-audit-20261104
+    paths:
+      - 'scripts/c3_paper_integrity_audit_v1.py'
+      - 'scripts/c3_ict_*.py'
+      - 'scripts/test_c3_ict_*.py'
+      - 'scripts/c3_entry_benchmark_v1.py'
+      - 'scripts/test_c3_entry_benchmark_v1.py'
+      - 'scripts/test_c3_paper_integrity_audit_v1.py'
+      - 'scripts/c3_price_concordance_v1.py'
+      - 'scripts/c3_yahoo_reference_experiment_v1.py'
+      - 'scripts/c3_naver_reference_experiment_v1.py'
+      - 'scripts/c3_free_provider_triangulation_v1.py'
+      - 'scripts/c3_conservative_paper_touch_audit_v1.py'
+      - 'scripts/c3_watch_touch_forward_outcomes_v1.py'
+      - 'scripts/c3_watch_touch_cohort_audit_v1.py'
+      - 'scripts/c3_top2_watch_risk_reward_v1.py'
+      - 'scripts/c3_prior_resistance_evidence_v1.py'
+      - 'scripts/test_c3_prior_resistance_evidence_v1.py'
+      - 'scripts/test_c3_top2_watch_risk_reward_v1.py'
+      - 'scripts/test_c3_watch_touch_cohort_audit_v1.py'
+      - 'scripts/test_c3_watch_touch_forward_outcomes_v1.py'
+      - 'scripts/test_c3_conservative_paper_touch_audit_v1.py'
+      - 'scripts/test_c3_free_provider_triangulation_v1.py'
+      - 'scripts/test_c3_naver_reference_experiment_v1.py'
+      - 'scripts/c3_yahoo_adjustment_diagnostic_v1.py'
+      - 'scripts/c3_provider_difference_diagnostic_v1.py'
+      - 'scripts/test_c3_provider_difference_diagnostic_v1.py'
+      - 'scripts/test_c3_yahoo_adjustment_diagnostic_v1.py'
+      - 'config/c3_top2_yahoo_symbols_experimental.csv'
+      - 'scripts/test_c3_yahoo_reference_experiment_v1.py'
+      - 'scripts/c3_entry_geometry_research_v1.py'
+      - 'scripts/c3_no_fill_opportunity_v1.py'
+      - 'scripts/c3_entry_style_comparison_v1.py'
+      - 'scripts/c3_forward_horizon_observation_v1.py'
+      - 'scripts/c3_price_provenance_gate_v1.py'
+      - 'scripts/c3_top2_research_readiness_v1.py'
+      - 'scripts/c3_session_coverage_gate_v1.py'
+      - 'scripts/c3_xkrx_calendar_crosscheck_v1.py'
+      - 'scripts/test_c3_xkrx_calendar_crosscheck_v1.py'
+      - 'scripts/c3_top2_pykrx_export_v1.py'
+      - 'scripts/c3_top2_provisional_report_v1.py'
+      - 'scripts/c3_top2_mobile_summary_v1.py'
+      - 'scripts/test_c3_top2_mobile_summary_v1.py'
+      - 'scripts/test_c3_top2_provisional_report_v1.py'
+      - 'scripts/test_c3_top2_export_integrity_v1.py'
+      - 'scripts/c3_top2_cross_ticker_gap_v1.py'
+      - 'scripts/test_c3_top2_cross_ticker_gap_v1.py'
+      - 'scripts/test_c3_top2_pykrx_export_v1.py'
+      - 'scripts/test_c3_session_coverage_gate_v1.py'
+      - 'scripts/test_c3_top2_research_readiness_v1.py'
+      - 'scripts/test_c3_price_provenance_gate_v1.py'
+      - 'scripts/test_c3_forward_horizon_observation_v1.py'
+      - 'scripts/test_c3_entry_style_comparison_v1.py'
+      - 'scripts/test_c3_no_fill_opportunity_v1.py'
+      - 'scripts/test_c3_entry_geometry_research_v1.py'
+      - 'scripts/test_c3_price_concordance_v1.py'
+      - '.github/workflows/c3_paper_integrity_research.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/c3_paper_integrity_audit_v1.py'
+      - 'scripts/c3_ict_*.py'
+      - 'scripts/test_c3_ict_*.py'
+      - 'scripts/c3_entry_benchmark_v1.py'
+      - 'scripts/test_c3_entry_benchmark_v1.py'
+      - 'scripts/test_c3_paper_integrity_audit_v1.py'
+      - 'scripts/c3_price_concordance_v1.py'
+      - 'scripts/c3_yahoo_reference_experiment_v1.py'
+      - 'scripts/c3_naver_reference_experiment_v1.py'
+      - 'scripts/c3_free_provider_triangulation_v1.py'
+      - 'scripts/c3_conservative_paper_touch_audit_v1.py'
+      - 'scripts/c3_watch_touch_forward_outcomes_v1.py'
+      - 'scripts/c3_watch_touch_cohort_audit_v1.py'
+      - 'scripts/c3_top2_watch_risk_reward_v1.py'
+      - 'scripts/c3_prior_resistance_evidence_v1.py'
+      - 'scripts/test_c3_prior_resistance_evidence_v1.py'
+      - 'scripts/test_c3_top2_watch_risk_reward_v1.py'
+      - 'scripts/test_c3_watch_touch_cohort_audit_v1.py'
+      - 'scripts/test_c3_watch_touch_forward_outcomes_v1.py'
+      - 'scripts/test_c3_conservative_paper_touch_audit_v1.py'
+      - 'scripts/test_c3_free_provider_triangulation_v1.py'
+      - 'scripts/test_c3_naver_reference_experiment_v1.py'
+      - 'scripts/c3_yahoo_adjustment_diagnostic_v1.py'
+      - 'scripts/c3_provider_difference_diagnostic_v1.py'
+      - 'scripts/test_c3_provider_difference_diagnostic_v1.py'
+      - 'scripts/test_c3_yahoo_adjustment_diagnostic_v1.py'
+      - 'config/c3_top2_yahoo_symbols_experimental.csv'
+      - 'scripts/test_c3_yahoo_reference_experiment_v1.py'
+      - 'scripts/c3_entry_geometry_research_v1.py'
+      - 'scripts/c3_no_fill_opportunity_v1.py'
+      - 'scripts/c3_entry_style_comparison_v1.py'
+      - 'scripts/c3_forward_horizon_observation_v1.py'
+      - 'scripts/c3_price_provenance_gate_v1.py'
+      - 'scripts/c3_top2_research_readiness_v1.py'
+      - 'scripts/c3_session_coverage_gate_v1.py'
+      - 'scripts/c3_xkrx_calendar_crosscheck_v1.py'
+      - 'scripts/test_c3_xkrx_calendar_crosscheck_v1.py'
+      - 'scripts/c3_top2_pykrx_export_v1.py'
+      - 'scripts/c3_top2_provisional_report_v1.py'
+      - 'scripts/c3_top2_mobile_summary_v1.py'
+      - 'scripts/test_c3_top2_mobile_summary_v1.py'
+      - 'scripts/test_c3_top2_provisional_report_v1.py'
+      - 'scripts/test_c3_top2_export_integrity_v1.py'
+      - 'scripts/c3_top2_cross_ticker_gap_v1.py'
+      - 'scripts/test_c3_top2_cross_ticker_gap_v1.py'
+      - 'scripts/test_c3_top2_pykrx_export_v1.py'
+      - 'scripts/test_c3_session_coverage_gate_v1.py'
+      - 'scripts/test_c3_top2_research_readiness_v1.py'
+      - 'scripts/test_c3_price_provenance_gate_v1.py'
+      - 'scripts/test_c3_forward_horizon_observation_v1.py'
+      - 'scripts/test_c3_entry_style_comparison_v1.py'
+      - 'scripts/test_c3_no_fill_opportunity_v1.py'
+      - 'scripts/test_c3_entry_geometry_research_v1.py'
+      - 'scripts/test_c3_price_concordance_v1.py'
+      - '.github/workflows/c3_paper_integrity_research.yml'
+  workflow_dispatch:
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_paper_integrity_audit_v1.py
+            scripts/test_c3_paper_integrity_audit_v1.py
+            scripts/c3_price_concordance_v1.py
+            scripts/c3_yahoo_reference_experiment_v1.py
+            scripts/c3_naver_reference_experiment_v1.py
+            scripts/c3_free_provider_triangulation_v1.py
+            scripts/c3_conservative_paper_touch_audit_v1.py
+            scripts/c3_watch_touch_forward_outcomes_v1.py
+            scripts/c3_watch_touch_cohort_audit_v1.py
+            scripts/c3_top2_watch_risk_reward_v1.py
+            scripts/c3_prior_resistance_evidence_v1.py
+            scripts/test_c3_prior_resistance_evidence_v1.py
+            scripts/test_c3_top2_watch_risk_reward_v1.py
+            scripts/c3_yahoo_adjustment_diagnostic_v1.py
+            scripts/c3_provider_gap_entry_impact_v1.py
+            scripts/test_c3_yahoo_adjustment_diagnostic_v1.py
+            scripts/test_c3_provider_gap_entry_impact_v1.py
+            scripts/c3_provider_difference_diagnostic_v1.py
+            scripts/test_c3_provider_difference_diagnostic_v1.py
+            scripts/test_c3_yahoo_reference_experiment_v1.py
+            scripts/test_c3_naver_reference_experiment_v1.py
+            scripts/test_c3_free_provider_triangulation_v1.py
+            scripts/test_c3_conservative_paper_touch_audit_v1.py
+            scripts/test_c3_watch_touch_forward_outcomes_v1.py
+            scripts/test_c3_watch_touch_cohort_audit_v1.py
+            scripts/c3_entry_geometry_research_v1.py
+            scripts/c3_no_fill_opportunity_v1.py
+            scripts/c3_entry_style_comparison_v1.py
+            scripts/c3_top2_progress_status_v1.py
+            scripts/c3_forward_horizon_observation_v1.py
+            scripts/c3_price_provenance_gate_v1.py
+            scripts/c3_top2_research_readiness_v1.py
+            scripts/c3_session_coverage_gate_v1.py
+            scripts/c3_xkrx_calendar_crosscheck_v1.py
+            scripts/test_c3_xkrx_calendar_crosscheck_v1.py
+            scripts/c3_top2_pykrx_export_v1.py
+            scripts/c3_top2_provisional_report_v1.py
+            scripts/c3_top2_mobile_summary_v1.py
+            scripts/test_c3_top2_mobile_summary_v1.py
+            scripts/test_c3_top2_provisional_report_v1.py
+            scripts/test_c3_top2_export_integrity_v1.py
+            scripts/c3_top2_cross_ticker_gap_v1.py
+            scripts/test_c3_top2_cross_ticker_gap_v1.py
+            scripts/test_c3_top2_pykrx_export_v1.py
+            scripts/test_c3_session_coverage_gate_v1.py
+            scripts/test_c3_top2_research_readiness_v1.py
+            scripts/test_c3_price_provenance_gate_v1.py
+            scripts/test_c3_forward_horizon_observation_v1.py
+            scripts/test_c3_entry_style_comparison_v1.py
+            scripts/test_c3_top2_progress_status_v1.py
+            scripts/test_c3_no_fill_opportunity_v1.py
+            scripts/test_c3_entry_geometry_research_v1.py
+            scripts/test_c3_price_concordance_v1.py
+            config/c3_paper_top2_plans.csv
+            reports/c3_paper/paper_ledger.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile research scripts before tests
+        run: python -m py_compile scripts/c3_paper_integrity_audit_v1.py scripts/test_c3_paper_integrity_audit_v1.py scripts/c3_price_concordance_v1.py scripts/test_c3_price_concordance_v1.py scripts/c3_entry_geometry_research_v1.py scripts/test_c3_entry_geometry_research_v1.py scripts/c3_no_fill_opportunity_v1.py scripts/test_c3_no_fill_opportunity_v1.py scripts/c3_entry_style_comparison_v1.py scripts/test_c3_entry_style_comparison_v1.py scripts/c3_forward_horizon_observation_v1.py scripts/test_c3_forward_horizon_observation_v1.py scripts/c3_price_provenance_gate_v1.py scripts/test_c3_price_provenance_gate_v1.py scripts/c3_top2_research_readiness_v1.py scripts/test_c3_top2_research_readiness_v1.py scripts/c3_session_coverage_gate_v1.py scripts/test_c3_session_coverage_gate_v1.py scripts/c3_top2_pykrx_export_v1.py scripts/test_c3_top2_pykrx_export_v1.py scripts/c3_top2_provisional_report_v1.py scripts/test_c3_top2_provisional_report_v1.py scripts/test_c3_top2_export_integrity_v1.py scripts/c3_top2_cross_ticker_gap_v1.py scripts/test_c3_top2_cross_ticker_gap_v1.py scripts/c3_top2_mobile_summary_v1.py scripts/test_c3_top2_mobile_summary_v1.py
+      - name: Run synthetic regression tests
+        run: python -m unittest discover -s scripts -p 'test_c3_paper_integrity_audit_v1.py' -v
+      - name: Test TOP2 progress status
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_progress_status_v1.py' -v
+      - name: Test provider gap entry impact
+        run: python -m unittest discover -s scripts -p 'test_c3_provider_gap_entry_impact_v1.py' -v
+      - name: Test Yahoo adjusted-close comparison
+        run: python -m unittest discover -s scripts -p 'test_c3_yahoo_adjustment_diagnostic_v1.py' -v
+      - name: Test provider discrepancy diagnostic
+        run: python -m unittest discover -s scripts -p 'test_c3_provider_difference_diagnostic_v1.py' -v
+      - name: Test prior resistance no-lookahead evidence
+        run: python -m unittest discover -s scripts -p 'test_c3_prior_resistance_evidence_v1.py' -v
+      - name: Test TOP2 structural risk reward
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_watch_risk_reward_v1.py' -v
+      - name: Test watch-touch cohort aggregation
+        run: python -m unittest discover -s scripts -p 'test_c3_watch_touch_cohort_audit_v1.py' -v
+      - name: Test watch-touch forward benchmarks
+        run: python -m unittest discover -s scripts -p 'test_c3_watch_touch_forward_outcomes_v1.py' -v
+      - name: Test conservative paper entry-stop collision audit
+        run: python -m unittest discover -s scripts -p 'test_c3_conservative_paper_touch_audit_v1.py' -v
+      - name: Test three-provider non-certifying comparison
+        run: python -m unittest discover -s scripts -p 'test_c3_free_provider_triangulation_v1.py' -v
+      - name: Run experimental NAVER reference normalization tests
+        run: python -m unittest discover -s scripts -p 'test_c3_naver_reference_experiment_v1.py' -v
+      - name: Run experimental Yahoo reference normalization tests
+        run: python -m unittest discover -s scripts -p 'test_c3_yahoo_reference_experiment_v1.py' -v
+      - name: Run synthetic independent-price regression tests
+        run: python -m unittest discover -s scripts -p 'test_c3_price_concordance_v1.py' -v
+      - name: Run entry geometry research tests
+        run: python -m unittest discover -s scripts -p 'test_c3_entry_geometry_research_v1.py' -v
+      - name: Run no-fill opportunity research tests
+        run: python -m unittest discover -s scripts -p 'test_c3_no_fill_opportunity_v1.py' -v
+      - name: Run entry-style comparison research tests
+        run: python -m unittest discover -s scripts -p 'test_c3_entry_style_comparison_v1.py' -v
+      - name: Run 5-10-20 session horizon research tests
+        run: python -m unittest discover -s scripts -p 'test_c3_forward_horizon_observation_v1.py' -v
+      - name: Run source provenance gate research tests
+        run: python -m unittest discover -s scripts -p 'test_c3_price_provenance_gate_v1.py' -v
+      - name: Run integrated TOP2 readiness research tests
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_research_readiness_v1.py' -v
+      - name: Run session calendar coverage tests
+        run: python -m unittest discover -s scripts -p 'test_c3_session_coverage_gate_v1.py' -v
+      - name: Run third-party XKRX calendar comparison tests
+        run: python -m unittest discover -s scripts -p 'test_c3_xkrx_calendar_crosscheck_v1.py' -v
+      - name: Run TOP2 pykrx export adapter tests
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_pykrx_export_v1.py' -v
+      - name: Run provisional TOP2 report tests
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_provisional_report_v1.py' -v
+      - name: Run mobile TOP2 report tests
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_mobile_summary_v1.py' -v
+      - name: Run TOP2 export integrity tests
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_export_integrity_v1.py' -v
+      - name: Run cross-ticker date-gap tests
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_cross_ticker_gap_v1.py' -v
+      - name: Audit committed read-only paper ledger
+        run: python scripts/c3_paper_integrity_audit_v1.py --plans config/c3_paper_top2_plans.csv --ledger reports/c3_paper/paper_ledger.json
+
+  provisional_prices:
+    # PR checks are the observable research-branch path; do not skip provisional data collection.
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full checkout fails on an unrelated overlong tracked path.
+          sparse-checkout: |
+            scripts/c3_yahoo_reference_experiment_v1.py
+            scripts/c3_naver_reference_experiment_v1.py
+            scripts/c3_free_provider_triangulation_v1.py
+            scripts/c3_conservative_paper_touch_audit_v1.py
+            scripts/c3_watch_touch_forward_outcomes_v1.py
+            scripts/c3_watch_touch_cohort_audit_v1.py
+            scripts/c3_top2_watch_risk_reward_v1.py
+            scripts/c3_prior_resistance_evidence_v1.py
+            scripts/test_c3_prior_resistance_evidence_v1.py
+            scripts/test_c3_top2_watch_risk_reward_v1.py
+            scripts/c3_yahoo_adjustment_diagnostic_v1.py
+            scripts/c3_provider_gap_entry_impact_v1.py
+            scripts/c3_provider_difference_diagnostic_v1.py
+            config/c3_top2_yahoo_symbols_experimental.csv
+            scripts/c3_top2_pykrx_export_v1.py
+            scripts/c3_top2_cross_ticker_gap_v1.py
+            scripts/c3_top2_provisional_report_v1.py
+            scripts/c3_top2_mobile_summary_v1.py
+            scripts/c3_price_concordance_v1.py
+            scripts/c3_session_coverage_gate_v1.py
+            scripts/c3_xkrx_calendar_crosscheck_v1.py
+            scripts/c3_price_provenance_gate_v1.py
+            scripts/c3_top2_research_readiness_v1.py
+            scripts/c3_entry_geometry_research_v1.py
+            scripts/c3_no_fill_opportunity_v1.py
+            scripts/c3_entry_style_comparison_v1.py
+            scripts/c3_top2_progress_status_v1.py
+            scripts/c3_forward_horizon_observation_v1.py
+            config/c3_paper_top2_plans.csv
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research-only provider
+        run: pip install pykrx==1.2.9 pandas==2.2.3 exchange-calendars==4.13.1 yfinance==0.2.66
+      - name: Collect previous completed KST date
+        run: |
+          END_DATE="$(TZ=Asia/Seoul date -d yesterday +%F)"
+          echo "Research only: $END_DATE"
+          python scripts/c3_top2_pykrx_export_v1.py --plans config/c3_paper_top2_plans.csv --end "$END_DATE" --outdir /tmp/c3-top2
+      - name: Detect cross-ticker date gaps
+        if: success()
+        run: python scripts/c3_top2_cross_ticker_gap_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/cross_ticker_date_gaps.json --fail-on-gap
+      - name: Cross-check observed dates against third-party XKRX calendar
+        if: success()
+        shell: bash
+        run: |
+          START_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["start"])')"
+          END_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')"
+          python scripts/c3_xkrx_calendar_crosscheck_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --start "$START_DATE" --end "$END_DATE" --output /tmp/c3-top2/xkrx_third_party_calendar_check.json
+      - name: Build provisional TOP2 analysis
+        if: success()
+        run: |
+          python scripts/c3_top2_provisional_report_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --manifest /tmp/c3-top2/manifest.json --output /tmp/c3-top2/top2_provisional_research.json
+          python scripts/c3_top2_mobile_summary_v1.py --input /tmp/c3-top2/top2_provisional_research.json --calendar-check /tmp/c3-top2/xkrx_third_party_calendar_check.json --output /tmp/c3-top2/TOP2_mobile_summary.md
+      - name: Observe watch-touch forward 5-10-20 session benchmarks
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_watch_touch_forward_outcomes_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/watch_touch_forward_outcomes.json --markdown /tmp/c3-top2/watch_touch_forward_outcomes.md
+          fi
+      - name: Check prior resistance evidence without future bars
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_prior_resistance_evidence_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/prior_resistance_evidence.json --markdown /tmp/c3-top2/prior_resistance_evidence.md
+          fi
+      - name: Compute TOP2 stop-first risk reward geometry
+        if: always()
+        shell: bash
+        run: |
+          python scripts/c3_top2_watch_risk_reward_v1.py --plans config/c3_paper_top2_plans.csv --output /tmp/c3-top2/watch_risk_reward.json --markdown /tmp/c3-top2/watch_risk_reward.md
+      - name: Aggregate completed watch-touch cohorts
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/watch_touch_forward_outcomes.json ]; then
+            python scripts/c3_watch_touch_cohort_audit_v1.py --source /tmp/c3-top2/watch_touch_forward_outcomes.json --output /tmp/c3-top2/watch_touch_cohort_audit.json --markdown /tmp/c3-top2/watch_touch_cohort_audit.md
+          fi
+      - name: Observe TOP2 forward 5-10-20 sessions without claiming fills
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_forward_horizon_observation_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/forward_horizon_observation.json > /tmp/c3-top2/forward_horizon_stdout.json
+          fi
+      - name: Audit conservative virtual entry-stop ambiguity
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_conservative_paper_touch_audit_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/conservative_paper_touch_audit.json --markdown /tmp/c3-top2/conservative_paper_touch_audit.md
+          fi
+      - name: Compare TOP2 entry-style opportunities (research only)
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_entry_style_comparison_v1.py --plans config/c3_paper_top2_plans.csv --prices /tmp/c3-top2/top2_provisional_ohlcv.csv --output /tmp/c3-top2/entry_style_opportunities.json --markdown /tmp/c3-top2/entry_style_opportunities.md
+          fi
+      - name: Experiment with separate Yahoo reference feed (non-certifying)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -f /tmp/c3-top2/manifest.json ]; then
+            START_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["start"])')"
+            END_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')"
+            python scripts/c3_yahoo_reference_experiment_v1.py --plans config/c3_paper_top2_plans.csv --symbols config/c3_top2_yahoo_symbols_experimental.csv --start "$START_DATE" --end "$END_DATE" --output /tmp/c3-top2/yahoo_reference_experimental.csv --status /tmp/c3-top2/yahoo_reference_status.json
+          fi
+      - name: Collect free NAVER reference (experimental only)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -f /tmp/c3-top2/manifest.json ]; then
+            python -m pip install finance-datareader
+            START_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["start"])')"
+            END_DATE="$(python -c 'import json; print(json.load(open("/tmp/c3-top2/manifest.json"))["end"])')"
+            python scripts/c3_naver_reference_experiment_v1.py --plans config/c3_paper_top2_plans.csv --start "$START_DATE" --end "$END_DATE" --output /tmp/c3-top2/naver_reference_experimental.csv --status /tmp/c3-top2/naver_reference_status.json
+          fi
+      - name: Compare NAVER and pykrx prices (experimental only)
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/naver_reference_experimental.csv ] && [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_price_concordance_v1.py --primary /tmp/c3-top2/top2_provisional_ohlcv.csv --reference /tmp/c3-top2/naver_reference_experimental.csv --primary-provider pykrx --reference-provider FinanceDataReader_NAVER --observation-only --output /tmp/c3-top2/naver_pykrx_concordance_experimental.json
+          fi
+      - name: Compare Yahoo and pykrx prices (experimental only)
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/yahoo_reference_experimental.csv ] && [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_price_concordance_v1.py --primary /tmp/c3-top2/top2_provisional_ohlcv.csv --reference /tmp/c3-top2/yahoo_reference_experimental.csv --primary-provider pykrx --reference-provider YahooFinance --observation-only --output /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json
+          fi
+      - name: Summarize free three-provider comparisons
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/naver_pykrx_concordance_experimental.json ] && [ -s /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json ]; then
+            python scripts/c3_free_provider_triangulation_v1.py --naver /tmp/c3-top2/naver_pykrx_concordance_experimental.json --yahoo /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json --output /tmp/c3-top2/free_provider_triangulation.json --markdown /tmp/c3-top2/free_provider_triangulation.md
+          fi
+      - name: Diagnose Yahoo versus pykrx mismatch fields
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json ]; then
+            python scripts/c3_provider_difference_diagnostic_v1.py --input /tmp/c3-top2/yahoo_pykrx_concordance_experimental.json --output /tmp/c3-top2/yahoo_pykrx_field_diagnostics.json
+            echo '### 실험용 가격 비교 진단 (거래 인증 아님)' >> "$GITHUB_STEP_SUMMARY"
+            cat /tmp/c3-top2/yahoo_pykrx_field_diagnostics.json
+            python -c 'import json; d=json.load(open("/tmp/c3-top2/yahoo_pykrx_field_diagnostics.json")); print("\\n".join("- {}: 비교 {}행, 일치 {}행, 불일치 {}행, 필드별 {}".format(k,v["rows"],v["matches"],v["mismatches"],v["field_mismatches"]) for k,v in d["tickers"].items()))' | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Diagnose Yahoo adjusted versus unadjusted close
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/yahoo_reference_experimental.csv ] && [ -s /tmp/c3-top2/top2_provisional_ohlcv.csv ]; then
+            python scripts/c3_yahoo_adjustment_diagnostic_v1.py --primary /tmp/c3-top2/top2_provisional_ohlcv.csv --yahoo /tmp/c3-top2/yahoo_reference_experimental.csv --output /tmp/c3-top2/yahoo_adjustment_diagnostics.json --markdown /tmp/c3-top2/yahoo_adjustment_daily_table.md
+          fi
+      - name: Assess provider disagreement against frozen TOP2 levels
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/yahoo_adjustment_diagnostics.json ]; then
+            python scripts/c3_provider_gap_entry_impact_v1.py --plans config/c3_paper_top2_plans.csv --diagnostic /tmp/c3-top2/yahoo_adjustment_diagnostics.json --output /tmp/c3-top2/provider_gap_entry_impact.json --markdown /tmp/c3-top2/provider_gap_entry_impact.md
+          fi
+      - name: Build TOP2 research progress status
+        if: always()
+        shell: bash
+        run: |
+          if [ -s /tmp/c3-top2/entry_style_opportunities.json ] && [ -s /tmp/c3-top2/provider_gap_entry_impact.json ]; then
+            python scripts/c3_top2_progress_status_v1.py --entry /tmp/c3-top2/entry_style_opportunities.json --impact /tmp/c3-top2/provider_gap_entry_impact.json --output /tmp/c3-top2/research_progress_status.json --markdown /tmp/c3-top2/research_progress_status.md
+          fi
+      - name: Publish mobile research summary in Actions
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## C3 TOP2 잠정 연구 결과'
+            echo ''
+            if [ -s /tmp/c3-top2/TOP2_mobile_summary.md ]; then
+              cat /tmp/c3-top2/TOP2_mobile_summary.md
+            else
+              echo '**CASH / 신규 매수 판단 보류**'
+              echo ''
+              echo '보고서가 생성되지 않았습니다. 앞선 수집·무결성 단계의 오류를 확인하세요.'
+            fi
+            echo ''
+            if [ -s /tmp/c3-top2/research_progress_status.md ]; then
+              echo ''
+              cat /tmp/c3-top2/research_progress_status.md
+            fi
+            if [ -s /tmp/c3-top2/entry_style_opportunities.md ]; then
+              echo ''
+              cat /tmp/c3-top2/entry_style_opportunities.md
+            fi
+            if [ -s /tmp/c3-top2/naver_pykrx_concordance_experimental.json ]; then
+              echo ''
+              echo '### 무료 NAVER 가격 교차비교 (인증 아님)'
+              python -c 'import json; d=json.load(open("/tmp/c3-top2/naver_pykrx_concordance_experimental.json")); print("비교 {}건 / 일치 {}건 / 불일치 {}건".format(d["comparison_count"],d["result_counts"].get("MATCH",0),d["result_counts"].get("MISMATCH",0)))'
+            fi
+            if [ -s /tmp/c3-top2/naver_pykrx_concordance_experimental.json ]; then
+              python -c 'import json; d=json.load(open("/tmp/c3-top2/naver_pykrx_concordance_experimental.json")); print("NAVER/pykrx: 비교 {}건, 일치 {}건, 불일치 {}건 (가격 인증 아님)".format(d["comparison_count"],d["result_counts"].get("MATCH",0),d["result_counts"].get("MISMATCH",0)))' >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo 'NAVER/pykrx: 미수집 또는 비교 미완료 — NAVER 데이터 연결 성공으로 간주하지 않음' >> "$GITHUB_STEP_SUMMARY"
+            fi
+            if [ -s /tmp/c3-top2/prior_resistance_evidence.md ]; then
+              cat /tmp/c3-top2/prior_resistance_evidence.md
+            fi
+            if [ -s /tmp/c3-top2/watch_risk_reward.md ]; then
+              cat /tmp/c3-top2/watch_risk_reward.md
+            fi
+            if [ -s /tmp/c3-top2/watch_touch_cohort_audit.md ]; then
+              cat /tmp/c3-top2/watch_touch_cohort_audit.md
+            fi
+            if [ -s /tmp/c3-top2/watch_touch_forward_outcomes.md ]; then
+              cat /tmp/c3-top2/watch_touch_forward_outcomes.md
+            fi
+            if [ -s /tmp/c3-top2/forward_horizon_observation.json ]; then
+              echo '### 5·10·20거래일 관찰 (실제 체결 수익률 아님)'
+              python -c 'import json; d=json.load(open("/tmp/c3-top2/forward_horizon_observation.json")); [print("- {}: {}".format(p["ticker"], ", ".join("{}일 {}/{}{}".format(h["horizon_sessions"],h["observed_sessions"],h["horizon_sessions"]," 완료" if h["complete"] else " 대기") for h in p["horizons"]))) for p in d["plans"]]'
+            fi
+            if [ -s /tmp/c3-top2/conservative_paper_touch_audit.md ]; then
+              cat /tmp/c3-top2/conservative_paper_touch_audit.md
+            fi
+            if [ -s /tmp/c3-top2/free_provider_triangulation.md ]; then
+              cat /tmp/c3-top2/free_provider_triangulation.md
+            fi
+            if [ -s /tmp/c3-top2/provider_gap_entry_impact.md ]; then
+              echo ''
+              cat /tmp/c3-top2/provider_gap_entry_impact.md
+            fi
+            if [ -s /tmp/c3-top2/yahoo_adjustment_daily_table.md ]; then
+              echo ''
+              cat /tmp/c3-top2/yahoo_adjustment_daily_table.md
+            fi
+            echo '> 잠정 pykrx 데이터입니다. 공식 거래일·독립 가격 검증 미완료, 주문 비활성.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive provisional data and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-top2-provisional-observation
+          path: /tmp/c3-top2/
+          if-no-files-found: warn
+          retention-days: 14

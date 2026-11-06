@@ -1,0 +1,112 @@
+{
+  "schema": "C3_WORK2_VALIDATION_V2",
+  "tested_code_commit": "5d53ef8b8c3d8f8110532f1481b4312d970ac976",
+  "tests": {
+    "c3": 454,
+    "official_eod": 14,
+    "hma": 21,
+    "total": 489,
+    "failures": 0,
+    "new_tests": 47
+  },
+  "github_runs": {
+    "41921732760": {
+      "name": "official historical panel",
+      "conclusion": "success"
+    },
+    "41923261480": {
+      "name": "price basis",
+      "conclusion": "success"
+    },
+    "41926037094": {
+      "name": "official entry competition",
+      "conclusion": "success"
+    },
+    "41926044755": {
+      "name": "ICT checks",
+      "conclusion": "success"
+    },
+    "41926044587": {
+      "name": "legacy entry research",
+      "conclusion": "success"
+    },
+    "41926044491": {
+      "name": "ledger integrity",
+      "conclusion": "success"
+    },
+    "41926037052": {
+      "name": "panel tests",
+      "conclusion": "success"
+    }
+  },
+  "result_artifact": {
+    "id": 13368828298,
+    "zip_sha256": "74b4aa5b70b06b7f404b2972364380799de787af9efd8ed94616577b0d19b172"
+  },
+  "reproduced_files": {
+    "strategy_comparison.csv": {
+      "local_and_github_bytes_equal": true,
+      "sha256": "4d9ccccd21d4f3203ea134934839aec554c0a10e0402cfd8bf4b7d04f6b42c5f"
+    },
+    "competition_summary.json": {
+      "local_and_github_bytes_equal": true,
+      "sha256": "69a6e8d602197203d8f1f25fb9a7f9cd26ea917e26f98090cf37a9b6f23e71a8"
+    },
+    "source_reconciliation.json": {
+      "local_and_github_bytes_equal": true,
+      "sha256": "07f05f35c440fd46ba2aa6369d063339a83c345ddd366002b16142f3d3d788a1"
+    }
+  },
+  "raw_source_snapshot": "libfile_229463fbdaac8191bb8c776b7d308f7d",
+  "source_gates": {
+    "requested_tail_empty_responses": 2,
+    "strict_regular_session_backtest_approved": false,
+    "historical_sector_selection_bias_removed": false
+  },
+  "cohort_quality": {
+    "all111_bars": 40626,
+    "all111_tradable": 40604,
+    "all111_reference_boundaries": 9,
+    "new95_bars": 34770,
+    "new95_tradable": 34748,
+    "new95_reference_boundaries": 7
+  },
+  "protected_scope": {
+    "production_order_or_alert_files_changed": false,
+    "schedules_changed": false,
+    "new_schedules_created": false,
+    "default_branch_merged": false,
+    "draft_pr": 30
+  },
+  "changed_research_files": [
+    ".github/workflows/c3_competition_v2_research.yml",
+    ".github/workflows/c3_price_basis_v2_research.yml",
+    ".github/workflows/c3_price_panel_v2_research.yml",
+    "reports/c3_work2_20261105/competition_summary.json",
+    "reports/c3_work2_20261105/inputs.json",
+    "reports/c3_work2_20261105/legacy_loss_cases.csv",
+    "reports/c3_work2_20261105/legacy_loss_diagnostics.json",
+    "reports/c3_work2_20261105/mobile/007810_2026-06-15.svg",
+    "reports/c3_work2_20261105/mobile/012330_2026-05-06.svg",
+    "reports/c3_work2_20261105/mobile/086280_2026-05-13.svg",
+    "reports/c3_work2_20261105/mobile/mobile_report.html",
+    "reports/c3_work2_20261105/official_quality_summary.json",
+    "reports/c3_work2_20261105/source_reconciliation.json",
+    "reports/c3_work2_20261105/source_validation_cases.json",
+    "reports/c3_work2_20261105/strategy_comparison.csv",
+    "scripts/c3_competition_v2.py",
+    "scripts/c3_loss_diagnostics_v2.py",
+    "scripts/c3_price_basis_v2.py",
+    "scripts/c3_price_panel_v2.py",
+    "scripts/c3_source_reconcile_v2.py",
+    "scripts/c3_work2_mobile_report_v2.py",
+    "scripts/test_c3_competition_v2.py",
+    "scripts/test_c3_loss_diagnostics_v2.py",
+    "scripts/test_c3_price_basis_v2.py",
+    "scripts/test_c3_price_panel_v2.py",
+    "scripts/test_c3_source_reconcile_v2.py"
+  ],
+  "decision": "CASH",
+  "new_live_strategy_adopted": null,
+  "orders_enabled": false
+}

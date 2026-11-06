@@ -1,0 +1,39 @@
+name: C3 official EOD transport and date diagnostics
+on:
+  push:
+    branches: [research/c3-ledger-integrity-audit-20261104]
+    paths:
+      - 'scripts/c3_eod_source_v9.py'
+      - 'scripts/test_c3_eod_source_v9.py'
+      - '.github/workflows/c3_eod_source_v9_research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install the existing adapter dependencies
+        run: pip install pandas==2.2.3 pykrx==1.2.9
+      - name: Verify transport failure evidence without live credentials
+        run: python -m unittest discover -s scripts -p test_c3_eod_source_v9.py -v
+      - name: Probe the known control and latest completed dates; skip unfinished sessions
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python scripts/c3_eod_source_v9.py --asof 2026-11-04 2026-11-05 2026-11-06 --outdir /tmp/c3-eod9
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-eod-v9-transport-proof
+          path: /tmp/c3-eod9/
+          retention-days: 90
+          if-no-files-found: error

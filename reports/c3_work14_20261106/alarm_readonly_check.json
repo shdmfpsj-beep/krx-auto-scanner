@@ -1,0 +1,41 @@
+{
+  "checked_at_utc": "2026-11-06T02:15:21.033Z",
+  "id": "6ae53e1be3848191b8bdc818036ed09c",
+  "title": "C3 연구용 TOP2·가상매매 일일 보고",
+  "is_enabled": true,
+  "schedule": "BEGIN:VEVENT\nDTSTART;TZID=Asia/Seoul:20261106T223000\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\nEND:VEVENT",
+  "default_timezone": "Asia/Seoul",
+  "updated_at": "2026-11-05T11:45:39.348584+00:00",
+  "delivery_status": "unknown",
+  "last_recorded_run": {
+    "id": "5fc500f4-cce4-8325-ab10-782238281800",
+    "recorded_status": "completed",
+    "scheduled_for": "2026-11-04T13:30:00Z",
+    "started_at": "2026-11-04T13:27:18.045924Z",
+    "completed_at": "2026-11-04T13:28:49.542730Z",
+    "chat_ref": {
+      "type": "chatgpt",
+      "id": "6aeb3314-6fb0-83e8-8bbb-9518056a0182"
+    }
+  },
+  "actual_current_report_delivery_confirmed": false,
+  "settings_modified": false,
+  "prompt_read_only": true,
+  "required_report_paths_present": [
+    {
+      "path": "reports/c3_forward_v8/mobile/summary.json",
+      "present_in_prompt": false
+    },
+    {
+      "path": "reports/c3_forward_v8/mobile/mobile_report.md",
+      "present_in_prompt": false
+    },
+    {
+      "path": "reports/c3_forward_v8/latest.json",
+      "present_in_prompt": false
+    }
+  ],
+  "prompt_refers_pr30": true,
+  "prompt_refers_repository": true,
+  "reading_chain": "Existing prompt -> research PR #30 -> three stable current report files"
+}

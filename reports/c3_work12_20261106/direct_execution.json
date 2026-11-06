@@ -1,0 +1,134 @@
+{
+  "run_id": "42132626779",
+  "engine": "73d3f2345735267f17b6a9f8a6f3f873719d85c9",
+  "save_commit": "79e3ed40ba6632fc5196c7c45391f9fcd6660c14",
+  "artifact_id": 13464566128,
+  "artifact_sha256": "f784393e672e59765cd077051adcae845a981bf5db799843514634226b33a0f9",
+  "source": {
+    "asof": "2026-11-05",
+    "retrieval_utc": "2026-11-05T23:52:39.010721+00:00",
+    "run_id": "42132626779",
+    "state": "OFFICIAL_VERIFIED",
+    "provider": "KRX_OFFICIAL_EOD",
+    "rows": 2769,
+    "primary_collection_status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+    "market_file_sha256": {
+      "KOSPI": "2c497de83abe3731e149e400a8d95d874cd2e795b99c418a9f0a0e7bd6067556",
+      "KOSDAQ": "9b459add5775b2584cf1874bf88927cb714a763ec5d9a2aecc17db4340b6c2f0"
+    },
+    "validation_sha256": null,
+    "supply_attempts": [
+      {
+        "provider": "KRX_OFFICIAL_EOD",
+        "attempt": 1,
+        "status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+        "rows": 2769,
+        "quality": {
+          "status": "QUALITY_GATE_PASSED",
+          "errors": [],
+          "markets": {
+            "KOSPI": {
+              "rows": 938,
+              "baseline_rows": 938,
+              "retained_baseline_fraction": 1.0,
+              "newly_observed": [],
+              "no_longer_observed": [],
+              "invalid_ohlc": [],
+              "halt_like": 26,
+              "listing_or_delisting_cause_confirmed": false
+            },
+            "KOSDAQ": {
+              "rows": 1831,
+              "baseline_rows": 1831,
+              "retained_baseline_fraction": 1.0,
+              "newly_observed": [],
+              "no_longer_observed": [],
+              "invalid_ohlc": [],
+              "halt_like": 85,
+              "listing_or_delisting_cause_confirmed": false
+            }
+          },
+          "full_current_listing_census_verified": false,
+          "coverage_alarm_floor": 0.95,
+          "asof": "2026-11-05"
+        },
+        "response_diagnostics": [
+          {
+            "market": "KOSPI",
+            "asof": "2026-11-05",
+            "endpoint": "stk_bydd_trd",
+            "method": "GET",
+            "query": {
+              "basDd": "20261105"
+            },
+            "credential_present": true,
+            "request_header_names": [
+              "AUTH_KEY",
+              "Accept"
+            ],
+            "started_at": "2026-11-05T23:52:39.010814+00:00",
+            "http_status": 200,
+            "content_type": "application/json; charset=utf-8",
+            "body_sha256": "290b7d94486656cad2ff7f4be1ac68501907c57dab1d405e350fc3060594201b",
+            "body_bytes": 292158,
+            "json_top_keys": [
+              "OutBlock_1"
+            ],
+            "outblock_type": "list",
+            "outblock_rows": 938,
+            "status": "NORMALIZED",
+            "provider_error": {},
+            "received_at": "2026-11-05T23:52:41.268303+00:00",
+            "normalized_rows": 938
+          },
+          {
+            "market": "KOSDAQ",
+            "asof": "2026-11-05",
+            "endpoint": "ksq_bydd_trd",
+            "method": "GET",
+            "query": {
+              "basDd": "20261105"
+            },
+            "credential_present": true,
+            "request_header_names": [
+              "AUTH_KEY",
+              "Accept"
+            ],
+            "started_at": "2026-11-05T23:52:41.276071+00:00",
+            "http_status": 200,
+            "content_type": "application/json; charset=utf-8",
+            "body_sha256": "6038da378f86d284b64416efedb17f5fd88f25f9ecfd47a8c767b18303dce02c",
+            "body_bytes": 599762,
+            "json_top_keys": [
+              "OutBlock_1"
+            ],
+            "outblock_type": "list",
+            "outblock_rows": 1831,
+            "status": "NORMALIZED",
+            "provider_error": {},
+            "received_at": "2026-11-05T23:52:43.532652+00:00",
+            "normalized_rows": 1831
+          }
+        ]
+      }
+    ],
+    "encrypted_archive": "lanes/krx_unadjusted_v12/supply_archives/2026-11-05/a6cacfc4f25e618c4ec8a7a283c2fdad7c5adbea43c14ce7f4e4147bc5a79734.aesgcm",
+    "encrypted_archive_sha256": "02100d922abe9bb3f7dcd5a431909db27a7f90a4586debca78ea29b6f82b4944",
+    "new_forward_signal": false,
+    "regular_only_certified": false,
+    "orders_enabled": false
+  },
+  "tests": {
+    "counts": [
+      642,
+      14,
+      21,
+      2
+    ],
+    "total": 679,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "new_integration_fixtures_are_synthetic": true
+  }
+}
