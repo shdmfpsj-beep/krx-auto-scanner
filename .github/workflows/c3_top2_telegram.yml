@@ -1,0 +1,70 @@
+name: C3 TOP2 Telegram notification
+on:
+  workflow_run:
+    workflows: ['C3 approved research daily caller']
+    types: [completed]
+    branches: [main]
+  schedule:
+    # After the approved C3 caller; timezone Asia/Seoul.
+    - cron: '45 13 * * 1-5' # KST weekday 22:45 retry
+    - cron: '0 0 * * 1-5'   # KST weekday 09:00 fallback
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'test sends a connection-only message; live sends verified TOP2 once'
+        required: true
+        type: choice
+        default: test
+        options: [test, live]
+  pull_request:
+    paths:
+      - '.github/workflows/c3_top2_telegram.yml'
+      - 'scripts/c3_telegram_notify.py'
+      - 'scripts/test_c3_telegram_notify.py'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-top2-telegram-notify
+  cancel-in-progress: false
+jobs:
+  self-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run standalone notifier regression tests (no Telegram secrets)
+        run: PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
+
+  notify:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Notify verified new session or send manual connection test
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MODE: ${{ github.event.inputs.mode || 'live' }}
+        run: python scripts/c3_telegram_notify.py --mode "$MODE"
