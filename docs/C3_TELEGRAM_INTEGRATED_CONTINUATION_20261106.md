@@ -1,3 +1,29 @@
+# 강현AI PRO C3 TOP2 사진 전용 보고 — 최종 실행 결과
+
+## 운영 배포·실제 전송 확인
+
+- PR #35 병합, 배포 `f7507bee1c7611f7ef60b371370bd055ab18d401`. 관련35개 검사 및 실제 KRX 예시2장 생성 Actions42194380428 성공. 초기 checkout 긴 경로 오류42193236701은 sparse checkout으로 해결했다.
+- **실제 main push 실행42195022969에서 2026-11-06 18:26:39 KST에 과거 예시2장 앨범1회 전송 성공**. Telegram API 메시지26·27, 동일 media group, caption/text 필드 없음, send_attempts1. 기존 강현 AI 그룹의 Secret ID/종류/제목을 읽기 확인했고 값은 출력하지 않았다.
+- source_asof는 **11/5 과거 연구 예시**다. 현재11/6 신규 TOP2/신규 연구 등록 실적으로 취급하지 않는다. 두 카드 안에 과거 미등록 예시 표시가 있다.
+- receipt branch `delivery/c3-top2-telegram`에 claim/outcome을 실제 저장하고 다시 읽었다. claim은 전송 전 저장, outcome DELIVERED/사진2/캡션·텍스트false다. 아티팩트13492350469 ZIP SHA256 `dcc670348040e195a72a3c0a2598df37da1b58b5fb5bee0180e86bb8741487de`. 전송 PNG2개 hash가 CI 검토본과 동일하다.
+- renderer는 1장/종목(총2장), 캔들·거래량·5/20/60일선·가격축·매수/손절/저항·선정 이유4구분이다. 같은 KRX 비수정 계열91봉 사용, 최근30봉 표시. 평균 거래대금도 실제20봉과 정확히 일치했다. 2차 매수/미확인 재무·뉴스·수급은 만들지 않았다.
+- 화면 CASH/구조손절/이전 브랜드 제거. 내부 CASH/주문금지·종목 선정/타점/손절·연구 원장·스캐너는 유지했다.
+- 기존22:45/09:00 Telegram 시간표/workflow_run/workflow_dispatch를 유지했다. 실제 main push는 성공했으나 다음 실제 schedule 이벤트 관측은 아직 대기다. ChatGPT 평일22:30은 활성/일정/updated_at 그대로이며 변경0, 현재 알림 실제 전달은 미확인이다.
+
+## 발송 이력 유실 방지 후속 보완
+
+최초 설치 때 만든 receipt branch가 나중에 삭제/초기화됐을 때 자동으로 빈 이력을 새로 만들면 중복 위험이 있다. 그래서 정상 발송 기록을 가리키는 STORE_V1 anchor를 저장했고, branch/anchor가 없으면 **재생성·전송을 중단하고 수동 복구**하도록 보완한다. claim/outcome 원본은 변경하지 않았다. 추가 로컬 검사3개 포함38개 성공. 후속 PR에서는 기존 실제 Git receipt를 대상으로 sender가 DUPLICATE_BLOCKED/send_attempts0으로 종료하는지 Telegram Secret 없이 확인한다. **추가 Telegram 시험 발송 없음.**
+
+## 후속 실행 주의
+
+- 과거 예시 요청 `integrated-white-gold-20261106`은 이미 성공했다. 다시 전송하거나 key/날짜를 바꿔 재시험하지 않는다.
+- 실제 응답이 애매하거나 Git 결과 저장이 실패하면 claim을 남기고 자동 재시도하지 않는다. receipt branch/anchor를 삭제·강제 초기화하지 않는다. 기존 legacy research receipt도 확인한다.
+- 새 원본 날짜·품질·등록 신호가 없으면 무음 skip하며 Telegram 텍스트를 보내지 않는다. 현재 연구 보고의11/6 상태는 UNAVAILABLE/신규 등록0으로 확인됐다. 가격 공급 문제가 해결되면 기존 정량 엔진의 고정 결정 봉만 사용한다.
+- 재무/뉴스/수급 및 정규장 범위 독립 인증은 여전히 미완료다. 보고 이미지는 확인된 자료만 사용한다.
+- 최신 코드·증거는 reports/c3_telegram_integrated_20261106/와 연구 PR #30에도 보존한다. 전체 연구 PR #30은 병합하지 않는다.
+
+아래는 중간 보존 이력이다.
+
 # 강현AI PRO C3 TOP2 사진 전용 보고 — 구현 체크포인트
 
 ## 범위와 승인
