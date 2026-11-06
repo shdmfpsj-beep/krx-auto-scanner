@@ -135,13 +135,13 @@ def deliver(paths,report,store,bot,mode='live',clock=None):
     return result
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--mode',choices=('live','past_example','preview'),default='live');p.add_argument('--outdir',default='/tmp/c3-integrated-cards');a=p.parse_args()
-    out=Path(a.outdir);out.mkdir(parents=True,exist_ok=True);result=None
+    p=argparse.ArgumentParser();p.add_argument('--mode',choices=('live','past_example','preview'),default='live');p.add_argument('--outdir',default='/tmp/c3-integrated-cards');p.add_argument('--dry-run',action='store_true');a=p.parse_args()
+    out=Path(a.outdir);out.mkdir(parents=True,exist_ok=True);result=None;source=None;ref=None;report=None
     try:
         gh=GitHub(os.environ.get('GH_TOKEN',''))
         if a.mode in ('past_example','preview'):report=load_example(gh)
         else:
-            report,summary,ref=report_pair(gh);reason=report_error(report,summary,now_kst())
+            report,summary,ref=report_pair(gh);source=json.loads(json.dumps(report));reason=report_error(report,summary,now_kst())
             if reason:
                 result={'status':'SKIPPED','reason':reason,'source_asof':report.get('source_price_asof'),'attempted_asof':report.get('attempted_price_asof'),'send_attempts':0};return_code=0
             else:report=frozen_live_bars(gh,report,ref)
@@ -153,12 +153,23 @@ def main():
             from c3_classic_theme import create_cards
             paths=create_cards(report,out)
             (out/'input_diagnostics.json').write_text(json.dumps({'source_asof':report['source_price_asof'],'example_only':bool(report.get('example_only')),'provenance':report.get('input_provenance'),'sources':gh.sources},ensure_ascii=False,indent=2)+'\n')
-            if a.mode=='preview':result={'status':'PREVIEW_ONLY_NO_DELIVERY','photos':len(paths),'send_attempts':0};return_code=0
+            hashes=validate_photos(paths)
+            if a.dry_run:result={'status':'DRY_RUN_VALIDATED_NO_DELIVERY','photos':len(paths),'card_sha256':hashes,'send_attempts':0};return_code=0
+            elif a.mode=='preview':result={'status':'PREVIEW_ONLY_NO_DELIVERY','photos':len(paths),'send_attempts':0};return_code=0
             else:
                 bot=Telegram(os.environ.get('TELEGRAM_BOT_TOKEN','').strip(),os.environ.get('TELEGRAM_CHAT_ID','').strip())
                 result=deliver(paths,report,ReceiptStore(gh),bot,a.mode)
                 return_code=0 if result['status'] in ('DELIVERED','DUPLICATE_BLOCKED') and 'receipt_write_status' not in result else 1
     except Exception as e:result={'status':'INTERNAL_FAILURE_NO_TEXT_SENT','error_type':type(e).__name__,'send_attempts':0,'reason':str(e) if isinstance(e,ValueError) and re.fullmatch('[A-Z_0-9]{1,90}',str(e)) else 'TRANSPORT_OR_INPUT_FAILURE'};return_code=1
+    if a.mode=='live' and source is not None:
+        from c3_report_handoff import packet
+        try:
+            # Hash the original public report; attach only verified rendered facts.
+            handoff=packet(report if report is not None else source,ref,result,now_kst(),out,a.dry_run)
+            handoff['source_report_sha256']=sha(canonical(source))
+            (out/'presentation.json').write_text(json.dumps(handoff,ensure_ascii=False,indent=2)+'\n')
+        except Exception:
+            result=dict(result,handoff_status='FAILED_NO_PUBLICATION');return_code=1
     (out/'delivery_status.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');print(json.dumps(result));return return_code
 
 if __name__=='__main__':sys.exit(main())
