@@ -80,17 +80,34 @@ class DartClient:
         return json.loads(self.fetch(endpoint+'.json', params))
 
     def mapping(self):
+        path=Path(os.environ.get('C3_DART_CORP_CACHE','.cache/c3-dart/corp_codes.json'))
+        if path.is_file():
+            try:
+                cached=json.loads(path.read_text())
+                if cached.get('sha256')==digest(cached['mapping']) and 0 <= (datetime.now(timezone.utc)-datetime.fromisoformat(cached['collected_at'])).total_seconds()<30*86400:
+                    return cached['mapping']
+            except (ValueError,KeyError,TypeError):pass
         from krx_opendart_financial_v91 import get_corp_codes
-        return get_corp_codes(self.key, fetch=self.fetch)
+        mapping=get_corp_codes(self.key, fetch=self.fetch)
+        path.parent.mkdir(parents=True,exist_ok=True)
+        path.write_text(json.dumps({'mapping':mapping,'sha256':digest(mapping),'collected_at':datetime.now(timezone.utc).isoformat()}))
+        return mapping
 
     def company(self, ticker, corp, asof):
+        identity=self.json('company',corp_code=corp)
+        if identity.get('stock_code')!=ticker:raise ValueError('DART_CONTEXT_CORPORATE_IDENTITY_MISMATCH')
         cutoff = (date.fromisoformat(asof)-timedelta(days=1)).strftime('%Y%m%d')
         filings=[]
         for page in (1, 2):
-            obj=self.json('list',corp_code=corp,bgn_de=f'{int(asof[:4])-1}0101',end_de=cutoff,page_count=100,page_no=page,last_reprt_at='N')
+            obj=self.json('list',corp_code=corp,bgn_de=f'{int(asof[:4])-1}0101',end_de=cutoff,pblntf_ty='A',page_count=100,page_no=page,last_reprt_at='N')
             filings.extend(obj.get('list') or [])
             if page >= int(obj.get('total_page', 1)):
                 break
+        for page in (1,2):
+            obj=self.json('list',corp_code=corp,bgn_de=(date.fromisoformat(asof)-timedelta(days=28)).strftime('%Y%m%d'),end_de=cutoff,page_count=100,page_no=page,last_reprt_at='N')
+            filings.extend(obj.get('list') or [])
+            if page >= int(obj.get('total_page',1)):break
+        filings=list({r.get('rcept_no'):r for r in filings}.values())
         filings=[r for r in filings if re.fullmatch(r'\d{14}',str(r.get('rcept_no',''))) and re.fullmatch(r'\d{8}',str(r.get('rcept_dt',''))) and str(r['rcept_dt']) <= cutoff]
         if any(r.get('stock_code') not in (None,'',ticker) for r in filings):
             raise ValueError('DART_CONTEXT_CORPORATE_IDENTITY_MISMATCH')
@@ -172,10 +189,14 @@ def attach_context(report, outdir, client=None, curated_path=DEFAULT_CURATED):
     asof=report['source_price_asof'];curated=json.loads(Path(curated_path).read_text())
     selection_hash=digest(report['research_top2'])
     evidence={'schema':SCHEMA,'price_asof':asof,'collected_at':datetime.now(timezone.utc).isoformat(),'selection_hash_before':selection_hash,'selection_use':'POST_SELECTION_ONLY_NOT_A_SCORING_INPUT','companies':{},'errors':[]}
-    mapping={}
+    mapping={t:v['corp_code'] for t,v in curated.get('companies',{}).items() if re.fullmatch(r'\d{8}',v.get('corp_code',''))}
     if client:
-        try:mapping=client.mapping()
+        try:
+            if any(r['ticker'] not in mapping for r in report['research_top2']):mapping.update(client.mapping())
         except Exception as e:evidence['errors'].append({'stage':'corp_mapping','type':type(e).__name__,'reason':str(e) if isinstance(e,ValueError) and re.fullmatch(r'[A-Z_0-9]+',str(e)) else 'DART_MAPPING_UNAVAILABLE'})
+        # The 3.6 MB public corporation download can be slow on a cold runner.
+        # It is cached separately; the financial request budget starts afterwards.
+        client.started=time.monotonic()
     for row in report['research_top2']:
         ticker=row['ticker'];item=copy.deepcopy(curated.get('companies',{}).get(ticker,{}));sources=item.get('sources',{})
         allowed={key for key,src in sources.items() if publication_ok(src,asof)}
@@ -183,7 +204,7 @@ def attach_context(report, outdir, client=None, curated_path=DEFAULT_CURATED):
         item['events']=[f for f in item.get('events',[]) if set(f.get('source_ids',[])) and set(f['source_ids'])<=allowed and publication_ok(f,asof,28)]
         item['quarters']=[f for f in item.get('quarters',[]) if publication_ok(f,asof) and set(f.get('source_ids',[]))<=allowed]
         item['sources']={k:v for k,v in sources.items() if k in allowed}
-        item.update(selection_use='POST_SELECTION_ONLY',collected_at=evidence['collected_at'],price_asof=asof,ticker=ticker,missing=['INVESTOR_FLOW_NOT_COLLECTED','SECTOR_STRENGTH_NOT_COLLECTED'],dart_status='KEY_NOT_CONNECTED' if not client else 'NOT_COLLECTED')
+        item.update(selection_use='POST_SELECTION_ONLY',collected_at=evidence['collected_at'],price_asof=asof,ticker=ticker,corp_code=mapping.get(ticker),missing=['INVESTOR_FLOW_NOT_COLLECTED','SECTOR_STRENGTH_NOT_COLLECTED'],dart_status='KEY_NOT_CONNECTED' if not client else 'NOT_COLLECTED')
         if client and ticker in mapping:
             try:
                 dart=client.company(ticker,mapping[ticker],asof);item['dart']=dart;item['dart_status']=dart['status']

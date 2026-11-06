@@ -18,3 +18,9 @@
 3. Preserve final artifact hashes, context/source evidence and PASS/FAIL results.
 4. Merge report-only PR after green CI; preserve code/evidence in research PR #30.
 5. Do not alter config/c3_telegram_example_request.json or existing receipts. 11/5 album already delivered once; do not bypass duplicate protection. Regular schedules and ChatGPT alert unchanged.
+
+## First actual Actions result and resolved obstacle
+- PR #37 checkpoint b5965230140d30143e325bb0b96060aef66410c1; run 42203277626; 56 tests passed; artifact 13495362288, SHA256 65709439eb03b9f04064b9434e07979ddcd43ec3fc315b70bc288d7efef2a053.
+- Preview/duplicate guard passed, but company financial collection DID NOT complete. The public corporation ZIP (3,635,260 bytes, SHA256 a15d06c93c5d5ffa879ad1d8650e31f5b90063f68c5f4604c25957f285ab4b83) arrived after about 232 seconds and exhausted the original 180-second global budget. Both company requests stopped before financial API calls. Do not misreport that first green workflow as successful financial collection.
+- Fix: cache the public listed corporation mapping, start the bounded financial phase after cold mapping acquisition, verify stock-code/corporation identity via company.json, request periodic filings separately from the recent-28-day list so high filing volume cannot hide older quarters.
+- Added real PNG pixel-boundary/layout regression (no MA pixel beyond last candle); local 57 tests passed. New Actions verification is pending.

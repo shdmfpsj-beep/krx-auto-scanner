@@ -4,7 +4,8 @@ from datetime import date,timedelta
 from pathlib import Path
 from unittest.mock import Mock
 import requests
-from c3_classic_theme import validate_bars,moving_average,audit_averages,chart_geometry,notes
+from c3_classic_theme import validate_bars,moving_average,audit_averages,chart_geometry,notes,create_cards,MA_COLORS
+from PIL import Image,ImageColor
 from c3_report_context import publication_ok,parse_statement,quarter_series,attach_context,DartClient
 
 
@@ -65,6 +66,20 @@ class ChartQualityTests(unittest.TestCase):
     def test_nonfinite_turnover_is_rejected(self):
         self.bars[-1]['turnover_krw']=float('nan')
         with self.assertRaisesRegex(ValueError,'TURNOVER'):validate_bars(self.bars,self.bars[-1]['date'],192)
+    def test_render_has_no_ma_pixels_beyond_last_candle_or_clipped_reason_text(self):
+        rows=copy.deepcopy(self.bars)
+        for r in rows:r['volume']=0
+        report={'source_price_asof':rows[-1]['date'],'research_top2':[dict(self.row,ticker=t,name='SYNTHETIC',chart_bars=rows,chart_price_basis='KRX_UNADJUSTED_AS_TRADED') for t in ('000001','000002')]}
+        with tempfile.TemporaryDirectory() as tmp:
+            paths=create_cards(report,tmp);diag=json.loads(Path(tmp,'render_diagnostics.json').read_text())
+            colors={ImageColor.getrgb(c) for c in MA_COLORS.values()}
+            for path,d in zip(paths,diag['cards']):
+                with Image.open(path) as im:
+                    x=int(d['geometry']['last_candle_x'])+6
+                    pixels=im.crop((x,392,1348,1016)).tobytes()
+                    self.assertFalse(colors & set(zip(pixels[::3],pixels[1::3],pixels[2::3])))
+                    self.assertEqual(im.size,(1400,2400))
+                self.assertTrue(all(x['lines']<=3 and x['text_right_max']<=1002 for x in d['layout']))
 
 
 class DatedContextTests(unittest.TestCase):
