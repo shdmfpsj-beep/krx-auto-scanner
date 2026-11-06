@@ -235,6 +235,7 @@ def send_album(files):
         if not r.ok or not reply.get("ok") or len(reply.get("result",[]))!=len(files):
             raise ValueError("TELEGRAM_ALBUM_NOT_ACCEPTED_HTTP_"+str(r.status_code))
         print("C3_CLASSIC_IMAGE_ALBUM_DELIVERED",flush=True)
+        return reply
     finally:
         for fh in opened:fh.close()
 if __name__=="__main__":
