@@ -1,0 +1,46 @@
+name: C3 2026-11-06 EOD status telegram (one-time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'reports/.c3_eod_status_telegram_20261106.txt'
+permissions:
+  contents: read
+jobs:
+  report-status:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send explicit data-pending status, not an unverified TOP2
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          token=os.environ["TELEGRAM_BOT_TOKEN"].strip()
+          chat=os.environ["TELEGRAM_CHAT_ID"].strip()
+          msg=(
+            "📊 C3 TOP2 | 2026-11-06 장마감 재점검\n"
+            "대상: 11월 6일 15:30 KST 확정 종가\n"
+            "실제 수집 검증: 약 15:59 / 16:01 KST (두 차례)\n"
+            "전체시장 연구 Actions: 성공\n"
+            "KRX 공식 종가 수집: UNAVAILABLE (미확보)\n"
+            "오늘 TOP2: 미선정 (데이터 미확보)\n"
+            "당일 신규 전방신호·가상매매 등록: 0건\n"
+            "⚪ 최종 실행 판단: CASH\n\n"
+            "⚠️ 이 메시지는 종목 추천이 아닌 검증 상태 보고입니다. "
+            "과거 TOP2를 오늘 종가 기준으로 재활용하지 않았습니다.\n"
+            "실행 증거: https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/42178044446\n"
+            "예정된 야간 자동 재확인은 기존 설정대로 유지됩니다."
+          )
+          req=urllib.request.Request(
+            "https://api.telegram.org/bot"+token+"/sendMessage",
+            data=json.dumps({"chat_id":chat,"text":msg,"link_preview_options":{"is_disabled":True}},ensure_ascii=False).encode(),
+            headers={"Content-Type":"application/json"},method="POST")
+          with urllib.request.urlopen(req,timeout=20) as r:
+            result=json.load(r)
+          if not result.get("ok"):
+            raise SystemExit("TELEGRAM_API_NOT_OK")
+          print("C3_EOD_STATUS_SENT")
+          PY
