@@ -66,10 +66,12 @@ def delivery_key(day,chat_fingerprint,mode='live'):
 class ReceiptStore:
     def __init__(self,gh):self.gh=gh
     def initialize(self):
-        if self.gh.api('git/ref/heads/'+RECEIPT_BRANCH,missing_ok=True):return
-        try:self.gh.api('git/refs',method='POST',payload={'ref':'refs/heads/'+RECEIPT_BRANCH,'sha':self.gh.head('main')})
-        except ServiceError as e:
-            if e.status!=422 or not self.gh.api('git/ref/heads/'+RECEIPT_BRANCH,missing_ok=True):raise
+        # The first deployment initialized this store. Never recreate an empty
+        # history after accidental deletion/reset: old sends could otherwise repeat.
+        if not self.gh.api('git/ref/heads/'+RECEIPT_BRANCH,missing_ok=True):raise ValueError('RECEIPT_STORE_MISSING_MANUAL_RECONCILIATION_REQUIRED')
+        raw=self.gh.file('receipts/STORE_V1.json',RECEIPT_BRANCH,missing_ok=True)
+        marker=json.loads(raw) if raw is not None else {}
+        if marker.get('schema')!='C3_TELEGRAM_RECEIPT_STORE_V1' or marker.get('automatic_reinitialization_allowed') is not False:raise ValueError('RECEIPT_STORE_ANCHOR_MISSING_MANUAL_RECONCILIATION_REQUIRED')
     def exists(self,key):
         return any(self.gh.file('receipts/'+folder+'/'+key+'.json',RECEIPT_BRANCH,missing_ok=True) is not None for folder in ('claims','outcomes'))
     def legacy_exists(self,day):return self.gh.file(ROOT+'/telegram_receipts/'+day+'.json',RESEARCH,missing_ok=True) is not None

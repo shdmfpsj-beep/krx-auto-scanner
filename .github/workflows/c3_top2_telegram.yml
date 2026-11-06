@@ -60,6 +60,30 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/c3_telegram_notify.py --mode preview --outdir /tmp/c3-integrated-preview
+      - name: Verify real persisted duplicate protection without a Telegram token
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import os,json,base64
+          from pathlib import Path
+          from c3_telegram_inputs import GitHub
+          from c3_telegram_notify import ReceiptStore,RECEIPT_BRANCH,deliver
+          gh=GitHub(os.environ['GH_TOKEN'])
+          marker=json.loads(gh.file('receipts/STORE_V1.json',RECEIPT_BRANCH))
+          blob=gh.api('git/blobs/'+marker['first_verified_outcome_blob_sha'])
+          previous=json.loads(base64.b64decode(blob['content']))
+          assert previous['status']=='DELIVERED' and previous['photos']==2
+          class NeverSend:
+              fingerprint=previous['key'].rsplit('-',1)[1]
+              def verify_group(self):raise AssertionError('DUPLICATE_MUST_STOP_BEFORE_RECIPIENT_REQUEST')
+              def send_album(self,paths):raise AssertionError('NO_SECOND_TELEGRAM_SEND_ALLOWED')
+          root=Path('/tmp/c3-integrated-preview')
+          result=deliver([root/'028050_integrated.png',root/'030530_integrated.png'],{'source_price_asof':'2026-11-05'},ReceiptStore(gh),NeverSend(),'past_example')
+          assert result['status']=='DUPLICATE_BLOCKED' and result['send_attempts']==0
+          (root/'real_duplicate_check.json').write_text(json.dumps(result,indent=2)+'\n')
+          print(json.dumps(result))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:

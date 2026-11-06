@@ -140,6 +140,17 @@ class DeliveryFaultTests(unittest.TestCase):
         gh=Mock();gh.create.side_effect=ServiceError(409);store=ReceiptStore(gh);store.exists=Mock(return_value=True)
         self.assertFalse(store.reserve('synthetic',{}));store.exists.return_value=False
         with self.assertRaises(ServiceError):store.reserve('synthetic',{})
+    def test_deleted_receipt_branch_cannot_be_recreated_and_resend(self):
+        gh=Mock();gh.api.return_value=None;store=ReceiptStore(gh)
+        with self.assertRaisesRegex(ValueError,'STORE_MISSING'):store.initialize()
+        gh.create.assert_not_called();self.assertEqual(gh.api.call_count,1)
+    def test_reset_branch_without_store_anchor_is_blocked(self):
+        gh=Mock();gh.api.return_value={'object':{'sha':'a'*40}};gh.file.return_value=None
+        with self.assertRaisesRegex(ValueError,'ANCHOR_MISSING'):ReceiptStore(gh).initialize()
+        gh.create.assert_not_called()
+    def test_original_anchored_store_remains_usable(self):
+        gh=Mock();gh.api.return_value={'object':{'sha':'a'*40}};gh.file.return_value=json.dumps({'schema':'C3_TELEGRAM_RECEIPT_STORE_V1','automatic_reinitialization_allowed':False}).encode()
+        ReceiptStore(gh).initialize();gh.create.assert_not_called()
 
 class ChartTruthTests(unittest.TestCase):
     def test_unpinned_historical_csv_cannot_supply_chart_prices(self):
