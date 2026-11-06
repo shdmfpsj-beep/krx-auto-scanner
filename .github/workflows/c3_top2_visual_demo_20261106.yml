@@ -1,0 +1,44 @@
+name: C3 TOP2 four-image Telegram demo 20261106
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'reports/.c3_top2_visual_demo_20261106.txt'
+permissions:
+  contents: read
+concurrency:
+  group: c3-top2-four-card-demo-20261106
+  cancel-in-progress: false
+jobs:
+  render-and-send:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_telegram_four_card_demo_20261106.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Korean fonts and image renderer
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install --disable-pip-version-check pillow requests
+      - name: Render 4 PNG cards and send one album to the connected Telegram group
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/c3_telegram_four_card_demo_20261106.py
+      - name: Preserve generated images for visual inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-top2-image-demo-20261105
+          path: /tmp/c3-telegram-demo-20261106/*.png
+          retention-days: 7
+          if-no-files-found: warn
