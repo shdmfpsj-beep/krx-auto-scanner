@@ -1,128 +1,28 @@
 {
   "schema": "C3_DAILY_RESEARCH_V8",
-  "generated_at": "2026-11-06T05:42:01.128596+00:00",
+  "generated_at": "2026-11-06T06:59:02.258945+00:00",
   "report_day_kst": "2026-11-06",
-  "source_run_id": "42169885194",
-  "source_price_asof": "2026-11-05",
-  "source_received_at": "2026-11-06T05:41:54.254800+00:00",
-  "attempted_price_asof": "2026-11-05",
-  "probe_received_at": "2026-11-06T05:41:54.254800+00:00",
-  "last_confirmed_price_asof": "2026-11-05",
-  "source_diagnostics": [
-    {
-      "market": "KOSPI",
-      "asof": "2026-11-05",
-      "endpoint": "stk_bydd_trd",
-      "method": "GET",
-      "query": {
-        "basDd": "20261105"
-      },
-      "credential_present": true,
-      "request_header_names": [
-        "AUTH_KEY",
-        "Accept"
-      ],
-      "started_at": "2026-11-06T05:41:48.716541+00:00",
-      "http_status": 200,
-      "content_type": "application/json; charset=utf-8",
-      "body_sha256": "290b7d94486656cad2ff7f4be1ac68501907c57dab1d405e350fc3060594201b",
-      "body_bytes": 292158,
-      "json_top_keys": [
-        "OutBlock_1"
-      ],
-      "outblock_type": "list",
-      "outblock_rows": 938,
-      "status": "NORMALIZED",
-      "provider_error": {},
-      "received_at": "2026-11-06T05:41:51.305268+00:00",
-      "normalized_rows": 938
-    },
-    {
-      "market": "KOSDAQ",
-      "asof": "2026-11-05",
-      "endpoint": "ksq_bydd_trd",
-      "method": "GET",
-      "query": {
-        "basDd": "20261105"
-      },
-      "credential_present": true,
-      "request_header_names": [
-        "AUTH_KEY",
-        "Accept"
-      ],
-      "started_at": "2026-11-06T05:41:51.311760+00:00",
-      "http_status": 200,
-      "content_type": "application/json; charset=utf-8",
-      "body_sha256": "6038da378f86d284b64416efedb17f5fd88f25f9ecfd47a8c767b18303dce02c",
-      "body_bytes": 599762,
-      "json_top_keys": [
-        "OutBlock_1"
-      ],
-      "outblock_type": "list",
-      "outblock_rows": 1831,
-      "status": "NORMALIZED",
-      "provider_error": {},
-      "received_at": "2026-11-06T05:41:54.254800+00:00",
-      "normalized_rows": 1831
-    }
-  ],
-  "source_collection_status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
-  "data_quality_state": "OFFICIAL_VERIFIED",
-  "source_provider": "KRX_OFFICIAL_EOD",
+  "source_run_id": "42177804354",
+  "source_price_asof": null,
+  "source_received_at": null,
+  "attempted_price_asof": "2026-11-06",
+  "probe_received_at": "2026-11-06T06:59:01.923721+00:00",
+  "last_confirmed_price_asof": "2026-11-04",
+  "source_diagnostics": [],
+  "source_collection_status": "UNAVAILABLE",
+  "data_quality_state": "UNAVAILABLE",
+  "source_provider": null,
   "source_regular_only_certified": false,
   "source_validation_sha256": null,
   "ledger_lane": "lanes/krx_unadjusted_v12",
   "source_prices_encrypted_at_rest": true,
-  "primary_collection_status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+  "primary_collection_status": "OFFICIAL_MARKETS_NOT_COMPLETE",
   "research_preview_only": true,
-  "source_quality_gate": {
-    "status": "QUALITY_GATE_PASSED",
-    "errors": [],
-    "markets": {
-      "KOSPI": {
-        "rows": 938,
-        "baseline_rows": 938,
-        "retained_baseline_fraction": 1.0,
-        "newly_observed": [],
-        "no_longer_observed": [],
-        "invalid_ohlc": [],
-        "halt_like": 26,
-        "listing_or_delisting_cause_confirmed": false
-      },
-      "KOSDAQ": {
-        "rows": 1831,
-        "baseline_rows": 1831,
-        "retained_baseline_fraction": 1.0,
-        "newly_observed": [],
-        "no_longer_observed": [],
-        "invalid_ohlc": [],
-        "halt_like": 85,
-        "listing_or_delisting_cause_confirmed": false
-      }
-    },
-    "full_current_listing_census_verified": false,
-    "coverage_alarm_floor": 0.95,
-    "asof": "2026-11-05"
-  },
-  "current_scope": {
-    "price_rows": 2769,
-    "classification_counts": {
-      "PHARMA_BIOTECH_EXCLUDED": 296,
-      "VERIFIED_NONBIO_COMMON_AS_REPORTED": 2166,
-      "COMMON_SHARE_UNCONFIRMED_OR_SPECIAL": 161,
-      "CURRENT_KRX_TRADABILITY_UNCONFIRMED": 85,
-      "SPAC_WITHOUT_OPERATING_BUSINESS": 53,
-      "KIND_INDUSTRY_OR_BUSINESS_UNVERIFIED": 8
-    },
-    "continuous_history": 2412,
-    "analysis_eligible": 1986,
-    "a_candidates": 116,
-    "b_candidates": 105,
-    "history_excluded": 357
-  },
+  "source_quality_gate": null,
+  "current_scope": null,
   "last_confirmed_scope": 1983,
   "errors": [
-    "SOURCE_BEFORE_FORWARD_START"
+    "UNAVAILABLE"
   ],
   "new_decision_registered": false,
   "new_registered_signals": 0,
@@ -132,40 +32,25 @@
       "ticker": "028050",
       "name": "삼성E&A",
       "market": "KOSPI",
-      "industry": "건설",
+      "price_asof": "2026-11-04",
+      "close": 65500.0,
+      "turnover20": 195572910183.1,
+      "rs20": 54.43360184650797,
       "market_regime": "DOWN",
-      "return20": 32.3045267489712,
-      "rs20": 53.17637965686225,
-      "turnover20": 200939672518.1,
-      "close": 64300.0,
-      "own_rs20": 53.17637965686225,
-      "rs_accel5": 6.403070906169255,
+      "industry": "건설",
+      "own_rs20": 54.43360184650797,
+      "rs_accel5": 13.300175040852025,
       "trend60": true,
       "high252_ratio": null,
-      "turnover_ratio": 0.8429513059186586,
-      "volume_ratio": 0.7608027260622544,
+      "turnover_ratio": 0.8820457647784522,
+      "volume_ratio": 0.7934913264492235,
       "higher_lows": true,
-      "signal_id": "C3V8-839efd709803bc9a5f155d94",
-      "model": "B",
-      "model_version": "V7_CURRENT_NATIVE_BOARD",
       "rank": 1,
-      "decision_date": "2026-11-05",
-      "registered_at": null,
-      "source_received_at": "2026-11-06T05:41:54.254800+00:00",
-      "source_run_id": "42169885194",
-      "source_price_asof": "2026-11-05",
-      "reference_close": 64300.0,
-      "selection_reasons": [
-        "CLOSE_GT_MA20_GT_MA50",
-        "POSITIVE_OWN_BOARD_RS20",
-        "TURNOVER20_RANK",
-        "OWN_BOARD_RS_IMPROVING_5"
-      ],
       "entry_plans": {
         "A_SUPPORT_LIMIT": {
           "plan": {
             "ticker": "028050",
-            "decision_date": "2026-11-05",
+            "decision_date": "2026-11-04",
             "method": "PULLBACK",
             "signal_key": "028050:2026-11-02",
             "segment": 0,
@@ -176,14 +61,14 @@
             "support_date": "2026-11-02",
             "known_on": "2026-11-04",
             "atr": 3857.1428571428573,
-            "reference_close": 64300.0,
-            "resistance": 65500.0,
+            "reference_close": 65500.0,
+            "resistance": null,
             "resistance2": null,
-            "breakout_level": 65700.0,
-            "net_r1_rr": 0.22974435135820423,
+            "breakout_level": 65500.0,
+            "net_r1_rr": null,
             "risk_pct": 9.133858267716535,
-            "rank_turnover": 200939672518.1,
-            "rs20": 53.17637965686225,
+            "rank_turnover": 195572910183.1,
+            "rs20": 54.43360184650797,
             "regime": "DOWN",
             "signal_rule": "A_SUPPORT_LIMIT",
             "execution_model": "ONE_SESSION_LIMIT"
@@ -199,80 +84,35 @@
           "reason": "BREAKOUT_NOT_CONFIRMED"
         }
       },
-      "support_review": {
-        "status": "MOST_RECENT_ALREADY_CONFIRMED_PIVOT",
-        "pivot_date": "2026-11-02",
-        "confirmed_on": "2026-11-04",
-        "pivot_age_sessions": 3,
-        "confirmation_age_sessions": 1,
-        "support": 59700.0,
-        "structure_stop": 57700,
-        "distance_from_close_pct": 10.26438569206843,
-        "distance_from_close_current_atr": 1.6830601092896174,
-        "plans": {
-          "A_SUPPORT_LIMIT": {
-            "distance_pct": 9.133858267716535,
-            "costed_r1_rr": 0.22974435135820423,
-            "r1_unknown": false
-          }
-        },
-        "stop_moved_for_existing_signal": false,
-        "buy_approved": false,
-        "not_a_new_profitability_rule": true
-      },
-      "order_validity_sessions": 1,
-      "invalidation": [
-        "CLOSE_BELOW_FROZEN_STOP_THEN_NEXT_TRADABLE_OPEN",
-        "EXPIRED_ONE_ENTRY_SESSION",
-        "MISSING_OR_ACTION_DATA_CENSORED"
-      ],
-      "source_regular_only_certified": false,
-      "price_basis": "UNADJUSTED_AS_TRADED",
-      "buy_approved": false,
-      "live_action": "CASH",
-      "analysis_completed_at": "2026-11-06T05:42:01.107098+00:00",
-      "registration_timing": "SOURCE_BEFORE_FORWARD_START",
-      "analysis_known_at": "2026-11-06T05:42:01.107098+00:00",
-      "trade_approved": false
+      "structure_reason": null,
+      "technical_only": true,
+      "trade_approved": false,
+      "registered_at": null,
+      "analysis_known_at": "2026-11-06T06:59:02.122397+00:00"
     },
     {
       "ticker": "030530",
       "name": "원익홀딩스",
       "market": "KOSDAQ",
-      "industry": "반도체와반도체장비",
+      "price_asof": "2026-11-04",
+      "close": 30100.0,
+      "turnover20": 66655218530.0,
+      "rs20": 20.64729840105447,
       "market_regime": "DOWN",
-      "return20": -7.2289156626506035,
-      "rs20": 17.260471379189045,
-      "turnover20": 70013626618.75,
-      "close": 26950.0,
-      "own_rs20": 17.260471379189045,
-      "rs_accel5": 0.4454932419183706,
+      "industry": "반도체와반도체장비",
+      "own_rs20": 20.64729840105447,
+      "rs_accel5": 9.000393563652555,
       "trend60": true,
       "high252_ratio": null,
-      "turnover_ratio": 2.4555343692760334,
-      "volume_ratio": 2.2967963598187153,
+      "turnover_ratio": 2.556570575915266,
+      "volume_ratio": 2.393188588416919,
       "higher_lows": true,
-      "signal_id": "C3V8-196772c50c43b1ff0caa1809",
-      "model": "B",
-      "model_version": "V7_CURRENT_NATIVE_BOARD",
       "rank": 2,
-      "decision_date": "2026-11-05",
-      "registered_at": null,
-      "source_received_at": "2026-11-06T05:41:54.254800+00:00",
-      "source_run_id": "42169885194",
-      "source_price_asof": "2026-11-05",
-      "reference_close": 26950.0,
-      "selection_reasons": [
-        "CLOSE_GT_MA20_GT_MA50",
-        "POSITIVE_OWN_BOARD_RS20",
-        "TURNOVER20_RANK",
-        "OWN_BOARD_RS_IMPROVING_5"
-      ],
       "entry_plans": {
         "A_SUPPORT_LIMIT": {
           "plan": {
             "ticker": "030530",
-            "decision_date": "2026-11-05",
+            "decision_date": "2026-11-04",
             "method": "PULLBACK",
             "signal_key": "030530:2026-10-23",
             "segment": 0,
@@ -283,14 +123,14 @@
             "support_date": "2026-10-23",
             "known_on": "2026-10-27",
             "atr": 1939.2857142857142,
-            "reference_close": 26950.0,
+            "reference_close": 30100.0,
             "resistance": 30400.0,
             "resistance2": 31900.0,
-            "breakout_level": 34500.0,
+            "breakout_level": 34000.0,
             "net_r1_rr": 2.160401355197114,
             "risk_pct": 12.340425531914894,
-            "rank_turnover": 70013626618.75,
-            "rs20": 17.260471379189045,
+            "rank_turnover": 66655218530.0,
+            "rs20": 20.64729840105447,
             "regime": "DOWN",
             "signal_rule": "A_SUPPORT_LIMIT",
             "execution_model": "ONE_SESSION_LIMIT"
@@ -306,48 +146,18 @@
           "reason": "BREAKOUT_NOT_CONFIRMED"
         }
       },
-      "support_review": {
-        "status": "MOST_RECENT_ALREADY_CONFIRMED_PIVOT",
-        "pivot_date": "2026-10-23",
-        "confirmed_on": "2026-10-27",
-        "pivot_age_sessions": 9,
-        "confirmation_age_sessions": 7,
-        "support": 21600.0,
-        "structure_stop": 20600,
-        "distance_from_close_pct": 23.562152133580707,
-        "distance_from_close_current_atr": 2.1577669902912624,
-        "plans": {
-          "A_SUPPORT_LIMIT": {
-            "distance_pct": 12.340425531914894,
-            "costed_r1_rr": 2.160401355197114,
-            "r1_unknown": false
-          }
-        },
-        "stop_moved_for_existing_signal": false,
-        "buy_approved": false,
-        "not_a_new_profitability_rule": true
-      },
-      "order_validity_sessions": 1,
-      "invalidation": [
-        "CLOSE_BELOW_FROZEN_STOP_THEN_NEXT_TRADABLE_OPEN",
-        "EXPIRED_ONE_ENTRY_SESSION",
-        "MISSING_OR_ACTION_DATA_CENSORED"
-      ],
-      "source_regular_only_certified": false,
-      "price_basis": "UNADJUSTED_AS_TRADED",
-      "buy_approved": false,
-      "live_action": "CASH",
-      "analysis_completed_at": "2026-11-06T05:42:01.107098+00:00",
-      "registration_timing": "SOURCE_BEFORE_FORWARD_START",
-      "analysis_known_at": "2026-11-06T05:42:01.107098+00:00",
-      "trade_approved": false
+      "structure_reason": null,
+      "technical_only": true,
+      "trade_approved": false,
+      "registered_at": null,
+      "analysis_known_at": "2026-11-06T06:59:02.122397+00:00"
     }
   ],
   "research_top2_is_registered_today": false,
   "research_top2_registered_for_source_session": false,
-  "registration_timing": "SOURCE_BEFORE_FORWARD_START",
-  "analysis_completed_at": "2026-11-06T05:42:01.107098+00:00",
-  "preview_price_asof": "2026-11-05",
+  "registration_timing": "NO_COMPLETED_PRICE_SOURCE",
+  "analysis_completed_at": null,
+  "preview_price_asof": "2026-11-04",
   "performance": {
     "registered_decision_days": 0,
     "registered_source_sessions": 0,
@@ -516,8 +326,8 @@
     "panel": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
     "audit": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
     "classification": "449e7187b4aa7b39e9ef4452a0399ac629de9cce105ced6ead48d968c0de674d",
-    "index_manifest": "1699b7210007a8dfe8387adb1f1a8a1bece678150de3ef7a9de28f0eff190b10",
-    "pipeline_code": "eaa041c40d9abb9822146e061796132398a0a2c9c283ce66e2fc8ac589ec5499",
+    "index_manifest": "bcff21109ab19586fb8538e91494d5fd240a0f1e805eb2fa19610dbedf6cba6d",
+    "pipeline_code": "bd557ffcb3a5fca0e6d7f353f15a3c51c1af713cfb611cb26f847bcd6d350f13",
     "ledger_code": "089f33544e22f578eea4d5b94719c34908b4768ce1e16f24a6ef5c72122f8c6d",
     "entry_code": "fb2a4d7eadd64030feb7b5943aee25125c7233022ddeeee14a484a5f66ecb396",
     "protocol": "bfa7dc1aa6a476fa70273bac23989eaf6c30143b2a7c8f2021c1801c75df674c",
@@ -526,17 +336,17 @@
   "invocation": {
     "event": "push",
     "mode": "research_direct",
-    "engine_sha": "5cfed947d04b6e39ec84e6a6a896728e5843d66d",
+    "engine_sha": "9929eaa0762f362fd2eb9a58fb434e6fddd5690b",
     "upstream": null,
     "automatic_event_observed": false,
     "calendar_schedule_deployed_claimed": false,
     "source_of_truth": "GITHUB_EVENT_CONTEXT_NOT_USER_REQUEST_DATE",
     "orders_enabled": false,
-    "state_sha": "5cfed947d04b6e39ec84e6a6a896728e5843d66d",
-    "caller_commit": "5cfed947d04b6e39ec84e6a6a896728e5843d66d",
-    "expected_completed_session": "2026-11-05",
+    "state_sha": "9929eaa0762f362fd2eb9a58fb434e6fddd5690b",
+    "caller_commit": "9929eaa0762f362fd2eb9a58fb434e6fddd5690b",
+    "expected_completed_session": "2026-11-06",
     "duplicate_current_session_skipped": false,
-    "run_id": "42169885194"
+    "run_id": "42177804354"
   },
   "automatic_event_observed": false,
   "upstream_validation": {
@@ -549,7 +359,7 @@
     ],
     "artifact_id": 13416241119,
     "artifact_expires_at": "2027-02-03T12:09:31Z",
-    "validated_at": "2026-11-06T05:41:44.528500+00:00",
+    "validated_at": "2026-11-06T06:58:53.112264+00:00",
     "prices_not_implicitly_certified": true,
     "rejected_prior_runs": []
   },
@@ -573,30 +383,30 @@
     "used_for_certified_returns": false
   },
   "alternative_cache_readiness": {
-    "asof": "2026-11-05",
+    "asof": "2026-11-06",
     "provider": "FINANCEDATA_KRX_CACHE",
     "ultimate_origin": "KRX",
     "data_validation_performed": false,
     "actual_outage_recovery_observed": false,
-    "status": "PUBLISHED_AFTER_CLOSE",
-    "file_commit": "5346b41312c4b9eddda9529e11547c56d0e97c1d",
-    "file_commit_date": "2026-11-05T13:07:45Z",
+    "status": "NO_POSTCLOSE_FILE_PROOF",
+    "file_commit": "16e3805db740e6cbe7c079998462b87121ca53b4",
+    "file_commit_date": "2026-11-06T05:01:26Z",
     "transport": [
       {
-        "url": "https://api.github.com/repos/FinanceData/fdr_krx_data_cache/commits?sha=master&path=data%2Flisting%2Fkrx%2F2026-11-05.csv&per_page=1",
+        "url": "https://api.github.com/repos/FinanceData/fdr_krx_data_cache/commits?sha=master&path=data%2Flisting%2Fkrx%2F2026-11-06.csv&per_page=1",
         "http_status": 200,
         "attempt": 1,
         "status": "RECEIVED",
-        "received_at": "2026-11-06T05:41:48.707010+00:00",
-        "sha256": "622de37c1f8739a3d184140af0f19c17524cba46c00ec6acdb27ab666e741189",
+        "received_at": "2026-11-06T06:58:57.616929+00:00",
+        "sha256": "60f8f6e4abfa361e3cec0563d37ab4811f12ce8174b8d5b1068e4aefe0e09c7f",
         "bytes": 3747,
-        "seconds": 0.5107255879999997
+        "seconds": 0.5321179580000148
       }
     ]
   },
   "private_storage_audit": {
     "scope": "FULL_CURRENT_INVENTORY",
-    "records_verified": 9,
+    "records_verified": 10,
     "original_archives_verified": 1,
     "bootstrap_archives_verified": 3,
     "mutations": 0,
