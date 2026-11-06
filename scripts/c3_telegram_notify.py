@@ -146,6 +146,10 @@ def main():
                 result={'status':'SKIPPED','reason':reason,'source_asof':report.get('source_price_asof'),'attempted_asof':report.get('attempted_price_asof'),'send_attempts':0};return_code=0
             else:report=frozen_live_bars(gh,report,ref)
         if result is None:
+            from c3_report_context import attach_context,DartClient
+            context_key=os.environ.get('OPENDART_API_KEY','').strip()
+            context_client=DartClient(context_key,out/'company_raw') if context_key else None
+            report=attach_context(report,out,context_client)
             from c3_classic_theme import create_cards
             paths=create_cards(report,out)
             (out/'input_diagnostics.json').write_text(json.dumps({'source_asof':report['source_price_asof'],'example_only':bool(report.get('example_only')),'provenance':report.get('input_provenance'),'sources':gh.sources},ensure_ascii=False,indent=2)+'\n')

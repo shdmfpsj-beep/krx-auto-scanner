@@ -169,7 +169,8 @@ class ChartTruthTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'CLOSE'):validate_bars(rows,rows[-1]['date'],101)
     def test_missing_financials_or_news_are_not_invented(self):
         sections=notes({'industry':'SYNTHETIC','market':'KOSPI'},None)
-        self.assertEqual(len(sections),4);self.assertIn('미수집',sections[1][1]);self.assertIn('미확인',sections[2][1])
+        self.assertEqual(len(sections),4);self.assertIn('판단은 보류',sections[1][1]);self.assertNotIn('흑자전환',sections[1][1])
+        self.assertNotIn('미확인', ''.join(v for _,v in sections));self.assertNotIn('기관 순매수',sections[2][1])
         self.assertEqual(set(TRADE_COLORS),{'first','second','stop','r1','r2'})
 
 class FrozenDecisionTests(unittest.TestCase):

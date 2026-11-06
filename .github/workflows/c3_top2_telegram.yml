@@ -23,6 +23,9 @@ on:
       - 'scripts/c3_telegram_notify.py'
       - 'scripts/c3_telegram_inputs.py'
       - 'scripts/c3_classic_theme.py'
+      - 'scripts/c3_report_context.py'
+      - 'scripts/test_c3_report_quality.py'
+      - 'config/c3_company_context_verified.json'
       - 'scripts/test_c3_telegram_notify.py'
       - 'config/c3_telegram_example_request.json'
 permissions:
@@ -35,6 +38,7 @@ jobs:
   self-test:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,7 +47,11 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_report_context.py
+            scripts/krx_opendart_financial_v91.py
+            scripts/test_c3_report_quality.py
             scripts/test_c3_telegram_notify.py
+            config/c3_company_context_verified.json
             config/c3_telegram_example_request.json
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
@@ -55,10 +63,19 @@ jobs:
           sudo apt-get install -y fonts-nanum >/dev/null
           python -m pip install pillow requests cryptography --disable-pip-version-check
       - name: Verify numerical charts, stale-data gates and at-most-once photo delivery
-        run: PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
+        run: |
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_quality.py' -v
+      - name: Reuse public OpenDART corporation mapping
+        uses: actions/cache@v4
+        with:
+          path: .cache/c3-dart/
+          key: c3-dart-corp-v1-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: c3-dart-corp-v1-${{ runner.os }}-
       - name: Render the two real historical cards without delivery secrets
         env:
           GH_TOKEN: ${{ github.token }}
+          OPENDART_API_KEY: ${{ github.event.pull_request.head.repo.full_name == github.repository && secrets.OPENDART_API_KEY || '' }}
         run: python scripts/c3_telegram_notify.py --mode preview --outdir /tmp/c3-integrated-preview
       - name: Verify real persisted duplicate protection without a Telegram token
         env:
@@ -83,6 +100,22 @@ jobs:
           assert result['status']=='DUPLICATE_BLOCKED' and result['send_attempts']==0
           (root/'real_duplicate_check.json').write_text(json.dumps(result,indent=2)+'\n')
           print(json.dumps(result))
+          PY
+      - name: Verify actual trusted-run financial collection, not just PNG creation
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/tmp/c3-integrated-preview')
+          c=json.loads((root/'company_context.json').read_text())
+          assert not c['errors'], 'ACTUAL_COMPANY_CONTEXT_COLLECTION_FAILED'
+          assert c['selection_hash_before']==c['selection_hash_after']
+          for ticker in ('028050','030530'):
+              x=c['companies'][ticker]
+              assert x['dart_status']=='COLLECTED', 'ACTUAL_DART_COLLECTION_NOT_COMPLETED'
+              assert len(x['quarters'])==4 and len(x['dart']['periodic_statements'])>=4
+          print(json.dumps({'actual_dart_companies':2,'quarters_each':4,'selection_unchanged':True}))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -112,6 +145,9 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_report_context.py
+            scripts/krx_opendart_financial_v91.py
+            config/c3_company_context_verified.json
             config/c3_telegram_example_request.json
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
@@ -131,6 +167,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y fonts-nanum >/dev/null
           python -m pip install pillow requests cryptography --disable-pip-version-check
+      - name: Reuse public OpenDART corporation mapping
+        uses: actions/cache@v4
+        with:
+          path: .cache/c3-dart/
+          key: c3-dart-corp-v1-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: c3-dart-corp-v1-${{ runner.os }}-
       - name: Validate explicit one-time historical request
         if: github.event_name == 'push'
         run: |
@@ -146,6 +188,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
           MODE: ${{ github.event_name == 'push' && 'past_example' || github.event.inputs.mode || 'live' }}
         run: python scripts/c3_telegram_notify.py --mode "$MODE" --outdir /tmp/c3-integrated-delivery
       - uses: actions/upload-artifact@v4

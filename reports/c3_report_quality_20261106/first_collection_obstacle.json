@@ -1,0 +1,29 @@
+{
+  "run_id": 42203277626,
+  "artifact_id": 13495362288,
+  "artifact_sha256": "65709439eb03b9f04064b9434e07979ddcd43ec3fc315b70bc288d7efef2a053",
+  "financial_collection_succeeded": false,
+  "requests": [
+    {
+      "endpoint": "corpCode.xml",
+      "sha256": "a15d06c93c5d5ffa879ad1d8650e31f5b90063f68c5f4604c25957f285ab4b83",
+      "bytes": 3635260,
+      "received_at": "2026-11-06T10:35:16.167038+00:00"
+    }
+  ],
+  "errors": [
+    {
+      "ticker": "028050",
+      "stage": "company",
+      "type": "ValueError",
+      "reason": "DART_REPORT_CONTEXT_REQUEST_BUDGET"
+    },
+    {
+      "ticker": "030530",
+      "stage": "company",
+      "type": "ValueError",
+      "reason": "DART_REPORT_CONTEXT_REQUEST_BUDGET"
+    }
+  ],
+  "fix": "PUBLIC_CORPORATION_CACHE_AND_SEPARATE_FINANCIAL_TIME_BUDGET"
+}
