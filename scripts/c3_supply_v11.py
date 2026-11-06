@@ -157,14 +157,26 @@ def seal(root,outfile,key):
     return dict(format='C3V11GCM1_AES256GCM_HKDF_SHA256',plaintext_sha256=digest(payload),ciphertext_sha256=digest(sealed),bytes=len(sealed),key_persisted=False,public_plaintext_market_data=False)
 
 
-def open_sealed(path,key):
+def decrypt_bytes(b,key):
     from cryptography.hazmat.primitives.kdf.hkdf import HKDF
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    b=Path(path).read_bytes()
     if b[:9]!=b'C3V11GCM1':raise ValueError('SEALED_ARCHIVE_FORMAT')
+    if not key:raise ValueError('PRIVATE_ARCHIVE_KEY_NOT_CONNECTED')
     derived=HKDF(algorithm=hashes.SHA256(),length=32,salt=b'C3_SUPPLY_V11_PRIVATE_ARCHIVE',info=b'NONCOMMERCIAL_PERSONAL_RESEARCH').derive(key.encode())
     return AESGCM(derived).decrypt(b[9:21],b[21:],b'C3_V11_MARKET_DATA')
+
+
+def open_sealed(path,key):
+    from cryptography.exceptions import InvalidTag
+    body=Path(path).read_bytes()
+    try:return decrypt_bytes(body,key)
+    except InvalidTag:
+        from c3_archive_keys_v13 import retired_keys
+        for previous in retired_keys(key):
+            try:return decrypt_bytes(body,previous)
+            except InvalidTag:continue
+        raise
 
 
 def run(outdir,sample_file):

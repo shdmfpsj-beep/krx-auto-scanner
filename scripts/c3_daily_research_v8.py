@@ -132,6 +132,18 @@ def supply_metadata(manifest,path,run_id):
         supply_manifest=manifest,live_action='CASH')
 
 
+def finalize_decision_time(batch,completed_at):
+    """Freeze the real analysis-completion clock, then recheck the next-open cutoff."""
+    from c3_runtime_v9 import registration_window
+    source=batch['price_asof'];today=stamp(completed_at).astimezone(KST).date().isoformat()
+    timing=registration_window(source,stamp(completed_at));eligible=timing in ('SAME_COMPLETED_SESSION','DELAYED_BEFORE_NEXT_POSSIBLE_OPEN')
+    batch.update(known_at=completed_at,analysis_completed_at=completed_at,registration_timing=timing)
+    if eligible and source!=today:batch.update(schema='C3_FORWARD_DECISION_V9',decision_date=today,allow_delayed_preopen=True)
+    for rows in batch['models'].values():
+        for row in rows:row.update(registered_at=completed_at,analysis_completed_at=completed_at,decision_date=batch['decision_date'],source_price_asof=source,registration_timing=timing)
+    return batch,timing,eligible
+
+
 def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
     outdir=Path(outdir);outdir.mkdir(parents=True,exist_ok=True);root=Path(root)/'lanes'/'krx_unadjusted_v12'
     now=datetime.now(timezone.utc).isoformat();local=stamp(now).astimezone(KST);today=local.date().isoformat();errors=[];batch=None;counts=None;added=False
@@ -163,7 +175,6 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
         from c3_runtime_v9 import registration_window
         day=fresh_meta["asof"]
         timing=registration_window(day,stamp(now));eligible=timing in ('SAME_COMPLETED_SESSION','DELAYED_BEFORE_NEXT_POSSIBLE_OPEN')
-        if not eligible:errors.append(timing)
         if day>today or (day==today and local.hour*60+local.minute<930):errors.append('PRICE_SESSION_NOT_COMPLETED')
         elif day not in indices["KOSPI"] or day not in indices["KOSDAQ"]:errors.append("CURRENT_BENCHMARK_MISSING")
         else:
@@ -183,12 +194,11 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
                 execution_open_at=next_execution(day,dates),execution_date_is_provisional_until_observed=True,models=models,scope=counts,source_hashes=source_hashes,
                 source_snapshot_hash=hash_value(market),model_code_sha256=source_hashes["pipeline_code"],execution_version=execution_version(),synthetic_source=False,orders_enabled=False,live_action="CASH",
                 data_quality_state=meta['data_quality_state'],underlying_provider=meta['underlying_provider'],regular_only_certified=False)
+            now=datetime.now(timezone.utc).isoformat();today=stamp(now).astimezone(KST).date().isoformat()
+            batch,timing,eligible=finalize_decision_time(batch,now)
+            if not eligible:errors.append(timing)
             if counts["analysis_eligible"]==0:errors.append("INSUFFICIENT_CONTINUOUS_HISTORY_NO_DECISION")
             elif eligible:
-                if day!=today:
-                    batch.update(schema='C3_FORWARD_DECISION_V9',decision_date=today,allow_delayed_preopen=True,registration_timing=timing)
-                    for rows in batch['models'].values():
-                        for r in rows:r.update(decision_date=today,source_price_asof=day,registration_timing=timing)
                 batch,added=register(root,batch,now)
     observations,performance=advance(root,now,run_id)
     previous=json.loads(Path('reports/c3_work7_20261105/current/current_candidates.json').read_text())
@@ -196,7 +206,7 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
     source_registered=bool(batch and (root/'decisions'/(batch['price_asof']+'.json')).exists())
     registered=bool(source_registered and batch['decision_date']==today)
     if not source_registered:preview=[dict(r,registered_at=None,analysis_known_at=now,trade_approved=False) for r in preview]
-    result=dict(schema="C3_DAILY_RESEARCH_V8",generated_at=now,report_day_kst=today,source_run_id=str(run_id),
+    result=dict(schema="C3_DAILY_RESEARCH_V8",generated_at=datetime.now(timezone.utc).isoformat(),report_day_kst=today,source_run_id=str(run_id),
         source_price_asof=fresh_meta.get("asof") if prices else None,source_received_at=fresh_meta.get("retrieval_utc") if prices else None,
         attempted_price_asof=probe_meta.get("asof"),probe_received_at=probe_meta.get("retrieval_utc"),last_confirmed_price_asof=fresh_meta['asof'] if prices else previous["price_asof"],
         source_diagnostics=probe_meta.get('response_diagnostics',[]),source_collection_status=probe_meta.get('status'),
@@ -211,6 +221,7 @@ def run(panel,audit,baseline,basic,scope,indices_dir,fresh,root,outdir,run_id):
         new_registered_signals=sum(len(x) for x in batch["models"].values()) if added else 0,new_registered_unique_tickers=len({r["ticker"] for rows in batch["models"].values() for r in rows}) if added else 0,
         research_top2=preview,research_top2_is_registered_today=registered,
         research_top2_registered_for_source_session=source_registered,registration_timing=timing,
+        analysis_completed_at=batch.get('analysis_completed_at') if batch else None,
         preview_price_asof=batch["price_asof"] if batch else previous["price_asof"],performance=performance,observations=observations,
         forward_start="2026-11-06",current_action="CASH",approved_top2=[],gpt_actual_model_runs=0,paid_api_calls=0,orders_enabled=False,
         scheduler_deployed=False,default_branch_modified=False,notifications_modified=False,source_hashes=source_hashes)
@@ -232,4 +243,6 @@ if __name__=="__main__":
     result=run(a.panel,a.audit,a.baseline,a.basic,a.scope,a.indices,a.fresh,a.ledger,a.outdir,a.run_id)
     if a.invocation:
         result['invocation']=json.loads(Path(a.invocation).read_text());result['invocation']['run_id']=a.run_id
+        result['scheduler_deployed']=result['invocation']['mode']=='approved_daily'
+        result['automatic_event_observed']=result['invocation']['automatic_event_observed']
         (Path(a.outdir)/'latest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')

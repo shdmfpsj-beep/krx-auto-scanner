@@ -6,6 +6,9 @@ on:
       - 'scripts/c3_*_v8.py'
       - 'scripts/c3_runtime_v9.py'
       - 'scripts/c3_runtime_v10.py'
+      - 'scripts/c3_bootstrap_cache_v13.py'
+      - 'scripts/c3_archive_keys_v13.py'
+      - 'scripts/test_supply_private_archive_v11.py'
       - 'scripts/test_c3_runtime_v10.py'
       - 'scripts/test_c3_runtime_v9.py'
       - 'scripts/c3_eod_source_v9.py'
@@ -95,28 +98,18 @@ jobs:
           counts=[s.countTestCases() for s in suites]
           result=unittest.TextTestRunner(verbosity=1).run(unittest.TestSuite(suites))
           Path('/tmp/c3-forward8/result/validation/tests.json').write_text(json.dumps(dict(counts=counts,total=result.testsRun,failures=len(result.failures),errors=len(result.errors),skipped=len(result.skipped),new_integration_fixtures_are_synthetic=True)))
-          assert counts[0]>=632 and counts[1:3]==[14,21], 'PRESERVED_BASELINE_TESTS_MISSING'
+          assert counts[0]>=643 and counts[1:3]==[14,21] and counts[3]>=2 and result.testsRun>=680, 'PRESERVED_BASELINE_TESTS_MISSING'
           if not result.wasSuccessful():raise SystemExit(1)
           PY
-      - name: Reuse the three hash-pinned bootstrap inputs
+      - name: Restore hash-pinned bootstrap from encrypted git or the original artifact
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
         run: |
           python - <<'PY'
-          import hashlib,json,subprocess,zipfile
-          from pathlib import Path
-          m=json.loads(Path('reports/c3_work8_20261105/inputs.json').read_text())
-          audit=[]
-          for name,item in m['artifacts'].items():
-              try:meta=json.loads(subprocess.check_output(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(item['id'])],text=True))
-              except subprocess.CalledProcessError:
-                  audit.append(dict(name=name,id=item['id'],status='BOOTSTRAP_ARTIFACT_UNAVAILABLE_RESTORE_PINNED_ARCHIVE'));Path('/tmp/c3-forward8/result/validation/bootstrap.json').write_text(json.dumps(audit,indent=2));raise ValueError('BOOTSTRAP_ARTIFACT_UNAVAILABLE_RESTORE_PINNED_ARCHIVE') from None
-              audit.append(dict(name=name,id=item['id'],expired=meta.get('expired'),expires_at=meta.get('expires_at'),sha256=item['sha256']))
-              Path('/tmp/c3-forward8/result/validation/bootstrap.json').write_text(json.dumps(audit,indent=2))
-              if meta.get('expired'):raise ValueError('BOOTSTRAP_ARTIFACT_EXPIRED_RESTORE_PINNED_ARCHIVE')
-              root=Path('/tmp/c3-forward8/inputs')/name;root.mkdir(parents=True,exist_ok=True);p=root/'input.zip'
-              with p.open('wb') as f:subprocess.run(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(item['id'])+'/zip'],stdout=f,check=True)
-              assert hashlib.sha256(p.read_bytes()).hexdigest()==item['sha256'],'PINNED_SOURCE_HASH_MISMATCH:'+name
-              with zipfile.ZipFile(p) as z:
-                  assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in z.namelist());z.extractall(root)
+          from c3_bootstrap_cache_v13 import restore,verify_storage
+          from c3_supply_v11 import write
+          restore('reports/c3_work8_20261105/inputs.json','/tmp/c3-forward8/inputs','reports/c3_forward_v8','/tmp/c3-forward8/result/validation/bootstrap.json')
+          write('/tmp/c3-forward8/result/validation/private_storage.json',verify_storage('reports/c3_forward_v8',full='${{ inputs.caller_mode }}'!='approved_daily'))
           PY
       - name: Validate the actual upstream collection and quarantine adjusted close receipts
         env:
@@ -140,7 +133,7 @@ jobs:
           from datetime import datetime
           from zoneinfo import ZoneInfo
           from c3_daily_research_v8 import collect_indices
-          from c3_supply_runtime_v12 import collect_session,preserve,LANE
+          from c3_supply_runtime_v12 import collect_session,preserve,alternative_ready,LANE
           from c3_supply_v11 import completed_day,write
           from c3_forward_ledger_v8 import read_record
           from c3_runtime_v9 import collection_plan,already_current
@@ -158,6 +151,7 @@ jobs:
           skip=already_current(previous,target,digest('scripts/c3_daily_research_v8.py'))
           audit=json.loads((root/'invocation.json').read_text());audit.update(expected_completed_session=target,duplicate_current_session_skipped=skip)
           (root/'invocation.json').write_text(json.dumps(audit,indent=2)+'\n')
+          alternative_ready(target,root/'validation/cache_readiness.json')
           if not skip:
               for day in plan['requested_dates']:
                   prior=[d for d in dates if d<day]
@@ -192,13 +186,16 @@ jobs:
           from pathlib import Path
           root=Path('/tmp/c3-forward8/result');p=root/'current/latest.json';j=json.loads(p.read_text())
           j['upstream_validation']=json.loads((root/'source_ops/upstream_validation.json').read_text());j['provisional_source']=json.loads((root/'source_ops/provisional_status.json').read_text())
+          j['alternative_cache_readiness']=json.loads((root/'validation/cache_readiness.json').read_text())
+          j['private_storage_audit']=json.loads((root/'validation/private_storage.json').read_text())
+          j['bootstrap_input_sources']=json.loads((root/'validation/bootstrap.json').read_text())
           p.write_text(json.dumps(j,ensure_ascii=False,indent=2)+'\n')
           PYCODE
           python scripts/c3_forward_report_v8.py --latest /tmp/c3-forward8/result/current/latest.json --outdir /tmp/c3-forward8/result/mobile
           python - <<'PY'
           from pathlib import Path
           import shutil,json
-          root=Path('/tmp/c3-forward8/result');shutil.copytree('reports/c3_forward_v8',root/'ledger',dirs_exist_ok=True) if Path('reports/c3_forward_v8').exists() else (root/'ledger').mkdir()
+          root=Path('/tmp/c3-forward8/result')
           j=json.loads((root/'current/latest.json').read_text())
           for r in j['research_top2']:r.pop('chart_bars',None)
           (root/'current/latest.json').write_text(json.dumps(j,ensure_ascii=False,indent=2)+'\n')
@@ -206,6 +203,15 @@ jobs:
           from c3_runtime_v9 import handoff
           summary=json.loads((root/'mobile/summary.json').read_text());audit=handoff(summary,(root/'mobile/mobile_report.md').read_text())
           (root/'report_handoff_audit.json').write_text(json.dumps(audit,indent=2)+'\n')
+          PY
+      - name: Preserve immutable local evidence even when collection or registration fails
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          source=Path('reports/c3_forward_v8');dest=Path('/tmp/c3-forward8/result/ledger')
+          if source.exists():shutil.copytree(source,dest,dirs_exist_ok=True)
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -240,7 +246,7 @@ jobs:
           from pathlib import Path
           assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==os.environ['EXPECTED_HEAD'],'RESEARCH_HEAD_CHANGED_RETRY_NO_FORCE'
           incoming=Path('/tmp/c3-forward8-validated');root=Path('reports/c3_forward_v8')
-          for folder in ('markets','decisions','observations','corrections','provisional','lanes'):
+          for folder in ('markets','decisions','observations','corrections','provisional','lanes','bootstrap','key_envelopes'):
               for src in (incoming/'ledger'/folder).rglob('*'):
                   if not src.is_file():continue
                   dest=root/folder/src.relative_to(incoming/'ledger'/folder)

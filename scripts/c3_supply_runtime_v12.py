@@ -6,13 +6,29 @@ prices never supply missing fields. Raw market files stay outside public output.
 """
 import argparse,json,os,shutil,time
 from pathlib import Path
+from urllib.parse import urlencode
 from c3_eod_source_v9 import collect_day
 from c3_current_candidates_v7 import fresh_snapshot
-from c3_market_supply_v11 import mirror,validated_manifest
+from c3_market_supply_v11 import mirror,validated_manifest,retrieve,published_after_close,CACHE_REPO
 from c3_runtime_v10 import quality
 from c3_supply_v11 import completed_day,now,write,digest,seal
 
 LANE='lanes/krx_unadjusted_v12'
+
+
+def alternative_ready(day,outfile):
+    """Publication preflight only; does not promote prices or simulate an outage."""
+    audit=[];result=dict(asof=day,provider='FINANCEDATA_KRX_CACHE',ultimate_origin='KRX',data_validation_performed=False,actual_outage_recovery_observed=False)
+    if day>completed_day():result['status']='UNFINISHED_EOD_NOT_REQUESTED'
+    else:
+        try:
+            url='https://api.github.com/repos/'+CACHE_REPO+'/commits?'+urlencode(dict(sha='master',path='data/listing/krx/'+day+'.csv',per_page=1))
+            history=json.loads(retrieve(url,audit))
+            if not isinstance(history,list) or not history:raise ValueError('CACHE_DATED_FILE_NOT_FOUND')
+            change=history[0];at=change['commit']['committer']['date']
+            result.update(status='PUBLISHED_AFTER_CLOSE' if published_after_close(day,at) else 'NO_POSTCLOSE_FILE_PROOF',file_commit=change['sha'],file_commit_date=at)
+        except (ValueError,KeyError,TypeError,OSError) as exc:result.update(status='READINESS_UNAVAILABLE',error_type=type(exc).__name__)
+    result['transport']=audit;write(outfile,result);return result
 
 
 def collect_session(day,control,outdir,previous_session,official=collect_day,alternative=mirror,pause=time.sleep):

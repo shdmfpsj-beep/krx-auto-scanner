@@ -77,5 +77,20 @@ class RuntimeV9Tests(unittest.TestCase):
             freeze_market(tmp,m,now)
             with self.assertRaisesRegex(ValueError,'OUTSIDE_PROSPECTIVE_WINDOW'):register(tmp,b,now)
 
+    def test_registration_uses_analysis_completion_instead_of_collection_start(self):
+        from c3_daily_research_v8 import finalize_decision_time
+        from test_c3_forward_ledger_v8 import market,batch,register
+        import tempfile
+        b,started=batch(market(0));completed='2026-11-06T07:01:05Z';b,timing,eligible=finalize_decision_time(b,completed)
+        self.assertTrue(eligible);self.assertNotEqual(b['known_at'],started);self.assertEqual(b['known_at'],completed)
+        with tempfile.TemporaryDirectory() as tmp:
+            saved,new=register(tmp,b,completed);self.assertTrue(new);self.assertEqual(saved['registered_at'],completed)
+
+    def test_analysis_crossing_next_open_deadline_cannot_use_earlier_clock(self):
+        from c3_daily_research_v8 import finalize_decision_time
+        from test_c3_forward_ledger_v8 import market,batch
+        b,_=batch(market(0));b,timing,eligible=finalize_decision_time(b,'2026-11-09T00:00:00Z')
+        self.assertFalse(eligible);self.assertEqual(timing,'PAST_NEXT_POSSIBLE_OPEN');self.assertEqual(b['known_at'],'2026-11-09T00:00:00Z')
+
 
 if __name__=='__main__':unittest.main()
