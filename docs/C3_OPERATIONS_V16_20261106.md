@@ -36,3 +36,11 @@ Scope: report/data plumbing only. No strategy, risk, order, scanner, or receipt-
 - Evidence supports date-dependent source availability, rather than a general authentication/parser failure. Exact official publication SLA was not confirmed from accessible primary documentation; do not assert a particular next-day publication time as proven.
 - Added bounded retries to idempotent handoff Git reads only. An uncertain Git-ref update is reconciled by reading the real saved packet; Telegram POST is never retried by this code.
 - Chart readiness and delivery status are separate. Verified images/company analysis can remain available to ChatGPT if Telegram delivery is uncertain, with the original no-resend claim preserved.
+
+## Deployment and final concurrency guard
+
+- PR #38 merged to main `ead942f2b00dcedd2f1dea606786be31874a1d40` at 21:09:32 KST. Main cron/pin read-back confirmed unchanged 22:15/08:20 caller and 22:45/09:00 Telegram schedules, engine `0f6ebc67bd755b00945388d431e32d94183ba7fe`.
+- Rehearsal `42215155177` passed 77 focused tests and actual research-only handoff publication. The saved packet is `NOT_READY`, source null, expected 2026-11-06, zero TOP2/images, at research commit `e47b6e841a6112cd24836b3303511a748df4a669`.
+- A final integration review identified that a derived presentation commit could move the research HEAD during a still-running engine's publication lease. Handoff publication now checks for active caller/research runs before building the transaction and immediately before moving the ref; it defers instead of touching the engine's in-progress state. Artifact evidence remains readable.
+- The additional guard has a focused fault test. Tiny start-time races remain fail-closed via the engine's original HEAD lease and non-forced publisher update; no ledger is overwritten and failed engine evidence stays in its artifact.
+- No additional album was sent in this Work. Existing delivery receipt branch was preserved at `7501cafd66e7ce7ca38b79c36deb4da6a5762892` during the final read-back.

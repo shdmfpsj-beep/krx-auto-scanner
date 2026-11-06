@@ -105,7 +105,8 @@ class PublisherTests(unittest.TestCase):
             if call.kwargs.get('method')=='PATCH':
                 self.assertEqual(call.args[0],'git/refs/heads/'+RESEARCH);self.assertIs(call.kwargs['payload']['force'],False)
     def test_changed_source_aborts_without_any_write(self):
-        self.r['source_run_id']='NEWER';self.assertEqual(publish(self.gh,self.manifest)['status'],'SOURCE_CHANGED_NOT_PUBLISHED');self.gh.api.assert_not_called()
+        self.r['source_run_id']='NEWER';self.assertEqual(publish(self.gh,self.manifest)['status'],'SOURCE_CHANGED_NOT_PUBLISHED')
+        self.assertFalse(any(c.kwargs.get('method') in ('POST','PATCH') for c in self.gh.api.call_args_list))
     def test_save_collision_rechecks_source_and_preserves_newer_run(self):
         def api(path,method='GET',payload=None):
             if method=='PATCH':self.r['source_run_id']='NEWER';raise ServiceError(422)
@@ -131,6 +132,11 @@ class PublisherTests(unittest.TestCase):
         result=publish(self.gh,self.manifest)
         self.assertTrue(result['confirmed_after_uncertain_git_response'])
         self.assertEqual(sum(c.kwargs.get('method')=='PATCH' for c in self.gh.api.call_args_list),1)
+    def test_active_engine_preserves_its_research_head_lease(self):
+        self.gh.api.side_effect=lambda *a,**k:{'workflow_runs':[{'id':1,'status':'in_progress'}]}
+        self.assertEqual(publish(self.gh,self.manifest)['status'],'RESEARCH_ACTIVE_HANDOFF_DEFERRED')
+        self.gh.head.assert_not_called();self.gh.file.assert_not_called()
+        self.assertFalse(any(c.kwargs.get('method') in ('POST','PATCH') for c in self.gh.api.call_args_list))
 
 
 if __name__=='__main__':unittest.main()
