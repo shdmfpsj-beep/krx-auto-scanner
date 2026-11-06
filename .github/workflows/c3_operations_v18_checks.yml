@@ -1,0 +1,71 @@
+name: C3 data operations validation (NO REGISTRATION OR SEND)
+on:
+  push:
+    branches: [fix/c3-data-operations-v18-20261107]
+    paths:
+      - 'scripts/c3_*v18.py'
+      - 'scripts/test_c3_operations_v18.py'
+      - '.github/workflows/c3_operations_v18_checks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  focused-and-real-data:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/fix/c3-data-operations-v18-20261107'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/
+            /config/
+            /reports/c3_forward_v8/lanes/
+            /reports/c3_forward_v8/key_envelopes/
+            /reports/c3_operations_v18_20261107/
+            /.github/workflows/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install only audit dependencies
+        run: python -m pip install pandas==2.2.3 'cryptography>=43,<47' pyyaml
+      - name: Run changed-area regressions with no sender or registration entry point
+        run: |
+          python - <<'PY'
+          import json,unittest
+          from pathlib import Path
+          patterns=('test_c3_operations_v18.py','test_c3_runtime_v10.py','test_c3_market_supply_v11.py','test_source_consensus_v64.py','test_forward_source_gate_v64.py')
+          loader=unittest.TestLoader();suite=unittest.TestSuite([loader.discover('scripts',pattern=p) for p in patterns])
+          result=unittest.TextTestRunner(verbosity=1).run(suite)
+          report=dict(tests=result.testsRun,failures=len(result.failures),errors=len(result.errors),telegram_sends=0,registration_entry_points=0)
+          p=Path('/tmp/c3-v18-result/tests.json');p.parent.mkdir(exist_ok=True);p.write_text(json.dumps(report))
+          if not result.wasSuccessful():raise SystemExit(1)
+          PY
+      - name: Recheck exact unavailable historical source without substitute prices
+        run: python scripts/c3_artifact_audit_v18.py --probe-manifest reports/c3_operations_v18_20261107/historical_frozen_manifest.json --outdir /tmp/c3-v18-result/historical
+      - name: Reconcile legacy same-day audit using the repaired resolver
+        run: python scripts/c3_artifact_audit_v18.py --outdir /tmp/c3-v18-result/legacy
+      - name: Corroborate frozen Nov 6 prices and requested-date official listing
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python scripts/c3_data_audit_v18.py --asof 2026-11-06 --ledger reports/c3_forward_v8 --outdir /tmp/c3-v18-result/current
+      - name: Preserve audit evidence with no plaintext price archive or secret
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-data-operations-v18-evidence
+          path: |
+            /tmp/c3-v18-result/tests.json
+            /tmp/c3-v18-result/historical/availability_summary.json
+            /tmp/c3-v18-result/current/data_audit.json
+            /tmp/c3-v18-result/legacy/availability_summary.json
+            /tmp/c3-v18-result/legacy/2026-10-23/
+          retention-days: 90
+          if-no-files-found: error

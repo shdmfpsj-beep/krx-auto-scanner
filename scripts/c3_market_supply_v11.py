@@ -130,6 +130,8 @@ def mirror(day,control_dir,outdir,private_dir=None,previous_day=None):
     evidence.update(current_market_file_sha256=hashes,current_rows=len(rows),cache_file_commit=file_commit['sha'],cache_file_commit_date=file_time,dated_file_published_after_close=True)
     proof=digest(json.dumps(evidence,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode())
     manifest=dict(schema='C3_SUPPLY_SNAPSHOT_V11',asof=day,retrieval_utc=audit[-1]['received_at'],status='RESEARCH_VALIDATED',data_quality_state='RESEARCH_VALIDATED',source_provider='FINANCEDATA_KRX_CACHE',research_dataset_validated=True,krx_eod_authenticated=False,official_dataset_usable=False,official_market_rows=len(rows),price_files=files,market_file_sha256=hashes,price_basis='UNADJUSTED_AS_TRADED',independent_1530_regular_session_certified=False,trade_approved=False,orders_enabled=False,validation=evidence,validation_sha256=proof,response_diagnostics=[],transport=audit,excluded_other_market_rows=len(excluded))
+    from c3_data_quality_v17 import regular_contract
+    manifest['session_contract']=regular_contract('FINANCEDATA_KRX_CACHE',day,manifest['retrieval_utc'])
     write(out/'krx_v65_collect_status.json',manifest);write(out/'supply_validation.json',dict(manifest,price_files=None))
     return manifest
 

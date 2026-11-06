@@ -1,0 +1,44 @@
+{
+  "asof": "2026-11-06",
+  "pin": "46e7419a9336758bbffbd2b0139cca98917ddb2c",
+  "raw_sha256": {
+    "2026-11-05": "edf8e19a7efa3d3d870ca31eda640a21b6cd144bc05b2e53dcf3705dd49cd9cd",
+    "2026-11-06": "d25f8ee0c32fcb099cf6a852ccc4bf747723112c841ee8d00ba716d7b57a8883"
+  },
+  "quality": {
+    "status": "QUALITY_GATE_PASSED",
+    "errors": [],
+    "markets": {
+      "KOSPI": {
+        "rows": 938,
+        "baseline_rows": 938,
+        "retained_baseline_fraction": 1.0,
+        "newly_observed": [],
+        "no_longer_observed": [],
+        "invalid_ohlc": [],
+        "halt_like": 27,
+        "listing_or_delisting_cause_confirmed": false
+      },
+      "KOSDAQ": {
+        "rows": 1831,
+        "baseline_rows": 1831,
+        "retained_baseline_fraction": 1.0,
+        "newly_observed": [],
+        "no_longer_observed": [],
+        "invalid_ohlc": [],
+        "halt_like": 83,
+        "listing_or_delisting_cause_confirmed": false
+      }
+    },
+    "full_current_listing_census_verified": false,
+    "coverage_alarm_floor": 0.95,
+    "asof": "2026-11-06"
+  },
+  "bar_states": {
+    "VALID_TRADED_BAR": 2659,
+    "NO_TRADES_OBSERVED": 110
+  },
+  "other_market_rows_excluded": 107,
+  "regular_only_certified": false,
+  "no_ledger_writes": true
+}

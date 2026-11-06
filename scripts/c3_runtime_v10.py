@@ -53,6 +53,8 @@ def quality(prices,baseline,day):
     old=list(baseline.values()) if isinstance(baseline,dict) else baseline
     seen=set();markets={};errors=[]
     for r in rows:
+        if not isinstance(r.get('ticker'),str) or not re.fullmatch('[A-Z0-9]{6}',r['ticker']):
+            errors.append('INVALID_SECURITY_CODE');continue
         if r['ticker'] in seen:errors.append('DUPLICATE_SECURITY')
         seen.add(r['ticker'])
         if r['asof']!=day:errors.append('WRONG_SOURCE_DATE')

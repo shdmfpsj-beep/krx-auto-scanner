@@ -1,27 +1,5 @@
 name: C3 prospective research TOP2 and paper ledger
 on:
-  push:
-    branches: [research/c3-ledger-integrity-audit-20261104]
-    paths:
-      - 'scripts/c3_*_v8.py'
-      - 'scripts/c3_runtime_v9.py'
-      - 'scripts/c3_runtime_v10.py'
-      - 'scripts/c3_bootstrap_cache_v13.py'
-      - 'scripts/c3_archive_keys_v13.py'
-      - 'scripts/test_supply_private_archive_v11.py'
-      - 'scripts/test_c3_runtime_v10.py'
-      - 'scripts/test_c3_runtime_v9.py'
-      - 'scripts/c3_eod_source_v9.py'
-      - 'scripts/c3_supply_runtime_v12.py'
-      - 'scripts/test_c3_supply_runtime_v12.py'
-      - 'scripts/test_c3_eod_source_v9.py'
-      - 'scripts/c3_free_provider_triangulation_v1.py'
-      - 'scripts/test_c3_free_provider_triangulation_v1.py'
-      - 'scripts/test_c3_forward_ledger_v8.py'
-      - 'config/c3_forward_v8_*.json'
-      - 'config/c3_runtime_v9_protocol.json'
-      - 'reports/c3_work8_20261105/inputs.json'
-      - '.github/workflows/c3_daily_research_v8.yml'
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -114,17 +92,17 @@ jobs:
           restore('reports/c3_work8_20261105/inputs.json','/tmp/c3-forward8/inputs','reports/c3_forward_v8','/tmp/c3-forward8/result/validation/bootstrap.json')
           write('/tmp/c3-forward8/result/validation/private_storage.json',verify_storage('reports/c3_forward_v8',full='${{ inputs.caller_mode }}'!='approved_daily'))
           PY
-      - name: Validate the actual upstream collection and quarantine adjusted close receipts
+      - name: Observe optional scanner receipts without blocking qualified price supply
         env:
           UPSTREAM_RUN_ID: ${{ inputs.upstream_run_id || github.event.workflow_run.id || '' }}
         run: |
-          python scripts/c3_runtime_v10.py --upstream-run-id "$UPSTREAM_RUN_ID" --outdir /tmp/c3-forward8/result/source_ops --ledger reports/c3_forward_v8
+          python scripts/c3_fast_ops_v18.py --scanner --run-id "$UPSTREAM_RUN_ID" --outdir /tmp/c3-forward8/result/source_ops --ledger reports/c3_forward_v8
           python - <<'PYCODE'
           import json,os
           from pathlib import Path
           root=Path('/tmp/c3-forward8/result');up=json.loads((root/'source_ops/upstream_validation.json').read_text())
           event=json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
-          if os.environ['GITHUB_EVENT_NAME']=='workflow_run':assert str(event['workflow_run']['id'])==up['run_id'],'UPSTREAM_EVENT_AND_VALIDATION_MISMATCH'
+          if os.environ['GITHUB_EVENT_NAME']=='workflow_run' and up['status']=='VALIDATED_COLLECTION_AND_ARTIFACT':assert str(event['workflow_run']['id'])==up['run_id'],'UPSTREAM_EVENT_AND_VALIDATION_MISMATCH'
           PYCODE
       - name: Read completed indices and recover whole sessions through qualified supply paths
         env:
@@ -139,7 +117,8 @@ jobs:
           from c3_supply_runtime_v12 import collect_session,preserve,alternative_ready,LANE
           from c3_supply_v11 import completed_day,write
           from c3_forward_ledger_v8 import read_record
-          from c3_runtime_v9 import collection_plan,already_current
+          from c3_runtime_v9 import collection_plan
+          from c3_fast_ops_v18 import cached_current,bounded_collect
           from c3_selection_scope_v5 import digest
           root=Path('/tmp/c3-forward8/result');today=datetime.now(ZoneInfo('Asia/Seoul')).date().isoformat();indices=root/'indices'
           try:collect_indices(indices,completed_day())
@@ -151,17 +130,16 @@ jobs:
           plan=collection_plan(datetime.now(ZoneInfo('Asia/Seoul')),dates,existing);target=plan['expected_completed_session']
           (root/'collection_plan.json').write_text(json.dumps(plan,indent=2)+'\n')
           old=Path('reports/c3_forward_v8/latest.json');previous=json.loads(old.read_text()) if old.exists() else None
-          skip=already_current(previous,target,digest('scripts/c3_daily_research_v8.py'))
+          skip=cached_current(previous,target,digest('scripts/c3_daily_research_v8.py'),'reports/c3_forward_v8')
           audit=json.loads((root/'invocation.json').read_text());audit.update(expected_completed_session=target,duplicate_current_session_skipped=skip)
           (root/'invocation.json').write_text(json.dumps(audit,indent=2)+'\n')
           alternative_ready(target,root/'validation/cache_readiness.json')
           if not skip:
-              for day in plan['requested_dates']:
+              for day in [target]+[d for d in plan['requested_dates'] if d!=target]:
                   prior=[d for d in dates if d<day]
                   if not prior:raise ValueError('PREVIOUS_OBSERVED_SESSION_REQUIRED')
                   folder=Path('/tmp/c3-forward8/private/fresh')/day
-                  collect_session(day,'/tmp/c3-forward8/inputs/latest/requested-date-probe/2026-11-04',folder,prior[-1])
-                  write(root/'supply'/(day+'.json'),preserve('reports/c3_forward_v8',folder,os.environ['GITHUB_RUN_ID']))
+                  bounded_collect(day,prior[-1],'/tmp/c3-forward8/inputs/latest/requested-date-probe/2026-11-04',folder,'reports/c3_forward_v8',root/'supply'/(day+'.json'),budget=180 if day==target else 60)
           (root/'skip_current.txt').write_text('1' if skip else '0')
           (root/'target_session.txt').write_text(target)
           (root/'runtime_day.txt').write_text(today)
