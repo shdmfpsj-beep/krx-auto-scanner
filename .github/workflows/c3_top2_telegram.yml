@@ -39,6 +39,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_telegram_notify.py
+            scripts/c3_telegram_inputs.py
+            scripts/c3_classic_theme.py
+            scripts/test_c3_telegram_notify.py
+            config/c3_telegram_example_request.json
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
