@@ -72,7 +72,24 @@ def run(day,ledger,outdir):
             p=private/'official'/(market+'_official.csv')
             if hashlib.sha256(p.read_bytes()).hexdigest()!=official['market_file_sha256'][market]:raise ValueError('OFFICIAL_FILE_HASH_MISMATCH')
             with p.open(encoding='utf-8-sig') as f:official_rows+=list(csv.DictReader(f))
-    basic_meta=retrieve(day,private/'basic',os.environ.get('KRX_AUTH_KEY'));basic=load_basic(private/'basic',basic_meta)
+    from krx_official_eod_v65 import fetch_official
+    basic_diagnostics=[]
+    def basic_fetch(endpoint,asof,key):
+        body,h=fetch_official(endpoint,asof,key);block=body.get('OutBlock_1') if isinstance(body,dict) else None
+        basic_diagnostics.append(dict(endpoint=endpoint,requested_asof=asof,raw_sha256=h,
+            outblock_type=type(block).__name__,rows=len(block) if isinstance(block,list) else None,
+            returned_field_names=sorted(block[0]) if isinstance(block,list) and block else [],
+            returned_date_fields=sorted({str(r[k]) for r in (block or []) if isinstance(r,dict) for k in ('BAS_DD','basDd') if k in r}),
+            later_listing_rows=sum(str(r.get('LIST_DD','')).replace('-','')>asof.replace('-','') for r in (block or []) if isinstance(r,dict))))
+        return body,h
+    basic_meta=retrieve(day,private/'basic',os.environ.get('KRX_AUTH_KEY'),fetcher=basic_fetch);basic=load_basic(private/'basic',basic_meta)
+    control=None;basic_control=None
+    if not official_rows:
+        # An earlier date working with the same key separates data availability
+        # from an unsupported assumption that the key itself is broken.
+        control=collect_day('2026-11-05',private/'official-control',os.environ.get('KRX_AUTH_KEY'))
+    if not basic:
+        basic_control=retrieve('2026-11-05',private/'basic-control',os.environ.get('KRX_AUTH_KEY'),fetcher=basic_fetch)
     captured=record['source']['received_at']
     result=dict(schema='C3_DATA_AUDIT_V18',asof=day,audited_at=datetime.now(timezone.utc).isoformat(),
         original_snapshot_sha256=hashlib.sha256(before).hexdigest(),source_provider=m.get('source_provider'),
@@ -85,11 +102,14 @@ def run(day,ledger,outdir):
         comparison=comparison(prices,official_rows,day) if official_rows else None,
         official_numeric_quality=quality(official_rows,prices,day) if official_rows else None,
         official_listing_status=basic_meta['error'],
+        official_listing_diagnostics=basic_diagnostics,
+        earlier_official_control=dict(asof=control['asof'],status=control['status'],rows=control['official_market_rows'],response_diagnostics=control['response_diagnostics']) if control else None,
+        earlier_listing_control=dict(asof=basic_control['asof'],status=basic_control['error'],market_counts=basic_control['market_counts']) if basic_control else None,
         census=census(prices,list(basic.values()),day) if basic else None,
         full_current_listing_census_independently_verified=False,
         no_retroactive_price_or_classification_substitution=True,registered_signals_changed=False,
         new_registered_signals=0,telegram_sends=0,regular_only_certified=False,trade_approved=False,orders_enabled=False,
-        elapsed_seconds=time.monotonic()-started,official_request_count=len(official['response_diagnostics'])+2,
+        elapsed_seconds=time.monotonic()-started,official_request_count=len(official['response_diagnostics'])+len(basic_diagnostics)+(len(control['response_diagnostics']) if control else 0),
         unavailable_followup=['REGULAR_ONLY_VOLUME_AND_TURNOVER','INDEPENDENT_VENDOR_SESSION_ATTESTATION','OFFICIAL_HISTORICAL_LISTING_VINTAGE','DATED_HALT_AND_DELISTING_EVENTS'])
     if path.read_bytes()!=before:raise ValueError('FROZEN_SOURCE_CHANGED_DURING_AUDIT')
     if protected()!=preserved:raise ValueError('IMMUTABLE_LEDGER_CHANGED_DURING_AUDIT')

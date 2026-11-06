@@ -24,7 +24,14 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: |
-            /scripts/
+            /scripts/c3_artifact_audit_v18.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/forward_source_gate_v64.py
           sparse-checkout-cone-mode: false
       - name: Resolve inventory, exact source day and archive hashes before reconciliation
         run: python scripts/c3_artifact_audit_v18.py --outdir /tmp/c3-v64-audit
