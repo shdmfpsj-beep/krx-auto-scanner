@@ -124,6 +124,15 @@ def immutable_source(original):
             set(record["indices"])=={"KOSPI","KOSDAQ"},"MISSING_BENCHMARK")
     require(record["source"]["price_basis"]=="UNADJUSTED_AS_TRADED",
             "FROZEN_PRICE_UNIT_NOT_UNADJUSTED")
+    if record["source"].get("provider")!="FINANCEDATA_KRX_CACHE":
+        print("C3_SOURCE_PROVENANCE_DIAGNOSTIC="+json.dumps({
+            "encrypted_market_provider":record["source"].get("provider"),
+            "report_provider":original["source_provider"],
+            "source_meta_fieldnames":sorted(record["source"]),
+            "source_scope":record["source"].get("source_scope"),
+            "price_basis":record["source"].get("price_basis"),
+            "source_asof":record["asof"],
+        },ensure_ascii=False),flush=True)
     require(record["source"]["provider"]=="FINANCEDATA_KRX_CACHE",
             "FROZEN_PROVIDER_DIFFERENCE")
     require(original["source_price_asof"]==DAY and
