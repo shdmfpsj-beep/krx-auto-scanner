@@ -22,6 +22,7 @@ from c3_competition_v2 import load_official,market_proxy
 from c3_selection_factors_v6 import load_indices,build_pool,choose,nonoverlap
 from c3_entry_practical_v7 import prepare
 from c3_forward_ledger_v8 import read_record
+from c3_daily_top2_v4 import model_path
 
 BASE=Path("/tmp/c3-entry-v2-research")
 STATE=Path("state/reports/c3_forward_v8")
@@ -179,6 +180,9 @@ def evaluate_histories(panel,sessions,pool,fold):
             legacy_cancel_but_resting_fills=0
             close_stop_touch={m:0 for m in METHODS}
             paired_diff=[]
+            recovered_cases=[]
+            unsafe_open_cases=[]
+            legacy_exit_parity_checked=0
             for cell in cells:
                 plan=cell["plan"];key=(cell["ticker"],cell["decision_date"])
                 if plan is None:continue
@@ -203,6 +207,18 @@ def evaluate_histories(panel,sessions,pool,fold):
                         include_unsafe_mechanical=True)
                     require(outcome["status"] in ("COMPLETE","NO_ENTRY"),"SHARED_CLOCK_EXITS_UNRESOLVED")
                     outcomes[method]=outcome
+                    if method=="LEGACY_GAP_VETO":
+                        frozen_baseline=model_path(plan,panel[cell["ticker"]],sessions,horizon)
+                        historical_entry=frozen_baseline["entry"]
+                        require(historical_entry["status"]==("MODEL_ENTRY" if ent.get("filled") else ent["status"]),
+                                "BASELINE_ENTRY_REPLAY_STATUS_DIVERGED")
+                        if outcome["status"]=="COMPLETE":
+                            old_exit=frozen_baseline["exit"]
+                            require(old_exit is not None and old_exit["date"]==outcome["exit_date"],
+                                    "BASELINE_EXIT_REPLAY_DATE_DIVERGED")
+                            require(abs(old_exit["net_pct"]-outcome["net_pct"])<0.000002,
+                                    "BASELINE_EXIT_REPLAY_COST_DIVERGED")
+                            legacy_exit_parity_checked+=1
                     if outcome["status"]=="COMPLETE":
                         store[method].append(dict(outcome,filled=True,unsafe=ent.get("open_at_or_below_stop",False)))
                     else:
@@ -210,6 +226,21 @@ def evaluate_histories(panel,sessions,pool,fold):
                             cash_adjusted_pct=0.,entry_status=ent["status"]))
                 if outcomes["LEGACY_GAP_VETO"]["status"]=="NO_ENTRY" and outcomes["RESTING_ONE"]["status"]=="COMPLETE":
                     legacy_cancel_but_resting_fills+=1
+                    recovered_cases.append(dict(
+                        ticker=cell["ticker"],decision_date=cell["decision_date"],entry_date=entry_day,
+                        original_gap_veto=entry(plan,by[entry_day],"LEGACY_GAP_VETO")["status"],
+                        prior_close=plan["reference_close"],low=plan["low"],high=plan["high"],
+                        structural_stop=plan["stop"],open=by[entry_day]["open"],
+                        net_pct=outcomes["RESTING_ONE"]["net_pct"],
+                        exit_date=outcomes["RESTING_ONE"]["exit_date"],
+                        exit_reason=outcomes["RESTING_ONE"]["exit_reason"],
+                        drawdown_pct=outcomes["RESTING_ONE"]["mae_pct"],
+                        non_pit_historical_panel=True))
+                if any(x.get("unsafe_unconditional_preopen_fill") for x in outcomes.values()):
+                    unsafe_open_cases.append(dict(
+                        ticker=cell["ticker"],decision_date=cell["decision_date"],
+                        open=by[entry_day]["open"],stop=plan["stop"],
+                        resting_one_net_pct=outcomes["RESTING_ONE"].get("net_pct")))
                 def val(o):
                     return o.get("opportunity_cash_adjusted_pct",0.) if o["status"]=="COMPLETE" else 0.
                 paired_diff.append(val(outcomes["RESTING_ONE"])-val(outcomes["LEGACY_GAP_VETO"]))
@@ -235,6 +266,9 @@ def evaluate_histories(panel,sessions,pool,fold):
                 common_clock_plans=full_clock_n,
                 legacy_cancel_but_resting_filled=legacy_cancel_but_resting_fills,
                 paired_resting_minus_legacy_mean_cash_pct=round(statistics.mean(paired_diff),5) if paired_diff else None,
+                legacy_exit_parity_checked=legacy_exit_parity_checked,
+                gap_veto_recovered_outcomes=recovered_cases,
+                unprotected_open_at_or_below_stop_cases=unsafe_open_cases,
                 variants=method_summaries)
         all_cases[study_group]=group_report
     return dict(raw_selected_decisions=len(decisions),comparison=all_cases)
@@ -275,6 +309,9 @@ def main():
         metric_summary={fold:{g:{h:{
             "n":z["common_clock_plans"],
             "gap_cancellations_recovered":z["legacy_cancel_but_resting_filled"],
+            "legacy_exit_parity_checked":z["legacy_exit_parity_checked"],
+            "gap_veto_recovered_outcomes":z["gap_veto_recovered_outcomes"],
+            "unsafe_open_cases":z["unprotected_open_at_or_below_stop_cases"],
             "variants":{method:{k:v for k,v in metric.items() if k in
                 ("filled","completed_trade_mean_net_pct","opportunity_mean_with_cash_pct",
                  "exit_stop_count","unsafe_open_at_or_below_stop_count")}
