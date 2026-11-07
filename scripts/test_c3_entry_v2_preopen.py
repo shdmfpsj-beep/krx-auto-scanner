@@ -71,7 +71,7 @@ class ReadOnlyPreopenEntryTests(unittest.TestCase):
         e=entry(S,SB,"RESTING_ONE")
         self.assertTrue(e["filled"])
         dates=["2026-11-06","2026-11-09","2026-11-10"]
-        r=bar("028050",59600,62300,58300,57000)
+        r=bar("028050",59600,62300,56500,57000)
         r["date"]=dates[0]
         r2=bar("028050",56100,57300,56000,56600,dates[1])
         out=exit_model(S,dates[0],e,{dates[0]:r,dates[1]:r2},dates,5)
