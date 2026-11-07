@@ -1,0 +1,54 @@
+name: C3 post-merge real archived 11-06 source regression (NO SEND)
+on:
+  push:
+    branches: [fix/c3-real-report-timestamp-regression-20261107]
+    paths:
+      - 'scripts/c3_readiness_gate_v19.py'
+      - 'scripts/test_c3_readiness_gate_v19.py'
+      - 'scripts/test_c3_real_archived_report_v19.py'
+      - '.github/workflows/c3_real_archived_report_regression_v19.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/c3_readiness_gate_v19.py'
+      - 'scripts/test_c3_readiness_gate_v19.py'
+      - 'scripts/test_c3_real_archived_report_v19.py'
+      - '.github/workflows/c3_real_archived_report_regression_v19.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  actual-archived-source-no-side-effects:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: scripts
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_readiness_gate_v19.py
+            /scripts/test_c3_readiness_gate_v19.py
+            /scripts/test_c3_real_archived_report_v19.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 7bad1564f2d017e6bd0481758d0f6e0f8aa0c289
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
+            /reports/c3_forward_v8/mobile/summary.json
+          sparse-checkout-cone-mode: false
+      - name: Verify production-v19 clock guard plus 21 synthetic edge cases
+        run: |
+          python -m py_compile scripts/c3_readiness_gate_v19.py
+          python -m unittest discover -s scripts -p 'test_c3_readiness_gate_v19.py' -v
+      - name: Run actual-source 22:30/monday real-clock replay, not historical guesses
+        run: python -m unittest discover -s scripts -p 'test_c3_real_archived_report_v19.py' -v
+      - name: Show immutable input revision without account or Telegram
+        run: |
+          echo "TEST_ONLY preserved_immutable_source_ref=7bad1564f2d017e6bd0481758d0f6e0f8aa0c289"
+          echo "GitHub PR/code is read-only: no registered signals or Telegram delivery changed"
