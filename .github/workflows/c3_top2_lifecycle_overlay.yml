@@ -115,7 +115,7 @@ jobs:
           current=json.loads(src.read_text())
           original=json.loads(baseline.read_text())
           assert original['source_price_asof']=='2026-11-06'
-          if current.get('source_price_asof','')>'2026-11-06':
+          if (current.get('source_price_asof') or '')>'2026-11-06':
               cal=json.loads(Path('reports/c3_reference_calendar_v1.json').read_text())
               cal['dates']=[d for d in cal['dates'] if d<='2026-11-06']
               assert cal['dates'] and cal['dates'][-1]=='2026-11-06'
