@@ -43,7 +43,8 @@ def prior_distance_diagnostics(plan,prior):
     if None in (high,low,stop,close,atr) or not 0<stop<low<=high:
         return dict(status="INVALID_FROZEN_GEOMETRY",eligible=False)
     # Prior-close status only; zero/negative close distance is not overshoot.
-    gap_pct=100*(close/high-1)
+    # Stable display/diagnostic buckets at exact 2/5/10% boundaries.
+    gap_pct=round(100*(close/high-1),6)
     gap_atr=(close-high)/atr
     if gap_pct<=0:bucket="CLOSE_AT_OR_BELOW_HIGH"
     elif gap_pct<=2:bucket="ABOVE_HIGH_0_TO_2"
