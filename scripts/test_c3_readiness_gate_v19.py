@@ -139,6 +139,35 @@ class ReadinessGateTests(unittest.TestCase):
         x=self.gate(morning)
         self.assertEqual(x["status"],"FINAL_RESEARCH_TOP2_UNCERTIFIED_SESSION")
 
+    def test_later_same_source_report_reload_does_not_fail_frozen_analysis_clock(self):
+        # Exact archived evidence: Nov6 analysis completed 23:21 KST, but a
+        # later same-source report was regenerated Nov7 07:07 KST.
+        self.latest["generated_at"]="2026-11-06T22:07:18.475392+00:00"
+        self.latest["analysis_completed_at"]="2026-11-06T14:21:39.578790+00:00"
+        self.latest["source_received_at"]="2026-11-06T22:07:10.023379+00:00"
+        self.latest["source_run_id"]="42302086749"
+        self.latest["new_registered_signals"]=0
+        self.summary["generated_at"]=self.latest["generated_at"]
+        self.summary["source_run_id"]=self.latest["source_run_id"]
+        monday=parsed("2026-11-09T08:30:00+09:00")
+        result=self.gate(monday)
+        self.assertEqual(result["status"],"FINAL_RESEARCH_TOP2_UNCERTIFIED_SESSION")
+        self.assertEqual([x["ticker"] for x in result["known_top2"]],["028050","030530"])
+        self.assertEqual(result["new_registered_signals_since_latest_report"],0)
+        self.assertFalse(result["trade_approved"])
+
+    def test_report_reload_in_future_never_backdates_2230_registration(self):
+        self.latest["generated_at"]="2026-11-06T22:07:18.475392+00:00"
+        self.latest["source_received_at"]="2026-11-06T22:07:10.023379+00:00"
+        self.summary["generated_at"]=self.latest["generated_at"]
+        self.assertEqual(self.gate(PREMATURE)["status"],
+                         "RESEARCH_NOT_YET_AVAILABLE_AT_CHECK_TIME")
+
+    def test_invalid_reload_receipt_after_generated_is_rejected(self):
+        self.latest["source_received_at"]="2026-11-07T08:00:00+09:00"
+        self.assertEqual(self.gate(READY)["status"],
+                         "RESEARCH_NOT_YET_AVAILABLE_AT_CHECK_TIME")
+
     def test_late_update_next_day_never_changes_2230_historical_state(self):
         self.latest["generated_at"]="2026-11-07T07:07:18+09:00"
         self.latest["analysis_completed_at"]="2026-11-06T23:21:38+09:00"
