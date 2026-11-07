@@ -112,7 +112,7 @@ def nov5_preview_nov6_market():
             **result))
     return dict(observed="2026-11-06",reference="2026-11-05",
                 preopen_publication_verified=False,entries=results,
-                2026_11_06_data_session_certified=False,
+                data_session_regular_only_certified=False,
                 no_new_historical_trade_registration=True)
 
 
@@ -198,6 +198,7 @@ def evaluate_histories(panel,sessions,pool,fold):
 
 def main():
     BASE.mkdir(parents=True,exist_ok=True)
+    os.environ["C3_KEY_ENVELOPES_DIR"]=str((STATE/"key_envelopes").resolve())
     nov=nov5_preview_nov6_market()
     panel,sessions,pool,provenance=load_historical()
     results={fold:evaluate_histories(panel,sessions,pool,fold) for fold in ("DEVELOPMENT","HOLDOUT")}
@@ -216,7 +217,7 @@ def main():
                     "ALL_REPEATED observations are serially correlated. NONOVERLAP_20 is small. NO engine promotion or profit claim.",
                     "No performance is included for real forward signals until actually matured after their registered source date.",
                 ],
-                repo_mutations=0,telegram_sends=0,
+                original_decision_ledger_mutations=0,telegram_sends=0,
                 trade_orders=0,model_promotion=False)
     out=BASE/"entry_v2_audit.json"
     jsonout(out,result)
