@@ -42,7 +42,10 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: |
-            /scripts/
+            /scripts/c3_readiness_gate_v19.py
+            /scripts/test_c3_readiness_gate_v19.py
+            /scripts/c3_official_recheck_v19.py
+            /scripts/test_c3_official_recheck_v19.py
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
@@ -71,7 +74,9 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: |
-            /scripts/
+            /scripts/c3_readiness_gate_v19.py
+            /scripts/c3_official_recheck_v19.py
+            /scripts/c3_telegram_inputs.py
             /reports/c3_operations_v18_20261107/execution_evidence.json
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
