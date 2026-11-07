@@ -13,7 +13,51 @@ import json
 import os
 from pathlib import Path
 
-from krx_official_eod_v65 import collect
+import hashlib
+from urllib.request import Request,urlopen
+from urllib.parse import urlencode
+from urllib.error import HTTPError,URLError
+
+def collect(day,outdir,auth_key):
+    """Metadata-only KRX diagnostic; no unverified OHLCV enters C3 signals."""
+    result=dict(asof=day,official_dataset_usable=False,
+                official_market_rows=0,krx_eod_authenticated=False,
+                raw_response_sha256={},status="AUTH_KEY_NOT_CONNECTED")
+    if not auth_key:return result
+    counts={};digests={}
+    endpoints={"KOSPI":"stk_bydd_trd","KOSDAQ":"ksq_bydd_trd"}
+    for market,endpoint in endpoints.items():
+        url=("https://data-dbg.krx.co.kr/svc/apis/sto/"+endpoint+"?"+
+             urlencode({"basDd":day.replace("-","")}))
+        req=Request(url,headers={"AUTH_KEY":auth_key,"Accept":"application/json"},method="GET")
+        try:
+            with urlopen(req,timeout=20) as response:
+                body=response.read(5*1024*1024+1)
+            if len(body)>5*1024*1024:
+                result["status"]="OFFICIAL_RESPONSE_TOO_LARGE";return result
+            payload=json.loads(body.decode("utf-8"))
+        except HTTPError as e:
+            result["status"]="KRX_AUTH_OR_SERVICE_APPROVAL_MISSING" if e.code in (401,403) else "KRX_SERVICE_HTTP_ERROR"
+            return result
+        except (URLError,TimeoutError,OSError):
+            result["status"]="KRX_SERVICE_NETWORK_UNAVAILABLE";return result
+        except (ValueError,UnicodeDecodeError):
+            result["status"]="KRX_RESPONSE_NON_JSON";return result
+        rows=payload.get("OutBlock_1") if isinstance(payload,dict) else None
+        if not isinstance(rows,list) or not rows:
+            result["status"]="OFFICIAL_RESPONSE_MISSING_OR_EMPTY_OUTBLOCK"
+            return result
+        if any(not isinstance(r,dict) or (
+            str(r.get("BAS_DD",day.replace("-",""))).replace("-","")!=day.replace("-",""))
+            for r in rows):
+            result["status"]="OFFICIAL_ROW_DATE_MISMATCH";return result
+        counts[market]=len(rows)
+        digests[market]=hashlib.sha256(body).hexdigest()
+    result.update(official_dataset_usable=True,official_market_rows=sum(counts.values()),
+        krx_eod_authenticated=True,raw_response_sha256=digests,
+        official_market_counts=counts,
+        status="OFFICIAL_DAILY_ROWS_PRESENT_SESSION_UNCERTIFIED")
+    return result
 
 def run(day,outdir,auth_key,source_summary=None,collect_fn=collect):
     out=Path(outdir);out.mkdir(parents=True,exist_ok=True)
