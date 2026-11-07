@@ -48,7 +48,7 @@ class FrozenEntryV4Tests(unittest.TestCase):
                          "CAP_BELOW_STOP","QUOTE_OR_COST_CONSTRAINT_FAILED"))
 
     def test_high_price_near_r1_not_eligible_without_lower_entry(self):
-        p=dict(P,resistance=105)
+        p=dict(P,resistance=87)
         d=executable_cap(p,"V4_DEFENSIVE")
         self.assertNotEqual(d["status"],"PLAN_READY")
 
@@ -69,7 +69,7 @@ class FrozenEntryV4Tests(unittest.TestCase):
 
     def test_above_limit_is_no_fill_without_looking_at_close(self):
         plan=executable_cap(P,"V4_BALANCED")
-        x,_=model_entry(P,B(o=120,h=130,l=plan["limit"]-100,c=121),"V4_BALANCED")
+        x,_=model_entry(P,B(o=120,h=130,l=plan["limit"]-1,c=121),"V4_BALANCED")
         self.assertTrue(x["filled"])
         self.assertEqual(x["price"],plan["limit"])
         y,_=model_entry(P,B(o=120,h=130,l=plan["limit"],c=121),"V4_BALANCED")
