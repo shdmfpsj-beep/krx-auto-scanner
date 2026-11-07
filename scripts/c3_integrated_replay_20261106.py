@@ -130,11 +130,16 @@ def immutable_source(original):
             "report_provider":original["source_provider"],
             "source_meta_fieldnames":sorted(record["source"]),
             "source_scope":record["source"].get("source_scope"),
+            "underlying_provider":record["source"].get("underlying_provider"),
             "price_basis":record["source"].get("price_basis"),
             "source_asof":record["asof"],
         },ensure_ascii=False),flush=True)
-    require(record["source"]["provider"]=="FINANCEDATA_KRX_CACHE",
-            "FROZEN_PROVIDER_DIFFERENCE")
+    # The immutable market records the collection wrapper as provider and
+    # its finance-data/KRX origin as underlying_provider. The mobile report
+    # shows the latter; never compare the two at the same provenance layer.
+    require(record["source"]["provider"]=="C3_KRX_UNADJUSTED_SUPPLY_V12" and
+            record["source"].get("underlying_provider")==original["source_provider"],
+            "FROZEN_WRAPPER_OR_UNDERLYING_PROVIDER_DIFFERENCE")
     require(original["source_price_asof"]==DAY and
             original["source_provider"]=="FINANCEDATA_KRX_CACHE",
             "REPORT_SOURCE_DISAGREES_WITH_MARKET")
