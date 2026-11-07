@@ -1,0 +1,164 @@
+name: C3 TOP2 entry lifecycle read-only overlay
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/c3_top2_lifecycle_overlay_v1.py'
+      - 'scripts/test_c3_top2_lifecycle_overlay_v1.py'
+      - '.github/workflows/c3_top2_lifecycle_overlay.yml'
+      - 'docs/C3_TOP2_LIFECYCLE_OVERLAY_20261108.md'
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['C3 approved research daily caller']
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: c3-top2-lifecycle-readonly
+  cancel-in-progress: false
+
+jobs:
+  read-only-status:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_top2_lifecycle_overlay_v1.py
+            /scripts/test_c3_top2_lifecycle_overlay_v1.py
+            /reports/c3_reference_calendar_v1.json
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: research_source
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/checkout@v4
+        with:
+          ref: 7bad1564f2d017e6bd0481758d0f6e0f8aa0c289
+          path: pinned_nov6
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run adversarial offline tests with no market keys
+        env:
+          PYTHONPATH: scripts
+        run: python -m unittest discover -s scripts -p 'test_c3_top2_lifecycle_overlay_v1.py' -v
+
+      - name: Restore previous derived snapshots if available (not original ledger)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/c3-prior
+          gh run list -R "$GH_REPO" --workflow c3_top2_lifecycle_overlay.yml \
+            --branch main --status success --limit 15 \
+            --json databaseId,event,headBranch > /tmp/c3-prior/runs.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          rows=json.loads(Path('/tmp/c3-prior/runs.json').read_text())
+          current=os.environ['GITHUB_RUN_ID']
+          candidates=[r for r in rows if str(r['databaseId'])!=current
+                      and r.get('headBranch')=='main'
+                      and r.get('event') in ('workflow_run','workflow_dispatch')]
+          Path('/tmp/c3-prior/candidate_runs.txt').write_text(
+              '\n'.join(str(r['databaseId']) for r in candidates)+'\n')
+          PY
+          while read -r prior; do
+            [[ -n "$prior" ]] || continue
+            if gh run download "$prior" -R "$GH_REPO" \
+                --name c3-top2-lifecycle-observation \
+                --dir /tmp/c3-prior/downloaded >/dev/null 2>&1 &&
+                [[ -s /tmp/c3-prior/downloaded/c3_top2_observed_history.jsonl ]]; then
+              echo "RESTORED_DERIVED_HISTORY_FROM_RUN=$prior"
+              break
+            fi
+          done < /tmp/c3-prior/candidate_runs.txt
+          echo "ORIGINAL_LEDGER_UNTOUCHED"
+
+      - name: Seed original Nov6 observation if prior history absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -s /tmp/c3-prior/downloaded/c3_top2_observed_history.jsonl ]]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          src=Path('research_source/reports/c3_forward_v8/latest.json')
+          baseline=Path('pinned_nov6/reports/c3_forward_v8/latest.json')
+          current=json.loads(src.read_text())
+          original=json.loads(baseline.read_text())
+          assert original['source_price_asof']=='2026-11-06'
+          if (current.get('source_price_asof') or '')>'2026-11-06':
+              cal=json.loads(Path('reports/c3_reference_calendar_v1.json').read_text())
+              cal['dates']=[d for d in cal['dates'] if d<='2026-11-06']
+              assert cal['dates'] and cal['dates'][-1]=='2026-11-06'
+              Path('/tmp/c3-seed-calendar.json').write_text(json.dumps(cal))
+              Path('/tmp/c3-seed-enabled').write_text('1')
+          PY
+            if [[ -s /tmp/c3-seed-enabled ]]; then
+              python scripts/c3_top2_lifecycle_overlay_v1.py \
+                --latest pinned_nov6/reports/c3_forward_v8/latest.json \
+                --calendar /tmp/c3-seed-calendar.json \
+                --outdir /tmp/c3-pinned-seed
+              mkdir -p /tmp/c3-prior/downloaded
+              cp /tmp/c3-pinned-seed/c3_top2_observed_history.jsonl \
+                /tmp/c3-prior/downloaded/c3_top2_observed_history.jsonl
+              echo "SEEDED_ONLY_ORIGINAL_NOV6_READ_ONLY"
+            fi
+          fi
+
+      - name: Derive latest TOP2 status; never place an order
+        shell: bash
+        run: |
+          set -euo pipefail
+          params=(--latest research_source/reports/c3_forward_v8/latest.json
+                  --calendar reports/c3_reference_calendar_v1.json
+                  --outdir /tmp/c3-lifecycle)
+          if [[ -s /tmp/c3-prior/downloaded/c3_top2_observed_history.jsonl ]]; then
+            params+=(--history /tmp/c3-prior/downloaded/c3_top2_observed_history.jsonl)
+          fi
+          python scripts/c3_top2_lifecycle_overlay_v1.py "${params[@]}"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          obj=json.loads(Path('/tmp/c3-lifecycle/c3_top2_lifecycle_status.json').read_text())
+          assert obj['read_only'] and obj['current_action']=='CASH'
+          assert obj['orders_enabled'] is False and obj['buy_approved'] is False
+          assert len(obj['top2']) in (0,2)
+          print('READ_ONLY_CASH_STATUS',obj['status'],obj['source_date'])
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-top2-lifecycle-observation
+          path: /tmp/c3-lifecycle/
+          retention-days: 90
+          if-no-files-found: warn
