@@ -84,13 +84,19 @@ def snapshot(source_date, rows):
 
 
 def watch_age(ticker, current_index, dates, by_date):
-    """Return consecutive previously observed TOP2 sessions (lower bound).
+    """Count confirmed consecutive prior selections without backfilling gaps.
 
-    A missing preceding session is not interpreted as a no-selection day.
-    Never backfill or infer missing sessions from weekends or wall time.
+    The initial observed day is a lower-bound bootstrap, not a claim that
+    the ticker was never selected before. Missing dates *within* our archive
+    mean UNKNOWN, while dates before the archive starts remain unobserved.
     """
+    if not by_date:
+        return (0, "BOOTSTRAP_NO_PRIOR_TOP2_EVIDENCE")
+    first_recorded_index = min(dates.index(day) for day in by_date)
     age = 0
     for index in range(current_index - 1, -1, -1):
+        if index < first_recorded_index:
+            return (age, "LOWER_BOUND_FROM_FIRST_OBSERVATION")
         previous = by_date.get(dates[index])
         if previous is None:
             return (None, "MISSING_PRIOR_SESSION")
