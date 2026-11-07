@@ -103,13 +103,12 @@ def nov5_preview_nov6_market():
         obs=market["rows"][ticker]
         obs=dict(obs,date="2026-11-06")
         result=direct_case(plan,obs)
-        results.append(dict(ticker=ticker,name=r["name"],
+        results.append(dict(**result,name=r["name"],
             frozen_prior_close=plan["reference_close"],
             source_day="2026-11-05",
             preview_generated_at=old["generated_at"],
             actually_preopen_publication_verified=False,
-            original_order_expiry="NEXT_SESSION_ONLY",
-            **result))
+            original_order_expiry="NEXT_SESSION_ONLY"))
     return dict(observed="2026-11-06",reference="2026-11-05",
                 preopen_publication_verified=False,entries=results,
                 data_session_regular_only_certified=False,
