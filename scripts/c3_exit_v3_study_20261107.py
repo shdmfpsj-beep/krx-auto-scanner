@@ -14,7 +14,7 @@ import json
 import os
 from collections import Counter, defaultdict
 from pathlib import Path
-from statistics import mean
+from statistics import mean, median
 
 from c3_entry_v2_preopen import entry, exit_model, _bar_ok
 from c3_entry_v2_study_20261107 import BASE, STATE, load_historical, require, jsonout
@@ -57,9 +57,16 @@ def paired_metrics(base,variant):
         if b["status"]!="COMPLETE":continue
         count_eligible+=1
         pairs.append(v["net_pct"]-b["net_pct"])
+    # Leave-one-trade-out is diagnostic, NOT a confidence interval.
+    loo=[mean(pairs[:i]+pairs[i+1:]) for i in range(len(pairs))] if len(pairs)>1 else []
     return dict(
         paired_filled_count=count_eligible,
         mean_exit_only_improvement_pct=round(mean(pairs),6) if pairs else None,
+        median_exit_only_improvement_pct=round(median(pairs),6) if pairs else None,
+        min_single_trade_delta_pct=round(min(pairs),6) if pairs else None,
+        max_single_trade_delta_pct=round(max(pairs),6) if pairs else None,
+        leave_one_out_mean_min_pct=round(min(loo),6) if loo else None,
+        leave_one_out_mean_max_pct=round(max(loo),6) if loo else None,
         better_count=sum(x>1e-6 for x in pairs),
         worse_count=sum(x<-1e-6 for x in pairs),
         equal_count=sum(abs(x)<=1e-6 for x in pairs),
@@ -207,6 +214,9 @@ def main():
                     conditional_mean_net_pct=w["conditional_mean_net_pct"],
                     opportunity_mean_with_cash_pct=w["opportunity_mean_with_cash_pct"],
                     paired_delta=w["difference_vs_baseline"]["mean_exit_only_improvement_pct"],
+                    paired_median_delta=w["difference_vs_baseline"]["median_exit_only_improvement_pct"],
+                    paired_loo_min=w["difference_vs_baseline"]["leave_one_out_mean_min_pct"],
+                    paired_loo_max=w["difference_vs_baseline"]["leave_one_out_mean_max_pct"],
                     paired_n=w["difference_vs_baseline"]["paired_filled_count"])
                  for p,w in v["variants"]["RESTING_ONE"]["NO_PRE_DECISION_EXTRA_GATE"]["exit_policies"].items()},
                 "rr15_risk8_1b_prior_n":v["variants"]["RESTING_ONE"][
