@@ -95,7 +95,7 @@ def entry(plan:dict,bar:dict|None,method:str)->dict:
         allocation=len(fills)/len(caps)
     prices=[f["price"] for f in fills]
     # Equal nominal budget per order: portfolio effective cost is harmonic mean.
-    effective_entry=len(prices)/sum(1.0/p for p in prices)
+    effective_entry=round(len(prices)/sum(1.0/p for p in prices),8)
     gap_below_stop=float(bar["open"])<=stop
     stopped_intraday=float(bar["low"])<=stop
     output=dict(
