@@ -41,6 +41,49 @@ def jsonout(path,data):
     path.write_text(json.dumps(data,ensure_ascii=False,indent=2,allow_nan=False)+"\n",encoding="utf-8")
 
 
+
+def dated_index_grid(sessions):
+    """Reconcile archived reference index files to the historical panel dates.
+
+    Only the exact published prefix that matches the entire original market
+    calendar is allowed. This is NOT a new index series or a data repair.
+    """
+    dest=BASE/"dated_indices";dest.mkdir(parents=True,exist_ok=True)
+    sources=("reports/c3_work6_20261105/sources",
+             "reports/c3_work7_20261105/sources")
+    audit={};meta=dict(series={})
+    for market in ("KOSPI","KOSDAQ"):
+        choices=[]
+        for folder in sources:
+            root=Path(folder)
+            manifest=json.loads((root/"index_manifest.json").read_text())
+            original=root/(market+"_index.csv")
+            original_sha=hashlib.sha256(original.read_bytes()).hexdigest()
+            require(original_sha==manifest["series"][market]["csv_sha256"],
+                    "ORIGINAL_BENCHMARK_CSV_SHA_MISMATCH")
+            with original.open(newline="") as f:rows=list(csv.DictReader(f))
+            # Never insert or extrapolate dates, not even over holidays.
+            if len(rows)>=len(sessions) and [r["date"] for r in rows[:len(sessions)]]==sessions:
+                choices.append((len(rows)-len(sessions),folder,rows,manifest,original_sha))
+        require(choices,"NO_HASH_VERIFIED_MATCHING_HISTORICAL_INDEX_GRID_"+market)
+        _,folder,original_rows,source_manifest,source_sha=min(choices,key=lambda z:z[0])
+        rows=original_rows[:len(sessions)]
+        output=dest/(market+"_index.csv")
+        with output.open("w",newline="") as f:
+            writer=csv.DictWriter(f,fieldnames=["date","market","open","high","low","close"],lineterminator="\n")
+            writer.writeheader();writer.writerows(rows)
+        updated=dict(source_manifest["series"][market],rows=len(rows),last=rows[-1]["date"],
+                     last_close=float(rows[-1]["close"]),
+                     csv_sha256=hashlib.sha256(output.read_bytes()).hexdigest())
+        meta["series"][market]=updated
+        audit[market]=dict(original_ref=folder,original_sha256=source_sha,
+                           source_rows=len(original_rows),matched_historical_rows=len(rows),
+                           future_rows_trimmed=len(original_rows)-len(rows),
+                           last_match=rows[-1]["date"])
+    jsonout(dest/"index_manifest.json",meta)
+    load_indices(dest,sessions) # independent re-validation of content and calendar
+    return dest,audit
+
 def load_historical():
     require(bool(os.environ.get("KRX_AUTH_KEY")),"ORIGINAL_PRIVATE_ARCHIVE_READER_KEY_MISSING")
     require(STATE.is_dir(),"IMMUTABLE_PRICE_STATE_MISSING")
@@ -65,11 +108,13 @@ def load_historical():
     for ticker,bars in selected.items():
         for b in bars:
             b["turnover_krw"]=turnover[ticker,b["date"]]
-    indices,_=load_indices("reports/c3_work7_20261105/sources",sessions)
+    index_dir,index_audit=dated_index_grid(sessions)
+    indices,_=load_indices(index_dir,sessions)
     proxy=market_proxy(panel_all,sessions)
     pool=build_pool(selected,sessions,indices,turnover,markets,proxy)
     return selected,sessions,pool,dict(
         original_panel_rows=audit["raw_source_rows"],
+        index_grid_reconciliation=index_audit,
         selected_cohort_names=len(selected),
         input_basis=audit["source_basis"],
         source_end=audit["effective_end"],
