@@ -61,8 +61,8 @@ jobs:
       github.event_name != 'pull_request' &&
       github.repository == 'shdmfpsj-beep/krx-auto-scanner' &&
       (github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main'))
+      (github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -97,6 +97,8 @@ jobs:
           fi
           echo "DATED_SOURCE_RECHECK $SOURCE_DATE_TO_RECHECK NO_SESSION_ATTESTATION_EXPECTED"
           python scripts/c3_official_recheck_v19.py --date "$SOURCE_DATE_TO_RECHECK" --outdir /tmp/c3-official-v19
+      - name: Refresh readiness with date-matched newest official EOD probe (still not session-certified)
+        run: python scripts/c3_readiness_gate_v19.py --recent-official /tmp/c3-official-v19/c3_official_dated_recheck_v19.json --outdir /tmp/c3-readiness-v19
       - uses: actions/upload-artifact@v4
         if: always()
         with:
