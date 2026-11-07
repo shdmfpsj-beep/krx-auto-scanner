@@ -51,7 +51,7 @@ def asof_runs(runs):
     return active
 
 
-def source_evidence(report,original_audit=None):
+def source_evidence(report,original_audit=None,recheck=None):
     """Market-source provenance: fail closed, never infer price-session scope."""
     audit=(original_audit or {}).get("actual_data") or {}
     original=audit.get("original_session_contract") or {}
@@ -86,8 +86,15 @@ def source_evidence(report,original_audit=None):
     # Even when a newly introduced 'verified' boolean appears in a report,
     # this gate cannot independently authenticate the missing scope. A future
     # approved provider-specific attestation verifier must be introduced first.
+    # Date-locked later official rechecks are a separate, newer evidence item.
+    # A newly available daily EOD file must not back-certify regular-only scope.
+    recent=(recheck or {}) if (recheck or {}).get("requested_asof")==date else {}
     return dict(
         source_session=date,
+        latest_official_dated_probe=dict(asof=recent.get("requested_asof"),
+            status=recent.get("official_target_status"),
+            rows=recent.get("official_target_rows"),
+            regular_only_certified=False) if recent else None,
         original_provider=report.get("source_provider"),
         source_contract=original,
         research_quality_passed=quality.get("status")=="QUALITY_GATE_PASSED",
@@ -103,7 +110,7 @@ def source_evidence(report,original_audit=None):
         buy_approved=False,orders_enabled=False,decision="CASH")
 
 
-def assess(latest,summary,clock,runs=(),audit=None,day=None):
+def assess(latest,summary,clock,runs=(),audit=None,day=None,recheck=None):
     """Distinguish not-yet-calculated from genuinely finalized 0 picks.
 
     Crucial: absence of a *registered* result is NEVER final zero signals.
@@ -112,7 +119,7 @@ def assess(latest,summary,clock,runs=(),audit=None,day=None):
     clock=clock.astimezone(timezone.utc)
     requested=day or expected_day(clock)
     actives=asof_runs(runs)
-    prov=source_evidence(latest,audit)
+    prov=source_evidence(latest,audit,recheck)
     reason=None
     final=False
     requested_day_valid=bool(requested)
@@ -186,6 +193,7 @@ def main():
     p.add_argument("--outdir",required=True)
     p.add_argument("--audit",default="reports/c3_operations_v18_20261107/execution_evidence.json")
     p.add_argument("--date",default=None,help="Optional expected source day for read-only dated diagnostic")
+    p.add_argument("--recent-official",default=None,help="Optional read-only newer date-locked KRX EOD probe")
     p.add_argument("--at",default=None,help="Observation time ISO8601; default actual current time")
     args=p.parse_args()
     from c3_telegram_inputs import GitHub,report_pair
@@ -202,8 +210,9 @@ def main():
             runs.append(dict(status="pending",workflow_name=name,
                              error_type=type(exc).__name__))
     audit=json.loads(Path(args.audit).read_text()) if Path(args.audit).is_file() else {}
+    recent=json.loads(Path(args.recent_official).read_text()) if args.recent_official and Path(args.recent_official).is_file() else {}
     output=assess(latest,summary,parsed(args.at) if args.at else
-                  datetime.now(timezone.utc),runs,audit,args.date)
+                  datetime.now(timezone.utc),runs,audit,args.date,recent)
     output["research_commit_ref"]=revision
     out=Path(args.outdir);out.mkdir(parents=True,exist_ok=True)
     (out/"c3_readiness_gate_v19.json").write_text(
