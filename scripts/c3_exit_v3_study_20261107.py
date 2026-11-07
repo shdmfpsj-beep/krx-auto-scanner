@@ -214,8 +214,8 @@ def main():
             } for h,v in d["horizons"].items()}
             for group,d in groups.items()}
          for fold,groups in evaluations.items()},
-        "no_actions":True,
-        "no_model_promotion":True)
+        no_actions=True,
+        no_model_promotion=True)
     print("C3_EXIT_V3_RESEARCH="+json.dumps(short,ensure_ascii=False,allow_nan=False),flush=True)
 
 
