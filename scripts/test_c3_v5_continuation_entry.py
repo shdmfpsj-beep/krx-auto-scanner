@@ -72,11 +72,16 @@ class V5Cases(unittest.TestCase):
         self.assertFalse(bad["accepted"])
 
     def test_risk_policy_starts_at_mid_or_cash(self):
-        x=choose_plan(P,STRONG,"V5_RISK_AWARE")
+        # Frozen stop 89 makes midpoint risk 11%, whereas HIGH risk >12%;
+        # original stop 86 would correctly reject BOTH (mid = 14% risk).
+        eligible=dict(P,stop=89)
+        x=choose_plan(eligible,STRONG,"V5_RISK_AWARE")
         self.assertTrue(x["submitted"])
         self.assertEqual(x["limit"],100.)
         self.assertEqual(x["selection_basis"],"RISK_APPROVED_MID")
-        impossible=dict(P,resistance=87)
+        original=choose_plan(P,STRONG,"V5_RISK_AWARE")
+        self.assertFalse(original["submitted"])
+        impossible=dict(eligible,resistance=87)
         y=choose_plan(impossible,STRONG,"V5_RISK_AWARE")
         self.assertFalse(y["submitted"])
 
