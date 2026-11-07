@@ -139,7 +139,13 @@ def assess(latest,summary,clock,runs=(),audit=None,day=None,recheck=None):
             completed=parsed(latest["analysis_completed_at"])
             received=parsed(latest["source_received_at"])
             close=parsed(requested+"T15:30:00+09:00")
-            time_ok=close<=received<=completed<=generated<=clock
+            # analysis_completed_at belongs to the original frozen signal,
+            # while source_received_at may be the later read of that SAME
+            # immutable decision when a report is regenerated. Both must
+            # precede this report's generated_at, but a later re-read must
+            # not falsely imply the original analysis was not finalized.
+            time_ok=(close<=completed<=generated<=clock and
+                     close<=received<=generated)
         except (KeyError,ValueError,TypeError):
             time_ok=False
         if not time_ok:
