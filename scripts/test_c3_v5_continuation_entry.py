@@ -92,6 +92,15 @@ class V5Cases(unittest.TestCase):
         self.assertEqual(P,p)
         self.assertEqual(WEAK,f)
 
+    def test_signal_plan_identity_cannot_borrow_other_tickers_trend(self):
+        other=dict(STRONG,ticker="OTHER")
+        invalid=choose_plan(P,other,"V5_TREND_ADAPTIVE")
+        self.assertFalse(invalid["submitted"])
+        self.assertEqual(invalid["status"],"NO_ORDER_PRIOR_SIGNAL_IDENTITY_MISMATCH")
+        tomorrow=dict(STRONG,decision_date="2026-11-06")
+        invalid2=choose_plan(P,tomorrow,"V2_HIGH")
+        self.assertFalse(invalid2["submitted"])
+
     def test_no_order_returns_no_entry_not_zero_trade(self):
         frozen,e=simulate(P,WEAK,b(),"V5_TREND_GATE_HIGH")
         self.assertFalse(frozen["submitted"])
