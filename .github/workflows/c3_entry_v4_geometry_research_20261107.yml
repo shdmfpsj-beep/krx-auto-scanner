@@ -1,0 +1,87 @@
+name: C3 V4 frozen entry geometry paired holdout (NO ORDER / NO SEND)
+on:
+  push:
+    branches: [research/c3-v4-entry-geometry-risk-reward-20261107]
+    paths:
+      - 'scripts/c3_entry_v4_geometry.py'
+      - 'scripts/test_c3_entry_v4_geometry.py'
+      - 'scripts/c3_entry_v4_study_20261107.py'
+      - '.github/workflows/c3_entry_v4_geometry_research_20261107.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-v4-frozen-entry-research-20261107
+  cancel-in-progress: false
+jobs:
+  research-no-orders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      PYTHONPATH: 'v4/scripts:v2/scripts:scripts'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Read immutable original v4/v6/v7 screening engines and historical cohort files
+        uses: actions/checkout@v4
+        with:
+          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/
+            /config/
+            /reports/c3_work8_20261105/inputs.json
+            /reports/c3_work6_20261105/sources/
+            /reports/c3_work7_20261105/sources/
+            /reports/v68_investment_sector_members.csv
+            /reports/c3_work2_20261105/source_validation_cases.json
+          sparse-checkout-cone-mode: false
+      - name: Read pinned V2 preopen entry and historical encrypted source loader
+        uses: actions/checkout@v4
+        with:
+          ref: ffb9ee44c73800adcbb6ee3bdf7067f61a35cd69
+          path: v2
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_entry_v2_preopen.py
+            /scripts/c3_entry_v2_study_20261107.py
+          sparse-checkout-cone-mode: false
+      - name: Read V4 independent preclose geometric study
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-v4-entry-geometry-risk-reward-20261107
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_entry_v4_geometry.py
+            /scripts/test_c3_entry_v4_geometry.py
+            /scripts/c3_entry_v4_study_20261107.py
+          sparse-checkout-cone-mode: false
+      - name: Read original cryptographic 95-name source without modifying registered C3 decisions
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/bootstrap/
+            /reports/c3_forward_v8/key_envelopes/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install only research panel reader dependencies
+        run: python -m pip install --disable-pip-version-check pandas==2.2.3 'cryptography>=43,<47' requests
+      - name: Run preclose-only geometry, fill and adverse gap unit tests
+        run: python -m unittest discover -s v4/scripts -p 'test_c3_entry_v4_geometry.py' -v
+      - name: Rebuild original B/Daily selected panel and compare V4 variants paired common-clock
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python v4/scripts/c3_entry_v4_study_20261107.py
+      - name: Save only derived study figures, never raw historical original prices or keys
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v4-frozen-geometry-holdout-research
+          path: /tmp/c3-v4-entry-geometry/v4_entry_geometry_study.json
+          retention-days: 30
+          if-no-files-found: warn
