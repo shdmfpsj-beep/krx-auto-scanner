@@ -1,0 +1,57 @@
+name: C3 V8 prospective evidence protocol (NO ORDER NO ALERT)
+on:
+  push:
+    branches: [research/c3-v8-prospective-audit-20261107]
+    paths:
+      - 'scripts/c3_v8_prospective_contract.py'
+      - 'scripts/test_c3_v8_prospective_contract.py'
+      - 'scripts/c3_v8_archive_audit.py'
+      - '.github/workflows/c3_v8_prospective_protocol_20261107.yml'
+permissions:
+  contents: read
+concurrency:
+  group: c3-v8-20261107-fixed-archive-evidence-contract
+  cancel-in-progress: false
+jobs:
+  historical-archive-prospective-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: scripts
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Check out only the V8 pure deterministic research source
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-v8-prospective-audit-20261107
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_v8_prospective_contract.py
+            /scripts/test_c3_v8_prospective_contract.py
+            /scripts/c3_v8_archive_audit.py
+          sparse-checkout-cone-mode: false
+      - name: Pin original immutable 11/6 research report (not latest mutable report)
+        uses: actions/checkout@v4
+        with:
+          ref: 7bad1564f2d017e6bd0481758d0f6e0f8aa0c289
+          path: frozen
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
+          sparse-checkout-cone-mode: false
+      - name: Install Python no extra packages or market subscriptions
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run time-leakage, source and stopping-rule guardrail unit tests
+        run: python -m unittest discover -s scripts -p 'test_c3_v8_*.py' -v
+      - name: Replay as-of visibility and actual 11/6 TOP2 geometric diagnostics READ ONLY
+        run: python scripts/c3_v8_archive_audit.py
+      - name: Retain only aggregate no-order V8 audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v8-prospective-asof-audit-20261107
+          path: /tmp/c3-v8-prospective-audit/v8_archive_audit.json
+          retention-days: 30
+          if-no-files-found: warn
