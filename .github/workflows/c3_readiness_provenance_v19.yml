@@ -89,14 +89,13 @@ jobs:
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
         run: |
-          python - <<'PY'
-          import os
-          from datetime import datetime
-          from zoneinfo import ZoneInfo
-          day='2026-11-06' if os.environ.get('GITHUB_REF_NAME')=='fix/c3-readiness-provenance-20261107' else datetime.now(ZoneInfo('Asia/Seoul')).date().isoformat()
-          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('SOURCE_DATE_TO_RECHECK='+day+'\n')
-          print('DATED_SOURCE_RECHECK',day,'NO_SESSION_ATTESTATION_EXPECTED')
-          PY
+          set -euo pipefail
+          if [[ "$GITHUB_REF_NAME" == "fix/c3-readiness-provenance-20261107" ]]; then
+            SOURCE_DATE_TO_RECHECK="2026-11-06"
+          else
+            SOURCE_DATE_TO_RECHECK="$(TZ=Asia/Seoul date +%F)"
+          fi
+          echo "DATED_SOURCE_RECHECK $SOURCE_DATE_TO_RECHECK NO_SESSION_ATTESTATION_EXPECTED"
           python scripts/c3_official_recheck_v19.py --date "$SOURCE_DATE_TO_RECHECK" --outdir /tmp/c3-official-v19
       - uses: actions/upload-artifact@v4
         if: always()
