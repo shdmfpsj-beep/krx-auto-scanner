@@ -1,0 +1,96 @@
+name: C3 V5 continuation versus entry access research (NO ORDER / NO TELEGRAM)
+on:
+  push:
+    branches: [research/c3-v5-continuation-entry-tradeoff-20261107]
+    paths:
+      - 'scripts/c3_v5_continuation_entry.py'
+      - 'scripts/test_c3_v5_continuation_entry.py'
+      - 'scripts/c3_v5_continuation_study_20261107.py'
+      - '.github/workflows/c3_v5_continuation_entry_research_20261107.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-v5-frozen-continuation-tradeoff-20261107
+  cancel-in-progress: false
+jobs:
+  fixed-hypothesis-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: 'v5/scripts:v4/scripts:v2/scripts:scripts'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Read frozen source engine and 95-name historical source commitments
+        uses: actions/checkout@v4
+        with:
+          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/
+            /config/
+            /reports/c3_work8_20261105/inputs.json
+            /reports/c3_work6_20261105/sources/
+            /reports/c3_work7_20261105/sources/
+            /reports/v68_investment_sector_members.csv
+            /reports/c3_work2_20261105/source_validation_cases.json
+          sparse-checkout-cone-mode: false
+      - name: Read V2 frozen single resting limit and old panel decryption/validation
+        uses: actions/checkout@v4
+        with:
+          ref: ffb9ee44c73800adcbb6ee3bdf7067f61a35cd69
+          path: v2
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_entry_v2_preopen.py
+            /scripts/c3_entry_v2_study_20261107.py
+          sparse-checkout-cone-mode: false
+      - name: Read V4 costed first-resistance and unchanged midpoint reference
+        uses: actions/checkout@v4
+        with:
+          ref: 756132b78f0dca1c2515d4f9fc51f1a864dc35e5
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_entry_v4_geometry.py
+          sparse-checkout-cone-mode: false
+      - name: Read V5 fixed pre-close rules and two-stage holdout
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-v5-continuation-entry-tradeoff-20261107
+          path: v5
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_v5_continuation_entry.py
+            /scripts/test_c3_v5_continuation_entry.py
+            /scripts/c3_v5_continuation_study_20261107.py
+          sparse-checkout-cone-mode: false
+      - name: Read original encrypted bootstrap and keys READ ONLY
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/bootstrap/
+            /reports/c3_forward_v8/key_envelopes/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install only historical data reader requirements
+        run: python -m pip install --disable-pip-version-check pandas==2.2.3 'cryptography>=43,<47' requests
+      - name: No-lookahead, model identity and adverse next-open test suite
+        run: python -m unittest discover -s v5/scripts -p 'test_c3_v5_continuation_entry.py' -v
+      - name: Verify frozen original B selections, 5/10/20 fold-separated continuation and missed-winner cost
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python v5/scripts/c3_v5_continuation_study_20261107.py
+      - name: Save only research summary, not decrypted raw panel or personal brokerage details
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-v5-continuation-entry-tradeoff-20261107
+          path: /tmp/c3-v5-continuation-entry/v5_continuation_entry_study.json
+          retention-days: 30
+          if-no-files-found: warn
