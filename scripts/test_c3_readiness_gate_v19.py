@@ -107,6 +107,19 @@ class ReadinessGateTests(unittest.TestCase):
         self.assertIn("OFFICIAL_SAME_DAY_API_RETURNED_EMPTY",x["source_attestation"]["caveats"])
         self.assertEqual(x["source_attestation"]["official_prior_day_control_rows"],2769)
 
+    def test_later_official_2769_rows_is_still_regular_session_uncertified(self):
+        recent=dict(requested_asof=DAY,official_target_status="OFFICIAL_DAILY_ROWS_PRESENT_SESSION_UNCERTIFIED",
+                    official_target_rows=2769)
+        x=assess(self.latest,self.summary,READY,(),AUDIT,recheck=recent)
+        self.assertEqual(x["source_attestation"]["latest_official_dated_probe"]["rows"],2769)
+        self.assertFalse(x["source_attestation"]["latest_official_dated_probe"]["regular_only_certified"])
+        self.assertFalse(x["trade_approved"])
+
+    def test_mismatched_new_official_day_cannot_be_applied_to_old_session(self):
+        recent=dict(requested_asof="2026-11-05",official_target_rows=2769)
+        x=assess(self.latest,self.summary,READY,(),AUDIT,recheck=recent)
+        self.assertIsNone(x["source_attestation"]["latest_official_dated_probe"])
+
     def test_fake_report_self_declared_certification_is_insufficient(self):
         self.latest["source_regular_only_certified"]=True
         x=self.gate()
