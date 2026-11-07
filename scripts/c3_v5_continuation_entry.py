@@ -77,6 +77,14 @@ def choose_plan(plan,prior,policy):
     if policy not in POLICIES:raise ValueError("UNREGISTERED_V5_HYPOTHESIS")
     if not plan:return dict(status="NO_ORIGINAL_SUPPORT_PLAN",submitted=False,
                             limit=None,policy=policy)
+    # Never borrow a higher-ranked ticker's trend/turnover row when binding
+    # a separate pre-close entry plan. Baseline is replayed only on a valid
+    # original signal/plan pair.
+    if not isinstance(prior,dict) or (
+        prior.get("ticker")!=plan.get("ticker") or
+        prior.get("decision_date")!=plan.get("decision_date")):
+        return dict(status="NO_ORDER_PRIOR_SIGNAL_IDENTITY_MISMATCH",
+                    submitted=False,limit=None,policy=policy)
     strong=prior_strong(prior)
     high=executable_cap(plan,"V2_HIGH")
     mid=executable_cap(plan,"V4_MIDPOINT")
