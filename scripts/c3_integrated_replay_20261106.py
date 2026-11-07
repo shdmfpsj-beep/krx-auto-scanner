@@ -500,7 +500,7 @@ def main():
       research_gate=dict(next_session_buy_authorized=False,
            regular_session_certified=False,
            forward_trades_completed=0,
-           recommended_action="CASH")))
+           recommended_action="CASH"))
     write_json(OUT/"integrated_20261106_result.json",final)
     print("C3_20261106_INTEGRATED="+json.dumps({
         "status":final["summary_status"]["overall"],
