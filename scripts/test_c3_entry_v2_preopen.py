@@ -80,6 +80,19 @@ class ReadOnlyPreopenEntryTests(unittest.TestCase):
         self.assertTrue(out["net_pct"]<0)
         self.assertEqual(out["exit_reason"],"CLOSE_BELOW_FROZEN_STOP_NEXT_OPEN")
 
+    def test_exit_at_open_ignores_later_high_low_on_exit_day(self):
+        e=entry(S,SB,"RESTING_ONE")
+        a=bar("028050",59600,62000,56000,57000,"2026-11-06")
+        # The next session contains a giant rally AFTER the model exited at
+        # its open. It MUST NOT inflate the holding period MFE.
+        b=bar("028050",56100,99900,50000,90000,"2026-11-09")
+        out=exit_model(S,a["date"],e,{a["date"]:a,b["date"]:b},
+                       [a["date"],b["date"]],5)
+        self.assertEqual(out["status"],"COMPLETE")
+        self.assertEqual(out["exit_open"],56100)
+        self.assertAlmostEqual(out["mfe_pct"],100*(62000/59600-1),places=4)
+        self.assertAlmostEqual(out["mae_pct"],100*(56000/59600-1),places=4)
+
     def test_first_partial_budget_cannot_count_full_amount(self):
         x=entry(W,WB,"RESTING_TWO")
         rows=[bar("030530",23450,29200,23450,28300,d) for d in
