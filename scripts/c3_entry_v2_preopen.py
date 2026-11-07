@@ -135,10 +135,14 @@ def exit_model(plan:dict,entry_day:str,entry_result:dict,
         d=sessions[i];b=by_date.get(d)
         if b is None or not _bar_ok(b):
             return dict(status="CENSORED_MISSING_OR_INVALID_BAR",net_pct=None)
-        mfe=max(mfe or -float("inf"),(float(b["high"])/fill_price-1)*100)
-        mae=min(mae or float("inf"),(float(b["low"])/fill_price-1)*100)
+        # If exiting at this bar's open, its later high and low were NEVER
+        # part of the position. Include the auction open, not future session
+        # extremes: otherwise MFE/MAE silently leaks post-exit information.
         if pending is not None:
             exit_price=float(b["open"])
+            opening_excursion=(exit_price/fill_price-1)*100
+            mfe=max(mfe if mfe is not None else -float("inf"),opening_excursion)
+            mae=min(mae if mae is not None else float("inf"),opening_excursion)
             net=100*(exit_price*(1-SELL_COST)*(1-SLIPPAGE_EACH_SIDE)/
                      (fill_price*(1+BUY_COST)*(1+SLIPPAGE_EACH_SIDE))-1)
             return dict(status="COMPLETE",entry_date=entry_day,exit_date=d,
@@ -148,6 +152,8 @@ def exit_model(plan:dict,entry_day:str,entry_result:dict,
                         mfe_pct=round(mfe,5),mae_pct=round(mae,5),
                         same_session_ordering_unknown=entry_result.get("same_day_low_touched_stop",False),
                         unsafe_unconditional_preopen_fill=entry_result.get("open_at_or_below_stop",False))
+        mfe=max(mfe if mfe is not None else -float("inf"),(float(b["high"])/fill_price-1)*100)
+        mae=min(mae if mae is not None else float("inf"),(float(b["low"])/fill_price-1)*100)
         if float(b["close"])<stop:pending="CLOSE_BELOW_FROZEN_STOP_NEXT_OPEN"
         if i-idx>=horizon and pending is None:pending="HORIZON_NEXT_OPEN"
     return dict(status="WINDOW_NOT_MATURED",net_pct=None,
