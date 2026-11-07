@@ -110,7 +110,7 @@ def exit_strategy(plan,entry_day,ent,by_date,sessions,horizon,policy):
         if scheduled_full is None and partial_enabled and not half_scheduled_once and close>=target:
             scheduled_half=True
             half_scheduled_once=True
-        if trailing_enabled:
+        if trailing_enabled and scheduled_full is None:
             if peak_close is None or close>peak_close:peak_close=close
             if peak_close>=entry_price*(1+TRAIL_TRIGGER_PCT/100):
                 if activated_at is None:activated_at=day
