@@ -55,6 +55,16 @@ jobs:
             /scripts/c3_entry_v4_geometry.py
             /scripts/test_c3_entry_v4_geometry.py
             /scripts/c3_entry_v4_study_20261107.py
+            /scripts/c3_v4_nov6_scenario_20261107.py
+          sparse-checkout-cone-mode: false
+      - name: Read Nov5 frozen reference preview (written after Nov6 09:00, not a signal)
+        uses: actions/checkout@v4
+        with:
+          ref: 6118f4914975d53dc0b2fd421b5c4cd120c62deb
+          path: preview
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
           sparse-checkout-cone-mode: false
       - name: Read original cryptographic 95-name source without modifying registered C3 decisions
         uses: actions/checkout@v4
@@ -65,6 +75,7 @@ jobs:
           sparse-checkout: |
             /reports/c3_forward_v8/bootstrap/
             /reports/c3_forward_v8/key_envelopes/
+            /reports/c3_forward_v8/lanes/krx_unadjusted_v12/markets/2026-11-06.json.gz
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
@@ -77,11 +88,17 @@ jobs:
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
         run: python v4/scripts/c3_entry_v4_study_20261107.py
+      - name: Recheck Nov6 scenario with explicit report-publication delay (not a prospective signal)
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python v4/scripts/c3_v4_nov6_scenario_20261107.py
       - name: Save only derived study figures, never raw historical original prices or keys
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: c3-v4-frozen-geometry-holdout-research
-          path: /tmp/c3-v4-entry-geometry/v4_entry_geometry_study.json
+          path: |
+            /tmp/c3-v4-entry-geometry/v4_entry_geometry_study.json
+            /tmp/c3-v4-entry-geometry/v4_nov6_scenario_only.json
           retention-days: 30
           if-no-files-found: warn
