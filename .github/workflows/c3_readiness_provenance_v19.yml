@@ -1,0 +1,115 @@
+name: C3 research finality and regular-session provenance audit (NO ORDER / NO SEND)
+on:
+  push:
+    branches:
+      - fix/c3-readiness-provenance-20261107
+    paths:
+      - 'scripts/c3_readiness_gate_v19.py'
+      - 'scripts/c3_official_recheck_v19.py'
+      - 'scripts/test_c3_readiness_gate_v19.py'
+      - 'scripts/test_c3_official_recheck_v19.py'
+      - '.github/workflows/c3_readiness_provenance_v19.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/c3_readiness_gate_v19.py'
+      - 'scripts/c3_official_recheck_v19.py'
+      - 'scripts/test_c3_readiness_gate_v19.py'
+      - 'scripts/test_c3_official_recheck_v19.py'
+      - '.github/workflows/c3_readiness_provenance_v19.yml'
+  workflow_run:
+    workflows: ['C3 approved research daily caller']
+    types: [completed]
+    branches: [main]
+  schedule:
+    # KST 22:25 pre-report status. This is NOT a 22:30 completion SLA.
+    - cron: '25 13 * * 1-5'
+    # KST 23:35 post-research retry. This is NOT a ChatGPT resend.
+    - cron: '35 14 * * 1-5'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-readonly-source-and-readiness-v19
+  cancel-in-progress: false
+jobs:
+  offline-guardrails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_readiness_gate_v19.py
+            /scripts/test_c3_readiness_gate_v19.py
+            /scripts/c3_official_recheck_v19.py
+            /scripts/test_c3_official_recheck_v19.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/source_consensus_v64.py
+            /scripts/forward_ledger_v63.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile all new guardrails (no network or secret)
+        run: |
+          python -m py_compile scripts/c3_readiness_gate_v19.py scripts/c3_official_recheck_v19.py
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_readiness_gate_v19.py' -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_official_recheck_v19.py' -v
+  real-source-readonly:
+    needs: offline-guardrails
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.repository == 'shdmfpsj-beep/krx-auto-scanner' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: scripts
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_readiness_gate_v19.py
+            /scripts/c3_official_recheck_v19.py
+            /scripts/c3_telegram_inputs.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/source_consensus_v64.py
+            /scripts/forward_ledger_v63.py
+            /reports/c3_operations_v18_20261107/execution_evidence.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check requests
+      - name: Derive current C3 finality without treating absence as zero TOP2
+        run: python scripts/c3_readiness_gate_v19.py --outdir /tmp/c3-readiness-v19
+      - name: Re-query official daily KRX date-lock without borrowing other date
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          day='2026-11-06' if os.environ.get('GITHUB_REF_NAME')=='fix/c3-readiness-provenance-20261107' else datetime.now(ZoneInfo('Asia/Seoul')).date().isoformat()
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('SOURCE_DATE_TO_RECHECK='+day+'\n')
+          print('DATED_SOURCE_RECHECK',day,'NO_SESSION_ATTESTATION_EXPECTED')
+          PY
+          python scripts/c3_official_recheck_v19.py --date "$SOURCE_DATE_TO_RECHECK" --outdir /tmp/c3-official-v19
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-readiness-and-krx-provenance-v19
+          path: |
+            /tmp/c3-readiness-v19/c3_readiness_gate_v19.json
+            /tmp/c3-official-v19/c3_official_dated_recheck_v19.json
+          retention-days: 30
+          if-no-files-found: warn
