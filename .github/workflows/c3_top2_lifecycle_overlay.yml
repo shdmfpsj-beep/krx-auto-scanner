@@ -49,6 +49,15 @@ jobs:
             /reports/c3_forward_v8/latest.json
           sparse-checkout-cone-mode: false
 
+      - uses: actions/checkout@v4
+        with:
+          ref: 7bad1564f2d017e6bd0481758d0f6e0f8aa0c289
+          path: pinned_nov6
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
+          sparse-checkout-cone-mode: false
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -92,6 +101,38 @@ jobs:
             fi
           done < /tmp/c3-prior/candidate_runs.txt
           echo "ORIGINAL_LEDGER_UNTOUCHED"
+
+      - name: Seed original Nov6 observation if prior history absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -s /tmp/c3-prior/downloaded/c3_top2_observed_history.jsonl ]]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          src=Path('research_source/reports/c3_forward_v8/latest.json')
+          baseline=Path('pinned_nov6/reports/c3_forward_v8/latest.json')
+          current=json.loads(src.read_text())
+          original=json.loads(baseline.read_text())
+          assert original['source_price_asof']=='2026-11-06'
+          if current.get('source_price_asof','')>'2026-11-06':
+              cal=json.loads(Path('reports/c3_reference_calendar_v1.json').read_text())
+              cal['dates']=[d for d in cal['dates'] if d<='2026-11-06']
+              assert cal['dates'] and cal['dates'][-1]=='2026-11-06'
+              Path('/tmp/c3-seed-calendar.json').write_text(json.dumps(cal))
+              Path('/tmp/c3-seed-enabled').write_text('1')
+          PY
+            if [[ -s /tmp/c3-seed-enabled ]]; then
+              python scripts/c3_top2_lifecycle_overlay_v1.py \
+                --latest pinned_nov6/reports/c3_forward_v8/latest.json \
+                --calendar /tmp/c3-seed-calendar.json \
+                --outdir /tmp/c3-pinned-seed
+              mkdir -p /tmp/c3-prior/downloaded
+              cp /tmp/c3-pinned-seed/c3_top2_observed_history.jsonl \
+                /tmp/c3-prior/downloaded/c3_top2_observed_history.jsonl
+              echo "SEEDED_ONLY_ORIGINAL_NOV6_READ_ONLY"
+            fi
+          fi
 
       - name: Derive latest TOP2 status; never place an order
         shell: bash
