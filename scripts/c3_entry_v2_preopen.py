@@ -113,7 +113,8 @@ def entry(plan:dict,bar:dict|None,method:str)->dict:
 
 
 def exit_model(plan:dict,entry_day:str,entry_result:dict,
-               by_date:dict,sessions:list[str],horizon:int)->dict:
+               by_date:dict,sessions:list[str],horizon:int,
+               include_unsafe_mechanical:bool=False)->dict:
     """Exit on next open after first *close* below frozen stop or time limit.
 
     No same-candle intraday stop/target ordering assumed; no trailing or
@@ -122,7 +123,7 @@ def exit_model(plan:dict,entry_day:str,entry_result:dict,
     if horizon not in (5,10,20):raise ValueError("UNREGISTERED_HORIZON")
     if not entry_result.get("filled"):
         return dict(status="NO_ENTRY",net_pct=None)
-    if entry_result.get("open_at_or_below_stop"):
+    if entry_result.get("open_at_or_below_stop") and not include_unsafe_mechanical:
         return dict(status="UNSAFE_AT_OPEN_NO_APPROVED_TRADE",net_pct=None)
     idx=sessions.index(entry_day)
     fill_price=float(entry_result["price"])
@@ -145,7 +146,8 @@ def exit_model(plan:dict,entry_day:str,entry_result:dict,
                         net_pct=round(net,6),
                         opportunity_cash_adjusted_pct=round(net*entry_result["allocations_filled"],6),
                         mfe_pct=round(mfe,5),mae_pct=round(mae,5),
-                        same_session_ordering_unknown=entry_result.get("same_day_low_touched_stop",False))
+                        same_session_ordering_unknown=entry_result.get("same_day_low_touched_stop",False),
+                        unsafe_unconditional_preopen_fill=entry_result.get("open_at_or_below_stop",False))
         if float(b["close"])<stop:pending="CLOSE_BELOW_FROZEN_STOP_NEXT_OPEN"
         if i-idx>=horizon and pending is None:pending="HORIZON_NEXT_OPEN"
     return dict(status="WINDOW_NOT_MATURED",net_pct=None,
