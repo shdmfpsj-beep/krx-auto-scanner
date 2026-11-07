@@ -21,7 +21,7 @@ def E(x=100,allocation=1,unsafe=False):
 
 class CausalExitV3Tests(unittest.TestCase):
     def test_full_hold_matches_frozen_v2_stop_next_open(self):
-        bars=[B(D[0],100,105,94,88), B(D[1],85,90,80,87)]
+        bars=[B(D[0],100,105,84,88), B(D[1],85,90,80,87)]
         by={b["date"]:b for b in bars}
         x=exit_strategy(P,D[0],E(),by,D,5,"BASELINE")
         y=exit_model(P,D[0],E(),by,D,5)
