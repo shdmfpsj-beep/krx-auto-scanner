@@ -1,0 +1,139 @@
+name: C3 Nov6 integrated immutable replay (NO ORDER / NO SEND)
+on:
+  push:
+    branches:
+      - research/c3-20261106-integrated-replay-audit-20261107
+    paths:
+      - 'scripts/c3_integrated_replay_20261106.py'
+      - 'scripts/test_c3_integrated_20261106.py'
+      - '.github/workflows/c3_integrated_replay_20261106.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-20261106-integrated-readonly-20261107
+  cancel-in-progress: false
+jobs:
+  immutable-integrated-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: 'audit/scripts:v3/scripts:v2/scripts:scripts:engine/scripts'
+      PYTHONDONTWRITEBYTECODE: '1'
+      C3_FROZEN_SOURCE_REF: '7bad1564f2d017e6bd0481758d0f6e0f8aa0c289'
+    steps:
+      - name: Read pinned C3 report renderer and operations audit
+        uses: actions/checkout@v4
+        with:
+          ref: 0def1a43131f7e6b48ea04338a0770d42e9fba4e
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_telegram_notify.py
+            /scripts/c3_telegram_inputs.py
+            /scripts/c3_classic_theme.py
+            /scripts/c3_report_context.py
+            /scripts/krx_opendart_financial_v91.py
+            /config/c3_company_context_verified.json
+            /reports/c3_operations_v18_20261107/execution_evidence.json
+          sparse-checkout-cone-mode: false
+      - name: Read exact original 2026-11-06 A/B engine (NO registration invoked)
+        uses: actions/checkout@v4
+        with:
+          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
+          path: engine
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/
+          sparse-checkout-cone-mode: false
+      - name: Read pinned V2 entry engine and its original tests
+        uses: actions/checkout@v4
+        with:
+          ref: ffb9ee44c73800adcbb6ee3bdf7067f61a35cd69
+          path: v2
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_entry_v2_preopen.py
+            /scripts/test_c3_entry_v2_preopen.py
+          sparse-checkout-cone-mode: false
+      - name: Read pinned V3 exit engine and original tests
+        uses: actions/checkout@v4
+        with:
+          ref: 433ce30b087ab7b4866a8d1622fa5f656ec051fa
+          path: v3
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_exit_v3_close_confirmed.py
+            /scripts/test_c3_exit_v3_close_confirmed.py
+          sparse-checkout-cone-mode: false
+      - name: Read independent integrated audit, no production workflow modifications
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-20261106-integrated-replay-audit-20261107
+          path: audit
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_integrated_replay_20261106.py
+            /scripts/test_c3_integrated_20261106.py
+          sparse-checkout-cone-mode: false
+      - name: Read pinned original encrypted Nov6 prices, decisions and public TOP2 report
+        uses: actions/checkout@v4
+        with:
+          ref: 7bad1564f2d017e6bd0481758d0f6e0f8aa0c289
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
+            /reports/c3_forward_v8/lanes/krx_unadjusted_v12/markets/
+            /reports/c3_forward_v8/lanes/krx_unadjusted_v12/decisions/
+            /reports/c3_forward_v8/key_envelopes/
+          sparse-checkout-cone-mode: false
+      - name: Read 11/5 unregistered report published Nov6 AFTER market opening
+        uses: actions/checkout@v4
+        with:
+          ref: 6118f4914975d53dc0b2fd421b5c4cd120c62deb
+          path: preview
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
+          sparse-checkout-cone-mode: false
+      - name: Read permanent Telegram duplicate claim and photo-only outcome
+        uses: actions/checkout@v4
+        with:
+          ref: 4351a34d0b0edec0b459345de1e70bd7995e17a3
+          path: delivery
+          persist-credentials: false
+          sparse-checkout: |
+            /receipts/STORE_V1.json
+            /receipts/claims/final/2026-11-06-0289a5f01e43a4ed.json
+            /receipts/outcomes/final/2026-11-06-0289a5f01e43a4ed.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned renderer font and research-only Python dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install --disable-pip-version-check pillow requests 'cryptography>=43,<47' pandas==2.2.3
+      - name: Repeat original V2 and V3 causal tests plus integrated 9 guardrails
+        run: |
+          python -m unittest discover -s v2/scripts -p 'test_c3_entry_v2_preopen.py' -v
+          python -m unittest discover -s v3/scripts -p 'test_c3_exit_v3_close_confirmed.py' -v
+          python -m unittest discover -s audit/scripts -p 'test_c3_integrated_20261106.py' -v
+      - name: Decode exact immutable source and reproduce order, photo hashes and delivery clock without any send
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python audit/scripts/c3_integrated_replay_20261106.py
+      - name: Preserve two regenerated cards plus only derived audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: C3-20261106-full-integration-replay-no-send
+          path: |
+            /tmp/c3-integrated-20261106/integrated_20261106_result.json
+            /tmp/c3-integrated-20261106/028050_integrated.png
+            /tmp/c3-integrated-20261106/030530_integrated.png
+            /tmp/c3-integrated-20261106/render_diagnostics.json
+            /tmp/c3-integrated-20261106/company_context.json
+          retention-days: 30
+          if-no-files-found: warn
