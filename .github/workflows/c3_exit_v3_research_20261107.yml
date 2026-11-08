@@ -1,0 +1,89 @@
+name: C3 V3 causal exit-strategy research (NO ORDER / NO TELEGRAM)
+on:
+  push:
+    branches:
+      - research/c3-exit-v3-close-confirmed-20261107
+    paths:
+      - 'scripts/c3_exit_v3_close_confirmed.py'
+      - 'scripts/test_c3_exit_v3_close_confirmed.py'
+      - 'scripts/c3_exit_v3_study_20261107.py'
+      - '.github/workflows/c3_exit_v3_research_20261107.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-causal-exit-research-20261107
+  cancel-in-progress: false
+jobs:
+  no-order-exit-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: 'v3/scripts:v2/scripts:scripts'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Read original pinned engine and prior 95-stock panel requirements
+        uses: actions/checkout@v4
+        with:
+          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/
+            /config/
+            /reports/c3_work8_20261105/inputs.json
+            /reports/c3_work6_20261105/sources/
+            /reports/c3_work7_20261105/sources/
+            /reports/v68_investment_sector_members.csv
+            /reports/c3_work2_20261105/source_validation_cases.json
+          sparse-checkout-cone-mode: false
+      - name: Read pinned V2 execution and historical source loader
+        uses: actions/checkout@v4
+        with:
+          ref: ffb9ee44c73800adcbb6ee3bdf7067f61a35cd69
+          path: v2
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_entry_v2_preopen.py
+            /scripts/c3_entry_v2_study_20261107.py
+          sparse-checkout-cone-mode: false
+      - name: Check out read-only V3 new algorithm and tests
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-exit-v3-close-confirmed-20261107
+          path: v3
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_exit_v3_close_confirmed.py
+            /scripts/c3_exit_v3_study_20261107.py
+            /scripts/test_c3_exit_v3_close_confirmed.py
+          sparse-checkout-cone-mode: false
+      - name: Read existing encrypted original bootstrap without any ledger commits
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/bootstrap/
+            /reports/c3_forward_v8/key_envelopes/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install read-only research dependencies
+        run: python -m pip install --disable-pip-version-check pandas==2.2.3 'cryptography>=43,<47' requests
+      - name: Causal protection tests (no same-day high fill / no lookahead)
+        run: python -m unittest discover -s v3/scripts -p 'test_c3_exit_v3_close_confirmed.py' -v
+      - name: Compare same-date same-fill 5/10/20-session partial and trailing exits
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python v3/scripts/c3_exit_v3_study_20261107.py
+      - name: Preserve only derived anonymous/research metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-exit-v3-close-confirmed-research-20261107
+          path: |
+            /tmp/c3-exit-v3-research/exit_v3_comparison.json
+          retention-days: 30
+          if-no-files-found: warn
