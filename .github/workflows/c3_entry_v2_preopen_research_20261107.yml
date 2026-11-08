@@ -1,0 +1,89 @@
+name: C3 V2 preopen entry research (NO ORDER / NO TELEGRAM)
+on:
+  push:
+    branches:
+      - research/c3-entry-v2-preopen-gap-backtest-20261107
+    paths:
+      - 'scripts/c3_entry_v2_preopen.py'
+      - 'scripts/c3_entry_v2_study_20261107.py'
+      - 'scripts/test_c3_entry_v2_preopen.py'
+      - '.github/workflows/c3_entry_v2_preopen_research_20261107.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-entry-v2-historical-research-20261107
+  cancel-in-progress: false
+jobs:
+  prospective-safe-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: 'v2/scripts:scripts'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Read pinned historical engine and fixed previous research cohort
+        uses: actions/checkout@v4
+        with:
+          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/
+            /config/
+            /reports/c3_work8_20261105/inputs.json
+            /reports/c3_work6_20261105/sources/
+            /reports/c3_work7_20261105/sources/
+            /reports/v68_investment_sector_members.csv
+            /reports/c3_work2_20261105/source_validation_cases.json
+          sparse-checkout-cone-mode: false
+      - name: Read separate V2 experiment code, never the operating sender
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-entry-v2-preopen-gap-backtest-20261107
+          path: v2
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_entry_v2_preopen.py
+            /scripts/c3_entry_v2_study_20261107.py
+            /scripts/test_c3_entry_v2_preopen.py
+          sparse-checkout-cone-mode: false
+      - name: Read publication-timestamped Nov5 preview (not a registered decision)
+        uses: actions/checkout@v4
+        with:
+          ref: 6118f4914975d53dc0b2fd421b5c4cd120c62deb
+          path: preview
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
+          sparse-checkout-cone-mode: false
+      - name: Read hash-checked encrypted original source without modifying ledger
+        uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/bootstrap/
+            /reports/c3_forward_v8/lanes/krx_unadjusted_v12/markets/
+            /reports/c3_forward_v8/key_envelopes/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research-only dependencies
+        run: python -m pip install --disable-pip-version-check pandas==2.2.3 'cryptography>=43,<47' requests
+      - name: Adversarial tests — gap below band/stop, resting double fill, next-open close stop
+        run: python -m unittest discover -s v2/scripts -p 'test_c3_entry_v2_preopen.py' -v
+      - name: Research paired retrospective holdout and Nov5->Nov6 specific replay, no broker calls
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python v2/scripts/c3_entry_v2_study_20261107.py
+      - name: Preserve only aggregate execution metrics; never raw price, private key or positions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-entry-v2-preopen-gap-study-20261107
+          path: |
+            /tmp/c3-entry-v2-research/entry_v2_audit.json
+          if-no-files-found: warn
+          retention-days: 30
