@@ -1,7 +1,7 @@
 {
   "schema": "C3_REGISTRY_INTEGRITY_V22",
-  "total_registered": 22,
-  "excluded_from_eligible_performance": 12,
+  "total_registered": 24,
+  "excluded_from_eligible_performance": 16,
   "items": [
     {
       "key": "3460383b8d48830635c50a30070ec0300f7fd71a4568e4807974772ccb7d9bd8",
@@ -22,8 +22,8 @@
       "registered_utc": "2026-11-03T01:23:50.479529+00:00",
       "original_status": "RESEARCH_ONLY",
       "audit_reasons": [
-        "EXCLUDED_INSTRUMENT_EVIDENCE",
-        "SPECIAL_INSTRUMENT_NAME"
+        "EVIDENCE_MISSING",
+        "NAME_NOT_IN_CURRENT_PRELIMINARY"
       ],
       "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
@@ -207,8 +207,11 @@
       "ticker": "050760",
       "registered_utc": "2026-11-05T12:48:52.704303+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [],
-      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+      "audit_reasons": [
+        "EVIDENCE_MISSING",
+        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+      ],
+      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
     {
       "key": "d37e9694f6ac06d08d8214b1d64b83064d1d6de0902ed3bd717493797cb3fe91",
@@ -216,8 +219,11 @@
       "ticker": "066670",
       "registered_utc": "2026-11-05T12:48:52.704303+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [],
-      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+      "audit_reasons": [
+        "EVIDENCE_MISSING",
+        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+      ],
+      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
     {
       "key": "034a2e4594d9b567d3da1caba5ebb0f2abd048b5cdfaf2d8bd1bbfb01766fa05",
@@ -225,14 +231,38 @@
       "ticker": "050760",
       "registered_utc": "2026-11-06T12:38:22.775942+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [],
-      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+      "audit_reasons": [
+        "EVIDENCE_MISSING",
+        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+      ],
+      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
     {
       "key": "034a2e4594d9b567d3da1caba5ebb0f2abd048b5cdfaf2d8bd1bbfb01766fa05",
       "run": "42214603333",
       "ticker": "007770",
       "registered_utc": "2026-11-06T12:38:22.775942+00:00",
+      "original_status": "RESEARCH_ONLY",
+      "audit_reasons": [
+        "EVIDENCE_MISSING",
+        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+      ],
+      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
+    },
+    {
+      "key": "9612dbe122e9c258b253bb82bd49899c7c092d469cbde893b290f64508a505f0",
+      "run": "42614897831",
+      "ticker": "115450",
+      "registered_utc": "2026-11-09T12:48:15.814465+00:00",
+      "original_status": "RESEARCH_ONLY",
+      "audit_reasons": [],
+      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+    },
+    {
+      "key": "9612dbe122e9c258b253bb82bd49899c7c092d469cbde893b290f64508a505f0",
+      "run": "42614897831",
+      "ticker": "002840",
+      "registered_utc": "2026-11-09T12:48:15.814465+00:00",
       "original_status": "RESEARCH_ONLY",
       "audit_reasons": [],
       "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
