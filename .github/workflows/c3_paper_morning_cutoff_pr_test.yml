@@ -1,0 +1,20 @@
+name: C3 paper morning cutoff isolated tests
+on:
+  push:
+    branches: [fix/c3-paper-morning-cutoff-20261110]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-cutoff-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run offline morning cutoff tests without market API or orders
+        run: python -m unittest discover -s scripts -p test_c3_paper_capture_cutoff_v1.py -v
