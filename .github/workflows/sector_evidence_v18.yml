@@ -1558,6 +1558,23 @@ jobs:
                       self.assertEqual(row["full_sector_score"], "")
                       self.assertEqual(row["price_flow_proxy_ready"], "False")
           
+              def test_finalization_reports_baseline_blocker_without_weakening_gates(self):
+                  with tempfile.TemporaryDirectory() as t:
+                      c = v.Collector(t, CONFIG)
+                      c.status["datasets"] = {k: {"status": "OK"} for k in
+                          ("prices", "price_ohlc_integrity", "flows", "etf_prices", "holdings", "normalization")}
+                      c.status["datasets"]["sector_features"] = {"status": "EXPLORATORY"}
+                      c.status["datasets"]["v14_replication"] = {"status": "DATA_PENDING"}
+                      c.status["datasets"]["news"] = {"status": "MISSING_KEYS"}
+                      self.assertFalse(v.finalize(c, "backfill"))
+                      self.assertEqual(c.status["overall_status"], "DATA_PENDING")
+                      diag = c.status["gate_diagnostics"]
+                      self.assertEqual(diag["blocking_gates"], ["V14_REPLICATION_NOT_VERIFIED"])
+                      self.assertTrue(diag["core_price_flow_verified"])
+                      self.assertTrue(diag["sector_features_generated"])
+                      self.assertEqual(diag["news_optional_status"], "MISSING_KEYS")
+                      self.assertFalse(c.status["orders_enabled"])
+
               def test_finalization_cannot_pass_without_features(self):
                   with tempfile.TemporaryDirectory() as t:
                       c = v.Collector(t, CONFIG)
