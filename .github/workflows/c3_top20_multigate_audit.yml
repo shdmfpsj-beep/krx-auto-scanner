@@ -1,0 +1,57 @@
+name: C3 real TOP20 multi-gate integration regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_top20_multigate_review.py'
+      - '.github/workflows/c3_top20_multigate_audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_archive_real_scan_top20.py
+            scripts/c3_top20_multigate_review.py
+            scripts/c3_entry_geometry_gate.py
+            reports/c3_preliminary.csv
+            reports/ranking_status.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Replay real Nov 9 top20 and reject missing verified fundamentals/entries
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python scripts/c3_archive_real_scan_top20.py --source reports/c3_preliminary.csv --status reports/ranking_status.json --out /tmp/c3_top20.json
+          python scripts/c3_top20_multigate_review.py --source /tmp/c3_top20.json --out /tmp/c3_top20_review.json
+          python - <<'PY'
+          import json,copy
+          from c3_top20_multigate_review import evaluate
+          x=json.load(open('/tmp/c3_top20.json'));original=copy.deepcopy(x)
+          r=json.load(open('/tmp/c3_top20_review.json'))
+          assert x==original and r['audited_count']==20 and r['vacancies']==2
+          assert r['research_watch_top2']==[] and r['registered_signals_created']==0
+          assert r['current_action']=='CASH' and not r['orders_enabled']
+          assert all('FINANCIALS_NOT_VERIFIED' in a['blocking_reasons'] for a in r['audits'])
+          # Fail closed if evidence is claimed but stale, without silently filling TOP2.
+          t=x['candidates'][0]['ticker']
+          stale={t:{'source_price_asof':'2026-11-08','source_regular_only_certified':False,
+                    'financials_asof_verified':False,'financial_stability_pass':False}}
+          q=evaluate(x,stale)
+          assert q['vacancies']==2 and q['research_watch_top2']==[]
+          print('C3_TOP20_INTEGRATION_AUDIT '+json.dumps({'status':'PASSED','real_source_date':r['asof'],
+              'real_candidates_audited':r['audited_count'],'eligible':0,'vacancies':2,
+              'source_mutated':False,'orders_enabled':False}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c3-top20-multigate-nov9-readonly
+          path: |
+            /tmp/c3_top20.json
+            /tmp/c3_top20_review.json
+          retention-days: 30
