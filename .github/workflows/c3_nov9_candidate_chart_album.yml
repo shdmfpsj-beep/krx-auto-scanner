@@ -57,7 +57,8 @@ jobs:
           paths=[]
           for idx,r in enumerate(d['research_top2'],1):
               ticker=r['ticker']
-              df=fdr.DataReader(ticker,'2026-07-01','2026-11-10')
+              df=fdr.DataReader(ticker,'2026-07-01','2026-11-11')
+              df=df.loc[df.index.strftime('%Y-%m-%d')<='2026-11-09'].copy()
               print('CHART_SOURCE_DIAGNOSTIC '+json.dumps({'ticker':ticker,'source':'FinanceDataReader','rows':len(df),'first_date':str(df.index[0].date()) if len(df) else None,'last_date':str(df.index[-1].date()) if len(df) else None,'expected_date':'2026-11-09','reference_close':r.get('reference_close'),'returned_close':float(df['Close'].iloc[-1]) if len(df) else None},ensure_ascii=False),flush=True)
               assert len(df)>=60, 'HISTORICAL_BARS_INSUFFICIENT'
               assert str(df.index[-1].date())=='2026-11-09', 'HISTORICAL_BARS_LAST_DATE_MISMATCH'
