@@ -16,10 +16,10 @@ run-name: BACKFILL sector evidence · ${{ github.run_number }}
         type: string
         default: ''
       v14_run_id:
-        description: '비교 원본 v14 실행 번호. 기존에 확인한 실행을 기본값으로 고정'
+        description: '선택: 검증된 v14 실행 번호. 빈칸이면 유효한 동일 실행 원본 묶음을 자동 탐색하며, 없으면 DATA_PENDING'
         required: false
         type: string
-        default: '38517311247'
+        default: ''
       price_start:
         description: '선택: 주가 시작일 YYYY-MM-DD. 빈칸: 기준일 420일 전; 최근 2개월 분석에 충분한 워밍업'
         required: false
