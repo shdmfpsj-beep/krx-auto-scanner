@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p input output
-          TARGET_DAY="$(python -c 'from krx_regular_daily_report import nominal_regular_day; from datetime import datetime; from zoneinfo import ZoneInfo; print(nominal_regular_day(datetime.now(ZoneInfo("Asia/Seoul"))))')"
+          TARGET_DAY="$(PYTHONPATH=scripts python -c 'from krx_regular_daily_report import nominal_regular_day; from datetime import datetime; from zoneinfo import ZoneInfo; print(nominal_regular_day(datetime.now(ZoneInfo("Asia/Seoul"))))')"
           echo "TARGET_DAY=$TARGET_DAY" >> "$GITHUB_ENV"
           gh api "repos/$GH_REPO/actions/workflows/krx_session_layers.yml/runs?per_page=50" \
             --jq '.workflow_runs[] | select(.conclusion == "success") | .id' |
