@@ -1,8 +1,5 @@
 name: C3 morning prior-close read-only observation (NO ORDERS)
 on:
-  push:
-    branches: [feat/c3-morning-readonly-observation-20261110]
-    paths: ['.github/workflows/c3_morning_readonly_observation.yml']
   workflow_dispatch:
   schedule:
     # Mon-Fri 07:45 KST = Sun-Thu 22:45 UTC; delayed scheduling is possible.
