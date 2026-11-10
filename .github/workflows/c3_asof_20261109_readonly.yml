@@ -1,0 +1,66 @@
+name: C3 November 9 historical read-only acceptance test
+on:
+  push:
+    branches: [test/c3-asof-20261109-readonly-20261110]
+    paths: ['.github/workflows/c3_asof_20261109_readonly.yml']
+permissions:
+  contents: read
+jobs:
+  historical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/latest.json
+            /reports/c3_forward_v8/summary.json
+            /scripts/c3_runtime_v9.py
+          sparse-checkout-cone-mode: false
+      - name: Verify frozen November 9 report without registration, sending or orders
+        run: |
+          mkdir -p /tmp/c3-asof-test
+          python - <<'PY'
+          import json,sys
+          from pathlib import Path
+          sys.path.insert(0,'scripts')
+          from c3_runtime_v9 import registration_window
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          d=json.loads(Path('reports/c3_forward_v8/latest.json').read_text())
+          check={
+            'source_asof':d.get('source_price_asof'),
+            'quality':d.get('data_quality_state'),
+            'provider':d.get('source_provider'),
+            'quality_gate':(d.get('source_quality_gate') or {}).get('status'),
+            'source_run_id':d.get('source_run_id'),
+            'errors':d.get('errors'),
+            'registered':d.get('research_top2_registered_for_source_session'),
+            'new_registered_signals':d.get('new_registered_signals'),
+            'candidate_preview':[{'ticker':p.get('ticker'),'name':p.get('name')} for p in d.get('research_top2',[])],
+            'asof_2026_11_09_2200_registration_window':registration_window('2026-11-09',datetime(2026,11,9,22,0,tzinfo=ZoneInfo('Asia/Seoul'))),
+            'asof_2026_11_10_1300_registration_window':registration_window('2026-11-09',datetime(2026,11,10,13,0,tzinfo=ZoneInfo('Asia/Seoul'))),
+            'orders_enabled':d.get('orders_enabled'),
+            'action':d.get('current_action'),
+            'telegram_send_attempts':0,
+            'mode':'READ_ONLY_HISTORICAL'
+          }
+          assert check['source_asof']=='2026-11-09'
+          assert check['quality']=='OFFICIAL_VERIFIED'
+          assert check['quality_gate']=='QUALITY_GATE_PASSED'
+          assert check['registered'] is False
+          assert check['new_registered_signals']==0
+          assert check['asof_2026_11_09_2200_registration_window']=='SAME_COMPLETED_SESSION'
+          assert check['asof_2026_11_10_1300_registration_window']=='PAST_NEXT_POSSIBLE_OPEN'
+          assert check['orders_enabled'] is False and check['action']=='CASH'
+          assert check['errors']==['PAST_NEXT_POSSIBLE_OPEN']
+          Path('/tmp/c3-asof-test/result.json').write_text(json.dumps(check,ensure_ascii=False,indent=2)+'\n')
+          print('NOV9_READONLY_ACCEPTANCE',json.dumps(check,ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-nov9-readonly-acceptance
+          path: /tmp/c3-asof-test/result.json
