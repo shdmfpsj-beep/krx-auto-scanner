@@ -1663,6 +1663,7 @@ jobs:
               except Exception as e:
                   code = str(e) if isinstance(e, EvidenceError) and re.fullmatch(r"[A-Z0-9_]+", str(e)) else "UNEXPECTED_STAGE_FAILURE"
                   collector.mark(name, "DATA_PENDING", error_code=code)
+                  print(f"::warning title=v18 stage blocked::{name}: {code}", flush=True)
                   return None
           
           
