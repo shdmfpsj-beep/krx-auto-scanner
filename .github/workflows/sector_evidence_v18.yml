@@ -1198,7 +1198,26 @@ jobs:
               features_ok = data.get("sector_features", {}).get("status") == "EXPLORATORY"
               ready = base_ok if mode == "baseline_only" else base_ok and core_ok and features_ok
               state = "BASELINE_VERIFIED" if mode == "baseline_only" and ready else "EVIDENCE_PARTIAL_CATALYST_PIT_PENDING" if ready else "DATA_PENDING"
-              collector.status.update({"mode": mode, "overall_status": state, "completed_at": stamp(),
+              # Keep all fail-closed gates; report the exact missing evidence.
+              gate_diagnostics = {
+                  "v14_replication_verified": base_ok,
+                  "core_price_flow_verified": core_ok,
+                  "sector_features_generated": features_ok,
+                  "blocking_gates": [
+                      name for name, passed in (
+                          ("V14_REPLICATION_NOT_VERIFIED", base_ok),
+                          ("CORE_PRICE_FLOW_NOT_VERIFIED", core_ok),
+                          ("SECTOR_FEATURES_NOT_READY", features_ok),
+                      ) if not passed and (mode != "baseline_only" or name == "V14_REPLICATION_NOT_VERIFIED")
+                  ],
+                  "news_optional_status": data.get("news", {}).get("status", "NOT_COLLECTED"),
+                  "v14_recovery_status": data.get("v14_recovery", {}).get("status", "NOT_COLLECTED"),
+                  "v14_recovery_error_code": data.get("v14_recovery", {}).get("error_code"),
+                  "v14_replication_status": data.get("v14_replication", {}).get("status", "NOT_COLLECTED"),
+                  "v14_replication_error_code": data.get("v14_replication", {}).get("error_code"),
+              }
+              collector.status.update({"gate_diagnostics": gate_diagnostics,
+                                       "mode": mode, "overall_status": state, "completed_at": stamp(),
                                        "full_backtest_ready": False, "orders_enabled": False,
                                        "production_strategy_changed": False})
               collector.save()
@@ -1543,6 +1562,23 @@ jobs:
                       self.assertEqual(row["full_sector_score"], "")
                       self.assertEqual(row["price_flow_proxy_ready"], "False")
           
+              def test_finalization_reports_baseline_blocker_without_weakening_gates(self):
+                  with tempfile.TemporaryDirectory() as t:
+                      c = v.Collector(t, CONFIG)
+                      c.status["datasets"] = {k: {"status": "OK"} for k in
+                          ("prices", "price_ohlc_integrity", "flows", "etf_prices", "holdings", "normalization")}
+                      c.status["datasets"]["sector_features"] = {"status": "EXPLORATORY"}
+                      c.status["datasets"]["v14_replication"] = {"status": "DATA_PENDING"}
+                      c.status["datasets"]["news"] = {"status": "MISSING_KEYS"}
+                      self.assertFalse(v.finalize(c, "backfill"))
+                      self.assertEqual(c.status["overall_status"], "DATA_PENDING")
+                      diag = c.status["gate_diagnostics"]
+                      self.assertEqual(diag["blocking_gates"], ["V14_REPLICATION_NOT_VERIFIED"])
+                      self.assertTrue(diag["core_price_flow_verified"])
+                      self.assertTrue(diag["sector_features_generated"])
+                      self.assertEqual(diag["news_optional_status"], "MISSING_KEYS")
+                      self.assertFalse(c.status["orders_enabled"])
+
               def test_finalization_cannot_pass_without_features(self):
                   with tempfile.TemporaryDirectory() as t:
                       c = v.Collector(t, CONFIG)

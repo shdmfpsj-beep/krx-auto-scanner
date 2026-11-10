@@ -74,7 +74,23 @@ jobs:
           [[ "$workflow" == '.github/workflows/sector_evidence_v18.yml' && "$conclusion" == success ]] ||
             { echo 'INTEGRATED_V18_NOT_SUCCESSFUL_OR_WRONG_PATH'; exit 1; }
           echo "SOURCE_V18_RUN_ID=$V18_SOURCE_RUN" >> "$GITHUB_ENV"
-          gh run download "$V18_SOURCE_RUN" -R "$GH_REPO" -n sector-evidence-v18-report -D v18
+          # Verify the exact upstream artifact before downloading. A successful
+          # workflow run does not guarantee that its dated artifact was uploaded.
+          # Never silently substitute a different trading day or fabricate data.
+          artifact_count="$(gh api "repos/$GH_REPO/actions/runs/$V18_SOURCE_RUN/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.name=="sector-evidence-v18-report" and .expired==false)] | length')"
+          if [[ "$artifact_count" != 1 ]]; then
+            echo "::error title=V18_SOURCE_ARTIFACT_UNAVAILABLE::Run $V18_SOURCE_RUN has $artifact_count usable sector-evidence-v18-report artifacts. Check upstream artifact upload/retention and choose an exact valid run."
+            exit 1
+          fi
+          if ! gh run download "$V18_SOURCE_RUN" -R "$GH_REPO" -n sector-evidence-v18-report -D v18; then
+            echo "::error title=V18_SOURCE_DOWNLOAD_FAILED::Artifact download failed for run $V18_SOURCE_RUN; no fallback to stale or different-date data."
+            exit 1
+          fi
+          if [[ ! -s v18/diagnostics/collection_status.json ]]; then
+            echo "::error title=V18_SOURCE_STATUS_MISSING::Downloaded artifact lacks nonempty diagnostics/collection_status.json for run $V18_SOURCE_RUN."
+            exit 1
+          fi
           python - <<'PY'
           from datetime import datetime,date
           from pathlib import Path
@@ -85,7 +101,13 @@ jobs:
           today=datetime.now(ZoneInfo('Asia/Seoul')).date()
           age=(today-asof).days
           assert obj['orders_enabled'] is False
-          assert 0<=age<=4, 'INTEGRATED_SOURCE_TOO_OLD_OR_FUTURE_NO_BUY'
+          if not 0 <= age <= 4:
+              raise AssertionError(
+                  f'INTEGRATED_SOURCE_TOO_OLD_OR_FUTURE_NO_BUY: '
+                  f'source_asof={asof} today_kst={today} age_calendar_days={age} '
+                  f'run_id={__import__("os").environ.get("SOURCE_V18_RUN_ID", "unknown")}; '
+                  'do not use stale source for a new trade decision'
+              )
           assert obj['datasets']['prices']['status']=='OK'
           assert obj['datasets']['flows']['status']=='OK'
           assert obj['datasets']['holdings']['status']=='OK'
