@@ -1,0 +1,49 @@
+name: C3 real scanner TOP20 archive regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_archive_real_scan_top20.py'
+      - '.github/workflows/c3_real_scan_top20_audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_archive_real_scan_top20.py
+            reports/c3_preliminary.csv
+            reports/ranking_status.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Run against actual stored C3 preliminary ranking
+        run: |
+          python scripts/c3_archive_real_scan_top20.py --source reports/c3_preliminary.csv --status reports/ranking_status.json --out /tmp/c3_real_scan_top20.json
+          python - <<'PY'
+          import json,csv
+          from pathlib import Path
+          from sys import path
+          path.insert(0,'scripts')
+          from c3_archive_real_scan_top20 import build
+          r=json.loads(Path('/tmp/c3_real_scan_top20.json').read_text())
+          assert len(r['candidates'])==20 and r['vacancies']==2 and r['entry_eligible_top2']==[]
+          assert r['current_action']=='CASH' and r['orders_enabled'] is False
+          with open('reports/c3_preliminary.csv',encoding='utf-8-sig',newline='') as f:rows=list(csv.DictReader(f))
+          assert [x['ticker'] for x in r['candidates']]==[x['ticker'] for x in rows[:20]]
+          try:build(rows[:19],{'trade_approvals':0,'ranked_rows':20})
+          except ValueError:pass
+          else:raise AssertionError('INVALID_ROW_COUNT_ACCEPTED')
+          print('C3_REAL_TOP20_REGRESSION '+json.dumps({'status':'PASSED','source_date':r['asof'],
+              'source_rows':r['source_ranked_rows'],'top20_preserved':20,
+              'buy_approved':False,'substitutes_verified':0,'orders_enabled':False}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c3-real-top20-regression-output
+          path: /tmp/c3_real_scan_top20.json
+          retention-days: 30
