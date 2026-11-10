@@ -340,6 +340,35 @@ jobs:
           path: /tmp/c3-integrated-delivery/
           retention-days: 90
           if-no-files-found: warn
+      - name: Surface unresolved live report errors as an actionable workflow failure
+        if: always() && !cancelled()
+        env:
+          MODE: ${{ github.event_name == 'push' && 'past_example' || github.event.inputs.mode || 'live' }}
+        run: |
+          python - <<'PY'
+          import json,os,sys
+          from pathlib import Path
+          if os.environ['MODE']!='live':
+              sys.exit(0)
+          path=Path('/tmp/c3-integrated-delivery/delivery_status.json')
+          if not path.exists():
+              print('::error::C3 delivery status missing; cannot verify send/skip outcome')
+              sys.exit(1)
+          result=json.loads(path.read_text())
+          status=result.get('status')
+          reason=result.get('reason','')
+          print(f'C3 delivery outcome: {status}, reason: {reason}, attempts: {result.get("send_attempts",0)}')
+          if status=='SKIPPED' and reason in {
+              'REPORT_HAS_UNRESOLVED_ERRORS','SOURCE_QUALITY_GATE_FAILED',
+              'INCOMPLETE_MARKET_COVERAGE','MARKET_ROW_COUNT_MISMATCH',
+              'INVALID_SOURCE_RECEIPT_TIMING','UNVERIFIED_MARKET_DATA'
+          }:
+              print(f'::error::C3 live report blocked by unresolved data/quality issue: {reason}')
+              sys.exit(1)
+          if status not in ('SKIPPED','DELIVERED','DUPLICATE_BLOCKED'):
+              print(f'::error::C3 delivery did not reach a verified terminal outcome: {status}')
+              sys.exit(1)
+          PY
       - name: Publish only the derived same-source presentation for the existing ChatGPT report
         if: always() && !cancelled()
         env:
