@@ -1,5 +1,9 @@
 name: KRX regular-only 18:00 safe final report
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/krx_regular_final.yml'
   workflow_dispatch:
   schedule:
     # 18:00 KST weekday, ahead of 18:30 ChatGPT notification.
@@ -36,16 +40,7 @@ jobs:
             [[ "$id" == "$GITHUB_RUN_ID" ]] && continue
             rm -f input/regular_observation.json
             if gh run download "$id" -R "$GH_REPO" -n krx-regular-observation -D input 2>/dev/null &&
-              TARGET_DAY="$TARGET_DAY" python - <<'PY'
-          import json,os
-          from pathlib import Path
-          try:
-              p=json.loads(Path("input/regular_observation.json").read_text())
-              assert p.get("asof")==os.environ["TARGET_DAY"]
-              assert p.get("phase")=="regular"
-          except (OSError,ValueError,AssertionError):
-              raise SystemExit(1)
-          PY
+              TARGET_DAY="$TARGET_DAY" python -c 'import json,os; from pathlib import Path; p=json.loads(Path("input/regular_observation.json").read_text()); assert p.get("asof")==os.environ["TARGET_DAY"] and p.get("phase")=="regular"'
             then
               echo "DOWNLOADED_DATE_MATCHED_REGULAR_OBSERVATION run=$id day=$TARGET_DAY"
               break
@@ -63,15 +58,7 @@ jobs:
             [[ "$id" == "$GITHUB_RUN_ID" ]] && continue
             rm -f input/kis_regular_minute_audit.json
             if gh run download "$id" -R "$GH_REPO" -n kis-krx-regular-minute-audit -D input 2>/dev/null &&
-              python - <<'PY'
-          import json,os
-          from pathlib import Path
-          try:
-              p=json.loads(Path("input/kis_regular_minute_audit.json").read_text())
-              assert p.get("date")==os.environ["TARGET_DAY"].replace("-","")
-          except (OSError,ValueError,AssertionError):
-              raise SystemExit(1)
-          PY
+              TARGET_DAY="$TARGET_DAY" python -c 'import json,os; from pathlib import Path; p=json.loads(Path("input/kis_regular_minute_audit.json").read_text()); assert p.get("date")==os.environ["TARGET_DAY"].replace("-","")'
             then
               echo "FOUND_DATE_MATCHED_MINUTE_PROBE_RUN $id"
               break
