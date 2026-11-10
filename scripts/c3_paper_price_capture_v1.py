@@ -17,16 +17,18 @@ COLUMNS=("ticker","date","open","high","low","close","volume")
 
 def collect(plans_path,outdir,now=None,fetch=None):
     now=(now or datetime.now(ZoneInfo("Asia/Seoul"))).astimezone(ZoneInfo("Asia/Seoul"))
-    if now.hour<20 or now.hour==20 and now.minute<15:
-        raise ValueError("SOURCE_CUTOFF_BEFORE_2015_KST")
+    # Before the 20:15 KST daily cutoff, only request dates strictly before today.
+    # This permits morning observation without treating intraday bars as final.
+    cutoff_reached=(now.hour,now.minute)>=(20,15)
+    last_allowed_day=now.date() if cutoff_reached else now.date()-timedelta(days=1)
     if fetch is None:
         from pykrx import stock
         fetch=lambda start,end,ticker: stock.get_market_ohlcv_by_date(
             start,end,ticker,adjusted=True)
     plans=load_csv(plans_path,PLANS_REQUIRED)
     codes=sorted({r["ticker"] for r in plans})
-    start=(now.date()-timedelta(days=24)).strftime("%Y%m%d")
-    end=now.date().strftime("%Y%m%d")
+    start=(last_allowed_day-timedelta(days=24)).strftime("%Y%m%d")
+    end=last_allowed_day.strftime("%Y%m%d")
     folder=Path(outdir);folder.mkdir(parents=True,exist_ok=True)
     rows=[];status={}
     for ticker in codes:
@@ -36,7 +38,7 @@ def collect(plans_path,outdir,now=None,fetch=None):
             series=[]
             for stamp,record in df.iterrows():
                 day=str(stamp.date() if hasattr(stamp,"date") else stamp)[:10]
-                if day>now.date().isoformat():raise ValueError("FUTURE_PROVIDER_BAR")
+                if day>last_allowed_day.isoformat():raise ValueError("BAR_AFTER_COMPLETED_CUTOFF")
                 o=dict(ticker=ticker,date=day,open=record["시가"],
                    high=record["고가"],low=record["저가"],close=record["종가"],
                    volume=record["거래량"])
@@ -53,7 +55,8 @@ def collect(plans_path,outdir,now=None,fetch=None):
     with out.open("w",newline="",encoding="utf-8-sig") as f:
         w=csv.DictWriter(f,fieldnames=COLUMNS);w.writeheader();w.writerows(rows)
     report=dict(schema="C3_PAPER_PRICE_CAPTURE_V1",captured_at_kst=now.isoformat(),
-       fetch_to_day=end,requested_registered_symbols=len(codes),
+       fetch_to_day=end,completed_bar_cutoff_day=last_allowed_day.isoformat(),
+       cutoff_reached_kst=cutoff_reached,requested_registered_symbols=len(codes),
        source_scope="PYKRX_ADJUSTED_TRUE_REGULAR_SESSION_UNCERTIFIED",
        source_provenance="C3 paper tracker supplemental read-only API; not identical to officially certified KRX close",
        ticker_states=status,regular_only_ohlcv_certified=False,
