@@ -37,15 +37,15 @@ jobs:
             rm -f input/regular_observation.json
             if gh run download "$id" -R "$GH_REPO" -n krx-regular-observation -D input 2>/dev/null &&
               TARGET_DAY="$TARGET_DAY" python - <<'PY'
-import json,os
-from pathlib import Path
-try:
-    p=json.loads(Path("input/regular_observation.json").read_text())
-    assert p.get("asof")==os.environ["TARGET_DAY"]
-    assert p.get("phase")=="regular"
-except (OSError,ValueError,AssertionError):
-    raise SystemExit(1)
-PY
+          import json,os
+          from pathlib import Path
+          try:
+              p=json.loads(Path("input/regular_observation.json").read_text())
+              assert p.get("asof")==os.environ["TARGET_DAY"]
+              assert p.get("phase")=="regular"
+          except (OSError,ValueError,AssertionError):
+              raise SystemExit(1)
+          PY
             then
               echo "DOWNLOADED_DATE_MATCHED_REGULAR_OBSERVATION run=$id day=$TARGET_DAY"
               break
@@ -64,14 +64,14 @@ PY
             rm -f input/kis_regular_minute_audit.json
             if gh run download "$id" -R "$GH_REPO" -n kis-krx-regular-minute-audit -D input 2>/dev/null &&
               python - <<'PY'
-import json,os
-from pathlib import Path
-try:
-    p=json.loads(Path("input/kis_regular_minute_audit.json").read_text())
-    assert p.get("date")==os.environ["TARGET_DAY"].replace("-","")
-except (OSError,ValueError,AssertionError):
-    raise SystemExit(1)
-PY
+          import json,os
+          from pathlib import Path
+          try:
+              p=json.loads(Path("input/kis_regular_minute_audit.json").read_text())
+              assert p.get("date")==os.environ["TARGET_DAY"].replace("-","")
+          except (OSError,ValueError,AssertionError):
+              raise SystemExit(1)
+          PY
             then
               echo "FOUND_DATE_MATCHED_MINUTE_PROBE_RUN $id"
               break
@@ -97,9 +97,9 @@ PY
           assert s['kis_krx_minute_price_probe']['investor_flow_validated'] is False
           print('REGULAR_ONLY_SOURCE_RESULT',s['market_source_status'],s['blockers'])
           PY
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
+                - uses: actions/upload-artifact@v4
+                  if: always()
+                  with:
           name: krx-regular-only-18h-final
           path: |
             output/regular_only_final_status.json
