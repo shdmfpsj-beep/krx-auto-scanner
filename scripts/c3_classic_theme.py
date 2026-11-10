@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+from c3_entry_geometry_gate import assess
 
 W,H=1400,2400
 INK,SUB,GOLD,PAPER='#292B2C','#6C7073','#AC8848','#FAF9F5'
@@ -188,7 +189,8 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards'):
         text(d,54,123,r['name'],65,INK,True);text(d,54,205,f"{r['ticker']} · {r.get('industry','업종')} · TOP{rank}",30,SUB)
         text(d,1345,125,won(close),61,INK,True,anchor='ra');previous=float(bars[-2]['close']);change=close-previous;pct=100*change/previous
         text(d,1345,204,f'{change:+,.0f}원 ({pct:+.2f}%)',31,RED if change>0 else BLUE if change<0 else SUB,True,anchor='ra')
-        banner='과거 연구 예시 · '+asof+' 미등록 후보' if report.get('example_only') else asof+' 종가 기준 · 연구 관찰용'
+        gate=assess(r,bars)
+        banner=('매수 제외 · CASH · 추격/손익비 재검토' if not gate['eligible'] else ('과거 연구 예시 · '+asof+' 미등록 후보' if report.get('example_only') else asof+' 종가 기준 · 연구 관찰용'))
         d.rectangle((48,252,1352,294),fill='#F0EBDD');text(d,700,258,banner,27,GOLD,True,anchor='ma')
         d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2);text(d,74,333,'일봉 · 가격과 거래량',31,INK,True)
         for i,n in enumerate((5,20,60)):
@@ -217,7 +219,7 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards'):
         text(d,700,2310,'기업자료: DART·기업 IR · 선정 후 조사이며 점수·매수가에 미반영',25,SUB,anchor='ma')
         text(d,700,2352,'KRX 가격 · 정규장 범위 별도 검증 필요 · 실제 매수 승인이 아닙니다.',25,SUB,anchor='ma')
         path=root/(r['ticker']+'_integrated.png');im.save(path,optimize=True);files.append(path)
-        diagnostics.append(dict(ticker=r['ticker'],asof=asof,source_rows=len(bars),visible_rows=min(30,len(bars)),source_basis=r['chart_price_basis'],previous_close=previous,close=close,change=change,change_pct=pct,
+        diagnostics.append(dict(ticker=r['ticker'],entry_geometry_review=gate,asof=asof,source_rows=len(bars),visible_rows=min(30,len(bars)),source_basis=r['chart_price_basis'],previous_close=previous,close=close,change=change,change_pct=pct,
             ma_last={str(n):seq[-1] for n,seq in av.items()},ma_valid_points={str(n):sum(v is not None for v in seq) for n,seq in av.items()},last5=[dict(b,**{'ma'+str(n):av[n][i] for n in av}) for i,b in list(enumerate(bars))[-5:]],geometry=geometry,
             second_entry='NO_VALIDATED_SECOND_ENTRY_PLAN',company_context_status=(r.get('company_context') or {}).get('dart_status','NOT_ATTACHED'),company_context_missing=(r.get('company_context') or {}).get('missing',[]),notes=rendered,layout=layout,sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
     (root/'render_diagnostics.json').write_text(json.dumps(dict(example_only=bool(report.get('example_only')),cards=diagnostics),ensure_ascii=False,indent=2)+'\n')
