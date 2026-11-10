@@ -178,6 +178,29 @@ jobs:
         if: steps.collect.outcome != 'failure' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'rerank_only' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
         run: python scripts/rank_candidates.py
 
+      - name: Preserve real C3 preliminary TOP20 (read-only, never trade approved)
+        if: steps.collect.outcome == 'success' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/c3_archive_real_scan_top20.py --source reports/c3_preliminary.csv --status reports/ranking_status.json --out reports/c3_real_scan_top20.json
+          python - <<'PY'
+          import json
+          d=json.load(open('reports/c3_real_scan_top20.json'))
+          assert d['orders_enabled'] is False and d['trade_approved'] is False
+          assert len(d['candidates'])==20 and d['entry_eligible_top2']==[]
+          print('REAL_SCANNER_TOP20_ARCHIVED',d['asof'],len(d['candidates']))
+          PY
+
+      - name: Upload dated real-scanner TOP20 artifact
+        if: steps.collect.outcome == 'success' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-real-scan-top20-preliminary
+          path: reports/c3_real_scan_top20.json
+          retention-days: 90
+          if-no-files-found: error
+
       - name: Test and record C3 screening timestamps
         if: steps.collect.outcome == 'success' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
         run: |
