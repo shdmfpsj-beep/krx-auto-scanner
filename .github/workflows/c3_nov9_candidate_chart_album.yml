@@ -63,7 +63,7 @@ jobs:
               calendar=fdr.DataReader(ticker,'2026-07-01','2026-11-11')
               calendar=calendar.loc[calendar.index.strftime('%Y-%m-%d')<='2026-11-09'].copy()
               assert len(calendar)>=60, 'HISTORICAL_CALENDAR_INSUFFICIENT'
-              days=list(calendar.index.strftime('%Y-%m-%d'))[-70:]
+              days=list(calendar.index.strftime('%Y-%m-%d'))[-85:]
               def verified_daily_cache(day):
                   url='https://raw.githubusercontent.com/FinanceData/fdr_krx_data_cache/master/data/listing/krx/'+day+'.csv'
                   for attempt in range(3):
@@ -76,14 +76,19 @@ jobs:
                           row=matches[0]
                           if row.get('MarketId') not in ('STK','KSQ'):raise ValueError('CACHE_MARKET_INVALID_'+day)
                           vals={k:float(row[v]) for k,v in [('Open','Open'),('High','High'),('Low','Low'),('Close','Close'),('Volume','Volume')]}
-                          if not (0<vals['Low']<=min(vals['Open'],vals['Close'])<=max(vals['Open'],vals['Close'])<=vals['High'] and vals['Volume']>0):raise ValueError('CACHE_BAR_INVALID_'+day)
+                          if not (0<vals['Low']<=min(vals['Open'],vals['Close'])<=max(vals['Open'],vals['Close'])<=vals['High'] and vals['Volume']>0):
+                              return day,None
                           return day,vals
                       except (requests.RequestException,UnicodeError) as e:
                           if attempt==2:raise
                           time.sleep(attempt+1)
               with ThreadPoolExecutor(max_workers=8) as pool:
                   verified=list(pool.map(verified_daily_cache,days))
-              df=pd.DataFrame([bar for _,bar in verified],index=pd.to_datetime([day for day,_ in verified]))
+              invalid_days=[day for day,bar in verified if bar is None]
+              print('CHART_EXCLUDED_INVALID_SESSIONS '+json.dumps({'ticker':ticker,'dates':invalid_days,'count':len(invalid_days)}),flush=True)
+              assert len(invalid_days)<=3,'TOO_MANY_INVALID_KRX_MIRROR_SESSIONS'
+              verified=[(day,bar) for day,bar in verified if bar is not None]
+              df=pd.DataFrame([bar for _,bar in verified],index=pd.to_datetime([day for day,_ in verified])).tail(70)
               print('CHART_SOURCE_DIAGNOSTIC '+json.dumps({'ticker':ticker,'source':'FinanceData/fdr_krx_data_cache per-session KRX mirror CSV','rows':len(df),'first_date':str(df.index[0].date()),'last_date':str(df.index[-1].date()),'reference_close':r.get('reference_close'),'returned_close':float(df['Close'].iloc[-1])},ensure_ascii=False),flush=True)
               assert len(df)>=60, 'VERIFIED_KRX_MIRROR_BARS_INSUFFICIENT'
               assert str(df.index[-1].date())=='2026-11-09', 'KRX_MIRROR_LAST_DATE_MISMATCH'
@@ -124,7 +129,7 @@ jobs:
               t(85,1845,'선정 근거 / 위험',37,bold=True)
               t(85,1920,f"RS20 {r.get('rs20',0):+.2f}%p · 20일 거래대금 {r.get('turnover20',0)/1e8:,.0f}억원",29)
               t(85,1985,'재무·실적: 본 테스트에서 신규 검증하지 않음',29)
-              t(85,2050,'검증: KRX 미러 종가 일치 / 신규 신호 등록 0건',29)
+              t(85,2050,f'KRX 미러 종가 일치 · 제외된 이상 거래일 {len(invalid_days)}일',29)
               dr.rectangle((65,2180,1335,2310),fill='#4b3424')
               t(95,2215,'과거 데이터 테스트 · 매수 신호 아님',37,'#fff1d6',True)
               path=out/(ticker+'_candidate_chart.png');im.save(path,optimize=True);paths.append(path)
