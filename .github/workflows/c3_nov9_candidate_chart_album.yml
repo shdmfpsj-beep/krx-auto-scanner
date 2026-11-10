@@ -58,7 +58,9 @@ jobs:
           for idx,r in enumerate(d['research_top2'],1):
               ticker=r['ticker']
               df=fdr.DataReader(ticker,'2026-07-01','2026-11-10')
-              assert len(df)>=60 and str(df.index[-1].date())=='2026-11-09', 'HISTORICAL_BARS_MISSING_OR_NOT_ASOF'
+              print('CHART_SOURCE_DIAGNOSTIC '+json.dumps({'ticker':ticker,'source':'FinanceDataReader','rows':len(df),'first_date':str(df.index[0].date()) if len(df) else None,'last_date':str(df.index[-1].date()) if len(df) else None,'expected_date':'2026-11-09','reference_close':r.get('reference_close'),'returned_close':float(df['Close'].iloc[-1]) if len(df) else None},ensure_ascii=False),flush=True)
+              assert len(df)>=60, 'HISTORICAL_BARS_INSUFFICIENT'
+              assert str(df.index[-1].date())=='2026-11-09', 'HISTORICAL_BARS_LAST_DATE_MISMATCH'
               df=df.tail(80)
               for k in ('Open','High','Low','Close','Volume'):assert k in df and df[k].notna().all()
               close=float(df['Close'].iloc[-1]);reference=float(r.get('reference_close',r['close']))
