@@ -1198,7 +1198,22 @@ jobs:
               features_ok = data.get("sector_features", {}).get("status") == "EXPLORATORY"
               ready = base_ok if mode == "baseline_only" else base_ok and core_ok and features_ok
               state = "BASELINE_VERIFIED" if mode == "baseline_only" and ready else "EVIDENCE_PARTIAL_CATALYST_PIT_PENDING" if ready else "DATA_PENDING"
-              collector.status.update({"mode": mode, "overall_status": state, "completed_at": stamp(),
+              # Keep all fail-closed gates; report the exact missing evidence.
+              gate_diagnostics = {
+                  "v14_replication_verified": base_ok,
+                  "core_price_flow_verified": core_ok,
+                  "sector_features_generated": features_ok,
+                  "blocking_gates": [
+                      name for name, passed in (
+                          ("V14_REPLICATION_NOT_VERIFIED", base_ok),
+                          ("CORE_PRICE_FLOW_NOT_VERIFIED", core_ok),
+                          ("SECTOR_FEATURES_NOT_READY", features_ok),
+                      ) if not passed and (mode != "baseline_only" or name == "V14_REPLICATION_NOT_VERIFIED")
+                  ],
+                  "news_optional_status": data.get("news", {}).get("status", "NOT_COLLECTED"),
+              }
+              collector.status.update({"gate_diagnostics": gate_diagnostics,
+                                       "mode": mode, "overall_status": state, "completed_at": stamp(),
                                        "full_backtest_ready": False, "orders_enabled": False,
                                        "production_strategy_changed": False})
               collector.save()
