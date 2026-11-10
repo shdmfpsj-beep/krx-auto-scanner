@@ -1,0 +1,53 @@
+name: C3 preserved TOP20 shortlist regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_preserve_top20.py'
+      - '.github/workflows/c3_preserve_top20_audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_preserve_top20.py
+            scripts/c3_eligible_top2_rerank.py
+            scripts/c3_entry_geometry_gate.py
+          sparse-checkout-cone-mode: false
+      - name: Preserve 20 ranked candidates, reject stale and incomplete sources
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python - <<'PY'
+          import copy,json
+          from c3_preserve_top20 import preserve
+          pool=[dict(ticker=f'{i:06d}',name=f'SYNTHETIC_{i}',price_asof='2026-11-09',close=100+i,
+                     rs20=80-i,turnover20=100000000-i,market='KOSPI',industry='TEST')
+                for i in range(25)]
+          source=dict(schema='C3_CURRENT_CANDIDATES_V7',price_asof='2026-11-09',
+                      candidate_pool=pool,b_native_index_candidates=25,currently_analyzable=1983,
+                      orders_enabled=False,current_action='CASH')
+          original=copy.deepcopy(source)
+          out=preserve(source)
+          assert source==original and len(out['candidates'])==20
+          assert out['candidates'][0]['ticker']=='000000' and out['candidates'][-1]['ticker']=='000019'
+          assert not out['full_market_certified'] and out['selected_top2']==[] and out['current_action']=='CASH'
+          assert all(not r['trade_approved'] for r in out['candidates'])
+          assert len(preserve(source,top_n=10)['candidates'])==10
+          for change in [dict(b_native_index_candidates=24),dict(orders_enabled=True),
+                         dict(candidate_pool=[dict(pool[0],price_asof='2026-11-08')]+pool[1:])]:
+              invalid=dict(source,**change)
+              try:preserve(invalid)
+              except ValueError:pass
+              else:raise AssertionError('INVALID_SOURCE_ACCEPTED')
+          print('C3_PRESERVED_TOP20_AUDIT '+json.dumps({'status':'PASSED','synthetic_candidates':25,
+              'preserved':20,'verified_real_market_substitutes':0,'source_mutated':False,
+              'orders_enabled':False}))
+          PY
