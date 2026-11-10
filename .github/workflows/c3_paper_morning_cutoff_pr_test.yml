@@ -41,5 +41,20 @@ jobs:
           print('PROBE',json.dumps({'captured_at_kst':j['captured_at_kst'],'cutoff':j['completed_bar_cutoff_day'],'states':j['ticker_states'],'certified':j['regular_only_ohlcv_certified']},ensure_ascii=False))
           assert j['orders_enabled'] is False
           assert j['regular_only_ohlcv_certified'] is False
+          assert j['trade_approved'] is False
           assert all(x['capture_status']=='OHLCV_OBSERVED_UNVERIFIED_SCOPE' for x in j['ticker_states'].values()),'LIVE_PROVIDER_CAPTURE_INCOMPLETE'
+          import csv
+          with Path('/tmp/c3-live-probe/c3_paper_price_capture.csv').open(encoding='utf-8-sig',newline='') as f:
+              bars=list(csv.DictReader(f))
+          assert bars, 'NO_PRICE_BARS'
+          assert {x['ticker'] for x in bars}==set(j['ticker_states']), 'TICKER_COVERAGE_MISMATCH'
+          for row in bars:
+              assert row['date']<=j['completed_bar_cutoff_day'], 'INCOMPLETE_DAY_LEAK'
+              o,h,l,c,v=[float(row[k]) for k in ('open','high','low','close','volume')]
+              assert l<=min(o,c)<=max(o,c)<=h and v>0, 'INVALID_OHLCV'
+          for ticker,state in j['ticker_states'].items():
+              matching=[x for x in bars if x['ticker']==ticker]
+              assert len(matching)==state['historical_bars'], 'BAR_COUNT_MISMATCH'
+              assert max(x['date'] for x in matching)==state['last_session'], 'LAST_SESSION_MISMATCH'
+          print('LIVE_OHLCV_INTEGRITY_OK',len(bars),'rows',len(j['ticker_states']),'tickers')
           PY
