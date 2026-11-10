@@ -1,0 +1,93 @@
+name: C3 morning prior-close read-only observation (NO ORDERS)
+on:
+  workflow_dispatch:
+  schedule:
+    # Mon-Fri 07:45 KST = Sun-Thu 22:45 UTC; delayed scheduling is possible.
+    - cron: '45 22 * * 0-4'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  observe-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_paper_forward_v1.py
+            /scripts/c3_paper_price_capture_v1.py
+            /scripts/test_c3_paper_capture_cutoff_v1.py
+            /config/c3_paper_top2_plans.csv
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test cutoff without market API
+        run: python -m unittest discover -s scripts -p test_c3_paper_capture_cutoff_v1.py -v
+      - name: Install price provider
+        run: pip install 'pykrx==1.2.9' 'pandas>=2.1,<3'
+      - name: Capture prior completed day prices read-only
+        run: |
+          mkdir -p morning
+          python scripts/c3_paper_price_capture_v1.py --plans config/c3_paper_top2_plans.csv --outdir morning
+      - name: Compare observed date with latest completed full-market scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p scancheck
+          runs="$(gh api "repos/$GH_REPO/actions/workflows/daily.yml/runs?per_page=25" --jq '.workflow_runs[] | select(.conclusion=="success") | .id' || true)"
+          for id in $runs; do
+            rm -rf scancheck/candidate
+            mkdir -p scancheck/candidate
+            if gh run download "$id" -R "$GH_REPO" -n krx-scan-report -D scancheck/candidate >/dev/null 2>&1 && test -f scancheck/candidate/status.json; then
+              cp scancheck/candidate/status.json scancheck/source_scan_status.json
+              echo "C3_SCAN_RUN_ID=$id" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          p=Path('morning/c3_paper_price_source_status.json')
+          s=json.loads(p.read_text())
+          with Path('morning/c3_paper_price_capture.csv').open(encoding='utf-8-sig',newline='') as f:
+              rows=list(csv.DictReader(f))
+          states=s['ticker_states']
+          good=bool(states) and all(x['capture_status']=='OHLCV_OBSERVED_UNVERIFIED_SCOPE' for x in states.values())
+          good=good and bool(rows) and {r['ticker'] for r in rows}==set(states)
+          good=good and all(r['date']<=s['completed_bar_cutoff_day'] for r in rows)
+          scan_path=Path('scancheck/source_scan_status.json')
+          scan=json.loads(scan_path.read_text()) if scan_path.exists() else {}
+          scan_complete=scan.get('scan_complete') is True and int(scan.get('universe') or 0)>=2000
+          scan_asof=scan.get('market_data_date')
+          observed_dates={v.get('last_session') for v in states.values()}
+          matched=good and scan_complete and len(observed_dates)==1 and scan_asof in observed_dates
+          report={'schema':'C3_MORNING_OBSERVATION_V1','capture_ok':good,
+                  'captured_at_kst':s['captured_at_kst'],'last_completed_cutoff':s['completed_bar_cutoff_day'],
+                  'observed_dates':sorted(d for d in observed_dates if d),
+                  'full_market_scan_asof':scan_asof,'scan_complete':scan_complete,
+                  'scan_date_matched':matched,'source_regular_only_certified':False,
+                  'orders_enabled':False,'trade_approved':False,'paper_ledger_modified':False,
+                  'status':'DATE_MATCHED_UNCERTIFIED_NO_TRADE' if matched else 'UNMATCHED_OR_UNAVAILABLE_CASH'}
+          Path('morning/c3_morning_observation_status.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          print('MORNING_OBSERVATION',json.dumps(report,ensure_ascii=False))
+          if not good:raise SystemExit('PRICE_CAPTURE_INCOMPLETE')
+          PY
+      - name: Upload read-only evidence, never ledger or Telegram
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-morning-observation
+          path: |
+            morning/c3_paper_price_capture.csv
+            morning/c3_paper_price_source_status.json
+            morning/c3_morning_observation_status.json
+            scancheck/source_scan_status.json
+          if-no-files-found: warn
+          retention-days: 30
