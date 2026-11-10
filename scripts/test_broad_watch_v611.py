@@ -4,7 +4,7 @@ import csv,json,tempfile,unittest
 from pathlib import Path
 from forward_ledger_v63 import digest
 from broad_watch_v611 import (SCHEMA,WATCH_FIELDS,AUDIT_FIELDS,
-    MIN_HISTORY,MIN_TURNOVER_C3,blocked_issuer,num,save,gate_archives)
+    MIN_HISTORY,MIN_TURNOVER_C3,blocked_issuer,num,save,gate_archives,approved_strong_sectors)
 from full_market_scanner_v68 import SCHEMA as V68
 from official_issuer_entry_v610 import SCHEMA as V610,BASIC_SCHEMA
 from sector_flow_v69 import SCHEMA as V69
@@ -46,6 +46,14 @@ def toy_paths(base):
     return p
 
 class BroadWatchV611Test(unittest.TestCase):
+    def test_v69_top3_is_subset_of_all_strong_sectors(self):
+        rows=[{"sector_id":f"S{i}","strength_status":"PROXY_STRONG_RESEARCH"} for i in range(6)]
+        self.assertEqual(approved_strong_sectors(rows,{"strict_strong_sectors":["S0","S1","S2"]}),{"S0","S1","S2"})
+        for invalid in (["S0","S0","S1"],["S0","S1","MISSING"],["S0","S1"],["S0","S1","S2","S3"]):
+            with self.assertRaisesRegex(ValueError,"V611_STRONG_SECTOR_APPROVAL_OR_REFERENCE_DRIFT"):
+                approved_strong_sectors(rows,{"strict_strong_sectors":invalid})
+
+
     def test_explicit_50억원_and_120_trading_days_are_research_thresholds(self):
         self.assertEqual(MIN_TURNOVER_C3,5_000_000_000)
         self.assertEqual(MIN_HISTORY,120)

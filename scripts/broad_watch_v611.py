@@ -90,6 +90,18 @@ def gate_archives(v18,scan,flows,issuer):
         raise ValueError("V611_BASIC_MARKET_UNIVERSE_COUNT_DRIFT")
     return p,f,b,bm
 
+def approved_strong_sectors(sectors, flow_status):
+    """v6.9 status records selected TOP3; CSV records every strong sector."""
+    strong={r["sector_id"] for r in sectors if r["strength_status"]=="PROXY_STRONG_RESEARCH"}
+    selected=flow_status.get("strict_strong_sectors")
+    if (not isinstance(selected,list) or len(selected)>3
+        or len(selected)!=len(set(selected))
+        or not set(selected).issubset(strong)
+        or len(selected)!=min(3,len(strong))):
+        raise ValueError("V611_STRONG_SECTOR_APPROVAL_OR_REFERENCE_DRIFT")
+    return set(selected)
+
+
 def build(v18,scan,flows,issuer):
     p,f,b,bm=gate_archives(v18,scan,flows,issuer)
     asof=p["asof"]
@@ -97,9 +109,7 @@ def build(v18,scan,flows,issuer):
     sectors=read_csv(flows/"sector_money_v69_all.csv")
     if len(sectors)!=f["total_proxy_sectors"]:
         raise ValueError("V611_SECTOR_RESEARCH_COUNT_MISMATCH")
-    strict={r["sector_id"] for r in sectors if r["strength_status"]=="PROXY_STRONG_RESEARCH"}
-    if strict!=set(f["strict_strong_sectors"]):
-        raise ValueError("V611_STRONG_SECTOR_APPROVAL_OR_REFERENCE_DRIFT")
+    strict=approved_strong_sectors(sectors,f)
     sr,_=read_sector_evidence(v18,asof)
     members,usable,memsha=read_memberships(v18,asof,sr)
     if memsha!=f["membership_source_sha256"]:
