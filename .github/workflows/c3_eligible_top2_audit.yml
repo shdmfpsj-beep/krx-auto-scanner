@@ -1,0 +1,55 @@
+name: C3 strict TOP2 replacement audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_eligible_top2_rerank.py'
+      - 'scripts/c3_entry_geometry_gate.py'
+      - '.github/workflows/c3_eligible_top2_audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_eligible_top2_rerank.py
+            scripts/c3_entry_geometry_gate.py
+            scripts/c3_telegram_inputs.py
+          sparse-checkout-cone-mode: false
+      - run: python -m pip install requests --disable-pip-version-check
+      - name: Audit Nov 9 report and strict substitute safeguards
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: scripts
+        run: |
+          python - <<'PY'
+          import json,os,copy
+          from c3_telegram_inputs import GitHub
+          from c3_eligible_top2_rerank import review_report,select
+          report=json.loads(GitHub(os.environ['GH_TOKEN']).file('reports/c3_forward_v8/latest.json','research/c3-ledger-integrity-audit-20261104'))
+          original=copy.deepcopy(report)
+          audit=review_report(report)
+          assert report==original,'SOURCE_MUTATED'
+          assert audit['asof']=='2026-11-09' and audit['selected']==[] and audit['vacancies']==2
+          assert audit['action']=='CASH' and not audit['pool_coverage_certified']
+          assert any('CHASE_ENTRY_PREMIUM_OVER_5PCT' in x['reasons'] for x in audit['audited'] if x['ticker']=='180640')
+          assert all(not x['eligible'] for x in audit['audited'])
+          assert select([],asof='2026-11-09')['vacancies']==2
+          candidate={'ticker':'999999','name':'SYNTHETIC_NOT_A_REAL_STOCK','source_price_asof':'2026-11-09',
+                     'source_regular_only_certified':True,'trade_approved':True,'reference_close':100,
+                     'entry_plans':{'A_SUPPORT_LIMIT':{'plan':{'low':98,'high':100,'stop':95,'resistance':110}}}}
+          assert select([candidate],asof='2026-11-09')['selected'][0]['ticker']=='999999'
+          assert not select([dict(candidate,source_price_asof='2026-11-06')],asof='2026-11-09')['selected']
+          assert not select([dict(candidate,trade_approved=False)],asof='2026-11-09')['selected']
+          print('C3_STRICT_RERANK_AUDIT '+json.dumps({'status':'PASSED','asof':audit['asof'],
+             'real_selected':audit['selected'],'vacancies':audit['vacancies'],
+             'real_reasons':{r['ticker']:r['reasons'] for r in audit['audited']},
+             'synthetic_only_for_unit_tests':True,'full_market_coverage':False,
+             'orders_enabled':False},ensure_ascii=False))
+          PY
