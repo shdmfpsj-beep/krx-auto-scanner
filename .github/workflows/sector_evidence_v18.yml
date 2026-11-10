@@ -1211,6 +1211,10 @@ jobs:
                       ) if not passed and (mode != "baseline_only" or name == "V14_REPLICATION_NOT_VERIFIED")
                   ],
                   "news_optional_status": data.get("news", {}).get("status", "NOT_COLLECTED"),
+                  "v14_recovery_status": data.get("v14_recovery", {}).get("status", "NOT_COLLECTED"),
+                  "v14_recovery_error_code": data.get("v14_recovery", {}).get("error_code"),
+                  "v14_replication_status": data.get("v14_replication", {}).get("status", "NOT_COLLECTED"),
+                  "v14_replication_error_code": data.get("v14_replication", {}).get("error_code"),
               }
               collector.status.update({"gate_diagnostics": gate_diagnostics,
                                        "mode": mode, "overall_status": state, "completed_at": stamp(),
