@@ -28,16 +28,31 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p input output
+          TARGET_DAY="$(PYTHONPATH=scripts python -c 'from krx_regular_daily_report import nominal_regular_day; from datetime import datetime; from zoneinfo import ZoneInfo; print(nominal_regular_day(datetime.now(ZoneInfo("Asia/Seoul"))))')"
+          echo "TARGET_DAY=$TARGET_DAY" >> "$GITHUB_ENV"
           gh api "repos/$GH_REPO/actions/workflows/krx_session_layers.yml/runs?per_page=50" \
             --jq '.workflow_runs[] | select(.conclusion == "success") | .id' |
           while read -r id; do
             [[ "$id" == "$GITHUB_RUN_ID" ]] && continue
-            if gh run download "$id" -R "$GH_REPO" -n krx-regular-observation -D input 2>/dev/null; then
-              echo "DOWNLOADED_REGULAR_OBSERVATION run=$id"
+            rm -f input/regular_observation.json
+            if gh run download "$id" -R "$GH_REPO" -n krx-regular-observation -D input 2>/dev/null &&
+              TARGET_DAY="$TARGET_DAY" python - <<'PY'
+import json,os
+from pathlib import Path
+try:
+    p=json.loads(Path("input/regular_observation.json").read_text())
+    assert p.get("asof")==os.environ["TARGET_DAY"]
+    assert p.get("phase")=="regular"
+except (OSError,ValueError,AssertionError):
+    raise SystemExit(1)
+PY
+            then
+              echo "DOWNLOADED_DATE_MATCHED_REGULAR_OBSERVATION run=$id day=$TARGET_DAY"
               break
             fi
+            rm -f input/regular_observation.json
           done
-          [[ -f input/regular_observation.json ]] || echo "REGULAR_OBSERVATION_UNAVAILABLE"
+          [[ -f input/regular_observation.json ]] || echo "DATE_MATCHED_REGULAR_OBSERVATION_UNAVAILABLE"
       - name: Optionally load audited KRX minute prices from official source probe
         shell: bash
         run: |
@@ -46,18 +61,30 @@ jobs:
             --jq '.workflow_runs[] | select(.conclusion == "success") | .id' |
           while read -r id; do
             [[ "$id" == "$GITHUB_RUN_ID" ]] && continue
-            if gh run download "$id" -R "$GH_REPO" -n kis-krx-regular-minute-audit -D input 2>/dev/null; then
-              echo "FOUND_OFFICIAL_MINUTE_PROBE_RUN $id"
+            rm -f input/kis_regular_minute_audit.json
+            if gh run download "$id" -R "$GH_REPO" -n kis-krx-regular-minute-audit -D input 2>/dev/null &&
+              python - <<'PY'
+import json,os
+from pathlib import Path
+try:
+    p=json.loads(Path("input/kis_regular_minute_audit.json").read_text())
+    assert p.get("date")==os.environ["TARGET_DAY"].replace("-","")
+except (OSError,ValueError,AssertionError):
+    raise SystemExit(1)
+PY
+            then
+              echo "FOUND_DATE_MATCHED_MINUTE_PROBE_RUN $id"
               break
             fi
+            rm -f input/kis_regular_minute_audit.json
           done
-          [[ -f input/kis_regular_minute_audit.json ]] || echo "OFFICIAL_MINUTE_PROBE_UNAVAILABLE"
+          [[ -f input/kis_regular_minute_audit.json ]] || echo "DATE_MATCHED_MINUTE_PROBE_UNAVAILABLE"
 
       - name: Publish report only from date-matched regular archive
         shell: bash
         run: |
           python scripts/krx_regular_daily_report.py \
-            --regular input/regular_observation.json \
+            --regular input/regular_observation.json --date "$TARGET_DAY" \
             --kis-audit input/kis_regular_minute_audit.json --out output
           python - <<'PY'
           import json
