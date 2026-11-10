@@ -206,6 +206,18 @@ jobs:
           print('C3_TOP20_MULTIGATE_SAFE',r['asof'],r['vacancies'])
           PY
 
+      - name: Audit existing dated OHLCV and OpenDART evidence coverage (no trading)
+        if: steps.collect.outcome == 'success' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/c3_top20_existing_evidence_audit.py --top20 reports/c3_real_scan_top20.json --history reports/candidate_daily_history_v52.csv --finance reports/v91_financial_pit_provisional.csv --out reports/c3_top20_evidence_coverage.json
+          python - <<'PY'
+          import json
+          x=json.load(open('reports/c3_top20_evidence_coverage.json'))
+          assert len(x['candidates'])==20 and x['buy_approved_count']==0 and x['orders_enabled'] is False
+          PY
+
       - name: Upload dated real-scanner TOP20 artifact
         if: steps.collect.outcome == 'success' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
         uses: actions/upload-artifact@v4
@@ -214,6 +226,7 @@ jobs:
           path: |
             reports/c3_real_scan_top20.json
             reports/c3_top20_multigate_review.json
+            reports/c3_top20_evidence_coverage.json
           retention-days: 90
           if-no-files-found: error
 
