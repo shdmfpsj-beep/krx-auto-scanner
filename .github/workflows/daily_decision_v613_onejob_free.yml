@@ -101,7 +101,13 @@ jobs:
           today=datetime.now(ZoneInfo('Asia/Seoul')).date()
           age=(today-asof).days
           assert obj['orders_enabled'] is False
-          assert 0<=age<=4, 'INTEGRATED_SOURCE_TOO_OLD_OR_FUTURE_NO_BUY'
+          if not 0 <= age <= 4:
+              raise AssertionError(
+                  f'INTEGRATED_SOURCE_TOO_OLD_OR_FUTURE_NO_BUY: '
+                  f'source_asof={asof} today_kst={today} age_calendar_days={age} '
+                  f'run_id={__import__("os").environ.get("SOURCE_V18_RUN_ID", "unknown")}; '
+                  'do not use stale source for a new trade decision'
+              )
           assert obj['datasets']['prices']['status']=='OK'
           assert obj['datasets']['flows']['status']=='OK'
           assert obj['datasets']['holdings']['status']=='OK'
