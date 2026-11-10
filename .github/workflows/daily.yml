@@ -192,12 +192,28 @@ jobs:
           print('REAL_SCANNER_TOP20_ARCHIVED',d['asof'],len(d['candidates']))
           PY
 
+      - name: Research-only TOP20 fundamentals and entry evidence gate
+        if: steps.collect.outcome == 'success' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/c3_top20_multigate_review.py --source reports/c3_real_scan_top20.json --out reports/c3_top20_multigate_review.json
+          python - <<'PY'
+          import json
+          r=json.load(open('reports/c3_top20_multigate_review.json'))
+          assert r['audited_count']==20 and r['orders_enabled'] is False
+          assert r['registered_signals_created']==0 and r['current_action']=='CASH'
+          print('C3_TOP20_MULTIGATE_SAFE',r['asof'],r['vacancies'])
+          PY
+
       - name: Upload dated real-scanner TOP20 artifact
         if: steps.collect.outcome == 'success' && (github.event_name == 'schedule' || inputs.mode == 'full_scan' || inputs.mode == 'sector_v80' || inputs.mode == 'sector_v81' || inputs.mode == 'sector_v82' || inputs.mode == 'sector_v83' || inputs.mode == 'sector_v84')
         uses: actions/upload-artifact@v4
         with:
           name: c3-real-scan-top20-preliminary
-          path: reports/c3_real_scan_top20.json
+          path: |
+            reports/c3_real_scan_top20.json
+            reports/c3_top20_multigate_review.json
           retention-days: 90
           if-no-files-found: error
 
