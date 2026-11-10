@@ -1,0 +1,52 @@
+name: C3 entry geometry anti-chase read-only audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_entry_geometry_gate.py'
+      - '.github/workflows/c3_entry_geometry_gate_audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_entry_geometry_gate.py
+            scripts/c3_telegram_inputs.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit checks and actual 2026-11-09 candidate audit (no Telegram)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: scripts
+        run: |
+          python - <<'PY'
+          import json,os
+          from c3_entry_geometry_gate import assess,annotate
+          from c3_telegram_inputs import GitHub
+          gh=GitHub(os.environ['GH_TOKEN'])
+          report=json.loads(gh.file('reports/c3_forward_v8/latest.json','research/c3-ledger-integrity-audit-20261104'))
+          assert report['source_price_asof']=='2026-11-09'
+          assert [(r['ticker'],r['name']) for r in report['research_top2']]==[('028050','삼성E&A'),('180640','한진칼')]
+          assert report['new_registered_signals']==0 and report['orders_enabled'] is False
+          before=json.dumps(report['research_top2'],sort_keys=True,ensure_ascii=False)
+          annotate(report)
+          assert all(not r['entry_geometry_review']['eligible'] for r in report['research_top2'])
+          results={r['ticker']:r['entry_geometry_review'] for r in report['research_top2']}
+          assert 'CHASE_ENTRY_PREMIUM_OVER_5PCT' in results['180640']['reasons']
+          assert 'FIRST_RESISTANCE_UNVERIFIED' in results['180640']['reasons']
+          assert results['180640']['metrics']['premium_over_entry_high_pct']>70
+          assert 'ENTRY_REWARD_RISK_BELOW_1_5' in results['028050']['reasons']
+          assert report['new_registered_signals']==0 and report['orders_enabled'] is False
+          for r in report['research_top2']:r.pop('entry_geometry_review')
+          assert json.dumps(report['research_top2'],sort_keys=True,ensure_ascii=False)==before
+          print('C3_ENTRY_GATE_AUDIT '+json.dumps({'source_date':report['source_price_asof'],'research_only':True,'results':results,'registered_signals_changed':False,'orders_enabled':False},ensure_ascii=False))
+          PY
