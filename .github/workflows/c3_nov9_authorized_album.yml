@@ -1,0 +1,110 @@
+name: C3 November 9 explicitly authorized historical Telegram cards
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/c3_nov9_authorized_album.yml']
+permissions:
+  contents: write
+concurrency:
+  group: c3-nov9-authorized-historical-album
+  cancel-in-progress: false
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_telegram_notify.py
+            scripts/c3_telegram_inputs.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow requests --disable-pip-version-check
+      - name: Validate frozen historical source, create two explicitly non-tradable images, and send once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import json,os,hashlib
+          from pathlib import Path
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from PIL import Image,ImageDraw,ImageFont
+          from c3_telegram_inputs import GitHub
+          from c3_telegram_notify import ReceiptStore,Telegram,validate_photos
+          gh=GitHub(os.environ['GH_TOKEN'])
+          raw=gh.file('reports/c3_forward_v8/latest.json','research/c3-ledger-integrity-audit-20261104')
+          d=json.loads(raw)
+          assert d['source_price_asof']=='2026-11-09'
+          assert d['data_quality_state']=='OFFICIAL_VERIFIED'
+          assert d['source_provider']=='KRX_OFFICIAL_EOD'
+          assert d['source_quality_gate']['status']=='QUALITY_GATE_PASSED'
+          assert d['errors']==['PAST_NEXT_POSSIBLE_OPEN']
+          assert d['research_top2_registered_for_source_session'] is False
+          assert d['new_registered_signals']==0
+          assert d['current_action']=='CASH' and d['orders_enabled'] is False
+          picks=d['research_top2']
+          assert len(picks)==2 and [(p['ticker'],p['name']) for p in picks]==[('028050','삼성E&A'),('180640','한진칼')]
+          bot=Telegram(os.environ['TELEGRAM_BOT_TOKEN'],os.environ['TELEGRAM_CHAT_ID'])
+          store=ReceiptStore(gh);store.initialize()
+          key='historical-test-20261109/2026-11-09-'+bot.fingerprint
+          if store.exists(key):
+              print(json.dumps({'status':'DUPLICATE_BLOCKED','send_attempts':0}));raise SystemExit(0)
+          fontpath='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
+          boldpath='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
+          F=lambda n,b=False:ImageFont.truetype(boldpath if b else fontpath,n)
+          out=Path('/tmp/c3-nov9-historical');out.mkdir(exist_ok=True)
+          def card(filename,heading,lines):
+              im=Image.new('RGB',(1200,1500),'#101923');dr=ImageDraw.Draw(im)
+              dr.rectangle((45,45,1155,1455),outline='#b8a36b',width=3)
+              dr.text((95,100),'강현AI PRO · C3 TOP2',font=F(48,True),fill='#e6d49a')
+              dr.text((95,205),heading,font=F(48,True),fill='white')
+              y=335
+              for line in lines:
+                  dr.text((95,y),line,font=F(35),fill='#f2f2f2');y+=90
+              dr.rectangle((85,1170,1115,1350),fill='#493322')
+              dr.text((115,1205),'과거 데이터 테스트 · 매수 신호 아님',font=F(37,True),fill='#fff0d0')
+              dr.text((115,1270),'실제 주문 없음 · 신규 신호 등록 0건',font=F(27),fill='#fff0d0')
+              p=out/filename;im.save(p,'PNG');return p
+          p1=card('nov9_quality.png','11월 9일 데이터 검증',[
+              '가격 기준일  2026-11-09',
+              '데이터 상태  OFFICIAL_VERIFIED',
+              '공급처  KRX_OFFICIAL_EOD',
+              '품질 검사  QUALITY_GATE_PASSED',
+              '신규 등록 신호  0건',
+              '최종 행동  CASH',
+              '과거 시점 등록 제한 적용'
+          ])
+          p2=card('nov9_candidates.png','TOP2 연구 후보 · 미확정',[
+              '1. 삼성E&A  (028050)',
+              '2. 한진칼  (180640)',
+              '후보는 저장 보고서에 표시된 종목',
+              '11월 9일 신규 매수 신호가 아님',
+              '실제 진입 타점·성과 검증 아님',
+              '소급 등록 금지 규칙 유지',
+              '투자 권유가 아닌 검증용 이미지'
+          ])
+          paths=[p1,p2];hashes=validate_photos(paths)
+          bot.verify_group()
+          claim={'schema':'C3_AUTHORIZED_HISTORICAL_TEST_V1','source_date':'2026-11-09','mode':'historical-test','status':'CLAIMED_BEFORE_SEND','card_sha256':hashes,'source_run_id':d.get('source_run_id'),'sender_run_id':os.environ.get('GITHUB_RUN_ID'),'orders_enabled':False,'automatic_resend_allowed':False}
+          if not store.reserve(key,claim):
+              print(json.dumps({'status':'DUPLICATE_BLOCKED','send_attempts':0}));raise SystemExit(0)
+          try:
+              response=bot.send_album(paths)
+              result=dict(status='DELIVERED',**response)
+          except Exception as e:
+              result=dict(status='REVIEW_REQUIRED_NO_AUTOMATIC_RESEND',error_type=type(e).__name__)
+          result.update(mode='historical-test',source_date='2026-11-09',send_attempts=1,sender_run_id=os.environ.get('GITHUB_RUN_ID'))
+          try:store.finish(key,result)
+          except Exception:result['receipt_write_status']='FAILED_CLAIM_REMAINS_NO_RESEND'
+          print('HISTORICAL_ALBUM_RESULT '+json.dumps(result,ensure_ascii=False))
+          if result['status']!='DELIVERED' or 'receipt_write_status' in result:raise SystemExit(1)
+          PY
