@@ -57,15 +57,38 @@ jobs:
           paths=[]
           for idx,r in enumerate(d['research_top2'],1):
               ticker=r['ticker']
-              df=fdr.DataReader(ticker,'2026-07-01','2026-11-11')
-              df=df.loc[df.index.strftime('%Y-%m-%d')<='2026-11-09'].copy()
-              print('CHART_SOURCE_DIAGNOSTIC '+json.dumps({'ticker':ticker,'source':'FinanceDataReader','rows':len(df),'first_date':str(df.index[0].date()) if len(df) else None,'last_date':str(df.index[-1].date()) if len(df) else None,'expected_date':'2026-11-09','reference_close':r.get('reference_close'),'returned_close':float(df['Close'].iloc[-1]) if len(df) else None},ensure_ascii=False),flush=True)
-              assert len(df)>=60, 'HISTORICAL_BARS_INSUFFICIENT'
-              assert str(df.index[-1].date())=='2026-11-09', 'HISTORICAL_BARS_LAST_DATE_MISMATCH'
-              df=df.tail(80)
-              for k in ('Open','High','Low','Close','Volume'):assert k in df and df[k].notna().all()
+              # FinanceDataReader supplies trading dates only; its prices are NOT chart inputs.
+              import csv,io,time,requests,pandas as pd
+              from concurrent.futures import ThreadPoolExecutor
+              calendar=fdr.DataReader(ticker,'2026-07-01','2026-11-11')
+              calendar=calendar.loc[calendar.index.strftime('%Y-%m-%d')<='2026-11-09'].copy()
+              assert len(calendar)>=60, 'HISTORICAL_CALENDAR_INSUFFICIENT'
+              days=list(calendar.index.strftime('%Y-%m-%d'))[-70:]
+              def verified_daily_cache(day):
+                  url='https://raw.githubusercontent.com/FinanceData/fdr_krx_data_cache/master/data/listing/krx/'+day+'.csv'
+                  for attempt in range(3):
+                      try:
+                          response=requests.get(url,timeout=20)
+                          response.raise_for_status()
+                          rows=list(csv.DictReader(io.StringIO(response.content.decode('utf-8-sig'))))
+                          matches=[x for x in rows if x.get('Code')==ticker]
+                          if len(matches)!=1:raise ValueError('CACHE_TICKER_NOT_UNIQUE_'+day)
+                          row=matches[0]
+                          if row.get('MarketId') not in ('STK','KSQ'):raise ValueError('CACHE_MARKET_INVALID_'+day)
+                          vals={k:float(row[v]) for k,v in [('Open','Open'),('High','High'),('Low','Low'),('Close','Close'),('Volume','Volume')]}
+                          if not (0<vals['Low']<=min(vals['Open'],vals['Close'])<=max(vals['Open'],vals['Close'])<=vals['High'] and vals['Volume']>0):raise ValueError('CACHE_BAR_INVALID_'+day)
+                          return day,vals
+                      except (requests.RequestException,UnicodeError) as e:
+                          if attempt==2:raise
+                          time.sleep(attempt+1)
+              with ThreadPoolExecutor(max_workers=8) as pool:
+                  verified=list(pool.map(verified_daily_cache,days))
+              df=pd.DataFrame([bar for _,bar in verified],index=pd.to_datetime([day for day,_ in verified]))
+              print('CHART_SOURCE_DIAGNOSTIC '+json.dumps({'ticker':ticker,'source':'FinanceData/fdr_krx_data_cache per-session KRX mirror CSV','rows':len(df),'first_date':str(df.index[0].date()),'last_date':str(df.index[-1].date()),'reference_close':r.get('reference_close'),'returned_close':float(df['Close'].iloc[-1])},ensure_ascii=False),flush=True)
+              assert len(df)>=60, 'VERIFIED_KRX_MIRROR_BARS_INSUFFICIENT'
+              assert str(df.index[-1].date())=='2026-11-09', 'KRX_MIRROR_LAST_DATE_MISMATCH'
               close=float(df['Close'].iloc[-1]);reference=float(r.get('reference_close',r['close']))
-              assert close==reference,'INDEPENDENT_CHART_CLOSE_MISMATCH'
+              assert close==reference,'KRX_MIRROR_REPORT_CLOSE_MISMATCH'
               assert (df['Low']<=df[['Open','Close']].min(axis=1)).all()
               assert (df['High']>=df[['Open','Close']].max(axis=1)).all()
               im=Image.new('RGB',(1400,2400),'#faf9f5');dr=ImageDraw.Draw(im)
@@ -75,7 +98,7 @@ jobs:
               t(55,315,f"기준 종가 {close:,.0f}원",47,bold=True)
               dr.rectangle((45,390,1355,480),fill='#f0e6cc');t(75,408,'과거 연구후보 · 신규 매수 신호 아님',37,'#6c4a20',True)
               dr.rectangle((45,520,1355,1430),fill='white',outline='#ddd7ca',width=3)
-              t(75,545,'일봉 · 가격 및 거래량 · 참고용 과거 차트',32,bold=True)
+              t(75,545,'일봉 · KRX 미러 일별 원본 · 70거래일',32,bold=True)
               closes=[float(x) for x in df['Close']];highs=[float(x) for x in df['High']];lows=[float(x) for x in df['Low']]
               lo=min(lows)*0.97;hi=max(highs)*1.03
               px=lambda i:95+i*(1200/max(1,len(df)-1))
@@ -101,7 +124,7 @@ jobs:
               t(85,1845,'선정 근거 / 위험',37,bold=True)
               t(85,1920,f"RS20 {r.get('rs20',0):+.2f}%p · 20일 거래대금 {r.get('turnover20',0)/1e8:,.0f}억원",29)
               t(85,1985,'재무·실적: 본 테스트에서 신규 검증하지 않음',29)
-              t(85,2050,'검증 상태: 가격 기준일 통과 / 신규 신호 등록 0건',29)
+              t(85,2050,'검증: KRX 미러 종가 일치 / 신규 신호 등록 0건',29)
               dr.rectangle((65,2180,1335,2310),fill='#4b3424')
               t(95,2215,'과거 데이터 테스트 · 매수 신호 아님',37,'#fff1d6',True)
               path=out/(ticker+'_candidate_chart.png');im.save(path,optimize=True);paths.append(path)
