@@ -97,9 +97,15 @@ def build(v18,scan,flows,issuer):
     sectors=read_csv(flows/"sector_money_v69_all.csv")
     if len(sectors)!=f["total_proxy_sectors"]:
         raise ValueError("V611_SECTOR_RESEARCH_COUNT_MISMATCH")
-    strict={r["sector_id"] for r in sectors if r["strength_status"]=="PROXY_STRONG_RESEARCH"}
-    if strict!=set(f["strict_strong_sectors"]):
+    strict_all={r["sector_id"] for r in sectors if r["strength_status"]=="PROXY_STRONG_RESEARCH"}
+    strict_list=f["strict_strong_sectors"]
+    if (not isinstance(strict_list,list) or len(strict_list)>3
+        or len(strict_list)!=len(set(strict_list))
+        or not set(strict_list).issubset(strict_all)
+        or len(strict_list)!=min(3,len(strict_all))):
         raise ValueError("V611_STRONG_SECTOR_APPROVAL_OR_REFERENCE_DRIFT")
+    # v6.9 publishes the selected TOP3, not all qualifying strong sectors.
+    strict=set(strict_list)
     sr,_=read_sector_evidence(v18,asof)
     members,usable,memsha=read_memberships(v18,asof,sr)
     if memsha!=f["membership_source_sha256"]:
