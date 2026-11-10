@@ -1,0 +1,116 @@
+name: C3 November 9 candidate TOP2 chart album one-time
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/c3_nov9_candidate_chart_album.yml']
+permissions:
+  contents: write
+concurrency:
+  group: c3-nov9-candidate-chart-album
+  cancel-in-progress: false
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_telegram_notify.py
+            scripts/c3_telegram_inputs.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow requests pandas FinanceDataReader --disable-pip-version-check
+      - name: Draw dated candidate chart cards from checked 11/9 report and verified historical bars; deliver at most once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import json,os,math
+          from pathlib import Path
+          from PIL import Image,ImageDraw,ImageFont
+          from c3_telegram_inputs import GitHub
+          from c3_telegram_notify import ReceiptStore,Telegram,validate_photos
+          import FinanceDataReader as fdr
+          gh=GitHub(os.environ['GH_TOKEN'])
+          d=json.loads(gh.file('reports/c3_forward_v8/latest.json','research/c3-ledger-integrity-audit-20261104'))
+          assert d['source_price_asof']=='2026-11-09' and d['data_quality_state']=='OFFICIAL_VERIFIED'
+          assert d['source_quality_gate']['status']=='QUALITY_GATE_PASSED' and d['source_provider']=='KRX_OFFICIAL_EOD'
+          assert d['research_top2_registered_for_source_session'] is False and d['new_registered_signals']==0
+          assert d['current_action']=='CASH' and d['orders_enabled'] is False
+          assert [(r['ticker'],r['name']) for r in d['research_top2']]==[('028050','삼성E&A'),('180640','한진칼')]
+          bot=Telegram(os.environ['TELEGRAM_BOT_TOKEN'],os.environ['TELEGRAM_CHAT_ID'])
+          store=ReceiptStore(gh);store.initialize()
+          key='candidate-chart-20261109/2026-11-09-'+bot.fingerprint
+          if store.exists(key):
+              print('CANDIDATE_CHART_RESULT '+json.dumps({'status':'DUPLICATE_BLOCKED','send_attempts':0}));raise SystemExit(0)
+          out=Path('/tmp/c3-nov9-candidate-charts');out.mkdir(exist_ok=True)
+          fontpath='/usr/share/fonts/truetype/nanum/NanumGothic.ttf';boldpath='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
+          F=lambda n,b=False:ImageFont.truetype(boldpath if b else fontpath,n)
+          paths=[]
+          for idx,r in enumerate(d['research_top2'],1):
+              ticker=r['ticker']
+              df=fdr.DataReader(ticker,'2026-07-01','2026-11-10')
+              assert len(df)>=60 and str(df.index[-1].date())=='2026-11-09', 'HISTORICAL_BARS_MISSING_OR_NOT_ASOF'
+              df=df.tail(80)
+              for k in ('Open','High','Low','Close','Volume'):assert k in df and df[k].notna().all()
+              close=float(df['Close'].iloc[-1]);reference=float(r.get('reference_close',r['close']))
+              assert close==reference,'INDEPENDENT_CHART_CLOSE_MISMATCH'
+              assert (df['Low']<=df[['Open','Close']].min(axis=1)).all()
+              assert (df['High']>=df[['Open','Close']].max(axis=1)).all()
+              im=Image.new('RGB',(1400,2400),'#faf9f5');dr=ImageDraw.Draw(im)
+              def t(x,y,v,n=32,color='#292b2c',bold=False):dr.text((x,y),str(v),font=F(n,bold),fill=color)
+              dr.rectangle((0,0,1400,105),fill='#292b2c');t(55,25,'강현AI PRO | C3 TOP2',48,'#e7d49d',True)
+              t(55,145,r['name'],70,bold=True);t(55,240,f"{ticker} · 연구후보 TOP{idx} · 2026.11.09",32)
+              t(55,315,f"기준 종가 {close:,.0f}원",47,bold=True)
+              dr.rectangle((45,390,1355,480),fill='#f0e6cc');t(75,408,'과거 연구후보 · 신규 매수 신호 아님',37,'#6c4a20',True)
+              dr.rectangle((45,520,1355,1430),fill='white',outline='#ddd7ca',width=3)
+              t(75,545,'일봉 · 가격 및 거래량 · 참고용 과거 차트',32,bold=True)
+              closes=[float(x) for x in df['Close']];highs=[float(x) for x in df['High']];lows=[float(x) for x in df['Low']]
+              lo=min(lows)*0.97;hi=max(highs)*1.03
+              px=lambda i:95+i*(1200/max(1,len(df)-1))
+              py=lambda v:1170-(v-lo)/(hi-lo)*510
+              for i,(_,row) in enumerate(df.iterrows()):
+                  x=px(i);up=float(row['Close'])>=float(row['Open']);color='#b84b48' if up else '#367caf'
+                  dr.line((x,py(float(row['High'])),x,py(float(row['Low']))),fill=color,width=2)
+                  dr.rectangle((x-4,py(max(float(row['Open']),float(row['Close']))),x+4,py(min(float(row['Open']),float(row['Close'])))),fill=color)
+              for n,color in [(5,'#405b81'),(20,'#b08739'),(60,'#738b80')]:
+                  ma=df['Close'].rolling(n).mean().tolist()
+                  points=[(px(i),py(float(v))) for i,v in enumerate(ma) if not math.isnan(float(v))]
+                  if len(points)>1:dr.line(points,fill=color,width=4)
+              vmax=max(float(v) for v in df['Volume']) or 1
+              for i,v in enumerate(df['Volume']):
+                  x=px(i);height=float(v)/vmax*140
+                  dr.rectangle((x-4,1390-height,x+4,1390),fill='#8e9fa5')
+              t(85,1465,'매매 관찰 구간 · 미확정 / 실행 금지',38,bold=True)
+              p=((r.get('entry_plans') or {}).get('A_SUPPORT_LIMIT') or {}).get('plan') or {}
+              t(85,1545,f"과거 연구 매수범위: {p.get('low',0):,.0f} ~ {p.get('high',0):,.0f}원",32)
+              t(85,1610,f"과거 구조 손절 참고값: {p.get('stop',0):,.0f}원",32)
+              t(85,1675,f"1차 저항 참고값: {p['resistance']:,.0f}원" if p.get('resistance') else '1차 저항: 미확정',32)
+              t(85,1750,'※ 과거 연구 수치이며 현재 주문·매수 승인이 아님',28,'#a04d42',True)
+              t(85,1845,'선정 근거 / 위험',37,bold=True)
+              t(85,1920,f"RS20 {r.get('rs20',0):+.2f}%p · 20일 거래대금 {r.get('turnover20',0)/1e8:,.0f}억원",29)
+              t(85,1985,'재무·실적: 본 테스트에서 신규 검증하지 않음',29)
+              t(85,2050,'검증 상태: 가격 기준일 통과 / 신규 신호 등록 0건',29)
+              dr.rectangle((65,2180,1335,2310),fill='#4b3424')
+              t(95,2215,'과거 데이터 테스트 · 매수 신호 아님',37,'#fff1d6',True)
+              path=out/(ticker+'_candidate_chart.png');im.save(path,optimize=True);paths.append(path)
+          hashes=validate_photos(paths);bot.verify_group()
+          claim={'schema':'C3_CANDIDATE_CHART_HISTORICAL_V1','source_date':'2026-11-09','status':'CLAIMED_BEFORE_SEND','card_sha256':hashes,'sender_run_id':os.environ.get('GITHUB_RUN_ID'),'orders_enabled':False,'automatic_resend_allowed':False}
+          if not store.reserve(key,claim):
+              print('CANDIDATE_CHART_RESULT '+json.dumps({'status':'DUPLICATE_BLOCKED','send_attempts':0}));raise SystemExit(0)
+          try:result=dict(status='DELIVERED',**bot.send_album(paths))
+          except Exception as e:result=dict(status='REVIEW_REQUIRED_NO_AUTOMATIC_RESEND',error_type=type(e).__name__)
+          result.update(source_date='2026-11-09',send_attempts=1,sender_run_id=os.environ.get('GITHUB_RUN_ID'))
+          try:store.finish(key,result)
+          except Exception:result['receipt_write_status']='FAILED_CLAIM_REMAINS_NO_RESEND'
+          print('CANDIDATE_CHART_RESULT '+json.dumps(result,ensure_ascii=False))
+          if result['status']!='DELIVERED' or 'receipt_write_status' in result:raise SystemExit(1)
+          PY
