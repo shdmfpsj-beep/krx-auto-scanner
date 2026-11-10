@@ -25,7 +25,7 @@ jobs:
           python-version: '3.11'
       - run: |
           sudo apt-get update -qq && sudo apt-get install -y fonts-nanum >/dev/null
-          python -m pip install pillow requests pandas FinanceDataReader --disable-pip-version-check
+          python -m pip install pillow requests pandas finance-datareader --disable-pip-version-check
       - name: Draw dated candidate chart cards from checked 11/9 report and verified historical bars; deliver at most once
         env:
           GH_TOKEN: ${{ github.token }}
