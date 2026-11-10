@@ -1,0 +1,50 @@
+name: C3 TOP20 historical evidence coverage regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_top20_existing_evidence_audit.py'
+      - '.github/workflows/c3_top20_evidence_audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_archive_real_scan_top20.py
+            scripts/c3_top20_existing_evidence_audit.py
+            reports/c3_preliminary.csv
+            reports/ranking_status.json
+            reports/candidate_daily_history_v52.csv
+            reports/v91_financial_pit_provisional.csv
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Audit Nov 9 real saved OHLCV and dated DART filing metadata
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python scripts/c3_archive_real_scan_top20.py --source reports/c3_preliminary.csv --status reports/ranking_status.json --out /tmp/top20.json
+          python scripts/c3_top20_existing_evidence_audit.py --top20 /tmp/top20.json --history reports/candidate_daily_history_v52.csv --finance reports/v91_financial_pit_provisional.csv --out /tmp/evidence.json
+          python - <<'PY'
+          import json
+          x=json.load(open('/tmp/evidence.json'))
+          assert len(x['candidates'])==20 and x['buy_approved_count']==0
+          assert x['current_action']=='CASH' and x['orders_enabled'] is False
+          assert all(not r['financial_approved'] and not r['entry_approved'] for r in x['candidates'])
+          print('C3_REAL_EVIDENCE_AUDIT '+json.dumps({'status':'PASSED','asof':x['asof'],
+              'ohlcv_60bar_asof':x['ohlcv_60bar_asof_count'],
+              'dated_financial_receipts':x['dated_financial_receipt_count'],
+              'approved':0,'orders_enabled':False}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c3-top20-evidence-coverage-nov9
+          path: |
+            /tmp/top20.json
+            /tmp/evidence.json
+          retention-days: 30
