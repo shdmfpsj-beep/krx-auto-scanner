@@ -1,0 +1,53 @@
+name: C3 existing successful-report renderer regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/c3_classic_theme.py
+      - .github/workflows/c3_report_regression.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/c3_classic_theme.py
+            scripts/c3_entry_geometry_gate.py
+            scripts/c3_report_context.py
+            scripts/test_c3_report_quality.py
+            scripts/test_c3_report_handoff.py
+            scripts/c3_report_handoff.py
+            scripts/c3_telegram_inputs.py
+            scripts/c3_telegram_notify.py
+            config/c3_company_context_verified.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow requests cryptography --disable-pip-version-check
+      - name: Reuse established C3 image and handoff regression tests
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python -m unittest discover -s scripts -p test_c3_report_quality.py -v
+          python -m unittest discover -s scripts -p test_c3_report_handoff.py -v
+      - name: Verify selection is not silently erased by execution geometry gate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source=Path('scripts/c3_classic_theme.py').read_text()
+          assert '진입 대기/CASH' in source
+          assert '과거 연구 예시' in source
+          assert "entry_geometry_review=gate" in source
+          assert '매수 제외 · CASH · 추격/손익비 재검토' not in source
+          print('C3_SELECTION_VS_ENTRY_PRESENTATION_PASSED')
+          PY
