@@ -23,6 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - run: python -m pip install requests --disable-pip-version-check
       - name: Unit checks and actual 2026-11-09 candidate audit (no Telegram)
         env:
           GH_TOKEN: ${{ github.token }}
