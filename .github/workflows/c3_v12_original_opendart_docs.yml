@@ -1,0 +1,60 @@
+name: C3 v1.2 original OpenDART receipt and byte provenance probe
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v12-pit-timing-primary-filings-20261111]
+    paths: ['.github/workflows/c3_v12_original_opendart_docs.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  archive-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_v12_opendart_original_receipts.py
+            /scripts/test_c3_v12_opendart_original_receipts.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Zip evidence and no numeric promotion tests
+        run: python -m unittest discover -s scripts -p test_c3_v12_opendart_original_receipts.py -v
+      - name: Read immutable receipts from PR89 129-event join and PR90 73 price anomaly title join
+        run: |
+          mkdir -p joined dart output
+          gh run download 42952002759 -R "$GITHUB_REPOSITORY" -n c3-pr87-independent-holdout-and-pit-join -D joined
+          gh run download 42958246536 -R "$GITHUB_REPOSITORY" -n c3-v11-dart-price-disclosure-title-crosscheck -D dart
+          test -s joined/c3_extended_date_evidence_join.json
+          test -s dart/c3_v11_dart_anomaly_titles.json
+      - name: Probe original DART archive by exact original receipt numbers with byte SHA only
+        run: |
+          python scripts/c3_v12_opendart_original_receipts.py \
+           --join joined/c3_extended_date_evidence_join.json \
+           --dart-titles dart/c3_v11_dart_anomaly_titles.json \
+           --out output/c3_v12_open_dart_original_receipts.json
+      - name: Preserve original-vintage distinction and CASH invariant
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('output/c3_v12_open_dart_original_receipts.json'))
+          assert r['requested_receipts']>=14
+          assert r['financial_original_numeric_verification_count']==0
+          assert r['rights_ex_date_verified_from_original_count']==0
+          assert r['original_regulatory_filings_not_ex_rights_KRX_execution_certification'] is True
+          assert r['document_original_bytes_not_redistributed'] is True
+          assert r['operating_code_modified'] is False and r['decision']=='CASH'
+          print('C3_V12_ORIGINAL_DOC_NO_PIT_PROMOTION_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v12-original-opendart-document-receipts
+          path: output/c3_v12_open_dart_original_receipts.json
+          retention-days: 30
+          if-no-files-found: warn
