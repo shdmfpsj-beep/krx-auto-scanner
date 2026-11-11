@@ -1,0 +1,24 @@
+name: C3 three-entry replay contract tests (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_three_entry_replay.py'
+      - 'scripts/test_c3_three_entry_replay.py'
+      - '.github/workflows/c3_three_entry_replay_tests.yml'
+permissions:
+  contents: read
+jobs:
+  replay-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_three_entry_replay.py
+            /scripts/test_c3_three_entry_replay.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: No-lookahead and stop-first contract tests
+        run: python -m unittest discover -s scripts -p test_c3_three_entry_replay.py -v
