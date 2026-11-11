@@ -55,7 +55,7 @@ def execute(outdir='/tmp/c3-v21-historical-preview'):
     except Exception as exc:
         # Only an allowed code, never arbitrary error strings/secrets.
         reason=str(exc)
-        if isinstance(exc,ValueError) and reason.isupper() and len(reason)<100 and
+        if (isinstance(exc,ValueError) and reason.isupper() and len(reason)<100 and
                 all(x.isupper() or x.isdigit() or x=='_' for x in reason)):
             status['reason']=reason
         else:
