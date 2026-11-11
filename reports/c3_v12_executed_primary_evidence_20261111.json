@@ -1,0 +1,217 @@
+{
+  "schema": "C3_FIXED_V12_EXECUTED_EVIDENCE_20261111",
+  "research_only": true,
+  "date": "2026-11-11",
+  "snapshot": {
+    "main_at_last_verified": "1a0e098dbe36b60a459c9391e54a3760b7bea5d2",
+    "pr_87": "MERGED",
+    "pr_88": "DRAFT",
+    "pr_89": "DRAFT",
+    "pr_90": "DRAFT",
+    "pr_91": "DRAFT",
+    "source_krx_session_count": 150,
+    "source_krx_rows": 395575,
+    "source_unique_tickers": 2766,
+    "selection_events_original": 129,
+    "selection_events_from_20260916": 51,
+    "source_latest_market_date": "2026-11-10"
+  },
+  "original_sources": {
+    "krx_150d_run": 42950252617,
+    "krx_150d_artifact": 13824887176,
+    "krx_150d_artifact_sha256": "60acbfc1ccaa65b9485fb05856eb89d531d37eb3a8ba8a7f31ed1037654f516f",
+    "original_OPENDART_document_zip_probe_run": 42960511407,
+    "original_OPENDART_probe_artifact": 13828952762,
+    "original_OPENDART_probe_artifact_sha256": "22c872fb3a38bc5acd0346303490017a894359093ebd465867201f789011e85a",
+    "raw_original_OPENDART_receipts_requested": 27,
+    "raw_original_OPENDART_zip_success": 27,
+    "numeric_financial_values_original_PIT_crossverified": 0,
+    "original_document_receipt_no_and_zip_digest_recorded": true,
+    "original_documents_redistributed": false
+  },
+  "PIT_availability_audit": {
+    "run": 42960353598,
+    "artifact_id": 13828732817,
+    "artifact_sha256": "d1a4ac35bf27240cc053ab9bec66548bb595786273670cb51ba9b428b696b560",
+    "provisional_filing_date_link_events": 14,
+    "original_next_available_date_weekend": 10,
+    "inside_KRX_archive_dates_original_nontrading": 8,
+    "market_next_session_correct_matches": 2,
+    "before_archive_calendar_boundary_unverified": 4,
+    "original_filing_publication_time_verified": false,
+    "original_numeric_PIT_approved": false,
+    "same_day_signals_future_information_used": false
+  },
+  "price_410_discontinuities": {
+    "full_original_flags": 410,
+    "consecutive_market_session_flags": 73,
+    "after_ticker_absent_market_day_flags": 337,
+    "primary_rights_reference_ex_date_verified": 5,
+    "adjacent_day_still_not_proven_as_rights_event": 68,
+    "ticker_absence_causes_unverified": 337,
+    "action_date_primary_run": 42961535357,
+    "action_date_primary_artifact_id": 13828864185,
+    "action_date_primary_artifact_sha256": "a5dc27667f7131d20130f04a3eadaa91cb0314758cb36ca4955fc3fca1e302e4",
+    "research_proof_annotation_run": 42961943445,
+    "research_proof_annotation_artifact_id": 13828844791,
+    "research_proof_annotation_sha256": "3925e8e6014c0a2dce7ed0fedde7c09321c575439a5ab707d6cee8a2a1354f96",
+    "primary_ex_rights_cases": [
+      {
+        "ticker": "475460",
+        "receipt": "20260915900714",
+        "ex_date": "2026-09-16",
+        "ref_price_krw": 2765,
+        "daily_close_krw": 2610,
+        "close_vs_reference_pct": -5.6058,
+        "raw_close_ratio": 0.314837
+      },
+      {
+        "ticker": "303360",
+        "receipt": "20261012900612",
+        "ex_date": "2026-10-13",
+        "ref_price_krw": 3935,
+        "daily_close_krw": 3815,
+        "close_vs_reference_pct": -3.0496,
+        "raw_close_ratio": 0.64661
+      },
+      {
+        "ticker": "117670",
+        "receipt": "20261020900760",
+        "ex_date": "2026-10-21",
+        "ref_price_krw": 6950,
+        "daily_close_krw": 6980,
+        "close_vs_reference_pct": 0.4317,
+        "raw_close_ratio": 0.502158
+      },
+      {
+        "ticker": "290650",
+        "receipt": "20261023900853",
+        "ex_date": "2026-10-26",
+        "ref_price_krw": 30150,
+        "daily_close_krw": 24900,
+        "close_vs_reference_pct": -17.4129,
+        "raw_close_ratio": 0.415
+      },
+      {
+        "ticker": "052400",
+        "receipt": "20261028900690",
+        "ex_date": "2026-10-29",
+        "ref_price_krw": 22700,
+        "daily_close_krw": 20600,
+        "close_vs_reference_pct": -9.2511,
+        "raw_close_ratio": 0.606775
+      }
+    ],
+    "source_original_documents_sha256_reconfirmed_all_five": true,
+    "no_total_shareholder_return_adjustment_applied": true
+  },
+  "exposure_on_frozen_selection": {
+    "run": 42960734183,
+    "artifact_id": 13829052161,
+    "artifact_sha256": "fbe9e625058bdab804c568971f43becf96fc3f1ab7cf665e3f6b13b2841913c5",
+    "all_129_events_with_60session_asof_anomaly": 13,
+    "all_129_events_with_next5session_anomaly": 0,
+    "all_129_events_with_next10session_anomaly": 0,
+    "all_129_events_with_next20session_anomaly": 1,
+    "new_51_events_with_60session_asof_anomaly": 4,
+    "new_51_events_with_next5session_anomaly": 0,
+    "new_51_events_with_next10session_anomaly": 0,
+    "new_51_events_with_next20session_anomaly": 0,
+    "not_a_complete_corporate_action_inventory": true
+  },
+  "financial_and_flow": {
+    "dated_14_filings_binary_original_received": 14,
+    "dated_14_original_numeric_revenue_or_operating_profit_validated": 0,
+    "financial_stable_or_growth_screen_status": "BLOCKED_ORIGINAL_NUMERIC_PIT",
+    "previous_day_foreign_institution_file_coverage": 101,
+    "previous_five_session_foreign_institution_file_coverage": 88,
+    "asof_flow_vintage_verified": false,
+    "regular_1530_price_definition_verified": false,
+    "official_KRX_KOSPI_KOSDAQ_index_API": "BLOCKED_HTTP_401",
+    "FSC_open_data_index_API": "REQUIRES_PUBLIC_DATA_SERVICE_KEY_AND_LICENSE_REVIEW",
+    "dated_market_index_21close_window_verified": 0,
+    "operational_TOP2_exact_same_ticker_date_verified": 0,
+    "false_technical_proxy_operational_comparison_prohibited": true
+  },
+  "frozen_independent_selection": {
+    "five_days": {
+      "train_n": 60,
+      "test_n": 40,
+      "test_positive": 17,
+      "win_rate": 0.425,
+      "mean_selection_close_return_pct": -2.8068,
+      "mean_MFE_pct": 10.831,
+      "mean_MAE_pct": -12.833
+    },
+    "ten_days": {
+      "train_n": 51,
+      "test_n": 35,
+      "test_positive": 14,
+      "win_rate": 0.4,
+      "mean_selection_close_return_pct": -5.3555,
+      "mean_MFE_pct": 15.2473,
+      "mean_MAE_pct": -15.6825
+    },
+    "twenty_days": {
+      "train_n": 37,
+      "test_n": 20,
+      "test_positive": 6,
+      "win_rate": 0.3,
+      "mean_selection_close_return_pct": -12.9058,
+      "mean_MFE_pct": 22.5867,
+      "mean_MAE_pct": -22.7352
+    },
+    "new_independent_forward_outcomes_observed_since_last_report": 0,
+    "predictor_promotion_allowed": false,
+    "uncertainty_prohibits_trading_approved_returns": true
+  },
+  "entry_reality_from_PR90": {
+    "new_events": 51,
+    "entry1_range_asof_constructable": 51,
+    "entry2_range_asof_constructable": 1,
+    "MA20_PULLBACK_eligible": 49,
+    "ATR_candidate_stop_distance_gt12percent": 46,
+    "BREAKOUT_RETEST_candidate_stop_distance_gt12percent": 50,
+    "market_day_1_touch_not_fill": 2,
+    "market_day_2_any_touch_not_fill": 3,
+    "market_day_3_any_touch_not_fill": 6,
+    "market_day_1_PASS": 48,
+    "upper_2percent_widening_market_day3_touch": 8,
+    "upper_2percent_widening_stop_gt12percent": 8,
+    "actual_execution_fills_verified": 0,
+    "broker_cost_adjusted_trade_returns_verified": 0,
+    "production_entry_or_stop_modified": false
+  },
+  "research_development": {
+    "branch": "research/c3-v12-pit-timing-primary-filings-20261111",
+    "base_branch": "research/c3-v11-entry-geometry-corporate-actions-20261111",
+    "draft_PR": 91,
+    "new_research_modules": [
+      "scripts/c3_v12_dart_pit_calendar_audit.py",
+      "scripts/c3_v12_opendart_original_receipts.py",
+      "scripts/c3_v12_discontinuity_exposure.py",
+      "scripts/c3_v12_original_rights_notice.py",
+      "scripts/c3_v12_rights_anomaly_annotation.py"
+    ],
+    "new_research_only_workflows": true,
+    "all_main_implementation_file_diffs_empty": true,
+    "paper_trading_ledger_changed": false,
+    "approval_changed": false,
+    "CASH_rule_changed": false,
+    "missed_buy_zone_PASS_changed": false,
+    "TOP2_scanner_changed": false,
+    "telegram_delivery_changed": false,
+    "broker_trade_enabled": false,
+    "decision": "CASH",
+    "regression_job_id_current": 42962029933,
+    "regression_count_actual": 74,
+    "regression_at_42962029933": "SUCCESS",
+    "final_workflow_file": ".github/workflows/c3_v12_final_74_tests.yml",
+    "obsolete_intermediate_test_workflows_removed": true
+  },
+  "next_priority": {
+    "A": "For the remaining two bonus-issue decision documents and 65 unmatched adjacent-price gaps, certify exact corporate action effective date and actual KRX open reference price; quarantine 337 ticker gap cases until primary halt/listing evidence.",
+    "B": "Parse and reconcile original numeric revenue/operating profit for 14 historical DART original ZIPs by report period, consolidated vs standalone basis and restatements; obtain lawful dated index key, then compare stock relative strength.",
+    "C": "Prespecify independent future TOP2 selection and two-entry realistic fill ledger from verified regular-session 15:30 data; do not backfit 51 old sample, no entry widening until actual prospective fill+cost returns."
+  }
+}

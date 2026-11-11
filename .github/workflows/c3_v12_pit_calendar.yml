@@ -1,0 +1,58 @@
+name: C3 v1.2 strict DART available-market-date audit (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v12-pit-timing-primary-filings-20261111]
+    paths: ['.github/workflows/c3_v12_pit_calendar.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  pit-dates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_v12_dart_pit_calendar_audit.py
+            /scripts/test_c3_v12_dart_pit_calendar_audit.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Source-date and time-order unit tests
+        run: python -m unittest discover -s scripts -p test_c3_v12_dart_pit_calendar_audit.py -v
+      - name: Download exact original 150-session archive and 129-selection dated financial evidence join
+        run: |
+          mkdir -p src joined output
+          gh run download 42950252617 -R "$GITHUB_REPOSITORY" -n c3-pr87-newdata-official-research-only -D src
+          gh run download 42952002759 -R "$GITHUB_REPOSITORY" -n c3-pr87-independent-holdout-and-pit-join -D joined
+          test -s joined/c3_extended_date_evidence_join.json
+      - name: Check all 14 provisional financial receipt-date links without revising historical study
+        run: |
+          python scripts/c3_v12_dart_pit_calendar_audit.py \
+           --root src/official_history \
+           --join joined/c3_extended_date_evidence_join.json \
+           --out output/c3_v12_pit_calendar_audit.json
+      - name: Strict fact guard and no PIT promotion
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('output/c3_v12_pit_calendar_audit.json'))
+          assert r['linked_provisional_receipt_events']==14
+          assert r['counts']['WEEKEND_AVAILABLE_DATE']==10
+          assert r['official_market_sessions']==150
+          assert r['date_join_original_snapshot_verified'] is False
+          assert r['corrected_date_does_not_promote_original_financial_values'] is True
+          assert r['operating_main_modified'] is False and r['decision']=='CASH'
+          print('C3_V12_PROVISIONAL_DATE_14_AUDIT_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v12-pit-date-disclosure-original-check
+          path: output/c3_v12_pit_calendar_audit.json
+          retention-days: 60
+          if-no-files-found: warn

@@ -1,0 +1,60 @@
+name: C3 v1.2 five primary rights notices and KRX reference-price check
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v12-pit-timing-primary-filings-20261111]
+    paths:
+      - '.github/workflows/c3_v12_original_rights_notices.yml'
+      - 'scripts/c3_v12_original_rights_notice.py'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  original-rights:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: scripts
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_v12_original_rights_notice.py
+            /scripts/test_c3_v12_original_rights_notice.py
+            /scripts/c3_v12_opendart_original_receipts.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Strict primary rights table and no fabricated ex-price tests
+        run: python -m unittest discover -s scripts -p test_c3_v12_original_rights_notice.py -v
+      - name: Download exact 2026 KRX and previously recorded 27 original document SHA snapshot
+        run: |
+          mkdir -p source origin output
+          gh run download 42950252617 -R "$GITHUB_REPOSITORY" -n c3-pr87-newdata-official-research-only -D source
+          gh run download 42960511407 -R "$GITHUB_REPOSITORY" -n c3-v12-original-opendart-document-receipts -D origin
+          test -s origin/c3_v12_open_dart_original_receipts.json
+      - name: Parse five strictly pre-ex-day original KIND rights notices, verify SHA, compare actual close to right-reference
+        run: |
+          python scripts/c3_v12_original_rights_notice.py \
+             --original-evidence origin/c3_v12_open_dart_original_receipts.json \
+             --root source/official_history \
+             --out output/c3_v12_primary_rights_reference_check.json
+      - name: Stop all operational certification and ensure paired immutable sources
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('output/c3_v12_primary_rights_reference_check.json'))
+          assert r['requested_primary_rights_notices']==5
+          assert r['price_adjusted_shareholder_total_return_verified'] is False
+          assert r['operating_main_modified'] is False
+          assert r['trade_approved'] is False and r['decision']=='CASH'
+          print('C3_V12_ORIGINAL_RIGHTS_PRIMARY_EVIDENCE_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v12-original-rights-primary-reference-check
+          path: output/c3_v12_primary_rights_reference_check.json
+          retention-days: 30
+          if-no-files-found: warn

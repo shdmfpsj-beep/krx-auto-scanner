@@ -1,0 +1,61 @@
+name: C3 v1.2 only proven rights-case anomaly labels, read only
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v12-pit-timing-primary-filings-20261111]
+    paths:
+      - '.github/workflows/c3_v12_verified_rights_annotation.yml'
+      - 'scripts/c3_v12_rights_anomaly_annotation.py'
+      - 'scripts/test_c3_v12_rights_anomaly_annotation.py'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  read-only-annotation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_v12_rights_anomaly_annotation.py
+            /scripts/test_c3_v12_rights_anomaly_annotation.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Regression test primary SHA, original KRX ratio and immutable research outcomes
+        run: python -m unittest discover -s scripts -p test_c3_v12_rights_anomaly_annotation.py -v
+      - name: Load only immutable historical KRX issuer pair and five original DART rights notice evidence
+        run: |
+          mkdir -p issuer rights output
+          gh run download 42957771117 -R "$GITHUB_REPOSITORY" -n c3-v11-adjacent-issuer-basic-research -D issuer
+          gh run download 42961535357 -R "$GITHUB_REPOSITORY" -n c3-v12-original-rights-primary-reference-check -D rights
+      - name: Annotate five verified cases and preserve 68 unverified plus 337 missing-session cases
+        run: |
+          python scripts/c3_v12_rights_anomaly_annotation.py \
+            --issuer issuer/c3_v11_adjacent_anomaly_issuer.json \
+            --rights rights/c3_v12_primary_rights_reference_check.json \
+            --out output/c3_v12_verified_rights_annotation.json
+      - name: Explicitly forbid guessed corporate action corrections and trade approval
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open('output/c3_v12_verified_rights_annotation.json'))
+          assert x['fixed_410_price_discontinuities']==410
+          assert x['first_party_rights_reference_and_ex_date_verified']==5
+          assert x['remaining_adjacent_anomalies_without_primary_rights_proof']==68
+          assert x['missing_ticker_market_session_337_unresolved']==337
+          assert x['no_split_adjusted_prices_written'] is True
+          assert x['no_past_returns_or_entry_bands_rewritten'] is True
+          assert x['operating_main_modified'] is False and x['trade_approved'] is False
+          print('C3_V12_ORIGINAL_RIGHTS_SOURCE_FROZEN_410_ANOMALY_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v12-verified-rights-reference-only-annotation
+          path: output/c3_v12_verified_rights_annotation.json
+          retention-days: 60
+          if-no-files-found: warn
