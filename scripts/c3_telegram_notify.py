@@ -82,8 +82,8 @@ class ReceiptStore:
             raise
     def finish(self,key,payload):self.gh.create('receipts/outcomes/'+key+'.json',RECEIPT_BRANCH,payload)
 
-def validate_photos(paths):
-    if len(paths)!=2:raise ValueError('EXACTLY_TWO_PHOTOS_REQUIRED')
+def validate_photos(paths,allow_single=False):
+    if len(paths) not in ((1,2) if allow_single else (2,)):raise ValueError('PHOTO_COUNT_POLICY_REJECTED')
     hashes=[]
     for path in paths:
         p=Path(path)
@@ -92,7 +92,7 @@ def validate_photos(paths):
             if im.format!='PNG' or sum(im.size)>10000 or max(im.size)/min(im.size)>20:raise ValueError('PHOTO_FORMAT_OR_DIMENSIONS_REJECTED')
             im.verify()
         hashes.append(sha(p.read_bytes()))
-    if len(set(hashes))!=2:raise ValueError('DISTINCT_CARDS_REQUIRED')
+    if len(set(hashes))!=len(paths):raise ValueError('DISTINCT_CARDS_REQUIRED')
     return hashes
 
 class Telegram:
@@ -120,14 +120,34 @@ class Telegram:
         if any(str(m.get('chat',{}).get('id'))!=self.chat_id for m in messages):raise ValueError('ALBUM_RECIPIENT_CONFIRMATION_FAILED')
         return dict(message_ids=[m['message_id'] for m in messages],media_group_hash=sha(next(iter(groups)).encode()),photos=2,captions_present=False,text_present=False)
 
+    def send_single(self,path):
+        """Atomic one-photo call, no caption, text, redirect or automatic retry."""
+        with open(path,'rb') as f:
+            r=requests.post('https://api.telegram.org/bot'+self.token+'/sendPhoto',
+                data={'chat_id':self.chat_id},files={'photo':(Path(path).name,f,'image/png')},
+                timeout=(10,65),allow_redirects=False)
+        if r.status_code!=200:raise ValueError('SINGLE_PHOTO_RESPONSE_UNCERTAIN_REVIEW_REQUIRED')
+        obj=r.json();msg=obj.get('result') or {}
+        if (obj.get('ok') is not True or type(msg.get('message_id')) is not int or
+            msg['message_id']<=0 or str(msg.get('chat',{}).get('id'))!=self.chat_id or
+            not msg.get('photo') or 'caption' in msg or 'text' in msg or msg.get('media_group_id')):
+            raise ValueError('SINGLE_PHOTO_CONFIRMATION_UNCERTAIN_REVIEW_REQUIRED')
+        return {'message_ids':[msg['message_id']],'media_group_hash':None,
+                'photos':1,'captions_present':False,'text_present':False}
+
 def deliver(paths,report,store,bot,mode='live',clock=None):
-    hashes=validate_photos(paths);day=report['source_price_asof'];key=delivery_key(day,bot.fingerprint,mode)
+    v=report.get('final_presentation_review') or {}
+    single_ok=mode=='live' and v.get('schema')=='C3_FINAL_PRESENTATION_REVIEW_V21'
+    if single_ok and ((len(paths)==1 and v.get('delivery_kind') not in ('STOCK_1','CASH_1')) or
+                      (len(paths)==2 and v.get('delivery_kind')!='ALBUM_2')):
+        raise ValueError('FINAL_REVIEW_PHOTO_COUNT_MISMATCH')
+    hashes=validate_photos(paths,allow_single=single_ok);day=report['source_price_asof'];key=delivery_key(day,bot.fingerprint,mode)
     store.initialize()
     if (mode=='live' and store.legacy_exists(day)) or store.exists(key):return dict(status='DUPLICATE_BLOCKED',key=key,send_attempts=0)
     bot.verify_group()
     claim={'schema':'C3_PHOTO_ONLY_DELIVERY_V1','source_date':day,'mode':mode,'status':'CLAIMED_BEFORE_SEND','claimed_at':(clock or now_kst()).isoformat(),'card_sha256':hashes,'source_run_id':report.get('source_run_id'),'sender_code_sha':os.environ.get('GITHUB_SHA'),'sender_run_id':os.environ.get('GITHUB_RUN_ID'),'recipient_verified':True,'orders_enabled':False,'automatic_resend_allowed':False}
     if not store.reserve(key,claim):return dict(status='DUPLICATE_BLOCKED',key=key,send_attempts=0)
-    try:result=dict(status='DELIVERED',**bot.send_album(paths))
+    try:result=dict(status='DELIVERED',**(bot.send_single(paths[0]) if len(paths)==1 else bot.send_album(paths)))
     except Exception as e:result=dict(status='REVIEW_REQUIRED_NO_AUTOMATIC_RESEND',error_type=type(e).__name__)
     result.update(key=key,source_date=day,mode=mode,send_attempts=1,recorded_at=now_kst().isoformat(),sender_run_id=os.environ.get('GITHUB_RUN_ID'))
     try:store.finish(key,result)
@@ -144,16 +164,27 @@ def main():
             report,summary,ref=report_pair(gh);source=json.loads(json.dumps(report));reason=report_error(report,summary,now_kst())
             if reason:
                 result={'status':'SKIPPED','reason':reason,'source_asof':report.get('source_price_asof'),'attempted_asof':report.get('attempted_price_asof'),'send_attempts':0};return_code=0
-            else:report=frozen_live_bars(gh,report,ref)
+            else:
+                report=frozen_live_bars(gh,report,ref)
+                # Separately approved presentation safety layer. Disabled by
+                # default: no main/ledger/order/Telegram change on merge alone.
+                if os.environ.get('C3_FINAL_GATE_ENABLED','0')=='1':
+                    from c3_final_delivery_gate_v1 import review,filtered_report_for_presentation
+                    audit=review(report,report.get('presentation_ranked_pool'),
+                                 report.get('presentation_pool_proof'))
+                    (out/'delivery_review.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n')
+                    report=filtered_report_for_presentation(
+                        report,audit,report.get('presentation_ranked_pool'))
         if result is None:
             from c3_report_context import attach_context,DartClient
             context_key=os.environ.get('OPENDART_API_KEY','').strip()
             context_client=DartClient(context_key,out/'company_raw') if context_key else None
             report=attach_context(report,out,context_client)
-            from c3_classic_theme import create_cards
-            paths=create_cards(report,out)
+            from c3_classic_theme import create_cards,create_final_cards
+            paths=(create_final_cards(report,out) if report.get('final_presentation_review')
+                   else create_cards(report,out))
             (out/'input_diagnostics.json').write_text(json.dumps({'source_asof':report['source_price_asof'],'example_only':bool(report.get('example_only')),'provenance':report.get('input_provenance'),'sources':gh.sources},ensure_ascii=False,indent=2)+'\n')
-            hashes=validate_photos(paths)
+            hashes=validate_photos(paths,allow_single=bool(report.get('final_presentation_review')))
             render_validated=True
             if a.dry_run:result={'status':'DRY_RUN_VALIDATED_NO_DELIVERY','photos':len(paths),'card_sha256':hashes,'send_attempts':0};return_code=0
             elif a.mode=='preview':result={'status':'PREVIEW_ONLY_NO_DELIVERY','photos':len(paths),'send_attempts':0};return_code=0

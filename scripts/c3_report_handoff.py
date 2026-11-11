@@ -52,13 +52,54 @@ def packet(report,ref,result,clock,outdir,dry_run=False,render_validated=None):
          'report_code_sha':os.environ.get('GITHUB_SHA'),'report_run_id':os.environ.get('GITHUB_RUN_ID'),
          'engine_sha':(report.get('invocation') or {}).get('engine_sha'),
          'orders_enabled':False,'current_action':'CASH','chatgpt_delivery_verified':False,
-         'research_top2':[],'images':[]}
+         'research_top2':[],'images':[],
+         'trace':{
+             'market_origin_snapshot_sha256':(report.get('source_data_audit') or {}).get('original_snapshot_sha256'),
+             'price_source_validation_sha256':report.get('source_validation_sha256'),
+             'research_selection_run_id':report.get('source_run_id'),
+             'render_run_id':os.environ.get('GITHUB_RUN_ID'),
+             'market_collection_run_id':None,
+             'source_regular_only_certified':report.get('source_regular_only_certified') is True,
+             'external_lineage_claimed':False,
+         }}
     if ready:
         root=Path(outdir)
         diagnostic=json.loads((root/'render_diagnostics.json').read_text())
         if diagnostic.get('example_only'):raise ValueError('HISTORICAL_PACKET_CANNOT_BE_LIVE')
         cards=diagnostic['cards'];picks=report.get('research_top2') or []
-        if len(cards)!=2 or [c['ticker'] for c in cards]!=[r['ticker'] for r in picks]:raise ValueError('HANDOFF_IMAGE_IDENTITY_MISMATCH')
+        gate_path=root/'delivery_review.json'
+        gate_rows={}
+        enabled=report.get('final_presentation_review')
+        if enabled:
+            if not gate_path.exists():raise ValueError('FINAL_GATE_EVIDENCE_FILE_MISSING')
+            gate=json.loads(gate_path.read_text())
+            if gate!=enabled or gate.get('schema')!='C3_FINAL_PRESENTATION_REVIEW_V21':
+                raise ValueError('FINAL_GATE_EVIDENCE_CHANGED')
+            if gate.get('asof')!=report.get('source_price_asof') or gate.get('source_run_id')!=report.get('source_run_id'):
+                raise ValueError('FINAL_GATE_SOURCE_IDENTITY_MISMATCH')
+            gate_rows={r['ticker']:r for r in gate.get('eligible',[])}
+            if len(gate_rows)!=len(picks) or {r['ticker'] for r in picks}!=set(gate_rows):
+                raise ValueError('FINAL_GATE_SELECTED_TICKERS_MISMATCH')
+            out['final_presentation_review']={
+                k:copy.deepcopy(gate[k]) for k in ('schema','asof','eligible_count','candidate_pool_status',
+                                                    'delivery_kind','replacement_count','decision')
+            }
+            if not picks:
+                if len(cards)!=1 or cards[0].get('ticker')!='CASH' or not diagnostic.get('cash_only'):
+                    raise ValueError('CASH_HANDOFF_IMAGE_MISSING')
+                body=(root/'CASH_integrated.png').read_bytes()
+                if cards[0].get('asof')!=report['source_price_asof'] or cards[0].get('sha256')!=digest(body):
+                    raise ValueError('CASH_HANDOFF_IMAGE_DATE_OR_HASH_MISMATCH')
+                out['images'].append({'ticker':'CASH','name':'CASH_integrated.png','sha256':digest(body),
+                                      'bytes':len(body),'source_price_asof':report['source_price_asof'],
+                                      'research_selection_run_id':report.get('source_run_id'),
+                                      'render_run_id':os.environ.get('GITHUB_RUN_ID'),'final_state':'CASH'})
+                return out
+        elif gate_path.exists():
+            raise ValueError('UNEXPECTED_FINAL_GATE_FILE')
+        expected=(len(picks) if enabled else 2)
+        if len(cards)!=expected or [c['ticker'] for c in cards]!=[r['ticker'] for r in picks]:
+            raise ValueError('HANDOFF_IMAGE_IDENTITY_MISMATCH')
         for row,card in zip(picks,cards):
             body=(root/(row['ticker']+'_integrated.png')).read_bytes()
             if card['asof']!=report['source_price_asof'] or card['sha256']!=digest(body):raise ValueError('HANDOFF_IMAGE_DATE_OR_HASH_MISMATCH')
@@ -66,8 +107,14 @@ def packet(report,ref,result,clock,outdir,dry_run=False,render_validated=None):
             ctx=row.get('company_context') or {}
             item['company_context']={k:copy.deepcopy(ctx[k]) for k in CONTEXT if k in ctx}
             item['chart_audit']={k:card[k] for k in ('source_rows','source_basis','close','change','change_pct','ma_last','last5','notes','second_entry') if k in card}
+            if gate_rows:item['final_presentation_review']=copy.deepcopy(gate_rows[row['ticker']])
             out['research_top2'].append(item)
-            out['images'].append({'ticker':row['ticker'],'name':row['ticker']+'_integrated.png','sha256':digest(body),'bytes':len(body)})
+            p=((row.get('entry_plans') or {}).get('A_SUPPORT_LIMIT') or {}).get('plan') or {}
+            out['images'].append({'ticker':row['ticker'],'name':row['ticker']+'_integrated.png',
+                'sha256':digest(body),'bytes':len(body),'source_price_asof':report.get('source_price_asof'),
+                'research_selection_run_id':report.get('source_run_id'),'signal_id':row.get('signal_id'),
+                'original_plan_known_on':p.get('known_on'),'original_plan_decision_date':p.get('decision_date'),
+                'render_run_id':os.environ.get('GITHUB_RUN_ID')})
     return out
 
 

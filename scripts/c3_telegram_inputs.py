@@ -94,4 +94,23 @@ def frozen_live_bars(gh,report,ref):
         if old is None or any(old.get(k)!=r.get(k) for k in ('signal_id','reference_close','entry_plans','model','rank')):raise ValueError('PUBLIC_REPORT_AND_FROZEN_DECISION_MISMATCH')
         r['chart_bars']=old['chart_bars'];r['chart_price_basis']='KRX_UNADJUSTED_AS_TRADED'
     report['input_provenance']={'research_ref':ref,'decision_payload_sha256':record['sha256'],'ultimate_origin':'KRX','price_basis':'UNADJUSTED_AS_TRADED'}
+    # Only the authenticated immutable B-decision may supply original ranks 3+.
+    # The v6.12/v6.13 whole-market TOP20 is a DIFFERENT research model and
+    # cannot be presented as ranked B-model substitutes.
+    model_b=payload.get('models',{}).get('B',[])
+    if (len(model_b)>2 and [x.get('rank') for x in model_b]==list(range(1,len(model_b)+1))
+            and len({x.get('ticker') for x in model_b})==len(model_b)):
+        cands=json.loads(json.dumps(model_b))
+        for row in cands:row['chart_price_basis']='KRX_UNADJUSTED_AS_TRADED'
+        report['presentation_ranked_pool']=cands
+        report['presentation_pool_proof']={
+            'schema':'C3_IMMUTABLE_B_POOL_V21',
+            'origin':'AUTHENTICATED_FROZEN_C3_B_DECISION',
+            'frozen_research_commit':ref,
+            'frozen_decision_sha256':record['sha256'],
+            'pool_sha256':digest(canonical(cands)),
+            'source_run_id':report.get('source_run_id'),
+            'source_validation_sha256':report.get('source_validation_sha256'),
+            'asof':day,
+        }
     return report

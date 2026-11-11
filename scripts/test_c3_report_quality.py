@@ -25,6 +25,17 @@ def accounts(receipt='20260814003849',year=2026,code='11012'):
 
 class ChartQualityTests(unittest.TestCase):
     def setUp(self):self.bars=bars();self.row={'ticker':'000001','close':192,'reference_close':192}
+    def test_chart_shows_sixty_actual_candles_with_full_ma_warmup(self):
+        from c3_classic_theme import VISIBLE_SESSIONS
+        self.assertEqual(VISIBLE_SESSIONS,60)
+        g,av=chart_geometry(self.bars,self.row,None)
+        self.assertEqual(len(self.bars)-g['offset'],60)
+        self.assertEqual(g['paths']['5'][0]['date'],self.bars[-60]['date'])
+        self.assertEqual(g['paths']['20'][0]['date'],self.bars[-60]['date'])
+        self.assertEqual(g['paths']['60'][0]['date'],self.bars[59]['date'])  # 60-MA only exists after 59 warm-up bars
+        self.assertEqual(g['paths']['60'][-1]['date'],self.bars[-1]['date'])
+        self.assertEqual(g['last_candle_x'],g['paths']['60'][-1]['x'])
+
     def test_actual_last_candle_and_all_ma_paths_end_together(self):
         g,av=chart_geometry(self.bars,self.row,None)
         for n,path in g['paths'].items():
@@ -81,6 +92,9 @@ class ChartQualityTests(unittest.TestCase):
                     pixels=im.crop((x,392,1348,1016)).tobytes()
                     self.assertFalse(colors & set(zip(pixels[::3],pixels[1::3],pixels[2::3])))
                     self.assertEqual(im.size,(1400,2400))
+                self.assertEqual(d['visible_rows'],60)
+                self.assertEqual(d['visible_first_date'],rows[-60]['date'])
+                self.assertEqual(d['visible_last_date'],rows[-1]['date'])
                 self.assertTrue(all(x['lines']<=3 and x['text_right_max']<=1002 for x in d['layout']))
 
 

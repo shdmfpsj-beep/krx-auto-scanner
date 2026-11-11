@@ -27,6 +27,11 @@ class HandoffTests(unittest.TestCase):
             p=Path(tmp,'render_diagnostics.json');p.write_text(json.dumps({'example_only':False,'cards':cards}))
             x=packet(self.report,'a'*40,{'status':'DRY_RUN_VALIDATED_NO_DELIVERY','send_attempts':0},self.clock,tmp,True)
             self.assertEqual(len(x['images']),2);self.assertTrue(x['dry_run']);self.assertEqual(x['status'],'READY')
+            self.assertEqual(x['trace']['research_selection_run_id'],self.report['source_run_id'])
+            self.assertIsNone(x['trace']['market_collection_run_id'])
+            self.assertFalse(x['trace']['external_lineage_claimed'])
+            self.assertEqual(x['images'][0]['source_price_asof'],self.report['source_price_asof'])
+
             self.assertNotIn('chart_bars',x['research_top2'][0]);self.assertNotIn('dart',x['research_top2'][0]['company_context'])
             self.assertFalse(x['chatgpt_delivery_verified'])
             cards[-1]['asof']='2026-11-05';p.write_text(json.dumps({'example_only':False,'cards':cards}))
