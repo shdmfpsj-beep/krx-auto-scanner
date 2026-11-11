@@ -246,6 +246,7 @@ def create_cash_card(report,outdir='/tmp/c3-integrated-cards'):
     d.rectangle((0,0,W,105),fill=INK);d.rectangle((0,102,W,108),fill=GOLD)
     text(d,55,29,'강현AI PRO | C3',48,'#F3E6CD',True)
     text(d,1345,41,asof.replace('-','.'),31,'#EEEAE2',anchor='ra')
+    if report.get('historical_test_only'):text(d,700,212,'과거 거래일 재현 테스트 · 실제 발송 없음',32,RED,True,anchor='ma')
     text(d,700,390,'CASH',155,GOLD,True,anchor='ma')
     text(d,700,585,'신규 매수 관찰 종목 없음',52,INK,True,anchor='ma')
     text(d,700,730,'기준일: '+asof,37,SUB,anchor='ma')
@@ -264,7 +265,7 @@ def create_cash_card(report,outdir='/tmp/c3-integrated-cards'):
     blockers=sorted({str(k) for row in v.get('reviewed',[]) for k in row.get('source_blockers',[])})
     if blockers:
         text(d,700,1890,'원본 검증 불충분 · 추격매수 금지',35,RED,True,anchor='ma')
-    text(d,700,2225,'오늘은 무리한 신규 진입보다 CASH를 유지합니다.',36,INK,True,anchor='ma')
+    text(d,700,2225,'신규 진입보다 CASH 유지 · 실전 BUY 승인 아님',34,INK,True,anchor='ma')
     text(d,700,2330,'자료기준일 '+asof+' · 자동매매 아님 · 실전 BUY 승인 아님',24,SUB,anchor='ma')
     path=root/'CASH_integrated.png';im.save(path,optimize=True)
     diag={'example_only':False,'cash_only':True,'source_price_asof':asof,
