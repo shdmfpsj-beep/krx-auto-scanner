@@ -25,6 +25,7 @@ def signals(bars,i):
     result=[]
     for name,price in prices.items():
         if price<=stop or (price-stop)/price>.12:continue
+        if name=="BREAKOUT_RETEST" and closes[-1]<=resistance*1.005:continue
         # A breakout entry above prior resistance cannot target that same resistance.
         # Use an explicitly hypothetical 2R extension, not a claimed chart resistance.
         target=price+2*(price-stop) if name=="BREAKOUT_RETEST" else resistance
