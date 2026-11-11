@@ -9,7 +9,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 from c3_telegram_inputs import GitHub,RESEARCH,ROOT,canonical,digest,report_pair,ServiceError
 
-ENGINE='077113ac2f5e93fecc4c47850b36e5eda2173e3d'
+ENGINE='54e7120b01966930e176d431e85b679347210c41'
 SCHEMA='C3_PRESENTATION_HANDOFF_V1'
 FIELDS=('ticker','name','market','industry','model','rank','signal_id','reference_close','close','own_rs20','rs20','rs_accel5','turnover20','volume_ratio','turnover_ratio','market_regime','entry_plans','structure_reason','registered_at')
 CONTEXT=('business','events','quarters','sources','missing','dart_status','collected_at','price_asof','selection_use','content_sha256')
@@ -52,16 +52,35 @@ def packet(report,ref,result,clock,outdir,dry_run=False,render_validated=None):
          'report_code_sha':os.environ.get('GITHUB_SHA'),'report_run_id':os.environ.get('GITHUB_RUN_ID'),
          'engine_sha':(report.get('invocation') or {}).get('engine_sha'),
          'orders_enabled':False,'current_action':'CASH','chatgpt_delivery_verified':False,
-         'research_top2':[],'images':[]}
+         'research_top2':[],'images':[],
+         'source_regular_only_certified':report.get('source_regular_only_certified') is True,
+         'decision_payload_sha256':(report.get('input_provenance') or {}).get('decision_payload_sha256'),
+         'source_validation_sha256':report.get('source_validation_sha256')}
     if ready:
         root=Path(outdir)
         diagnostic=json.loads((root/'render_diagnostics.json').read_text())
         if diagnostic.get('example_only'):raise ValueError('HISTORICAL_PACKET_CANNOT_BE_LIVE')
         cards=diagnostic['cards'];picks=report.get('research_top2') or []
-        if len(cards)!=2 or [c['ticker'] for c in cards]!=[r['ticker'] for r in picks]:raise ValueError('HANDOFF_IMAGE_IDENTITY_MISMATCH')
+        if len(picks)==0:
+            if len(cards)!=1 or cards[0].get('ticker')!='CASH' or not diagnostic.get('cash_only'):
+                raise ValueError('CASH_HANDOFF_IMAGE_MISSING')
+            if not report.get('source_regular_only_certified') or not out['decision_payload_sha256']:
+                raise ValueError('CASH_HANDOFF_SOURCE_NOT_VERIFIED')
+            card=cards[0];body=(root/'CASH_integrated.png').read_bytes()
+            if card.get('asof')!=report['source_price_asof'] or card.get('sha256')!=digest(body):
+                raise ValueError('CASH_HANDOFF_IMAGE_DATE_OR_HASH_MISMATCH')
+            for k in ('source_run_id','decision_payload_sha256','source_validation_sha256'):
+                if card.get(k)!=out.get(k):raise ValueError('HANDOFF_SOURCE_LINEAGE_MISMATCH')
+            out['images'].append({'ticker':'CASH','name':'CASH_integrated.png','sha256':digest(body),'bytes':len(body)})
+            return out
+        if not 1<=len(picks)<=2 or len(cards)!=len(picks) or [c['ticker'] for c in cards]!=[r['ticker'] for r in picks]:raise ValueError('HANDOFF_IMAGE_IDENTITY_MISMATCH')
         for row,card in zip(picks,cards):
             body=(root/(row['ticker']+'_integrated.png')).read_bytes()
             if card['asof']!=report['source_price_asof'] or card['sha256']!=digest(body):raise ValueError('HANDOFF_IMAGE_DATE_OR_HASH_MISMATCH')
+            for k in ('source_run_id','decision_payload_sha256','source_validation_sha256'):
+                if card.get(k)!=out.get(k):raise ValueError('HANDOFF_SOURCE_LINEAGE_MISMATCH')
+            original=((row.get('entry_plans') or {}).get('A_SUPPORT_LIMIT') or {}).get('plan')
+            if card.get('original_support_plan')!=original:raise ValueError('HANDOFF_RENDERED_PLAN_SOURCE_MISMATCH')
             item={k:copy.deepcopy(row[k]) for k in FIELDS if k in row}
             ctx=row.get('company_context') or {}
             item['company_context']={k:copy.deepcopy(ctx[k]) for k in CONTEXT if k in ctx}

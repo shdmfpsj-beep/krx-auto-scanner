@@ -5,8 +5,10 @@ on:
     types: [completed]
     branches: [main]
   schedule:
-    # Retry windows, not a publication SLA. KST 22:15 and 08:20.
-    - cron: '15 13 * * 1-5'
+    # Initial/retry attempts, NOT a provider publication guarantee.
+    # KST Mon-Fri 23:05/20/35/50; following day 00:05/20/35/50.
+    - cron: '5,20,35,50 14 * * 1-5'
+    - cron: '5,20,35,50 15 * * 1-5'
     - cron: '20 23 * * 0-4'
   workflow_dispatch:
   pull_request:

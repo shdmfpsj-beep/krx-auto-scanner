@@ -23,7 +23,7 @@ class HandoffTests(unittest.TestCase):
             for r in self.report['research_top2']:
                 r['chart_bars']=[{'private_full_history':True}];r['company_context']={'quarters':[],'dart':{'do_not_publish':'full_raw_accounts'}}
                 body=r['ticker'].encode();Path(tmp,r['ticker']+'_integrated.png').write_bytes(body)
-                cards.append(dict(ticker=r['ticker'],asof=self.report['source_price_asof'],sha256=digest(body)))
+                cards.append(dict(ticker=r['ticker'],asof=self.report['source_price_asof'],sha256=digest(body),source_run_id=self.report['source_run_id']))
             p=Path(tmp,'render_diagnostics.json');p.write_text(json.dumps({'example_only':False,'cards':cards}))
             x=packet(self.report,'a'*40,{'status':'DRY_RUN_VALIDATED_NO_DELIVERY','send_attempts':0},self.clock,tmp,True)
             self.assertEqual(len(x['images']),2);self.assertTrue(x['dry_run']);self.assertEqual(x['status'],'READY')
@@ -45,12 +45,13 @@ class HandoffTests(unittest.TestCase):
     def test_successful_live_dry_run_never_claims_or_constructs_sender(self):
         import c3_telegram_notify as n
         from PIL import Image
+        for row in self.report['research_top2']:row['chart_bars']=[{}]*119
         with tempfile.TemporaryDirectory() as tmp:
             def render(report,out):
                 files=[];cards=[]
                 for i,row in enumerate(report['research_top2']):
                     path=Path(out,row['ticker']+'_integrated.png');Image.new('RGB',(4,4),('white','black')[i]).save(path);files.append(path)
-                    cards.append(dict(ticker=row['ticker'],asof=report['source_price_asof'],sha256=digest(path.read_bytes())))
+                    cards.append(dict(ticker=row['ticker'],asof=report['source_price_asof'],sha256=digest(path.read_bytes()),source_run_id=report['source_run_id']))
                 Path(out,'render_diagnostics.json').write_text(json.dumps({'example_only':False,'cards':cards}));return files
             with patch.object(n,'GitHub',return_value=Mock(sources=[])),patch.object(n,'Telegram') as bot,patch.object(n,'ReceiptStore') as receipts,patch.object(n,'report_pair',return_value=(self.report,self.summary,'a'*40)),patch.object(n,'frozen_live_bars',side_effect=lambda g,r,ref:r),patch.object(n,'now_kst',return_value=self.clock),patch('c3_report_context.attach_context',side_effect=lambda r,*args:r),patch('c3_classic_theme.create_cards',side_effect=render),patch('sys.argv',['notify','--mode','live','--dry-run','--outdir',tmp]):
                 self.assertEqual(n.main(),0);bot.assert_not_called();receipts.assert_not_called()
@@ -61,7 +62,7 @@ class HandoffTests(unittest.TestCase):
             cards=[]
             for row in self.report['research_top2']:
                 body=row['ticker'].encode();Path(tmp,row['ticker']+'_integrated.png').write_bytes(body)
-                cards.append(dict(ticker=row['ticker'],asof=self.report['source_price_asof'],sha256=digest(body)))
+                cards.append(dict(ticker=row['ticker'],asof=self.report['source_price_asof'],sha256=digest(body),source_run_id=self.report['source_run_id']))
             Path(tmp,'render_diagnostics.json').write_text(json.dumps({'example_only':False,'cards':cards}))
             result={'status':'REVIEW_REQUIRED_NO_AUTOMATIC_RESEND','send_attempts':1}
             x=packet(self.report,'a'*40,result,self.clock,tmp,render_validated=True)

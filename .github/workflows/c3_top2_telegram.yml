@@ -5,7 +5,8 @@ on:
     types: [completed]
     branches: [main]
   schedule:
-    - cron: '45 13 * * 1-5' # KST weekdays 22:45, after existing research caller
+    # Completion events are primary; following-day 01:10 is only a silent fallback.
+    - cron: '10 16 * * 1-5' # KST Tue-Sat 01:10 after late source retries
     - cron: '0 0 * * 1-5'   # KST weekdays 09:00 fallback
   workflow_dispatch:
     inputs:
@@ -23,6 +24,8 @@ on:
       - 'scripts/c3_telegram_notify.py'
       - 'scripts/c3_telegram_inputs.py'
       - 'scripts/c3_classic_theme.py'
+      - 'scripts/c3_chart_warmup_v1.py'
+      - 'scripts/test_c3_emergency_delivery_v1.py'
       - 'scripts/c3_report_context.py'
       - 'scripts/c3_report_handoff.py'
       - 'scripts/test_c3_report_handoff.py'
@@ -49,6 +52,8 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_chart_warmup_v1.py
+            scripts/test_c3_emergency_delivery_v1.py
             scripts/c3_entry_geometry_gate.py
             scripts/c3_report_context.py
             scripts/c3_report_handoff.py
@@ -61,7 +66,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
-          ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+          ref: 54e7120b01966930e176d431e85b679347210c41
           path: engine
           persist-credentials: false
           sparse-checkout: |
@@ -89,6 +94,7 @@ jobs:
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_quality.py' -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_handoff.py' -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_emergency_delivery_v1.py' -v
       - name: Rehearse current live input without any Telegram credentials
         if: github.event.pull_request.head.repo.full_name == github.repository
         env:
@@ -137,6 +143,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           OPENDART_API_KEY: ${{ github.event.pull_request.head.repo.full_name == github.repository && secrets.OPENDART_API_KEY || '' }}
+          KRX_AUTH_KEY: ${{ github.event.pull_request.head.repo.full_name == github.repository && secrets.KRX_AUTH_KEY || '' }}
         run: python scripts/c3_telegram_notify.py --mode preview --outdir /tmp/c3-integrated-preview
       - name: Verify real persisted duplicate protection without a Telegram token
         env:
@@ -255,9 +262,9 @@ jobs:
     permissions:
       contents: write
       actions: read
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@54e7120b01966930e176d431e85b679347210c41
     with:
-      engine_ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+      engine_ref: 54e7120b01966930e176d431e85b679347210c41
       caller_mode: approved_daily
     secrets:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
@@ -284,6 +291,8 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_chart_warmup_v1.py
+            scripts/test_c3_emergency_delivery_v1.py
             scripts/c3_entry_geometry_gate.py
             scripts/c3_report_context.py
             scripts/c3_report_handoff.py
@@ -293,7 +302,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
-          ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+          ref: 54e7120b01966930e176d431e85b679347210c41
           path: engine
           persist-credentials: false
           sparse-checkout: |
@@ -361,7 +370,8 @@ jobs:
           if status=='SKIPPED' and reason in {
               'REPORT_HAS_UNRESOLVED_ERRORS','SOURCE_QUALITY_GATE_FAILED',
               'INCOMPLETE_MARKET_COVERAGE','MARKET_ROW_COUNT_MISMATCH',
-              'INVALID_SOURCE_RECEIPT_TIMING','UNVERIFIED_MARKET_DATA'
+              'INVALID_SOURCE_RECEIPT_TIMING','UNVERIFIED_MARKET_DATA',
+              'REGULAR_SESSION_SOURCE_UNCERTIFIED','ANALYSIS_COMPLETION_TIME_MISMATCH'
           }:
               print(f'::error::C3 live report blocked by unresolved data/quality issue: {reason}')
               sys.exit(1)
