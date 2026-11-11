@@ -85,8 +85,8 @@ jobs:
           print('REGULAR_ONLY_SOURCE_RESULT',s['market_source_status'],s['blockers'])
           PY
                 - uses: actions/upload-artifact@v4
-                  if: always()
-                  with:
+        if: always()
+        with:
           name: krx-regular-only-18h-final
           path: |
             output/regular_only_final_status.json
