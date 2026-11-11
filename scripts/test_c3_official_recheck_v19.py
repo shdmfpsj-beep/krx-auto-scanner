@@ -1,9 +1,31 @@
 """Fail-closed KRX official date recheck tests, no network."""
+import json
 import tempfile
 import unittest
-from c3_official_recheck_v19 import run
+from pathlib import Path
+from c3_official_recheck_v19 import run,locked_source_day
 
 class RecheckTests(unittest.TestCase):
+    def test_morning_date_lock_uses_ready_source_day_not_wall_clock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f=Path(tmp)/"readiness.json"
+            f.write_text(json.dumps(dict(
+                schema="C3_READY_AND_SOURCE_ATTESTATION_V19",
+                checked_at_kst="2026-11-12T08:10:00+09:00",
+                expected_source_day="2026-11-11")),encoding="utf-8")
+            self.assertEqual(locked_source_day(f),"2026-11-11")
+
+    def test_missing_or_invalid_readiness_date_aborts_without_api_query(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f=Path(tmp)/"readiness.json"
+            for day in (None,"2026-11-12-nope","2026-11-14"):
+                f.write_text(json.dumps(dict(
+                    schema="C3_READY_AND_SOURCE_ATTESTATION_V19",
+                    expected_source_day=day)),encoding="utf-8")
+                with self.assertRaisesRegex(ValueError,
+                     "NO_EXPECTED_SOURCE_DAY|INVALID_EXPECTED_SOURCE_DAY"):
+                    locked_source_day(f)
+
     def test_11_06_empty_returns_11_05_as_control_only_not_substitute(self):
         calls=[]
         def collector(day,where,key):
