@@ -1,0 +1,63 @@
+name: C3 v1.2 frozen 410 anomalies vs 129 signal windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v12-pit-timing-primary-filings-20261111]
+    paths: ['.github/workflows/c3_v12_discontinuity_exposure.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  exposure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_v12_discontinuity_exposure.py
+            /scripts/test_c3_v12_discontinuity_exposure.py
+            /scripts/c3_v11_entry_geometry_diagnostic.py
+            /scripts/c3_selection_first_research.py
+            /scripts/c3_three_entry_replay.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Verify anomaly threshold unit tests
+        run: python -m unittest discover -s scripts -p test_c3_v12_discontinuity_exposure.py -v
+      - name: Frozen as-of official 150-session source and 129 cohort
+        run: |
+          mkdir -p source output
+          gh run download 42950252617 -R "$GITHUB_REPOSITORY" -n c3-pr87-newdata-official-research-only -D source
+          test -s source/replay/c3_selection_feature_cohort_extended.json
+      - name: Reconcile unadjusted 410 anomalies with each frozen signal feature and future maturity window
+        run: |
+          python scripts/c3_v12_discontinuity_exposure.py \
+            --root source/official_history \
+            --cohort source/replay/c3_selection_feature_cohort_extended.json \
+            --out output/c3_v12_discontinuity_exposure.json
+      - name: Strict invariants
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('output/c3_v12_discontinuity_exposure.json'))
+          assert r['original_selection_events']==129
+          assert r['original_new_independent_period_events']==51
+          assert r['total_price_discontinuities']==410
+          a=r['groups']['ALL']['counts']
+          b=r['groups']['INDEPENDENT_POST_SEP16']['counts']
+          assert a['ASOF_60_BARS']==13 and b['ASOF_60_BARS']==4
+          assert a['FORWARD_20']==1 and b['FORWARD_20']==0
+          assert b['FORWARD_5']==b['FORWARD_10']==0
+          assert r['orders_enabled'] is False and r['decision']=='CASH'
+          print('C3_V12_ANOMALY_EXPOSURE_PROTECTED_COUNTS_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v12-410-anomaly-forward-window-exposure
+          path: output/c3_v12_discontinuity_exposure.json
+          retention-days: 60
+          if-no-files-found: warn
