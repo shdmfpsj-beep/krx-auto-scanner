@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Read-only official KRX daily history builder, no live orders or ledger writes."""
-import argparse,csv,json,os,time
+import argparse,csv,json,os,time,hashlib
 from collections import defaultdict
 from datetime import date,timedelta
 from pathlib import Path
@@ -23,7 +23,9 @@ def history(root,days):
         if not status.get("official_dataset_usable") or status.get("asof")!=day:
             availability.append(day);continue
         for market in ("KOSPI","KOSDAQ"):
-            with (folder/(market+"_official.csv")).open(encoding="utf-8-sig",newline="") as f:
+            fp=folder/(market+"_official.csv")
+            assert fp.is_file() and hashlib.sha256(fp.read_bytes()).hexdigest()==status["market_file_sha256"][market], "RESTORED_OFFICIAL_FILE_HASH_MISMATCH"
+            with fp.open(encoding="utf-8-sig",newline="") as f:
                 for r in csv.DictReader(f):
                     if r["valid_daily_bar"]!="True":continue
                     rows.append(dict(ticker=r["ticker"],date=day,
@@ -44,7 +46,12 @@ def main():
     fetched=0
     if a.collect:
         for day in days:
-            if (a.root/day/"krx_v65_collect_status.json").exists():continue
+            existing=a.root/day/"krx_v65_collect_status.json"
+            if existing.exists():
+                old=json.loads(existing.read_text())
+                if old.get("official_dataset_usable") and old.get("asof")==day:continue
+                # Keep failed/holiday response as evidence, but do not retry every batch.
+                if old.get("status") in ("OFFICIAL_RESPONSE_MISSING_OR_EMPTY_OUTBLOCK","OFFICIAL_NO_SHORT_SECURITY_IDS_TO_JOIN"):continue
             if fetched>=a.max_requests:break
             collect(day,a.root/day,os.environ.get("KRX_AUTH_KEY"))
             fetched+=1
