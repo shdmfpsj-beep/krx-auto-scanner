@@ -1,0 +1,66 @@
+name: C3 v1.3 14-record finite OpenDART original numeric audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v13-finite-evidence-audit-20261111]
+    paths: ['.github/workflows/c3_v13_finite_original_financial_audit.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  one-shot-original-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_v13_finite_14_original_financial_audit.py
+            /scripts/test_c3_v13_finite_14_original_financial_audit.py
+            /reports/v91_financial_pit_provisional.csv
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Finite 14-receipt audit and no-evidence financial guard regression
+        run: python -m unittest discover -s scripts -p test_c3_v13_finite_14_original_financial_audit.py -v
+      - name: Download exact prior DART original ZIP digest inventory and fixed KRX date validation
+        run: |
+          set -euo pipefail
+          mkdir -p parent original output
+          gh run download 42960353598 -R "$GITHUB_REPOSITORY" \
+            -n c3-v12-pit-date-disclosure-original-check -D parent
+          gh run download 42960511407 -R "$GITHUB_REPOSITORY" \
+            -n c3-v12-original-opendart-document-receipts -D original
+          test -s parent/c3_v12_pit_calendar_audit.json
+          test -s original/c3_v12_open_dart_original_receipts.json
+          test -s reports/v91_financial_pit_provisional.csv
+      - name: Evaluate ONLY 14 exact original periodic filing receipts one time and classify per receipt
+        run: |
+          python scripts/c3_v13_finite_14_original_financial_audit.py \
+            --pit parent/c3_v12_pit_calendar_audit.json \
+            --prior original/c3_v12_open_dart_original_receipts.json \
+            --out output/c3_v13_finite_original_financial_audit.json
+      - name: Stop this research pass at full 14 case disposition, no false financial upgrade
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open('output/c3_v13_finite_original_financial_audit.json'))
+          assert x['expected_receipts']==x['total_classified']==14
+          assert sum(x['statuses'].values())==14
+          assert len({y['receipt_no'] for y in x['records']})==14
+          assert x['statuses']['VERIFIED']==0
+          assert x['asof_original_numeric_accepted_for_research_ranking']==0
+          assert x['production_changed'] is False and x['trade_approved'] is False
+          assert x['decision']=='CASH' and x['no_original_zip_redistributed'] is True
+          print('C3_V13_14_ORIGINAL_FINANCIAL_CASES_FINITE_DISPOSITION_COMPLETE')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v13-finite-original-financial-14-receipt-evidence
+          path: output/c3_v13_finite_original_financial_audit.json
+          retention-days: 30
+          if-no-files-found: warn
