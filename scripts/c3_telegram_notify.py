@@ -92,7 +92,7 @@ def validate_photos(paths,allow_single=False):
             if im.format!='PNG' or sum(im.size)>10000 or max(im.size)/min(im.size)>20:raise ValueError('PHOTO_FORMAT_OR_DIMENSIONS_REJECTED')
             im.verify()
         hashes.append(sha(p.read_bytes()))
-    if len(set(hashes))!=2:raise ValueError('DISTINCT_CARDS_REQUIRED')
+    if len(set(hashes))!=len(paths):raise ValueError('DISTINCT_CARDS_REQUIRED')
     return hashes
 
 class Telegram:
