@@ -1,0 +1,70 @@
+name: C3 isolated historical data extension and evidence validation (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-new-data-quality-pit-20261111]
+    paths: ['.github/workflows/c3_research_new_data_20261111.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source-extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/official_krx_120d_replay.py
+            /scripts/official_history_independent_audit.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/c3_three_entry_replay.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/c3_selection_first_research.py
+            /scripts/c3_selection_feature_cohort.py
+            /scripts/c3_temporal_quality_validation.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Restore frozen PR87 artifact without any production state
+        run: |
+          mkdir -p output
+          gh run download 42939460173 -R "$GITHUB_REPOSITORY" -n official-krx-120d-batch-research-only -D output
+          test -f output/replay/c3_selection_feature_cohort.json
+          cp output/replay/c3_selection_feature_cohort.json output/pr87_frozen_feature_cohort.json
+          python - <<'PY'
+          import json
+          d=json.load(open('output/pr87_frozen_feature_cohort.json'))
+          assert d['raw_daily_top2_events']==108
+          assert d['deduplicated_events']==78
+          assert d['horizon_groups']['20']['observed']==43
+          print('PR87_BASELINE_VERIFIED 108 78 43')
+          PY
+      - name: Extend missing historical official EOD dates (never trade)
+        run: |
+          python scripts/official_krx_120d_replay.py --end 2026-11-10 --sessions 160 --max-requests 44 --collect --root output/official_history --out output/replay
+      - name: Independently audit hash, dates and anomaly evidence
+        if: always()
+        run: |
+          python scripts/official_history_independent_audit.py --root output/official_history --out output/replay/independent_history_audit.json
+      - name: Recompute shadow cohort and time-purged validity (no predictor promotion)
+        if: always()
+        run: |
+          python scripts/c3_selection_feature_cohort.py --root output/official_history --end 2026-11-10 --out output/replay/c3_selection_feature_cohort_extended.json
+          python scripts/c3_temporal_quality_validation.py --root output/official_history --end 2026-11-10 --cohort output/replay/c3_selection_feature_cohort_extended.json --out output/replay/c3_temporal_quality_validation_extended.json
+      - name: Isolated research artifact only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-pr87-newdata-official-research-only
+          path: output/
+          retention-days: 30
+          if-no-files-found: warn
