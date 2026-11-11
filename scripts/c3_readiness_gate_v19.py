@@ -28,11 +28,12 @@ def parsed(s):
 
 
 def expected_day(clock):
-    """Nominal Mon-Fri calendar only; not proof the KRX had a trading session."""
+    """Latest nominal completed regular session; KRX holiday status is unverified."""
     d=clock.astimezone(KST)
     if d.weekday()>=5:return None
     day=d.date()
-    if d.hour<9 or (d.hour==9 and d.minute<30):
+    # Until the 15:30 regular close, today's daily bar is incomplete.
+    if (d.hour,d.minute)<(15,30):
         day-=timedelta(days=1)
         while day.weekday()>=5:day-=timedelta(days=1)
     return day.isoformat()
