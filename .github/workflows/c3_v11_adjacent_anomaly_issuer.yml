@@ -1,0 +1,56 @@
+name: C3 v1.1 historic corporate-action evidence (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v11-entry-geometry-corporate-actions-20261111]
+    paths: ['.github/workflows/c3_v11_adjacent_anomaly_issuer.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  issuer-anomaly-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_v11_adjacent_anomaly_issuer.py
+            /scripts/test_c3_v11_adjacent_anomaly_issuer.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: 'Safety regression - metadata versus official corporate notices'
+        run: python -m unittest discover -s scripts -p test_c3_v11_adjacent_anomaly_issuer.py -v
+      - name: Download exact immutable 150-session research history
+        run: |
+          mkdir -p official output
+          gh run download 42950252617 -R "$GITHUB_REPOSITORY" -n c3-pr87-newdata-official-research-only -D official
+      - name: Examine 73 consecutive-market-day anomalies with independently requested KRX dated share/par-value basics
+        run: |
+          python scripts/c3_v11_adjacent_anomaly_issuer.py \
+            --root official/official_history \
+            --out output/c3_v11_adjacent_anomaly_issuer.json
+      - name: Guard original unresolved corporate-action records and no live action
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('output/c3_v11_adjacent_anomaly_issuer.json'))
+          assert r['price_anomalies']==410
+          assert r['adjacent_market_session_events']==73
+          assert r['ticker_gap_events_awaiting_separate_review']==337
+          assert r['corporate_action_original_notice_verified'] is False
+          assert r['production_changed'] is False and r['trade_approved'] is False
+          assert r['decision']=='CASH'
+          print('C3_V11_CORPORATE_HISTORY_HONEST_UNCERTAINTY_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v11-adjacent-issuer-basic-research
+          path: output/c3_v11_adjacent_anomaly_issuer.json
+          retention-days: 30
+          if-no-files-found: warn

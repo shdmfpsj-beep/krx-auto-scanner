@@ -1,0 +1,200 @@
+{
+  "schema": "C3_FIXED_V11_EVIDENCE_REPORT_20261111",
+  "fixed_protocol": "docs/C3_NEXT_RESEARCH_FIXED_PROTOCOL_20261111.md",
+  "asof_research": "2026-11-10",
+  "status": "RESEARCH_ONLY_NOT_TRADE_APPROVED",
+  "parent_PRs": {
+    "87": {
+      "state": "MERGED",
+      "deduped": 78,
+      "matured20": 43
+    },
+    "88": {
+      "state": "DRAFT_UNMERGED",
+      "QC_5": 60,
+      "QC_10": 51,
+      "QC_20": 37
+    },
+    "89": {
+      "state": "DRAFT_UNMERGED",
+      "150_sessions": true,
+      "rows": 395575,
+      "selection_events": 129,
+      "independent_period_events": 51
+    }
+  },
+  "raw_data": {
+    "krx_150d_source_run": 42950252617,
+    "krx_artifact_id": 13824887176,
+    "krx_artifact_sha256": "60acbfc1ccaa65b9485fb05856eb89d531d37eb3a8ba8a7f31ed1037654f516f",
+    "v18_20261110_source_run": 42914786449,
+    "v18_artifact_id": 13812102265,
+    "v18_artifact_sha256": "be289d69af43c533476bdf3617bc1ea28880cb7b4b32f4fadb795f1f8f61314f",
+    "official_sessions": 150,
+    "official_rows": 395575,
+    "official_distinct_tickers": 2766,
+    "selected_129_prices_6_fields_equal_PyKrx": 129,
+    "new_session_since_last_stored": 0,
+    "price_inventory_sha_audit_passed": true,
+    "regular_1530_price_scope_certified": false,
+    "corporate_action_adjusted_verified": false,
+    "KRX_website_market_cap_regular_only_volume_contains_aftermarket": true,
+    "market_regime_asof_benchmark_PIT": "BLOCKED_KRX_INDEX_HTTP401_AND_FSC_KEY_NOT_CONNECTED",
+    "sector_strict_PIT": "BLOCKED_NO_VERIFIED_DATED_MEMBERSHIP"
+  },
+  "raw_close_discontinuities": {
+    "total": 410,
+    "consecutive_market_days": 73,
+    "after_ticker_gap": 337,
+    "KRX_asof_issuer_pairs": 87,
+    "issuer_pair_request_completed": 87,
+    "issuer_par_value_or_listed_share_changes_observed": 0,
+    "issuer_pair_status": "HISTORICAL_API_REQUERY_UNCERTIFIED_VINTAGE",
+    "original_share_corporate_action_primary_notice_certified": false,
+    "dated_DART_title_receipts_asof_20261110": 16660,
+    "DART_title_join_lookback_days": 30,
+    "strict_prior_anomaly_date_receipt_candidates": {
+      "corporate_action_titles": 7,
+      "trading_halt_or_delisting_titles": 1,
+      "no_matched_title": 65
+    },
+    "DART_title_not_actual_rights_price_causality_proof": true,
+    "anomaly_issuer_actions_run": 42957771117,
+    "anomaly_issuer_artifact_id": 13827917804,
+    "anomaly_issuer_artifact_sha256": "0f25068846e796b6e1c5b69253abdc36cea94e7eb78e296c2fe972137a366b07",
+    "anomaly_DART_crosscheck_run": 42958246536,
+    "anomaly_DART_artifact_id": 13828231454,
+    "anomaly_DART_artifact_sha256": "5a81a23a9f3dc81431cf1d74e8ca61f3471e1718bf9639138f8195433c46eaf4"
+  },
+  "financial_and_flow_asof": {
+    "prior_1day_foreign_and_institution_files_available": 101,
+    "prior_5day_foreign_and_institution_files_available": 88,
+    "financial_V91_date_join_provisional": 14,
+    "financial_original_numeric_PIT_validated": 0,
+    "foreign_institution_source_vintage_asof_validated": false,
+    "operational_same_date_TOP2_research_shadow_match": 0,
+    "verified_index_relative_strength_observations": 0,
+    "financial_and_flow_never_replaced_with_estimates": true
+  },
+  "frozen_holdout_not_reestimated": {
+    "5": {
+      "train": 60,
+      "holdout": 40,
+      "positive": 17,
+      "rise_rate": 0.425,
+      "mean_close_return_pct": -2.8068,
+      "mean_MFE_pct": 10.831,
+      "mean_MAE_pct": -12.833
+    },
+    "10": {
+      "train": 51,
+      "holdout": 35,
+      "positive": 14,
+      "rise_rate": 0.4,
+      "mean_close_return_pct": -5.3555,
+      "mean_MFE_pct": 15.2473,
+      "mean_MAE_pct": -15.6825
+    },
+    "20": {
+      "train": 37,
+      "holdout": 20,
+      "positive": 6,
+      "rise_rate": 0.3,
+      "mean_close_return_pct": -12.9058,
+      "mean_MFE_pct": 22.5867,
+      "mean_MAE_pct": -22.7352
+    }
+  },
+  "entry_reality": {
+    "run": 42957465744,
+    "artifact_id": 13827283658,
+    "artifact_sha256": "2d9d208bb3a99da497cbff73ec7b7a4639097aa94050cf63a8b00d9daa7a7a88",
+    "new_selection_events": 51,
+    "reconstructed_first_entry_available": 51,
+    "reconstructed_second_entry_available": 1,
+    "MA20_PULLBACK_pass": 49,
+    "CLOSE_MINUS_1ATR_stop_risk_gt12": 46,
+    "CLOSE_MINUS_1ATR_rr_below2R": 3,
+    "BREAKOUT_RETEST_stop_risk_gt12": 50,
+    "expiration_one_market_day": {
+      "pass_untouched": 48,
+      "range_overlap_not_fill": 2,
+      "censored": 1
+    },
+    "expiration_two_market_days": {
+      "pass_untouched": 45,
+      "range_overlap_not_fill": 3,
+      "censored": 3
+    },
+    "expiration_three_market_days": {
+      "pass_untouched": 41,
+      "range_overlap_not_fill": 6,
+      "missing_ticker_bar": 1,
+      "censored": 3
+    },
+    "fixed_sensitivity_upper_bound_widening_pct": [
+      0,
+      0.5,
+      1,
+      2
+    ],
+    "three_day_range_overlap_not_fill_by_widening": [
+      6,
+      6,
+      6,
+      8
+    ],
+    "day_one_range_overlap_not_fill_by_widening": [
+      2,
+      3,
+      3,
+      4
+    ],
+    "stop_over_12pct_cases_by_widening": [
+      0,
+      2,
+      4,
+      8
+    ],
+    "mean_worst_entry_stop_risk_pct_by_widening": [
+      6.694,
+      7.158,
+      7.618,
+      8.524
+    ],
+    "actual_fill_confirmed": 0,
+    "net_transaction_cost_PnL_not_published": true,
+    "new_price_optimization_applied": false,
+    "stop_limit_range_is_sensitivity_only": true
+  },
+  "regression": {
+    "new_entry_tests": 6,
+    "new_issuer_action_tests": 7,
+    "new_DART_causality_tests": 6,
+    "new_tests_total": 19,
+    "parent_research_tests": 30,
+    "final_focused_total": 49,
+    "final_run_id": 42958484020,
+    "final_run_commit": "2a426fcd526fcefa0c528d40d7a32554ae01d686",
+    "final_run_result": "SUCCESS"
+  },
+  "production": {
+    "main_sha_as_verified": "1a0e098dbe36b60a459c9391e54a3760b7bea5d2",
+    "research_PR": "90",
+    "research_branch": "research/c3-v11-entry-geometry-corporate-actions-20261111",
+    "pr_draft": true,
+    "operational_TOP2_modified": false,
+    "old_120d_collector_modified": false,
+    "ledger_or_approval_modified": false,
+    "CASH_rule_modified": false,
+    "missed_entry_range_PASS_modified": false,
+    "Telegram_sender_modified": false,
+    "model_weights_modified": false,
+    "decision": "CASH"
+  },
+  "next_largest_impact": [
+    "Original official ex-rights dates and reference price or announcement to explain 7 title-linked price gaps, then investigate 65 no-title cases using primary KRX corporate event inventory.",
+    "Obtain independent regular 15:30-only source price/market regime index and validated original numeric DART vintage so that 5/10/20 day profits can be meaningfully certified.",
+    "Prospectively log actual TOP2 entry1+entry2 proposed ranges and watch 1/2/3-day touch and stop sequence with independent source; do not change production buy bands without holdout evidence."
+  ]
+}

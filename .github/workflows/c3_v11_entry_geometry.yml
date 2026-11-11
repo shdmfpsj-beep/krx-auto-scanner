@@ -1,0 +1,64 @@
+name: C3 v1.1 frozen entry geometry and 1-3d opportunity sensitivity
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v11-entry-geometry-corporate-actions-20261111]
+    paths: ['.github/workflows/c3_v11_entry_geometry.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  entry-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_v11_entry_geometry_diagnostic.py
+            /scripts/test_c3_v11_entry_geometry_diagnostic.py
+            /scripts/c3_selection_first_research.py
+            /scripts/c3_three_entry_replay.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Research-only entry tests
+        run: python -m unittest discover -s scripts -p test_c3_v11_entry_geometry_diagnostic.py -v
+      - name: Freeze exact PR89 150-session KRX research snapshot
+        run: |
+          mkdir -p official output
+          gh run download 42950252617 -R "$GITHUB_REPOSITORY" -n c3-pr87-newdata-official-research-only -D official
+          test -f official/replay/c3_selection_feature_cohort_extended.json
+          test -f official/replay/c3_temporal_quality_validation_extended.json
+      - name: Explain each selection's 3 entry-model rejections and 1 2 3 session touches
+        run: |
+          python scripts/c3_v11_entry_geometry_diagnostic.py \
+            --root official/official_history \
+            --cohort official/replay/c3_selection_feature_cohort_extended.json \
+            --quality official/replay/c3_temporal_quality_validation_extended.json \
+            --out output/c3_v11_entry_geometry.json
+      - name: Preserve frozen counts, risk and CASH
+        run: |
+          python - <<'PY'
+          import json
+          p=json.load(open('output/c3_v11_entry_geometry.json'))
+          c=p['counts']
+          assert p['events']==51 and c['ENTRY1_AVAILABLE']==51
+          assert c['ENTRY2_AVAILABLE']==1
+          assert c['CLOSE_MINUS_1ATR:STOP_DISTANCE_GT_12PCT']==46
+          assert c['BREAKOUT_RETEST:STOP_DISTANCE_GT_12PCT']==50
+          assert c['upper_plus_0.0pct:D1:PASS_UNTOUCHED']==48
+          assert p['operations_changed'] is False
+          assert p['actual_trade_returns']=='BLOCKED_NO_INTRADAY_EXECUTION'
+          assert p['decision']=='CASH'
+          print('C3_V11_FROZEN_ENTRY_RISK_REGRESSION_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v11-frozen-entry-range-diagnostic
+          path: output/c3_v11_entry_geometry.json
+          retention-days: 30
+          if-no-files-found: warn
