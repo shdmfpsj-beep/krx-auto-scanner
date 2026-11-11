@@ -23,7 +23,7 @@ jobs:
             /scripts/test_c3_v11_adjacent_anomaly_issuer.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
-      - name: Safety regression: metadata versus official corporate notices
+      - name: 'Safety regression - metadata versus official corporate notices'
         run: python -m unittest discover -s scripts -p test_c3_v11_adjacent_anomaly_issuer.py -v
       - name: Download exact immutable 150-session research history
         run: |
