@@ -144,7 +144,21 @@ def main():
             report,summary,ref=report_pair(gh);source=json.loads(json.dumps(report));reason=report_error(report,summary,now_kst())
             if reason:
                 result={'status':'SKIPPED','reason':reason,'source_asof':report.get('source_price_asof'),'attempted_asof':report.get('attempted_price_asof'),'send_attempts':0};return_code=0
-            else:report=frozen_live_bars(gh,report,ref)
+            else:
+                report=frozen_live_bars(gh,report,ref)
+                # Separately approved presentation safety layer. Disabled by
+                # default: no main/ledger/order/Telegram change on merge alone.
+                if os.environ.get('C3_FINAL_GATE_ENABLED','0')=='1':
+                    from c3_final_delivery_gate_v1 import review,filtered_report_for_presentation
+                    audit=review(report)
+                    (out/'delivery_review.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n')
+                    if not audit['sendable']:
+                        result={'status':'SKIPPED','reason':'FINAL_ENTRY_FILTER_NO_TWO_CANDIDATES',
+                                'source_asof':report.get('source_price_asof'),
+                                'eligible_count':audit['eligible_count'],'send_attempts':0}
+                        return_code=0
+                    else:
+                        report=filtered_report_for_presentation(report,audit)
         if result is None:
             from c3_report_context import attach_context,DartClient
             context_key=os.environ.get('OPENDART_API_KEY','').strip()
