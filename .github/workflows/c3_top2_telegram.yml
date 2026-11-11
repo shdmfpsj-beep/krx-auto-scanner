@@ -23,6 +23,8 @@ on:
       - 'scripts/c3_telegram_notify.py'
       - 'scripts/c3_telegram_inputs.py'
       - 'scripts/c3_classic_theme.py'
+      - 'scripts/c3_chart_warmup_v1.py'
+      - 'scripts/test_c3_emergency_delivery_v1.py'
       - 'scripts/c3_report_context.py'
       - 'scripts/c3_report_handoff.py'
       - 'scripts/test_c3_report_handoff.py'
@@ -49,6 +51,8 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_chart_warmup_v1.py
+            scripts/test_c3_emergency_delivery_v1.py
             scripts/c3_entry_geometry_gate.py
             scripts/c3_report_context.py
             scripts/c3_report_handoff.py
@@ -89,6 +93,7 @@ jobs:
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_quality.py' -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_handoff.py' -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_emergency_delivery_v1.py' -v
       - name: Rehearse current live input without any Telegram credentials
         if: github.event.pull_request.head.repo.full_name == github.repository
         env:
@@ -137,6 +142,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           OPENDART_API_KEY: ${{ github.event.pull_request.head.repo.full_name == github.repository && secrets.OPENDART_API_KEY || '' }}
+          KRX_AUTH_KEY: ${{ github.event.pull_request.head.repo.full_name == github.repository && secrets.KRX_AUTH_KEY || '' }}
         run: python scripts/c3_telegram_notify.py --mode preview --outdir /tmp/c3-integrated-preview
       - name: Verify real persisted duplicate protection without a Telegram token
         env:
@@ -284,6 +290,8 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_chart_warmup_v1.py
+            scripts/test_c3_emergency_delivery_v1.py
             scripts/c3_entry_geometry_gate.py
             scripts/c3_report_context.py
             scripts/c3_report_handoff.py
@@ -361,7 +369,8 @@ jobs:
           if status=='SKIPPED' and reason in {
               'REPORT_HAS_UNRESOLVED_ERRORS','SOURCE_QUALITY_GATE_FAILED',
               'INCOMPLETE_MARKET_COVERAGE','MARKET_ROW_COUNT_MISMATCH',
-              'INVALID_SOURCE_RECEIPT_TIMING','UNVERIFIED_MARKET_DATA'
+              'INVALID_SOURCE_RECEIPT_TIMING','UNVERIFIED_MARKET_DATA',
+              'REGULAR_SESSION_SOURCE_UNCERTIFIED','ANALYSIS_COMPLETION_TIME_MISMATCH'
           }:
               print(f'::error::C3 live report blocked by unresolved data/quality issue: {reason}')
               sys.exit(1)

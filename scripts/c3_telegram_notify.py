@@ -21,7 +21,8 @@ def iso_timestamp(s):
 
 def expected_session(clock):
     local=clock.astimezone(KST)
-    if local.weekday()>=5:return None
+    # Friday's delayed report may complete after midnight on Saturday.
+    if local.weekday()>=5 and not (local.weekday()==5 and local.hour<9):return None
     day=local.date()
     if local.hour*60+local.minute<930:
         day-=timedelta(days=1)
@@ -45,13 +46,18 @@ def report_error(latest,summary,current):
     if set(markets)!={'KOSPI','KOSDAQ'} or any(markets[m].get('rows',0)<=0 for m in markets):return 'INCOMPLETE_MARKET_COVERAGE'
     if scope.get('analysis_eligible',0)<=0 or sum(m['rows'] for m in markets.values())!=scope.get('price_rows'):return 'MARKET_ROW_COUNT_MISMATCH'
     if latest.get('errors'):return 'REPORT_HAS_UNRESOLVED_ERRORS'
+    if latest.get('source_regular_only_certified') is not True:return 'REGULAR_SESSION_SOURCE_UNCERTIFIED'
     if latest.get('orders_enabled') is not False or latest.get('current_action')!='CASH':return 'LIVE_ORDER_OR_ACTION_POLICY_VIOLATION'
     if latest.get('research_top2_registered_for_source_session') is not True:return 'UNREGISTERED_RESEARCH_PREVIEW'
     picks=latest.get('research_top2') or []
-    if len(picks)!=2 or len({r.get('ticker') for r in picks})!=2:return 'EXACTLY_TWO_UNIQUE_CANDIDATES_REQUIRED'
+    if (not isinstance(picks,list) or not 0<=len(picks)<=2 or
+        any(not re.fullmatch(r'[A-Z0-9]{6}',str(r.get('ticker',''))) for r in picks) or
+        len({r.get('ticker') for r in picks})!=len(picks)):return 'ORIGINAL_CANDIDATE_COUNT_OR_IDENTITY_INVALID'
     try:
         generated=iso_timestamp(latest['generated_at']);received=iso_timestamp(latest['source_received_at'])
+        completed=iso_timestamp(latest['analysis_completed_at'])
         if not timedelta(0)<=current.astimezone(timezone.utc)-generated<=timedelta(hours=30):return 'STALE_OR_FUTURE_REPORT'
+        if not received<=completed<=generated:return 'ANALYSIS_COMPLETION_TIME_MISMATCH'
         if not datetime.fromisoformat(day+'T15:30:00+09:00')<=received<=generated:return 'INVALID_SOURCE_RECEIPT_TIME'
     except (ValueError,TypeError,KeyError):return 'INVALID_REPORT_GENERATION_TIME'
     return None
@@ -83,7 +89,7 @@ class ReceiptStore:
     def finish(self,key,payload):self.gh.create('receipts/outcomes/'+key+'.json',RECEIPT_BRANCH,payload)
 
 def validate_photos(paths):
-    if len(paths)!=2:raise ValueError('EXACTLY_TWO_PHOTOS_REQUIRED')
+    if len(paths) not in (1,2):raise ValueError('ONE_OR_TWO_PHOTOS_REQUIRED')
     hashes=[]
     for path in paths:
         p=Path(path)
@@ -92,7 +98,7 @@ def validate_photos(paths):
             if im.format!='PNG' or sum(im.size)>10000 or max(im.size)/min(im.size)>20:raise ValueError('PHOTO_FORMAT_OR_DIMENSIONS_REJECTED')
             im.verify()
         hashes.append(sha(p.read_bytes()))
-    if len(set(hashes))!=2:raise ValueError('DISTINCT_CARDS_REQUIRED')
+    if len(set(hashes))!=len(paths):raise ValueError('DISTINCT_CARDS_REQUIRED')
     return hashes
 
 class Telegram:
@@ -107,29 +113,51 @@ class Telegram:
         title=''.join(unicodedata.normalize('NFKC',chat.get('title','')).split())
         if not obj.get('ok') or str(chat.get('id'))!=self.chat_id or chat.get('type') not in ('group','supergroup') or title!='강현AI':raise ValueError('CONFIGURED_RECIPIENT_IS_NOT_REQUESTED_GROUP')
     def send_album(self,paths):
-        media=[{'type':'photo','media':'attach://photo'+str(i)} for i in range(2)]
+        if len(paths) not in (1,2):raise ValueError('ONE_OR_TWO_PHOTOS_REQUIRED')
+        data={'chat_id':self.chat_id}
+        if len(paths)==1:
+            method='sendPhoto';field='photo'
+        else:
+            method='sendMediaGroup';field=None
+            data['media']=json.dumps([{'type':'photo','media':'attach://photo'+str(i)} for i in range(len(paths))])
         with ExitStack() as stack:
-            files=[('photo'+str(i),(Path(p).name,stack.enter_context(open(p,'rb')),'image/png')) for i,p in enumerate(paths)]
-            # requests has zero transport retries; redirects and any POST retry are disabled.
-            r=requests.post('https://api.telegram.org/bot'+self.token+'/sendMediaGroup',data={'chat_id':self.chat_id,'media':json.dumps(media)},files=files,timeout=(10,65),allow_redirects=False)
-        if r.status_code!=200:raise ValueError('ALBUM_RESPONSE_UNCERTAIN_REVIEW_REQUIRED')
-        reply=r.json();messages=reply.get('result') or []
-        if not reply.get('ok') or len(messages)!=2 or len({m.get('message_id') for m in messages})!=2 or any(type(m.get('message_id')) is not int or m['message_id']<=0 for m in messages):raise ValueError('ALBUM_RESULT_UNCERTAIN_REVIEW_REQUIRED')
+            files=[(field or 'photo'+str(i),(Path(p).name,stack.enter_context(open(p,'rb')),'image/png')) for i,p in enumerate(paths)]
+            # No redirects, POST retries, captions or text, including sendPhoto.
+            r=requests.post('https://api.telegram.org/bot'+self.token+'/'+method,data=data,files=files,timeout=(10,65),allow_redirects=False)
+        if r.status_code!=200:raise ValueError('PHOTO_RESPONSE_UNCERTAIN_REVIEW_REQUIRED')
+        reply=r.json();raw=reply.get('result')
+        messages=[raw] if len(paths)==1 and isinstance(raw,dict) else raw
+        if (not reply.get('ok') or not isinstance(messages,list) or len(messages)!=len(paths) or
+            any(not isinstance(m,dict) or type(m.get('message_id')) is not int or m['message_id']<=0 for m in messages) or
+            len({m['message_id'] for m in messages})!=len(paths)):
+            raise ValueError('PHOTO_RESULT_UNCERTAIN_REVIEW_REQUIRED')
+        if any('caption' in m or 'text' in m or not m.get('photo') for m in messages):raise ValueError('PHOTO_ONLY_CONFIRMATION_FAILED')
+        if any(str(m.get('chat',{}).get('id'))!=self.chat_id for m in messages):raise ValueError('PHOTO_RECIPIENT_CONFIRMATION_FAILED')
         groups={m.get('media_group_id') for m in messages}
-        if len(groups)!=1 or None in groups or any('caption' in m or 'text' in m or not m.get('photo') for m in messages):raise ValueError('PHOTO_ONLY_ALBUM_CONFIRMATION_FAILED')
-        if any(str(m.get('chat',{}).get('id'))!=self.chat_id for m in messages):raise ValueError('ALBUM_RECIPIENT_CONFIRMATION_FAILED')
-        return dict(message_ids=[m['message_id'] for m in messages],media_group_hash=sha(next(iter(groups)).encode()),photos=2,captions_present=False,text_present=False)
+        if len(paths)==2 and (len(groups)!=1 or None in groups):raise ValueError('ALBUM_GROUP_CONFIRMATION_FAILED')
+        return dict(message_ids=[m['message_id'] for m in messages],
+            media_group_hash=sha(next(iter(groups)).encode()) if len(paths)==2 else None,
+            photos=len(paths),captions_present=False,text_present=False,
+            recipient_fingerprint=self.fingerprint,telegram_api_accepted=True,
+            human_read_confirmed=False)
 
 def deliver(paths,report,store,bot,mode='live',clock=None):
     hashes=validate_photos(paths);day=report['source_price_asof'];key=delivery_key(day,bot.fingerprint,mode)
+    if 'research_top2' in report and len(paths)!=max(1,len(report['research_top2'])):
+        raise ValueError('ORIGINAL_CANDIDATE_PHOTO_COUNT_MISMATCH')
     store.initialize()
     if (mode=='live' and store.legacy_exists(day)) or store.exists(key):return dict(status='DUPLICATE_BLOCKED',key=key,send_attempts=0)
     bot.verify_group()
-    claim={'schema':'C3_PHOTO_ONLY_DELIVERY_V1','source_date':day,'mode':mode,'status':'CLAIMED_BEFORE_SEND','claimed_at':(clock or now_kst()).isoformat(),'card_sha256':hashes,'source_run_id':report.get('source_run_id'),'sender_code_sha':os.environ.get('GITHUB_SHA'),'sender_run_id':os.environ.get('GITHUB_RUN_ID'),'recipient_verified':True,'orders_enabled':False,'automatic_resend_allowed':False}
+    claim={'schema':'C3_PHOTO_ONLY_DELIVERY_V1','source_date':day,'mode':mode,'status':'CLAIMED_BEFORE_SEND','claimed_at':(clock or now_kst()).isoformat(),'card_sha256':hashes,'source_run_id':report.get('source_run_id'),'source_report_sha256':sha(canonical(report)),
+           'decision_payload_sha256':(report.get('input_provenance') or {}).get('decision_payload_sha256'),
+           'source_validation_sha256':report.get('source_validation_sha256'),'recipient_fingerprint':bot.fingerprint,'sender_code_sha':os.environ.get('GITHUB_SHA'),'sender_run_id':os.environ.get('GITHUB_RUN_ID'),'recipient_verified':True,'orders_enabled':False,'automatic_resend_allowed':False}
     if not store.reserve(key,claim):return dict(status='DUPLICATE_BLOCKED',key=key,send_attempts=0)
     try:result=dict(status='DELIVERED',**bot.send_album(paths))
     except Exception as e:result=dict(status='REVIEW_REQUIRED_NO_AUTOMATIC_RESEND',error_type=type(e).__name__)
-    result.update(key=key,source_date=day,mode=mode,send_attempts=1,recorded_at=now_kst().isoformat(),sender_run_id=os.environ.get('GITHUB_RUN_ID'))
+    result.update(key=key,source_date=day,mode=mode,send_attempts=1,recorded_at=now_kst().isoformat(),sender_run_id=os.environ.get('GITHUB_RUN_ID'),
+        source_run_id=claim['source_run_id'],source_report_sha256=claim['source_report_sha256'],
+        decision_payload_sha256=claim['decision_payload_sha256'],source_validation_sha256=claim['source_validation_sha256'],
+        card_sha256=hashes,recipient_fingerprint=bot.fingerprint)
     try:store.finish(key,result)
     except Exception:result['receipt_write_status']='FAILED_CLAIM_REMAINS_NO_RESEND'
     return result
@@ -146,6 +174,14 @@ def main():
                 result={'status':'SKIPPED','reason':reason,'source_asof':report.get('source_price_asof'),'attempted_asof':report.get('attempted_price_asof'),'send_attempts':0};return_code=0
             else:report=frozen_live_bars(gh,report,ref)
         if result is None:
+            if os.environ.get('C3_CHART_WARMUP_ZIP_PATH'):
+                from c3_chart_warmup_v1 import attach_locked_warmup
+                report=attach_locked_warmup(report,os.environ['C3_CHART_WARMUP_ZIP_PATH'])
+            elif any(len(row.get('chart_bars') or [])<119 for row in report.get('research_top2',[])):
+                from c3_telegram_inputs import warmup_from_owner
+                report=warmup_from_owner(gh,report,ref)
+            if a.mode=='live' and any(len(row.get('chart_bars') or [])<119 for row in report.get('research_top2',[])):
+                raise ValueError('FULL_WINDOW_MA60_HISTORY_INSUFFICIENT')
             from c3_report_context import attach_context,DartClient
             context_key=os.environ.get('OPENDART_API_KEY','').strip()
             context_client=DartClient(context_key,out/'company_raw') if context_key else None
@@ -155,6 +191,11 @@ def main():
             (out/'input_diagnostics.json').write_text(json.dumps({'source_asof':report['source_price_asof'],'example_only':bool(report.get('example_only')),'provenance':report.get('input_provenance'),'sources':gh.sources},ensure_ascii=False,indent=2)+'\n')
             hashes=validate_photos(paths)
             render_validated=True
+            if a.mode=='live':
+                # Verify image hashes, original price plan and source lineage
+                # BEFORE constructing any Telegram client or reserving a send.
+                from c3_report_handoff import packet
+                packet(report,ref,{'status':'DRY_RUN_VALIDATED_NO_DELIVERY'},now_kst(),out,True,True)
             if a.dry_run:result={'status':'DRY_RUN_VALIDATED_NO_DELIVERY','photos':len(paths),'card_sha256':hashes,'send_attempts':0};return_code=0
             elif a.mode=='preview':result={'status':'PREVIEW_ONLY_NO_DELIVERY','photos':len(paths),'send_attempts':0};return_code=0
             else:
