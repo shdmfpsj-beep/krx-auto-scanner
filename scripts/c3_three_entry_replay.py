@@ -63,7 +63,7 @@ def evaluate(bars,i,model,entry,stop,resistance):
                     outcome={"status":"STOP","return_pct":round((stop/fill_price-1)*100-ROUND_TRIP_COST_PCT,4)}
                     break
                 if b["high"]>=resistance:
-                    outcome={"status":"TARGET_UNCERTAIN_SEQUENCE","return_pct":round((b["close"]/fill_price-1)*100-ROUND_TRIP_COST_PCT,4)}
+                    outcome={"status":"CENSORED_ENTRY_SEQUENCE_UNCERTAIN"}
                     break
                 continue
             if b["open"]<stop:
@@ -105,7 +105,7 @@ def main():
     summary={}
     for model in MODELS:
         group=[r for r in results if r["model"]==model]
-        completed={str(h):[r["outcomes"][str(h)] for r in group if r["outcomes"][str(h)]["status"] not in ("CENSORED","UNFILLED")] for h in HORIZONS}
+        completed={str(h):[r["outcomes"][str(h)] for r in group if r["outcomes"][str(h)]["status"] not in ("CENSORED","UNFILLED","CENSORED_ENTRY_SEQUENCE_UNCERTAIN")] for h in HORIZONS}
         summary[model]={"signals":len(group),"fills":sum(r["filled"] for r in group),
             "fill_rate":None if not group else sum(r["filled"] for r in group)/len(group),
             "round_trip_cost_pct":ROUND_TRIP_COST_PCT,
