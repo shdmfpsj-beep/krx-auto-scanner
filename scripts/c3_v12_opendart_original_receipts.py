@@ -8,6 +8,7 @@ promote accounting numbers without separate period/FS/GAAP validation.
 """
 import argparse,csv,datetime as dt,hashlib,io,json,os,re,time,urllib.parse,urllib.request,urllib.error,zipfile
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 URL="https://opendart.fss.or.kr/api/document.xml"
@@ -65,7 +66,7 @@ def fetch_one(receipt,key):
     qs=urllib.parse.urlencode({"crtfc_key":key,"rcept_no":receipt})
     try:
         req=urllib.request.Request(URL+"?"+qs,headers={"User-Agent":"C3-Research-PIT/1.2"})
-        with urllib.request.urlopen(req,timeout=30) as r:
+        with urllib.request.urlopen(req,timeout=10) as r:
             if int(getattr(r,"status",200))!=200:return {"status":"BLOCKED_HTTP"}
             raw=r.read(MAX_RAW+1)
         if len(raw)>MAX_RAW:return {"status":"BLOCKED_DOC_TOO_LARGE"}
@@ -76,11 +77,20 @@ def fetch_one(receipt,key):
 def audit(financial_join,dart_titles,key):
     wanted=exact_receipts(financial_join,dart_titles)
     entries=[];statuses=Counter()
+    if len(wanted)>35:raise ValueError("ORIGINAL_SOURCE_QUERY_LIMIT_EXCEEDED")
+    # Bounded concurrent IO: delayed public endpoint must not monopolize Actions.
+    # Each request is independent and results are sorted by exact immutable receipt.
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        future_to_id={pool.submit(fetch_one,no,key):no for no in wanted}
+        evidence={}
+        for future in as_completed(future_to_id):
+            no=future_to_id[future]
+            try:evidence[no]=future.result()
+            except Exception:evidence[no]={"status":"BLOCKED_DOCUMENT_REQUEST_EXCEPTION"}
     for no,metadata in sorted(wanted.items()):
-        data=fetch_one(no,key)
+        data=evidence.get(no,{"status":"BLOCKED_DOCUMENT_TIMEOUT"})
         statuses[data["status"]]+=1
         entries.append({"receipt_no":no,**metadata,**data})
-        time.sleep(.12)
     return {
         "schema":"C3_V12_ORIGINAL_RECEIPT_EVIDENCE_AUDIT",
         "requested_receipts":len(wanted),
