@@ -141,9 +141,9 @@ def main():
         if f is None:continue
         factors=causal_factors(bars,index)
         pool.append(dict(ticker=ticker,name=price["name"],market=price["market"],
-                         close=price["close"],sector=secondary[ticker][0]["sector"],
+                         sector=secondary[ticker][0]["sector"],
                          market_regime=market_regimes[price["market"]],
-                         **factors,**f))
+                         **f,**factors))
 
     pool.sort(key=lambda row:(-row["turnover20"],-row["rs20"],row["ticker"]))
     bpool=[r for r in pool if r["own_rs20"]>0 and r["rs_accel5"]>0]
