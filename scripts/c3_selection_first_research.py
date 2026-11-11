@@ -43,8 +43,11 @@ def candidate(bars,i,fin,benchmark=None):
     momentum=now/cl[-21]-1
     if momentum<=0:return None
     benchmark_momentum=None
-    if benchmark and len(benchmark)>=21 and benchmark[-21]>0:
-        benchmark_momentum=benchmark[-1]/benchmark[-21]-1
+    # Benchmark must be supplied as an explicitly as-of aligned 21-close window.
+    if benchmark is not None:
+        if len(benchmark)!=21 or min(benchmark)<=0:
+            raise ValueError('BENCHMARK_ASOF_WINDOW_REQUIRED')
+        benchmark_momentum=benchmark[-1]/benchmark[0]-1
     volumes=[b["volume"] for b in h]
     if sum(volumes[-21:-1])<=0:return None
     rvol=volumes[-1]/(sum(volumes[-21:-1])/20)
