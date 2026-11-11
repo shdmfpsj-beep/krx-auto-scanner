@@ -276,7 +276,7 @@ class FinalPresentationReviewTests(unittest.TestCase):
             picks.append({'ticker':f'{i+1:06d}','name':'SYNTHETIC','rank':i+1,
                 'signal_id':f'SYNTHETIC_{i}','source_price_asof':asof,'source_run_id':'SYNTHETIC_RUN',
                 'source_regular_only_certified':True,'chart_price_basis':'KRX_UNADJUSTED_AS_TRADED',
-                'chart_bars':bars,'reference_close':100,
+                'chart_bars':bars,'reference_close':100,'close':100,
                 'entry_plans':{'A_SUPPORT_LIMIT':{'plan':{
                 'low':97,'high':99,'stop':95,'resistance':110,'net_r1_rr':2.75,
                 'known_on':asof,'decision_date':asof}}}})
