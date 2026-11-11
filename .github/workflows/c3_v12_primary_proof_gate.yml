@@ -1,0 +1,18 @@
+name: C3 V12 Primary Proof Gate (Research Only)
+on:
+  push:
+    branches:
+      - research/c3-v12-proof-gate-clean-20261111
+  workflow_dispatch:
+jobs:
+  proof-gate-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run fail-closed certification tests
+        run: python -m unittest discover -s tests -p 'test_c3_v12_primary_proof_gate.py' -v
