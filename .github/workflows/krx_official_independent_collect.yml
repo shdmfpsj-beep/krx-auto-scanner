@@ -27,6 +27,7 @@ jobs:
             /scripts/entry_strategy_v58.py
             /scripts/shadow_five_day_v59.py
             /scripts/test_krx_official_eod_v65.py
+            /scripts/krx_official_pykrx_diff.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Offline collector tests
@@ -84,6 +85,27 @@ jobs:
           (folder/"official_independent_integrity.json").write_text(
               json.dumps(summary,ensure_ascii=False,indent=2)+"\\n")
           print("OFFICIAL_INTEGRITY",summary["integrity"],summary["market_rows"])
+          PY
+      - name: Compare official KRX and PyKRX daily bars without trading approval
+        run: |
+          python -m pip install --disable-pip-version-check 'pykrx==1.2.9'
+          python - <<'PY'
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          from pathlib import Path
+          import subprocess,sys
+          d=datetime.now(ZoneInfo("Asia/Seoul")).date()-timedelta(days=1)
+          while d.weekday()>=5:
+              d-=timedelta(days=1)
+          folder=Path("output")/d.isoformat()
+          import json
+          manifest=json.loads((folder/"krx_v65_collect_status.json").read_text())
+          if not manifest["official_dataset_usable"]:
+              print("OFFICIAL_NOT_USABLE_SKIP_DIFF",manifest["status"])
+          else:
+              subprocess.run([sys.executable,"scripts/krx_official_pykrx_diff.py",
+                  "--date",d.isoformat(),"--official",str(folder),
+                  "--out",str(folder)],check=True)
           PY
       - uses: actions/upload-artifact@v4
         if: always()
