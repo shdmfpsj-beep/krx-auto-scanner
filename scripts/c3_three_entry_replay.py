@@ -42,6 +42,7 @@ def evaluate(bars,i,model,entry,stop,resistance):
     # Buy limit: gap down opens below limit, filled at open (price improvement).
     # Breakout orders are NOT buy limits: require a later retest, not gap-through momentum.
     fill_price=min(entry,nxt["open"]) if filled else None
+    # An opening gap below the protective stop is never a valid long fill.
     row={"ticker":bars[i]["ticker"],"signal_date":bars[i]["date"],"model":model,
          "entry":round(entry,5),"stop":round(stop,5),
          "resistance":round(resistance,5),"rr":round((resistance-entry)/(entry-stop),5),
@@ -55,6 +56,16 @@ def evaluate(bars,i,model,entry,stop,resistance):
         outcome={"status":"HOLD","return_pct":round((bars[end]["close"]/fill_price-1)*100-ROUND_TRIP_COST_PCT,4)}
         for j in range(i+1,end+1):
             b=bars[j]
+            # On entry day, an open above the limit means the entry is intraday.
+            # Its open cannot be a pre-entry stop; same-bar low/stop wins conservatively.
+            if j==i+1 and b["open"]>entry:
+                if b["low"]<=stop:
+                    outcome={"status":"STOP","return_pct":round((stop/fill_price-1)*100-ROUND_TRIP_COST_PCT,4)}
+                    break
+                if b["high"]>=resistance:
+                    outcome={"status":"TARGET_UNCERTAIN_SEQUENCE","return_pct":round((b["close"]/fill_price-1)*100-ROUND_TRIP_COST_PCT,4)}
+                    break
+                continue
             if b["open"]<stop:
                 outcome={"status":"STOP_GAP","return_pct":round((b["open"]/fill_price-1)*100-ROUND_TRIP_COST_PCT,4)};break
             if b["low"]<=stop:
