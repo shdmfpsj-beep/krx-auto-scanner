@@ -3,7 +3,10 @@ on:
   workflow_dispatch:
   push:
     branches: [research/c3-v12-pit-timing-primary-filings-20261111]
-    paths: ['.github/workflows/c3_v12_original_opendart_docs.yml']
+    paths:
+      - '.github/workflows/c3_v12_original_opendart_docs.yml'
+      - 'scripts/c3_v12_opendart_original_receipts.py'
+      - 'scripts/test_c3_v12_opendart_original_receipts.py'
 permissions:
   contents: read
   actions: read
