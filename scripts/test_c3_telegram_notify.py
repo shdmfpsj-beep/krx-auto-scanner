@@ -91,6 +91,39 @@ class DeliveryFaultTests(unittest.TestCase):
             p=Path(self.tmp.name)/(str(i)+'.png');Image.new('RGB',(4,4),color).save(p);self.files.append(p)
         self.report={'source_price_asof':'2026-11-06','source_run_id':'SYNTHETIC'}
     def tearDown(self):self.tmp.cleanup()
+    def test_one_photo_CASH_and_stock_share_same_daily_exclusive_claim(self):
+        single=Path(self.tmp.name,'CASH_integrated.png')
+        Image.new('RGB',(64,64),'white').save(single)
+        result={'source_price_asof':'2026-11-06','source_run_id':'SYNTHETIC',
+                'final_presentation_review':{'schema':'C3_FINAL_PRESENTATION_REVIEW_V21',
+                                             'delivery_kind':'CASH_1','eligible_count':0}}
+        store=MemoryStore()
+        bot=FakeBot();bot.send_single=lambda path:{'message_ids':[27],'media_group_hash':None,
+                         'photos':1,'captions_present':False,'text_present':False}
+        x=deliver([single],result,store,bot)
+        self.assertEqual(x['status'],'DELIVERED')
+        self.assertEqual(x['photos'],1)
+        result['final_presentation_review']['delivery_kind']='ALBUM_2'
+        dup=deliver(self.files,result,store,bot)
+        self.assertEqual(dup['status'],'DUPLICATE_BLOCKED')
+        self.assertEqual(dup['send_attempts'],0)
+
+    def test_one_photo_sendPhoto_has_no_text_caption_redirect_or_retry(self):
+        single=self.files[0]
+        bot=Telegram('SYNTHETIC_NOT_REAL_TOKEN','-1001234567890')
+        reply=Mock(status_code=200)
+        reply.json.return_value={'ok':True,'result':{'message_id':55,
+                              'photo':[{'file_id':'abc'}],'chat':{'id':-1001234567890}}}
+        with patch('c3_telegram_notify.requests.post',return_value=reply) as post:
+            out=bot.send_single(single)
+            self.assertEqual(out['message_ids'],[55])
+            self.assertEqual(out['photos'],1)
+            self.assertEqual(post.call_count,1)
+            self.assertIn('sendPhoto',post.call_args.args[0])
+            self.assertEqual(set(post.call_args.kwargs['data']),{'chat_id'})
+            self.assertEqual(set(post.call_args.kwargs['files']),{'photo'})
+            self.assertIs(post.call_args.kwargs['allow_redirects'],False)
+
     def test_repeat_events_and_changed_content_do_not_resend(self):
         store=MemoryStore();bot=FakeBot();a=deliver(self.files,self.report,store,bot)
         Image.new('RGB',(4,4),'red').save(self.files[0])
