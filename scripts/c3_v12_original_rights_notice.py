@@ -61,6 +61,7 @@ def parse_rights(text,ticker,receipt_date):
         for cells in rows:
             for i,v in enumerate(cells[:-1]):
                 key=re.sub(r"^[0-9]+[.)]","",v)
+                key=re.sub(r"\\(원\\)$","",key)
                 if key in labels:
                     matches.append(cells[i+1])
         if len(set(matches))==1:values[field]=matches[0]
