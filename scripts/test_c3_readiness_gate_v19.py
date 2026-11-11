@@ -2,7 +2,7 @@
 import copy
 import unittest
 
-from c3_readiness_gate_v19 import assess,source_evidence,parsed
+from c3_readiness_gate_v19 import assess,source_evidence,parsed,expected_day
 
 DAY="2026-11-06"
 READY=parsed("2026-11-06T23:30:00+09:00")
@@ -133,6 +133,18 @@ class ReadinessGateTests(unittest.TestCase):
         x=self.gate(saturday)
         self.assertEqual(x["status"],"NO_NOMINAL_WEEKDAY_SESSION")
         self.assertFalse(x["registered_top2_final_at_check_time"])
+
+    def test_nov12_morning_observes_nov11_not_nov12(self):
+        for hhmm in ("06:30","08:10","09:31","15:29"):
+            self.assertEqual(
+                expected_day(parsed(f"2026-11-12T{hhmm}:00+09:00")),
+                "2026-11-11",hhmm)
+        self.assertEqual(expected_day(parsed("2026-11-12T15:30:00+09:00")),
+                         "2026-11-12")
+
+    def test_monday_morning_observes_previous_friday(self):
+        self.assertEqual(expected_day(parsed("2026-11-16T08:10:00+09:00")),
+                         "2026-11-13")
 
     def test_00_30_previous_session_is_expected(self):
         morning=parsed("2026-11-09T08:30:00+09:00")
