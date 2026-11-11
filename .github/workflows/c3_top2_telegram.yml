@@ -23,6 +23,7 @@ on:
       - 'scripts/c3_telegram_notify.py'
       - 'scripts/c3_telegram_inputs.py'
       - 'scripts/c3_classic_theme.py'
+      - 'scripts/c3_final_delivery_gate_v1.py'
       - 'scripts/c3_report_context.py'
       - 'scripts/c3_report_handoff.py'
       - 'scripts/test_c3_report_handoff.py'
@@ -50,6 +51,7 @@ jobs:
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
             scripts/c3_entry_geometry_gate.py
+            scripts/c3_final_delivery_gate_v1.py
             scripts/c3_report_context.py
             scripts/c3_report_handoff.py
             scripts/test_c3_report_handoff.py
@@ -92,6 +94,7 @@ jobs:
       - name: Rehearse current live input without any Telegram credentials
         if: github.event.pull_request.head.repo.full_name == github.repository
         env:
+          C3_FINAL_GATE_ENABLED: '1'
           GH_TOKEN: ${{ github.token }}
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
           OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
@@ -194,7 +197,7 @@ jobs:
           if-no-files-found: warn
   publish-rehearsal:
     needs: self-test
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
@@ -285,6 +288,7 @@ jobs:
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
             scripts/c3_entry_geometry_gate.py
+            scripts/c3_final_delivery_gate_v1.py
             scripts/c3_report_context.py
             scripts/c3_report_handoff.py
             scripts/krx_opendart_financial_v91.py
