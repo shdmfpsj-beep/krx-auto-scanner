@@ -198,4 +198,110 @@ class FrozenDecisionTests(unittest.TestCase):
         report,record=self.sample();report['research_top2'][0]['entry_plans']={'A':'changed'}
         with self.assertRaisesRegex(ValueError,'MISMATCH'):self.load(report,record)
 
+
+class FinalPresentationReviewTests(unittest.TestCase):
+    """Fixed real 2026-11-10 figures, plus synthetic safe-path cases."""
+
+    def fixed_nov10(self):
+        asof='2026-11-10'
+        def row(ticker,name,rank,close,low,high,stop,known_on,r1,rr):
+            return {'ticker':ticker,'name':name,'rank':rank,'source_price_asof':asof,
+                    'source_run_id':'42884437776','source_regular_only_certified':False,
+                    'signal_id':'FROZEN_'+ticker,'reference_close':close,
+                    'entry_plans':{'A_SUPPORT_LIMIT':{'plan':{'low':low,'high':high,
+                     'stop':stop,'known_on':known_on,'decision_date':asof,
+                     'resistance':r1,'net_r1_rr':rr}}}}
+        rows=[row('028050','삼성E&A',1,64600,59400,62600,56100,'2026-11-10',65500,0.33615940389023125),
+              row('180640','한진칼',2,239000,118000,122000,113800,'2026-10-27',None,None)]
+        return {'source_price_asof':asof,'source_run_id':'42884437776',
+                'source_validation_sha256':'4de3a1db908d6c28479d6862311e650075f7f5bcaa27bdbb990fc2a31158dd09',
+                'source_regular_only_certified':False,'research_top2_registered_for_source_session':True,
+                'orders_enabled':False,'current_action':'CASH','research_top2':rows}
+
+    def test_nov10_hanjin_stale_and_samsung_rr_block_keep_original_signals(self):
+        from c3_final_delivery_gate_v1 import review
+        from c3_telegram_inputs import canonical,digest
+        report=self.fixed_nov10();frozen=digest(canonical(report))
+        result=review(report)
+        self.assertEqual([x['technical_status'] for x in result['reviewed']],
+                         ['RISK_REJECTED','STALE_ENTRY'])
+        self.assertTrue(all(x['final_status']=='DATA_BLOCKED' for x in result['reviewed']))
+        self.assertEqual(result['eligible_count'],0)
+        self.assertEqual(result['candidate_pool_status'],'CANDIDATE_POOL_UNVERIFIED')
+        self.assertFalse(result['sendable'])
+        self.assertEqual(digest(canonical(report)),frozen)
+
+    def synthetic_report(self,n):
+        from datetime import date,timedelta
+        asof='2026-11-10'
+        bars=[{'date':(date(2026,11,10)-timedelta(days=89-i)).isoformat(),
+               'open':100,'high':101,'low':99,'close':100,'volume':100} for i in range(90)]
+        picks=[]
+        for i in range(n):
+            picks.append({'ticker':f'{i+1:06d}','name':'SYNTHETIC','rank':i+1,
+                'signal_id':f'SYNTHETIC_{i}','source_price_asof':asof,'source_run_id':'SYNTHETIC_RUN',
+                'source_regular_only_certified':True,'chart_price_basis':'KRX_UNADJUSTED_AS_TRADED',
+                'chart_bars':bars,'reference_close':100,
+                'entry_plans':{'A_SUPPORT_LIMIT':{'plan':{
+                'low':97,'high':99,'stop':95,'resistance':110,'net_r1_rr':2.75,
+                'known_on':asof,'decision_date':asof}}}})
+        return {'source_price_asof':asof,'source_run_id':'SYNTHETIC_RUN',
+            'source_validation_sha256':'a'*64,'source_regular_only_certified':True,
+            'research_top2_registered_for_source_session':True,
+            'orders_enabled':False,'current_action':'CASH','research_top2':picks}
+
+    def test_zero_one_two_candidates_are_safe_and_only_two_is_sendable(self):
+        from c3_final_delivery_gate_v1 import review,filtered_report_for_presentation
+        for count in (0,1,2):
+            with self.subTest(count=count):
+                report=self.synthetic_report(count)
+                out=review(report)
+                self.assertEqual(out['eligible_count'],count)
+                self.assertEqual(out['sendable'],count==2)
+                self.assertEqual(out['telegram_policy'],'TWO_PHOTOS_ONLY_ELSE_SILENT_SKIP')
+                if count==2:
+                    obj=filtered_report_for_presentation(report,out)
+                    self.assertEqual(len(obj['research_top2']),2)
+                    self.assertIsNot(obj,report)
+                else:
+                    with self.assertRaisesRegex(ValueError,'NO_TWO_ELIGIBLE'):
+                        filtered_report_for_presentation(report,out)
+
+    def test_unverified_alternate_pool_never_invents_a_third_pick(self):
+        from c3_final_delivery_gate_v1 import review
+        report=self.fixed_nov10()
+        fake={'ticker':'999999','source_price_asof':'2026-11-10','rank':3}
+        out=review(report,frozen_ranked_pool=[fake],pool_proof={'verified':True})
+        self.assertEqual(out['replacement_count'],0)
+        self.assertFalse(out['substitutes_invented'])
+        self.assertEqual([x['ticker'] for x in out['reviewed']],['028050','180640'])
+
+    def test_live_gate_fail_closed_dry_run_never_constructs_telegram(self):
+        import c3_telegram_notify as notify
+        from unittest.mock import patch
+        from pathlib import Path
+        clock=datetime(2026,11,10,22,45,tzinfo=ZoneInfo('Asia/Seoul'))
+        report=self.fixed_nov10()
+        report.update(generated_at='2026-11-10T13:42:00Z',
+                      source_received_at='2026-11-10T13:30:00Z')
+        summary={k:report[k] for k in ('source_price_asof','source_run_id','generated_at')}
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(notify,'GitHub'),patch.object(notify,'Telegram') as bot, \
+             patch.object(notify,'ReceiptStore') as receipts, \
+             patch.object(notify,'report_pair',return_value=(report,summary,'a'*40)), \
+             patch.object(notify,'report_error',return_value=None), \
+             patch.object(notify,'frozen_live_bars',side_effect=lambda gh,r,ref:r), \
+             patch.object(notify,'now_kst',return_value=clock), \
+             patch('c3_classic_theme.create_cards') as renderer, \
+             patch.dict('os.environ',{'C3_FINAL_GATE_ENABLED':'1'}), \
+             patch('sys.argv',['notify','--mode','live','--dry-run','--outdir',tmp]):
+            self.assertEqual(notify.main(),0)
+            bot.assert_not_called();receipts.assert_not_called();renderer.assert_not_called()
+            d=json.loads(Path(tmp,'delivery_status.json').read_text())
+            self.assertEqual(d['status'],'SKIPPED')
+            self.assertEqual(d['send_attempts'],0)
+            audit=json.loads(Path(tmp,'delivery_review.json').read_text())
+            self.assertEqual(audit['eligible_count'],0)
+
+
 if __name__=='__main__':unittest.main()
