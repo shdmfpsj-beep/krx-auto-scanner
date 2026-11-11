@@ -1,0 +1,168 @@
+{
+  "schema": "C3_FIXED_V1_SIGNED_RESEARCH_EVIDENCE_20261111",
+  "fixed_protocol": "docs/C3_NEXT_RESEARCH_FIXED_PROTOCOL_20261111.md",
+  "baseline": {
+    "pr87": "merged",
+    "pr88": "draft",
+    "pr89": "draft",
+    "krx_market_sessions": 150,
+    "krx_rows": 395575,
+    "krx_unique_tickers": 2766,
+    "pr87_deduped": 78,
+    "pr87_20day_observed": 43,
+    "pr88_qc_valid": {
+      "5": 60,
+      "10": 51,
+      "20": 37
+    },
+    "expanded_selection_events": 129,
+    "new_post_2026_09_16_events": 51,
+    "last_observed_krx_date": "2026-11-10"
+  },
+  "provenance": {
+    "new_verification_run_id": 42955472595,
+    "new_verification_artifact_id": 13826378268,
+    "new_verification_artifact_digest": "sha256:19d2e7ee96838abca760883c8b779d6a5ba33f7ef824c6a94c20c72593027d7f",
+    "original_official_run_id": 42950252617,
+    "original_official_artifact_id": 13824887176,
+    "original_official_artifact_digest": "sha256:60acbfc1ccaa65b9485fb05856eb89d531d37eb3a8ba8a7f31ed1037654f516f",
+    "v18_archive_run_id": 42914786449,
+    "v18_archive_artifact_id": 13812102265,
+    "v18_archive_digest": "sha256:be289d69af43c533476bdf3617bc1ea28880cb7b4b32f4fadb795f1f8f61314f",
+    "official_manifest_aggregate_sha256": "01c7defc3df04dd00372f95edf38208fca01e6a82cddb786bf7f67e2cd2972d7",
+    "matched_v18_source_file_sha256_aggregate": "730eb9fc03231142454ec6cd778f8cd85841856962179191a0ff6f80546fc9f3"
+  },
+  "new_actual_evidence": {
+    "official_krx_vs_pykryx_OHLCV_turnover_6_fields_match": 129,
+    "source_6field_differences": 0,
+    "unadjusted_anomaly_flags": 410,
+    "anomaly_issuers": 351,
+    "anomaly_consecutive_market_day": 73,
+    "anomaly_after_ticker_session_gap": 337,
+    "cross_source_anomaly_equal": 410,
+    "corporate_action_cause_verified": false,
+    "flow_previous_trading_day_foreign_and_institution_complete": 101,
+    "flow_previous_five_trading_days_foreign_and_institution_complete": 88,
+    "foreign_institution_original_vintage_validated": false,
+    "signal_day_final_flow_used_for_signal": false,
+    "strictly_previous_day_dart_title_linked_events": 30,
+    "dart_original_filing_numeric_verified": 0,
+    "official_index_KOSPI_KOSDAQ_API_HTTP_401": true,
+    "public_index_alternative": "FSC Index Price Information, data.go.kr/data/15094807/openapi.do, separate API key and license needed, NOT CONNECTED",
+    "issuer_share_reported_common": 126,
+    "issuer_share_reported_old_preferred": 3,
+    "issuer_classification_original_vintage_verified": false
+  },
+  "post_sep16_entry_feasibility": {
+    "events": 51,
+    "entry1_reference_available": 51,
+    "entry2_reference_available": 1,
+    "next_trading_day_entry1_PASS_untouched": 48,
+    "next_trading_day_entry1_price_range_overlap_not_execution": 2,
+    "next_trading_day_censored": 1,
+    "entry1_touch_range_any_first_two_days": 3,
+    "entry1_touch_range_any_first_three_days": 6,
+    "first_three_days_no_ticker_bar": 1,
+    "first_three_days_censored": 3,
+    "intraday_sequence_unverified": true,
+    "round_trip_fee_net_PnL_certified": false,
+    "operational_execution_claimed": false
+  },
+  "new_holdout_referenced_no_new_labels": {
+    "train_matured_before_sep16": {
+      "5": 60,
+      "10": 51,
+      "20": 37
+    },
+    "test_quality_valid": {
+      "5": 40,
+      "10": 35,
+      "20": 20
+    },
+    "test_positive": {
+      "5": 17,
+      "10": 14,
+      "20": 6
+    },
+    "test_positive_rate": {
+      "5": 0.425,
+      "10": 0.4,
+      "20": 0.3
+    },
+    "test_close_mean_return_pct": {
+      "5": -2.8068,
+      "10": -5.3555,
+      "20": -12.9058
+    },
+    "test_mean_MFE_pct": {
+      "5": 10.831,
+      "10": 15.2473,
+      "20": 22.5867
+    },
+    "test_mean_MAE_pct": {
+      "5": -12.833,
+      "10": -15.6825,
+      "20": -22.7352
+    },
+    "auc_train_orientation": {
+      "momentum_20d_pct": {
+        "5": 0.4706,
+        "10": 0.5068,
+        "20": 0.4167
+      },
+      "rvol_20d": {
+        "5": 0.4731,
+        "10": 0.4422,
+        "20": 0.5476
+      },
+      "ma20_extension_pct": {
+        "5": 0.5192,
+        "10": 0.6599,
+        "20": 0.5595
+      },
+      "ma20_vs_ma60_pct": {
+        "5": 0.4194,
+        "10": 0.3707,
+        "20": 0.3452
+      },
+      "stop_distance_pct": {
+        "5": 0.6138,
+        "10": 0.6531,
+        "20": 0.1071
+      }
+    },
+    "all_auc_confidence_intervals_include_half": false,
+    "note": "MA20 10d AUC CI [0.4685,0.8514] includes 0.5; stop distance 20d reversed. No validated positive uplift."
+  },
+  "changes": {
+    "research_only_validation_module": "scripts/c3_fixed_v1_source_entry_audit.py",
+    "research_test_module": "scripts/test_c3_fixed_v1_source_entry_audit.py",
+    "research_actions": ".github/workflows/c3_fixed_v1_source_entry_audit.yml",
+    "latest_source_audit_CI_seven_tests": "SUCCESS",
+    "operational_main_modified": false,
+    "top2_ranking_or_weight_changed": false,
+    "cash_rule_changed": false,
+    "entry_PASS_rule_changed": false,
+    "paper_ledger_changed": false,
+    "approval_changed": false,
+    "telegram_sender_changed": false,
+    "live_trades_or_orders": false,
+    "study_performance_publication_allowed": false,
+    "predictor_promoted": false,
+    "decision": "CASH"
+  },
+  "priority_next": [
+    {
+      "objective": "Resolve real 15:30 source semantics and verify corporate actions on 73 adjacent-session anomalies",
+      "completion": "dated official documentary evidence + source hash for affected event windows"
+    },
+    {
+      "objective": "Reconnect 101/88 prior-flow file rows and official KOSPI/KOSDAQ index series to actual same-date operational TOP2",
+      "completion": "historical PIT availability and same-date approved score recorded for prospective new events"
+    },
+    {
+      "objective": "Establish executable first and second entry range feasibility",
+      "completion": "separate pre-registered paper events, censoring/sequence guards, transaction costs, then independent out-of-sample validation"
+    }
+  ]
+}
