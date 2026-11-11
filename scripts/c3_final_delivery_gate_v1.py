@@ -162,6 +162,8 @@ def review(report, frozen_ranked_pool=None, pool_proof=None):
     # Telegram single-photo endpoints are different. One/day same receipt key.
     n=len(selected)
     kind='ALBUM_2' if n==2 else 'STOCK_1' if n==1 else 'CASH_1'
+    source_blocked=(report.get('source_regular_only_certified') is not True or
+                    any(row['source_blockers'] for row in audited))
     return {
         'schema':'C3_FINAL_PRESENTATION_REVIEW_V21',
         'asof':report.get('source_price_asof'),
@@ -176,6 +178,7 @@ def review(report, frozen_ranked_pool=None, pool_proof=None):
         'substitutes_invented':False,
         'telegram_policy':'ALBUM_IF_TWO_PHOTOS_ELSE_ONE_SEND_PHOTO',
         'delivery_kind':kind,'sendable':True,
+        'cash_reason':('SOURCE_VALIDATION_BLOCKED' if source_blocked else 'NO_ELIGIBLE_ENTRY') if n==0 else None,
         'orders_enabled':False,'decision':'ENTRY_WATCH_ONLY' if n else 'CASH',
         'read_only':True,
     }

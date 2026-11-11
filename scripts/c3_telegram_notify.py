@@ -47,12 +47,23 @@ def report_error(latest,summary,current):
     if latest.get('errors'):return 'REPORT_HAS_UNRESOLVED_ERRORS'
     if latest.get('orders_enabled') is not False or latest.get('current_action')!='CASH':return 'LIVE_ORDER_OR_ACTION_POLICY_VIOLATION'
     if latest.get('research_top2_registered_for_source_session') is not True:return 'UNREGISTERED_RESEARCH_PREVIEW'
-    picks=latest.get('research_top2') or []
-    if len(picks)!=2 or len({r.get('ticker') for r in picks})!=2:return 'EXACTLY_TWO_UNIQUE_CANDIDATES_REQUIRED'
+    picks=latest.get('research_top2')
+    final_enabled=os.environ.get('C3_FINAL_GATE_ENABLED','0')=='1'
+    allowed_counts=(0,1,2) if final_enabled else (2,)
+    if (not isinstance(picks,list) or len(picks) not in allowed_counts or
+        any(not isinstance(r,dict) or not re.fullmatch('[0-9A-Z]{6}',str(r.get('ticker',''))) for r in picks) or
+        len({r['ticker'] for r in picks})!=len(picks)):
+        return 'FINAL_CANDIDATE_COUNT_OR_IDENTITY_INVALID' if final_enabled else 'EXACTLY_TWO_UNIQUE_CANDIDATES_REQUIRED'
     try:
         generated=iso_timestamp(latest['generated_at']);received=iso_timestamp(latest['source_received_at'])
         if not timedelta(0)<=current.astimezone(timezone.utc)-generated<=timedelta(hours=30):return 'STALE_OR_FUTURE_REPORT'
         if not datetime.fromisoformat(day+'T15:30:00+09:00')<=received<=generated:return 'INVALID_SOURCE_RECEIPT_TIME'
+        # Original analysis may predate a later read of the SAME frozen source.
+        # Both facts must exist before this report; never infer finality from a
+        # successful workflow or generation timestamp alone.
+        completed=iso_timestamp(latest['analysis_completed_at'])
+        if not datetime.fromisoformat(day+'T15:30:00+09:00')<=completed<=generated:
+            return 'INVALID_ANALYSIS_COMPLETION_TIME'
     except (ValueError,TypeError,KeyError):return 'INVALID_REPORT_GENERATION_TIME'
     return None
 
@@ -148,7 +159,9 @@ def deliver(paths,report,store,bot,mode='live',clock=None):
     claim={'schema':'C3_PHOTO_ONLY_DELIVERY_V1','source_date':day,'mode':mode,'status':'CLAIMED_BEFORE_SEND','claimed_at':(clock or now_kst()).isoformat(),'card_sha256':hashes,'source_run_id':report.get('source_run_id'),'sender_code_sha':os.environ.get('GITHUB_SHA'),'sender_run_id':os.environ.get('GITHUB_RUN_ID'),'recipient_verified':True,'orders_enabled':False,'automatic_resend_allowed':False}
     if not store.reserve(key,claim):return dict(status='DUPLICATE_BLOCKED',key=key,send_attempts=0)
     try:result=dict(status='DELIVERED',**(bot.send_single(paths[0]) if len(paths)==1 else bot.send_album(paths)))
-    except Exception as e:result=dict(status='REVIEW_REQUIRED_NO_AUTOMATIC_RESEND',error_type=type(e).__name__)
+    except Exception as e:
+        code=str(e) if isinstance(e,ValueError) and re.fullmatch('[A-Z_0-9]{1,90}',str(e)) else 'TRANSPORT_OR_CONFIRMATION_UNCERTAIN'
+        result=dict(status='REVIEW_REQUIRED_NO_AUTOMATIC_RESEND',error_type=type(e).__name__,error_code=code)
     result.update(key=key,source_date=day,mode=mode,send_attempts=1,recorded_at=now_kst().isoformat(),sender_run_id=os.environ.get('GITHUB_RUN_ID'))
     try:store.finish(key,result)
     except Exception:result['receipt_write_status']='FAILED_CLAIM_REMAINS_NO_RESEND'

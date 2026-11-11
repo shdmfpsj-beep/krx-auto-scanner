@@ -11,7 +11,7 @@ from c3_telegram_inputs import GitHub,RESEARCH,ROOT,canonical,digest,report_pair
 
 ENGINE='077113ac2f5e93fecc4c47850b36e5eda2173e3d'
 SCHEMA='C3_PRESENTATION_HANDOFF_V1'
-FIELDS=('ticker','name','market','industry','model','rank','signal_id','reference_close','close','own_rs20','rs20','rs_accel5','turnover20','volume_ratio','turnover_ratio','market_regime','entry_plans','structure_reason','registered_at')
+FIELDS=('ticker','name','market','industry','model','rank','signal_id','reference_close','close','own_rs20','rs20','rs_accel5','turnover20','volume_ratio','turnover_ratio','market_regime','entry_plans','structure_reason','registered_at','order_validity_sessions','invalidation','decision_date','source_price_asof','source_received_at','analysis_completed_at')
 CONTEXT=('business','events','quarters','sources','missing','dart_status','collected_at','price_asof','selection_use','content_sha256')
 
 
@@ -84,6 +84,7 @@ def packet(report,ref,result,clock,outdir,dry_run=False,render_validated=None):
                 k:copy.deepcopy(gate[k]) for k in ('schema','asof','eligible_count','candidate_pool_status',
                                                     'delivery_kind','replacement_count','decision')
             }
+            if 'cash_reason' in gate:out['final_presentation_review']['cash_reason']=gate['cash_reason']
             if not picks:
                 if len(cards)!=1 or cards[0].get('ticker')!='CASH' or not diagnostic.get('cash_only'):
                     raise ValueError('CASH_HANDOFF_IMAGE_MISSING')
@@ -103,10 +104,13 @@ def packet(report,ref,result,clock,outdir,dry_run=False,render_validated=None):
         for row,card in zip(picks,cards):
             body=(root/(row['ticker']+'_integrated.png')).read_bytes()
             if card['asof']!=report['source_price_asof'] or card['sha256']!=digest(body):raise ValueError('HANDOFF_IMAGE_DATE_OR_HASH_MISMATCH')
+            original_plan=((row.get('entry_plans') or {}).get('A_SUPPORT_LIMIT') or {}).get('plan')
+            if 'original_support_plan' in card and card['original_support_plan']!=original_plan:
+                raise ValueError('HANDOFF_RENDERED_PLAN_SOURCE_MISMATCH')
             item={k:copy.deepcopy(row[k]) for k in FIELDS if k in row}
             ctx=row.get('company_context') or {}
             item['company_context']={k:copy.deepcopy(ctx[k]) for k in CONTEXT if k in ctx}
-            item['chart_audit']={k:card[k] for k in ('source_rows','source_basis','close','change','change_pct','ma_last','last5','notes','second_entry') if k in card}
+            item['chart_audit']={k:card[k] for k in ('source_rows','source_basis','close','change','change_pct','ma_last','last5','notes','second_entry','source_labels','original_support_plan') if k in card}
             if gate_rows:item['final_presentation_review']=copy.deepcopy(gate_rows[row['ticker']])
             out['research_top2'].append(item)
             p=((row.get('entry_plans') or {}).get('A_SUPPORT_LIMIT') or {}).get('plan') or {}

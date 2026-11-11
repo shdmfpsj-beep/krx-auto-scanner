@@ -88,10 +88,16 @@ def frozen_live_bars(gh,report,ref):
         record=json.loads(module.open_sealed(p,key))
     payload=record['payload']
     if record['sha256']!=digest(canonical(payload)) or payload['price_asof']!=day:raise ValueError('IMMUTABLE_DECISION_HASH_OR_DATE_MISMATCH')
-    by={r['ticker']:r for r in payload['models']['B']}
+    frozen=payload['models']['B']
+    public=report.get('research_top2')
+    if (not isinstance(public,list) or not isinstance(frozen,list) or
+        [(r.get('ticker'),r.get('signal_id'),r.get('rank')) for r in public] !=
+        [(r.get('ticker'),r.get('signal_id'),r.get('rank')) for r in frozen[:2]]):
+        raise ValueError('PUBLIC_AND_FROZEN_CANDIDATE_COUNT_OR_ORDER_MISMATCH')
+    by={r['ticker']:r for r in frozen}
     for r in report['research_top2']:
         old=by.get(r['ticker'])
-        if old is None or any(old.get(k)!=r.get(k) for k in ('signal_id','reference_close','entry_plans','model','rank')):raise ValueError('PUBLIC_REPORT_AND_FROZEN_DECISION_MISMATCH')
+        if old is None or any(old.get(k)!=r.get(k) for k in ('name','signal_id','reference_close','entry_plans','model','rank')):raise ValueError('PUBLIC_REPORT_AND_FROZEN_DECISION_MISMATCH')
         r['chart_bars']=old['chart_bars'];r['chart_price_basis']='KRX_UNADJUSTED_AS_TRADED'
     report['input_provenance']={'research_ref':ref,'decision_payload_sha256':record['sha256'],'ultimate_origin':'KRX','price_basis':'UNADJUSTED_AS_TRADED'}
     # Only the authenticated immutable B-decision may supply original ranks 3+.

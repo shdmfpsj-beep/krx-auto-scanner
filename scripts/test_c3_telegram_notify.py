@@ -13,6 +13,7 @@ from c3_classic_theme import moving_average,validate_bars,notes,TRADE_COLORS
 def fixture():
     clock=datetime(2026,11,6,22,45,tzinfo=ZoneInfo('Asia/Seoul'))
     r={'source_price_asof':'2026-11-06','source_run_id':'SYNTHETIC','generated_at':'2026-11-06T13:30:00Z','source_received_at':'2026-11-06T13:29:00Z','data_quality_state':'OFFICIAL_VERIFIED','source_provider':'KRX_OFFICIAL_EOD','source_quality_gate':{'status':'QUALITY_GATE_PASSED','errors':[],'markets':{'KOSPI':{'rows':900},'KOSDAQ':{'rows':1800}}},'current_scope':{'price_rows':2700,'analysis_eligible':1800},'errors':[],'orders_enabled':False,'current_action':'CASH','research_top2_registered_for_source_session':True,'research_top2':[{'ticker':'000001'},{'ticker':'000002'}]}
+    r['analysis_completed_at']='2026-11-06T13:29:30Z'
     s={k:r[k] for k in ('source_price_asof','source_run_id','generated_at')};return r,s,clock
 
 class MemoryStore:

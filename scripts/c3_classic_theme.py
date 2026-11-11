@@ -1,6 +1,7 @@
 """One white/gold C3 card. True OHLCV paths and dated company context only."""
 import functools, hashlib, json, math, os
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -28,6 +29,27 @@ def text(d,x,y,value,size=32,color=INK,bold=False,anchor=None):
 
 
 def won(v):return f'{v:,.0f}원' if v is not None else '미확정'
+
+
+def source_labels(report,row,bars):
+    """Only original validity and timestamps; never invent an expiry date."""
+    sessions=row.get('order_validity_sessions')
+    validity=(f'다음 {sessions}거래일 · 범위 미도달 PASS' if type(sessions) is int and sessions>0 else '원본 유효기간 미확정 · 진입 보류')
+    received=row.get('source_received_at') or report.get('source_received_at')
+    stamp='수집 시각 미확정'
+    if received:
+        try:
+            dt=datetime.fromisoformat(str(received).replace('Z','+00:00'))
+            if dt.tzinfo is None:raise ValueError('TIMEZONE_REQUIRED')
+            stamp='수집 '+dt.astimezone(ZoneInfo('Asia/Seoul')).strftime('%m/%d %H:%M KST')
+        except (TypeError,ValueError):pass
+    visible=min(VISIBLE_SESSIONS,len(bars))
+    ma60_points=sum(i>=59 for i in range(len(bars)-visible,len(bars)))
+    return dict(validity=validity,order_validity_sessions=sessions,
+                decision_date=row.get('decision_date'),price_asof=report.get('source_price_asof'),
+                source_received_at=received,source_received_label=stamp,
+                ma60_visible_points=ma60_points,ma60_full_visible_window=ma60_points==visible,
+                required_rows_for_full_ma60_window=VISIBLE_SESSIONS+59)
 
 
 def validate_bars(rows,asof,close):
@@ -184,6 +206,7 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards',allow_single=False):
     root=Path(outdir);root.mkdir(parents=True,exist_ok=True);files=[];diagnostics=[]
     for rank,r in enumerate(picks,1):
         asof=report['source_price_asof'];close=float(r.get('reference_close',r['close']));bars=validate_bars(r.get('chart_bars',[]),asof,close)
+        source=source_labels(report,r,bars)
         if r.get('chart_price_basis')!='KRX_UNADJUSTED_AS_TRADED':raise ValueError('CHART_PRICE_BASIS_NOT_VERIFIED')
         p=((r.get('entry_plans') or {}).get('A_SUPPORT_LIMIT') or {}).get('plan');im=Image.new('RGB',(W,H),PAPER);d=ImageDraw.Draw(im)
         d.rectangle((0,0,W,98),fill=INK);d.rectangle((0,94,W,99),fill=GOLD)
@@ -196,7 +219,9 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards',allow_single=False):
         d.rectangle((48,252,1352,294),fill='#F0EBDD');text(d,700,258,banner,27,GOLD,True,anchor='ma')
         d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2);text(d,74,333,'일봉 · 최근 60거래일 가격과 거래량',31,INK,True)
         for i,n in enumerate((5,20,60)):
-            xx=800+i*164;d.line((xx,353,xx+33,353),fill=MA_COLORS[n],width=4);text(d,xx+43,338,f'{n}일선',25,SUB)
+            xx=770+i*175;d.line((xx,353,xx+28,353),fill=MA_COLORS[n],width=4)
+            label=(f'60일선 {source["ma60_visible_points"]}/60' if n==60 and not source['ma60_full_visible_window'] else f'{n}일선')
+            text(d,xx+34,338,label,22,SUB)
         av,geometry=plot(d,bars,r,p);text(d,54,1218,'매매 관찰 구간',33,INK,True)
         cells=[('1차 매수 범위',won(p['low'])+' ~\n'+won(p['high']) if p else '미성립',GREEN),('2차 매수 범위','미확정',BLUE),('손절가',won(p.get('stop')) if p else '미확정',RED),('1차 저항',won(p.get('resistance')) if p else '미확정',GOLD),('2차 저항',won(p.get('resistance2')) if p else '미확정',PURPLE)]
         for i,(label,value,c) in enumerate(cells):
@@ -222,12 +247,12 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards',allow_single=False):
         risks=[labels[x] for x in gate.get('reasons',[]) if x in labels]
         msg=' / '.join(risks[:2]) if risks else '원본 계획 기반 관찰 · 실전 주문 아님'
         text(d,700,2294,'타점 판단: '+msg,23,RED if risks else SUB,True,anchor='ma')
-        text(d,700,2329,'기업자료: DART·기업 IR · 선정 후 조사이며 점수·매수가에 미반영',23,SUB,anchor='ma')
-        text(d,700,2364,'KRX 가격 · 정규장 범위 별도 검증 필요 · 실제 매수 승인이 아닙니다.',23,SUB,anchor='ma')
+        text(d,700,2329,f'선정 {source["decision_date"] or "미확정"} · 가격 {asof} · '+source['source_received_label'],21,SUB,anchor='ma')
+        text(d,700,2364,'유효: '+source['validity']+' · 정규장 범위 별도 검증 · 실전 승인 아님',21,SUB,anchor='ma')
         path=root/(r['ticker']+'_integrated.png');im.save(path,optimize=True);files.append(path)
         diagnostics.append(dict(ticker=r['ticker'],entry_geometry_review=gate,asof=asof,source_rows=len(bars),visible_rows=min(VISIBLE_SESSIONS,len(bars)),visible_first_date=bars[-VISIBLE_SESSIONS]['date'],visible_last_date=bars[-1]['date'],source_basis=r['chart_price_basis'],previous_close=previous,close=close,change=change,change_pct=pct,
             ma_last={str(n):seq[-1] for n,seq in av.items()},ma_valid_points={str(n):sum(v is not None for v in seq) for n,seq in av.items()},last5=[dict(b,**{'ma'+str(n):av[n][i] for n in av}) for i,b in list(enumerate(bars))[-5:]],geometry=geometry,
-            second_entry='NO_VALIDATED_SECOND_ENTRY_PLAN',company_context_status=(r.get('company_context') or {}).get('dart_status','NOT_ATTACHED'),company_context_missing=(r.get('company_context') or {}).get('missing',[]),notes=rendered,layout=layout,sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
+            second_entry='NO_VALIDATED_SECOND_ENTRY_PLAN',source_labels=source,original_support_plan=p,company_context_status=(r.get('company_context') or {}).get('dart_status','NOT_ATTACHED'),company_context_missing=(r.get('company_context') or {}).get('missing',[]),notes=rendered,layout=layout,sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
     (root/'render_diagnostics.json').write_text(json.dumps(dict(example_only=bool(report.get('example_only')),cards=diagnostics),ensure_ascii=False,indent=2)+'\n')
     return files
 
@@ -248,12 +273,13 @@ def create_cash_card(report,outdir='/tmp/c3-integrated-cards'):
     text(d,1345,41,asof.replace('-','.'),31,'#EEEAE2',anchor='ra')
     if report.get('historical_test_only'):text(d,700,212,'과거 거래일 재현 테스트 · 실제 발송 없음',32,RED,True,anchor='ma')
     text(d,700,390,'CASH',155,GOLD,True,anchor='ma')
-    text(d,700,585,'신규 매수 관찰 종목 없음',52,INK,True,anchor='ma')
+    blocked=v.get('cash_reason')=='SOURCE_VALIDATION_BLOCKED'
+    text(d,700,585,'자료 검증 보류 · 매수 대기' if blocked else '신규 매수 관찰 종목 없음',52,INK,True,anchor='ma')
     text(d,700,730,'기준일: '+asof,37,SUB,anchor='ma')
     d.rounded_rectangle((55,860,1345,1810),radius=18,fill='white',outline='#DEDAD1',width=3)
     text(d,100,910,'최종 관찰 판단',45,INK,True)
     notes=[
-        '검증된 매수 타점을 충족한 후보가 없습니다.',
+        '자료 검증이 끝나지 않아 후보 확정을 보류합니다.' if blocked else '검증된 매수 타점을 충족한 후보가 없습니다.',
         '후보 순위를 임의로 재구성하지 않았습니다.',
         '확인되지 않은 손절가·목표가를 만들지 않았습니다.',
         '시장 데이터 및 가격 근거가 불충분하면 보류합니다.'
