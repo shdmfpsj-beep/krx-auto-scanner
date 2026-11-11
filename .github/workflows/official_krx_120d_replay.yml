@@ -8,6 +8,7 @@ on:
     paths:
       - 'scripts/official_krx_120d_replay.py'
       - 'scripts/test_official_krx_120d_replay.py'
+      - 'scripts/c3_stored_history_diagnostics.py'
       - '.github/workflows/official_krx_120d_replay.yml'
 permissions:
   contents: read
@@ -33,6 +34,7 @@ jobs:
             /scripts/test_c3_three_entry_replay.py
             /scripts/krx_official_eod_v65.py
             /scripts/c3_three_entry_replay.py
+            /scripts/c3_stored_history_diagnostics.py
             /scripts/forward_ledger_v63.py
             /scripts/source_consensus_v64.py
             /scripts/free_structural_v52.py
@@ -75,6 +77,16 @@ jobs:
           subprocess.run([sys.executable,"scripts/official_krx_120d_replay.py",
             "--end",d.isoformat(),"--sessions","160","--max-requests","12",
             "--collect","--root","output/official_history","--out","output/replay"],check=True)
+          PY
+      - name: Diagnose stored-history signals and overlapping models (no returns)
+        run: |
+          python - <<'PY'
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          import subprocess,sys
+          d=datetime.now(ZoneInfo('Asia/Seoul')).date()-timedelta(days=1)
+          while d.weekday()>=5:d-=timedelta(days=1)
+          subprocess.run([sys.executable,'scripts/c3_stored_history_diagnostics.py','--root','output/official_history','--end',d.isoformat(),'--out','output/replay/c3_signal_diagnostics.json'],check=True)
           PY
       - name: Independently audit restored official history and provenance blockers
         if: always()
