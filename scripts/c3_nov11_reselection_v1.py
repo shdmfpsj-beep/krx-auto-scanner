@@ -147,6 +147,14 @@ def main():
 
     pool.sort(key=lambda row:(-row["turnover20"],-row["rs20"],row["ticker"]))
     bpool=[r for r in pool if r["own_rs20"]>0 and r["rs_accel5"]>0]
+    print("C3_REPLAY_SCOPE_CHECK="+json.dumps(dict(
+        original_b=old_b,replayed_b=[r["ticker"] for r in bpool[:2]],
+        original_scope={k:expected.get(k) for k in
+                        ("a_candidates","b_candidates","continuous_history","analysis_eligible")},
+        replay_scope=dict(a_candidates=len(pool),b_candidates=len(bpool),
+            continuous_history=len(past),analysis_eligible=sum(
+                classify(prices[t],basics.get(t),kind.get(t),secondary[t])==
+                "VERIFIED_NONBIO_COMMON_AS_REPORTED" for t in past)))),flush=True)
     if ([r["ticker"] for r in bpool[:2]]!=old_b or len(pool)!=expected["a_candidates"] or
             len(bpool)!=expected["b_candidates"] or
             len(past)!=expected["continuous_history"] or
