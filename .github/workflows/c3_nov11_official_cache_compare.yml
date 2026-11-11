@@ -1,0 +1,128 @@
+name: C3 2026-11-11 official versus cache full-market audit (READ ONLY)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c3_nov11_official_cache_compare.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/krx_official_eod_v65.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compare exactly dated KRX official daily rows to immutable 11-11 public source
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv, io, json, os, hashlib
+          from collections import Counter
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          from krx_official_eod_v65 import collect, official_rows
+
+          DAY="2026-11-11"
+          EXPECTED_SHA="3dc4b25f7bd1f8c2c42bdce6e916fd9838d07685ae57311e97127c6b997c4baa"
+          out=Path("audit_result");out.mkdir(exist_ok=True)
+          result={
+              "schema":"C3_NOV11_OFFICIAL_CACHE_ROWWISE_AUDIT_V1",
+              "asof":DAY,"checked_at_utc":datetime.now(timezone.utc).isoformat(),
+              "status":"BLOCKED_NOT_VERIFIED","decision":"CASH",
+              "orders_enabled":False,"trade_approved":False,"telegram_sent":False,
+              "regular_session_0900_1530_certified":False,
+              "official_eod_agreement_is_not_independent_session_authentication":True
+          }
+          try:
+              cached_url=("https://raw.githubusercontent.com/FinanceData/"
+                "fdr_krx_data_cache/master/data/listing/krx/"+DAY+".csv")
+              req=Request(cached_url,headers={"User-Agent":"C3ReadOnlyAudit/1.0"})
+              with urlopen(req,timeout=35) as response: blob=response.read(3_000_001)
+              if len(blob)>3_000_000:raise ValueError("CACHE_PAYLOAD_TOO_LARGE")
+              sha=hashlib.sha256(blob).hexdigest()
+              result["cache_sha256"]=sha
+              if sha!=EXPECTED_SHA:raise ValueError("CACHE_SOURCE_HASH_CHANGED")
+              reader=csv.DictReader(io.StringIO(blob.decode("utf-8-sig")))
+              cache={}
+              markets=Counter()
+              for row in reader:
+                  name=row["Market"]
+                  if name=="KONEX":continue
+                  if name not in ("KOSPI","KOSDAQ","KOSDAQ GLOBAL"):
+                      raise ValueError("UNKNOWN_CACHE_MARKET")
+                  market="KOSDAQ" if name.startswith("KOSDAQ") else "KOSPI"
+                  code=row["Code"].strip()
+                  if code in cache:raise ValueError("DUPLICATE_CACHE_CODE")
+                  cache[code]=(market,{
+                      "open":float(row["Open"]), "high":float(row["High"]),
+                      "low":float(row["Low"]), "close":float(row["Close"]),
+                      "volume":float(row["Volume"]), "turnover_krw":float(row["Amount"])})
+                  markets[market]+=1
+              result["cache_market_rows"]=dict(markets)
+              if len(cache)!=2769 or dict(markets)!={"KOSPI":936,"KOSDAQ":1833}:
+                  raise ValueError("CACHE_COVERAGE_CHANGED")
+              official_root=Path("/tmp/c3-nov11-official-private")
+              manifest=collect(DAY,official_root,os.environ.get("KRX_AUTH_KEY"))
+              result["official_status"]=manifest["status"]
+              result["official_market_rows"]=manifest.get("official_market_rows",0)
+              result["official_raw_hashes"]=manifest.get("raw_response_sha256",{})
+              if not manifest.get("official_dataset_usable"):
+                  raise ValueError("OFFICIAL_DAILY_SOURCE_NOT_USABLE")
+              official=official_rows(official_root,manifest)
+              result["official_parsed_tickers"]=len(official)
+              cache_only=sorted(set(cache)-set(official))
+              official_only=sorted(set(official)-set(cache))
+              counts=Counter()
+              examples=[]
+              for ticker in sorted(set(cache)&set(official)):
+                  cm, cv=cache[ticker];om, ov=official[ticker]
+                  if cm!=om:counts["market"]+=1
+                  for field in ("open","high","low","close","volume","turnover_krw"):
+                      if cv[field]!=ov[field]:
+                          counts[field]+=1
+                          if len(examples)<12:
+                              examples.append({"ticker":ticker,"field":field,
+                                  "cache":cv[field],"official":ov[field]})
+              result["cache_only_count"]=len(cache_only)
+              result["official_only_count"]=len(official_only)
+              result["cache_only_examples"]=cache_only[:12]
+              result["official_only_examples"]=official_only[:12]
+              result["mismatch_by_field"]=dict(counts)
+              result["mismatch_examples"]=examples
+              result["comparable_rows"]=len(set(cache)&set(official))
+              if not cache_only and not official_only and not counts and len(cache)==2769:
+                  result["status"]="OFFICIAL_DAILY_MATCHES_CACHE_ALL_FIELDS_BUT_SESSION_UNCERTIFIED"
+              else:
+                  result["status"]="OFFICIAL_DAILY_CACHE_DISCREPANCY"
+          except Exception as exc:
+              result["blocker"]=str(exc) if isinstance(exc,ValueError) else type(exc).__name__
+          Path("audit_result/nov11_audit_summary.json").write_text(
+              json.dumps(result,ensure_ascii=False,indent=2,allow_nan=False)+"\n",
+              encoding="utf-8")
+          print("C3_NOV11_READONLY_AUDIT="+json.dumps(result,ensure_ascii=False))
+          assert result["orders_enabled"] is False
+          assert result["regular_session_0900_1530_certified"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-nov11-official-cache-aggregate-audit
+          path: audit_result/nov11_audit_summary.json
+          retention-days: 30
+          if-no-files-found: warn
