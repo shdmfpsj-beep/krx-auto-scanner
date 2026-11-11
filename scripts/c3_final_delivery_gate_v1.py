@@ -107,48 +107,102 @@ def classify(row, report):
     }
 
 
-def review(report, frozen_ranked_pool=None, pool_proof=None):
-    """Only evaluate immutable original TOP2. No unverified alternate candidates.
+def _verified_pool(report, rows, pool, proof):
+    """Accept only B-model rows already authenticated by frozen_live_bars.
 
-    A third-party/incomplete pool is intentionally NOT accepted for promotion.
-    New full-pool as-of source proof must be integrated in a later approved task.
+    The parallel top20 discovery channel is NEVER a substitute for these rows.
+    Hash equality alone is not a trusted origin; the sealed-decision reader
+    must attach the verified proof when decrypting the immutable research data.
     """
-    rows = report.get("research_top2") or []
-    if not isinstance(rows, list):
-        raise ValueError("TOP2_NOT_A_LIST")
-    tickers = [row.get("ticker") for row in rows]
-    if len(tickers) != len(set(tickers)) or len(rows) > 2:
-        raise ValueError("TOP2_IMMUTABLE_IDENTITY_INVALID")
-    original_digest = hashlib.sha256(_canonical(rows)).hexdigest()
-    audited = [classify(row, report) for row in rows]
-    approved = [item for item in audited if item["presentation_eligible"]]
-    # A one-photo album must NOT be sent through sendMediaGroup.
-    sendable = len(approved) == 2
+    if not isinstance(pool,list) or not isinstance(proof,dict) or len(pool)<3:return False
+    if proof.get('schema')!='C3_IMMUTABLE_B_POOL_V21' or proof.get('origin')!='AUTHENTICATED_FROZEN_C3_B_DECISION':
+        return False
+    if proof.get('source_run_id')!=report.get('source_run_id') or proof.get('asof')!=report.get('source_price_asof'):
+        return False
+    if proof.get('source_validation_sha256')!=report.get('source_validation_sha256'):
+        return False
+    if not re.fullmatch('[a-f0-9]{64}',str(proof.get('frozen_decision_sha256') or '')):
+        return False
+    if proof.get('pool_sha256')!=hashlib.sha256(_canonical(pool)).hexdigest():
+        return False
+    if not re.fullmatch('[a-f0-9]{40}',str(proof.get('frozen_research_commit') or '')):
+        return False
+    if not rows or len(rows)!=2 or not all(isinstance(x,dict) for x in pool):
+        return False
+    if [p.get('rank') for p in pool]!=list(range(1,len(pool)+1)):
+        return False
+    if len({p.get('ticker') for p in pool})!=len(pool):
+        return False
+    if len({p.get('signal_id') for p in pool})!=len(pool):
+        return False
+    same=('ticker','rank','signal_id','entry_plans','reference_close','model','source_price_asof')
+    for j,row in enumerate(rows):
+        if any(row.get(name)!=pool[j].get(name) for name in same):
+            return False
+    for p in pool:
+        if (p.get('model')!='B' or p.get('source_price_asof')!=proof['asof'] or
+            p.get('source_run_id')!=proof['source_run_id'] or
+            not isinstance(p.get('entry_plans'),dict) or not p.get('signal_id')):
+            return False
+    return True
+
+
+def review(report, frozen_ranked_pool=None, pool_proof=None):
+    """Keep original TOP2 intact. Promote only authenticated same-model rows."""
+    rows=report.get('research_top2') or []
+    if not isinstance(rows,list):raise ValueError('TOP2_NOT_A_LIST')
+    tickers=[x.get('ticker') for x in rows]
+    if len(tickers)!=len(set(tickers)) or len(rows)>2:
+        raise ValueError('TOP2_IMMUTABLE_IDENTITY_INVALID')
+    original_digest=hashlib.sha256(_canonical(rows)).hexdigest()
+    pool_ok=_verified_pool(report,rows,frozen_ranked_pool,pool_proof)
+    examined=frozen_ranked_pool if pool_ok else rows
+    audited=[classify(row,report) for row in examined]
+    selected=[x for x in audited if x['presentation_eligible']][:2]
+    # Telegram single-photo endpoints are different. One/day same receipt key.
+    n=len(selected)
+    kind='ALBUM_2' if n==2 else 'STOCK_1' if n==1 else 'CASH_1'
     return {
-        "schema": "C3_FINAL_PRESENTATION_REVIEW_V1",
-        "asof": report.get("source_price_asof"),
-        "source_run_id": report.get("source_run_id"),
-        "price_source_sha256": report.get("source_validation_sha256"),
-        "original_top2_sha256": original_digest,
-        "original_top2_count": len(rows),
-        "reviewed": audited, "eligible": approved,
-        "eligible_count": len(approved),
-        "candidate_pool_status": "CANDIDATE_POOL_UNVERIFIED",
-        "replacement_count": 0, "substitutes_invented": False,
-        "telegram_policy": "TWO_PHOTOS_ONLY_ELSE_SILENT_SKIP",
-        "sendable": sendable, "orders_enabled": False,
-        "decision": "ENTRY_WATCH_ONLY" if sendable else "CASH",
-        "read_only": True,
+        'schema':'C3_FINAL_PRESENTATION_REVIEW_V21',
+        'asof':report.get('source_price_asof'),
+        'source_run_id':report.get('source_run_id'),
+        'price_source_sha256':report.get('source_validation_sha256'),
+        'original_top2_sha256':original_digest,
+        'original_top2_count':len(rows),
+        'reviewed':audited,'eligible':selected,'eligible_count':n,
+        'candidate_pool_status':'AUTHENTICATED_SAME_MODEL_B_POOL' if pool_ok else 'CANDIDATE_POOL_UNVERIFIED',
+        'ranked_pool_source_sha256':pool_proof.get('frozen_decision_sha256') if pool_ok else None,
+        'replacement_count':len([x for x in selected if x.get('original_rank',0)>2]),
+        'substitutes_invented':False,
+        'telegram_policy':'ALBUM_IF_TWO_PHOTOS_ELSE_ONE_SEND_PHOTO',
+        'delivery_kind':kind,'sendable':True,
+        'orders_enabled':False,'decision':'ENTRY_WATCH_ONLY' if n else 'CASH',
+        'read_only':True,
     }
 
 
-def filtered_report_for_presentation(report, evaluation):
-    """Never modify the original report; requires exactly two certified rows."""
-    if evaluation.get("sendable") is not True:
-        raise ValueError("NO_TWO_ELIGIBLE_PRESENTATION_CANDIDATES")
-    allowed = {r["ticker"] for r in evaluation["eligible"]}
-    result = deepcopy(report)
-    result["research_top2"] = [r for r in result["research_top2"] if r["ticker"] in allowed]
-    if len(result["research_top2"]) != 2:
-        raise ValueError("PRESENTATION_ELIGIBILITY_IDENTITY_MISMATCH")
+def filtered_report_for_presentation(report,evaluation,frozen_ranked_pool=None):
+    """Presentation copy; immutable original rank/selection report is untouched."""
+    if evaluation.get('schema')!='C3_FINAL_PRESENTATION_REVIEW_V21':
+        raise ValueError('FINAL_REVIEW_SCHEMA_MISMATCH')
+    chosen=evaluation.get('eligible') or []
+    allowed={x.get('ticker') for x in chosen}
+    if len(chosen)>2 or len(allowed)!=len(chosen):
+        raise ValueError('FINAL_PRESENTATION_DUPLICATE')
+    source=(frozen_ranked_pool if evaluation.get('candidate_pool_status')=='AUTHENTICATED_SAME_MODEL_B_POOL' else report.get('research_top2')) or []
+    matching={r['ticker']:r for r in source if r.get('ticker') in allowed}
+    if len(matching)!=len(chosen):
+        raise ValueError('PRESENTATION_ELIGIBILITY_IDENTITY_MISMATCH')
+    result=deepcopy(report)
+    result['research_top2']=[]
+    for selected in chosen:
+        original=matching[selected['ticker']]
+        if original.get('signal_id')!=selected.get('signal_id') or original.get('rank')!=selected.get('original_rank'):
+            raise ValueError('PRESENTATION_RANKED_SIGNAL_MISMATCH')
+        item=deepcopy(original)
+        item['presentation_status']=selected['final_status']
+        result['research_top2'].append(item)
+    result['final_presentation_review']=deepcopy(evaluation)
+    result.pop('presentation_ranked_pool',None)
+    result.pop('presentation_pool_proof',None)
     return result
