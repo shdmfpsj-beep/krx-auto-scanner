@@ -7,6 +7,7 @@ import json
 import os
 import re
 import tempfile
+import requests
 from datetime import date,datetime,timedelta,timezone
 from pathlib import Path
 
@@ -21,7 +22,26 @@ ALLOWED_CHART_IDS=('ka10081','ka11081')
 def digest(value):return hashlib.sha256(value).hexdigest()
 
 
-def kiwoom_probe(env=None,send=post):
+def strict_source_post(path,headers,body):
+    """Documented OAuth/chart requests only, redirects and retries disabled."""
+    api_id=headers.get('api-id')
+    if not (path=='/oauth2/token' or path=='/api/dostk/chart' and api_id in ALLOWED_CHART_IDS):
+        raise ValueError('READ_ONLY_ENDPOINT_REQUIRED')
+    h=dict(headers,Accept='application/json')
+    if path=='/oauth2/token':h['api-id']='au10001'
+    response=requests.post('https://api.kiwoom.com'+path,headers=h,json=body,
+                           timeout=(10,25),allow_redirects=False)
+    raw=response.content
+    try:payload=response.json()
+    except ValueError:payload=None
+    kind='JSON_OBJECT' if isinstance(payload,dict) else 'HTML' if raw.lstrip().startswith(b'<') else 'NON_JSON'
+    if response.status_code!=200 or not isinstance(payload,dict):
+        raise RuntimeError('KIWOOM_HTTP_REJECTED http_status='+str(response.status_code)+
+                           ' body_kind='+kind+' body_sha256='+digest(raw))
+    return payload,dict(response.headers)
+
+
+def kiwoom_probe(env=None,send=strict_source_post):
     env=env if env is not None else os.environ
     key=env.get('KIWOOM_APP_KEY','').strip();secret=env.get('KIWOOM_APP_SECRET','').strip()
     out={'app_key_present':bool(key),'app_secret_present':bool(secret),'read_only':True,

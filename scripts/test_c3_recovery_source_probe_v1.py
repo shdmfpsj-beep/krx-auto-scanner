@@ -1,8 +1,21 @@
 import unittest
-from c3_recovery_source_probe_v1 import kiwoom_probe
+from unittest.mock import Mock,patch
+from c3_recovery_source_probe_v1 import kiwoom_probe,strict_source_post
 
 
 class ReadOnlyProviderProbeTests(unittest.TestCase):
+    def test_strict_transport_is_documented_contract_without_redirects(self):
+        reply=Mock(status_code=200,content=b'{}',headers={});reply.json.return_value={'return_code':0}
+        with patch('c3_recovery_source_probe_v1.requests.post',return_value=reply) as send:
+            strict_source_post('/oauth2/token',{'Content-Type':'application/json;charset=UTF-8'},
+                               {'grant_type':'client_credentials','appkey':'PRIVATE','secretkey':'PRIVATE'})
+            self.assertEqual(send.call_count,1)
+            self.assertIs(send.call_args.kwargs['allow_redirects'],False)
+            self.assertEqual(send.call_args.kwargs['headers']['api-id'],'au10001')
+            self.assertEqual(send.call_args.kwargs['headers']['Accept'],'application/json')
+        with self.assertRaisesRegex(ValueError,'READ_ONLY'):
+            strict_source_post('/api/dostk/ordr',{'api-id':'kt10000'},{})
+
     def test_missing_pair_never_requests_token(self):
         def never(*args):raise AssertionError('NO_CREDENTIAL_NO_REQUEST')
         for env in ({},{'KIWOOM_APP_KEY':'SYNTHETIC_KEY'},{'KIWOOM_APP_SECRET':'SYNTHETIC_SECRET'}):
