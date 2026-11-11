@@ -11,7 +11,7 @@ class ReplayTests(unittest.TestCase):
   b=self.bars()
   self.assertEqual(signals(b,80),signals(b[:81],80))
  def test_stop_wins_ambiguous_bar(self):
-  b=self.bars();b[81]["low"]=90;b[81]["high"]=130
+  b=self.bars();b[81]["open"]=114;b[81]["low"]=90;b[81]["high"]=130
   x=evaluate(b,80,"X",115,100,125)
   self.assertTrue(x["filled"])
   self.assertEqual(x["outcomes"]["5"]["status"],"STOP")
