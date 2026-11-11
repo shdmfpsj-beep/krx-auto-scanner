@@ -1,0 +1,253 @@
+{
+  "schema": "C3_PR89_FINAL_EVIDENCE_SUMMARY_20261111",
+  "repository": "shdmfpsj-beep/krx-auto-scanner",
+  "study_type": "research_only_frozen_prepost_asof",
+  "baseline": {
+    "pr": 87,
+    "merge_sha": "1a0e098dbe36b60a459c9391e54a3760b7bea5d2",
+    "run_id": 42939460173,
+    "artifact_id": 13819064332,
+    "raw_daily_top2_events": 108,
+    "twenty_session_suppressed": 30,
+    "deduplicated_events": 78,
+    "observed_20d": 43,
+    "qc_valid": {
+      "5": 60,
+      "10": 51,
+      "20": 37
+    }
+  },
+  "source_extension": {
+    "run_id": 42950252617,
+    "artifact_id": 13824887176,
+    "artifact_sha256": "60acbfc1ccaa65b9485fb05856eb89d531d37eb3a8ba8a7f31ed1037654f516f",
+    "first_date": "2026-04-01",
+    "latest_date": "2026-11-10",
+    "market_days_before": 114,
+    "market_days_after": 150,
+    "source_rows_before": 300107,
+    "source_rows_after": 395575,
+    "unique_tickers": 2766,
+    "tickers_with_120_actual_bars": 2620,
+    "integrity_hash_errors": 0,
+    "unadjusted_discontinuity_flags": 410,
+    "historical_universe_vintage_certified": false,
+    "regular_1530_certified": false,
+    "corporate_action_adjustments_certified": false,
+    "price_pnl_publication_allowed": false
+  },
+  "expanded_selection": {
+    "raw_daily_top2_events": 180,
+    "suppressed": 51,
+    "deduplicated_events": 129,
+    "baseline_events_preserved": 78,
+    "new_events_after_2026_09_16": 51,
+    "observed": {
+      "5": 123,
+      "10": 118,
+      "20": 100
+    },
+    "qc_valid": {
+      "5": 106,
+      "10": 101,
+      "20": 84
+    }
+  },
+  "frozen_sep16_holdout": {
+    "run_id": 42952002759,
+    "artifact_id": 13825044120,
+    "artifact_sha256": "5f83124822357e7e3979341181c24e268e5bb0e52bfb60f11371b49f31889985",
+    "train_matured_before_2026_09_16": {
+      "5": 60,
+      "10": 51,
+      "20": 37
+    },
+    "test_qc_valid": {
+      "5": 40,
+      "10": 35,
+      "20": 20
+    },
+    "positive": {
+      "5": 17,
+      "10": 14,
+      "20": 6
+    },
+    "positive_fraction": {
+      "5": 0.425,
+      "10": 0.4,
+      "20": 0.3
+    },
+    "wilson_95pct": {
+      "5": [
+        0.2851,
+        0.578
+      ],
+      "10": [
+        0.2555,
+        0.5643
+      ],
+      "20": [
+        0.1455,
+        0.519
+      ]
+    },
+    "mean_selection_close_return_pct": {
+      "5": -2.8068,
+      "10": -5.3555,
+      "20": -12.9058
+    },
+    "mean_selection_close_return_bootstrap_95pct": {
+      "5": [
+        -6.9343,
+        1.6305
+      ],
+      "10": [
+        -10.4695,
+        0.02
+      ],
+      "20": [
+        -20.6296,
+        -4.5129
+      ]
+    },
+    "mean_mfe_pct": {
+      "5": 10.831,
+      "10": 15.2473,
+      "20": 22.5867
+    },
+    "mean_mae_pct": {
+      "5": -12.833,
+      "10": -15.6825,
+      "20": -22.7352
+    },
+    "auc_direction_frozen_on_train": {
+      "momentum_20d_pct": {
+        "5": 0.4706,
+        "10": 0.5068,
+        "20": 0.4167
+      },
+      "rvol_20d": {
+        "5": 0.4731,
+        "10": 0.4422,
+        "20": 0.5476
+      },
+      "ma20_extension_pct": {
+        "5": 0.5192,
+        "10": 0.6599,
+        "20": 0.5595
+      },
+      "ma20_vs_ma60_pct": {
+        "5": 0.4194,
+        "10": 0.3707,
+        "20": 0.3452
+      },
+      "stop_distance_pct": {
+        "5": 0.6138,
+        "10": 0.6531,
+        "20": 0.1071
+      }
+    },
+    "predictor_promoted": false,
+    "selection_returns_are_not_fill_pnl": true,
+    "next_session_entry_range": {
+      "no_touch_PASS": 48,
+      "hypothetical_range_overlap_not_fill": 2,
+      "censored_no_next_day": 1
+    }
+  },
+  "strict_source_join": {
+    "run_id": 42952002759,
+    "source_artifact_id": 13825044120,
+    "baseline_78_KRX_date_sha_matched": 78,
+    "expanded_129_KRX_date_sha_matched": 129,
+    "markets": {
+      "KOSPI": 54,
+      "KOSDAQ": 75
+    },
+    "opendart_v91_date_provisional": 14,
+    "opendart_numeric_original_vintage_verified": 0,
+    "operational_TOP2_same_date_matches": 0,
+    "benchmark_index_service": {
+      "KOSPI": "HTTP_401",
+      "KOSDAQ": "HTTP_401"
+    },
+    "investor_type_net_flow": "BLOCKED_NO_VERIFIED_ASOF_SOURCE",
+    "sector_PIT": "BLOCKED_EMPTY_DATED_MEMBERSHIP",
+    "corporate_actions": "UNVERIFIED",
+    "no_future_receipts_promoted": true
+  },
+  "issuer_share_type": {
+    "access_probe_run": 42951576807,
+    "historical_run": 42951923214,
+    "artifact_id": 13825860610,
+    "artifact_sha256": "50e651d1d2d1b791b6e8bc0c02d9d091687a5652c830215bdf5de387de0c33a6",
+    "market_date_requests": 102,
+    "approved_source_requests": 102,
+    "selected_event_matching": 129,
+    "reported_kind": {
+      "보통주": 126,
+      "구형우선주": 3
+    },
+    "preferred_ticker_dates": [
+      [
+        "004105",
+        "2026-10-01"
+      ],
+      [
+        "008355",
+        "2026-11-09"
+      ],
+      [
+        "003495",
+        "2026-11-10"
+      ]
+    ],
+    "alphanumeric_tickers_5_reported_common": 5,
+    "asof_api_response_is_not_original_historical_vintage_certification": true,
+    "post_sep16_common_only": {
+      "count": 48,
+      "qc_valid": {
+        "5": 39,
+        "10": 34,
+        "20": 19
+      },
+      "positive": {
+        "5": 17,
+        "10": 13,
+        "20": 6
+      },
+      "mean_selection_close_return_pct": {
+        "5": -2.864,
+        "10": -5.543,
+        "20": -13.207
+      }
+    },
+    "live_common_share_filter_changed": false
+  },
+  "regression_evidence": {
+    "run_id": 42952002759,
+    "successful_families": 4,
+    "tests_passed": 18,
+    "issuer_test_run_id": 42951923214,
+    "issuer_tests_passed": 5,
+    "followup_final_ci_run_id": null
+  },
+  "release_gate": {
+    "production_120day_collector_changed": false,
+    "operational_TOP2_scoring_changed": false,
+    "paper_ledger_changed": false,
+    "approval_changed": false,
+    "CASH_preserved": true,
+    "entry_range_miss_PASS_preserved": true,
+    "telegram_sender_changed": false,
+    "main_unchanged": true,
+    "approving_new_predictor": false,
+    "decision": "CASH",
+    "status": "RESEARCH_ONLY_NOT_TRADE_APPROVED"
+  },
+  "next_priorities": [
+    "Independent regular-session 15:30 and corporate-action-adjusted proof, and issuer vintage",
+    "Approve separate official KRX KOSPI/KOSDAQ index APIs and obtain dated investor-type flow evidence",
+    "Original OpenDART numeric vintage PIT and prospective actual operational TOP2 recording"
+  ]
+}
