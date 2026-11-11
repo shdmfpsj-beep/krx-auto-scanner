@@ -4,7 +4,7 @@ sys.path.insert(0,str(Path(__file__).parent))
 from c3_v12_rights_anomaly_annotation import annotate
 
 def fixture():
-    cases=[{"ticker":str(i).zfill(6),"date":"2026-10-21","status":"PRIMARY_RIGHTS_NOTICE_VERIFIED",
+    cases=[{"ticker":str(i).zfill(6),"date":"2026-10-21","parsed_ex_date":"2026-10-21","status":"PRIMARY_RIGHTS_NOTICE_VERIFIED",
         "ticker_table_matches":True,"file_sha256_expected":"same","current_archive_sha256":"same",
         "parsed_reference_price_krw":1000,"actual_ex_date_closing_price":980,"raw_close_ratio":.5,
         "receipt_no":"20261020900001","close_vs_official_reference_pct":-2.0} for i in range(1,6)]
