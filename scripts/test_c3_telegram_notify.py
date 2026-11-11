@@ -228,7 +228,9 @@ class FinalPresentationReviewTests(unittest.TestCase):
         self.assertTrue(all(x['final_status']=='DATA_BLOCKED' for x in result['reviewed']))
         self.assertEqual(result['eligible_count'],0)
         self.assertEqual(result['candidate_pool_status'],'CANDIDATE_POOL_UNVERIFIED')
-        self.assertFalse(result['sendable'])
+        self.assertTrue(result['sendable'])
+        self.assertEqual(result['delivery_kind'],'CASH_1')
+        self.assertEqual(result['decision'],'CASH')
         self.assertEqual(digest(canonical(report)),frozen)
 
     def synthetic_report(self,n):
@@ -250,22 +252,55 @@ class FinalPresentationReviewTests(unittest.TestCase):
             'research_top2_registered_for_source_session':True,
             'orders_enabled':False,'current_action':'CASH','research_top2':picks}
 
-    def test_zero_one_two_candidates_are_safe_and_only_two_is_sendable(self):
+    def test_zero_one_two_candidates_render_and_create_no_fake_prices(self):
         from c3_final_delivery_gate_v1 import review,filtered_report_for_presentation
+        from c3_classic_theme import create_final_cards
+        from c3_telegram_notify import validate_photos
         for count in (0,1,2):
-            with self.subTest(count=count):
-                report=self.synthetic_report(count)
-                out=review(report)
-                self.assertEqual(out['eligible_count'],count)
-                self.assertEqual(out['sendable'],count==2)
-                self.assertEqual(out['telegram_policy'],'TWO_PHOTOS_ONLY_ELSE_SILENT_SKIP')
-                if count==2:
-                    obj=filtered_report_for_presentation(report,out)
-                    self.assertEqual(len(obj['research_top2']),2)
-                    self.assertIsNot(obj,report)
+            with self.subTest(count=count), tempfile.TemporaryDirectory() as tmp:
+                report=self.synthetic_report(count);original=json.dumps(report,sort_keys=True)
+                result=review(report)
+                self.assertEqual(result['eligible_count'],count)
+                self.assertTrue(result['sendable'])
+                self.assertEqual(result['delivery_kind'],{0:'CASH_1',1:'STOCK_1',2:'ALBUM_2'}[count])
+                output=filtered_report_for_presentation(report,result)
+                self.assertEqual(len(output['research_top2']),count)
+                self.assertEqual(json.dumps(report,sort_keys=True),original)
+                paths=create_final_cards(output,tmp)
+                self.assertEqual(len(paths),1 if count<2 else 2)
+                self.assertEqual(len(validate_photos(paths,allow_single=True)),len(paths))
+                if count==0:
+                    self.assertEqual(paths[0].name,'CASH_integrated.png')
                 else:
-                    with self.assertRaisesRegex(ValueError,'NO_TWO_ELIGIBLE'):
-                        filtered_report_for_presentation(report,out)
+                    diag=json.loads(Path(tmp,'render_diagnostics.json').read_text())
+                    self.assertTrue(all(x['visible_rows']==60 for x in diag['cards']))
+
+    def test_only_authenticated_frozen_B_ranked_pool_can_promote_rank_three(self):
+        from c3_final_delivery_gate_v1 import review,filtered_report_for_presentation
+        from c3_telegram_inputs import canonical,digest
+        report=self.synthetic_report(2)
+        for row in report['research_top2']:row['model']='B'
+        report['research_top2'][1]['entry_plans']['A_SUPPORT_LIMIT']['plan']['resistance']=100
+        pool=copy.deepcopy(report['research_top2'])
+        third=copy.deepcopy(pool[0]);third.update(ticker='000003',name='SYNTHETIC3',rank=3,signal_id='THIRD')
+        pool.append(third)
+        proof={'schema':'C3_IMMUTABLE_B_POOL_V21',
+            'origin':'AUTHENTICATED_FROZEN_C3_B_DECISION',
+            'frozen_decision_sha256':'e'*64,'frozen_research_commit':'d'*40,
+            'source_run_id':report['source_run_id'],'asof':report['source_price_asof'],
+            'source_validation_sha256':report['source_validation_sha256'],
+            'pool_sha256':digest(canonical(pool))}
+        allowed=review(report,pool,proof)
+        self.assertEqual(allowed['candidate_pool_status'],'AUTHENTICATED_SAME_MODEL_B_POOL')
+        self.assertEqual([x['ticker'] for x in allowed['eligible']],['000001','000003'])
+        self.assertEqual(allowed['replacement_count'],1)
+        new=filtered_report_for_presentation(report,allowed,pool)
+        self.assertEqual([x['rank'] for x in new['research_top2']],[1,3])
+        self.assertEqual([x['rank'] for x in report['research_top2']],[1,2])
+        forged=copy.deepcopy(proof);forged['pool_sha256']='0'*64
+        rejected=review(report,pool,forged)
+        self.assertEqual(rejected['candidate_pool_status'],'CANDIDATE_POOL_UNVERIFIED')
+        self.assertEqual([x['ticker'] for x in rejected['eligible']],['000001'])
 
     def test_unverified_alternate_pool_never_invents_a_third_pick(self):
         from c3_final_delivery_gate_v1 import review
@@ -276,10 +311,8 @@ class FinalPresentationReviewTests(unittest.TestCase):
         self.assertFalse(out['substitutes_invented'])
         self.assertEqual([x['ticker'] for x in out['reviewed']],['028050','180640'])
 
-    def test_live_gate_fail_closed_dry_run_never_constructs_telegram(self):
+    def test_live_gate_dry_run_cash_never_constructs_telegram(self):
         import c3_telegram_notify as notify
-        from unittest.mock import patch
-        from pathlib import Path
         clock=datetime(2026,11,10,22,45,tzinfo=ZoneInfo('Asia/Seoul'))
         report=self.fixed_nov10()
         report.update(generated_at='2026-11-10T13:42:00Z',
@@ -292,16 +325,21 @@ class FinalPresentationReviewTests(unittest.TestCase):
              patch.object(notify,'report_error',return_value=None), \
              patch.object(notify,'frozen_live_bars',side_effect=lambda gh,r,ref:r), \
              patch.object(notify,'now_kst',return_value=clock), \
-             patch('c3_classic_theme.create_cards') as renderer, \
+             patch('c3_report_context.attach_context',side_effect=lambda r,*args:r), \
              patch.dict('os.environ',{'C3_FINAL_GATE_ENABLED':'1'}), \
              patch('sys.argv',['notify','--mode','live','--dry-run','--outdir',tmp]):
             self.assertEqual(notify.main(),0)
-            bot.assert_not_called();receipts.assert_not_called();renderer.assert_not_called()
+            bot.assert_not_called();receipts.assert_not_called()
             d=json.loads(Path(tmp,'delivery_status.json').read_text())
-            self.assertEqual(d['status'],'SKIPPED')
+            self.assertEqual(d['status'],'DRY_RUN_VALIDATED_NO_DELIVERY')
+            self.assertEqual(d['photos'],1)
             self.assertEqual(d['send_attempts'],0)
+            self.assertTrue(Path(tmp,'CASH_integrated.png').exists())
             audit=json.loads(Path(tmp,'delivery_review.json').read_text())
             self.assertEqual(audit['eligible_count'],0)
+            handoff=json.loads(Path(tmp,'presentation.json').read_text())
+            self.assertEqual(handoff['images'][0]['ticker'],'CASH')
+            self.assertFalse(handoff['chatgpt_delivery_verified'])
 
 
 if __name__=='__main__':unittest.main()
