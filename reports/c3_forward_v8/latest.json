@@ -1,6 +1,6 @@
 {
   "schema": "C3_DAILY_RESEARCH_V8",
-  "generated_at": "2026-11-10T20:27:36.623700+00:00",
+  "generated_at": "2026-11-11T02:51:41.251143+00:00",
   "report_day_kst": "2026-11-11",
   "source_run_id": "42884437776",
   "source_price_asof": "2026-11-10",
@@ -2072,11 +2072,11 @@
     "calendar_schedule_deployed_claimed": false,
     "source_of_truth": "GITHUB_EVENT_CONTEXT_NOT_USER_REQUEST_DATE",
     "orders_enabled": false,
-    "state_sha": "2b7f2ba95815e141fa96ee20ad1eadc4e49d532b",
-    "caller_commit": "e5ad2d3052dbe33215532153e51b094e7cb44377",
+    "state_sha": "3032abe863ad55931d4fd8a6689ed7aacbc7d471",
+    "caller_commit": "1a0e098dbe36b60a459c9391e54a3760b7bea5d2",
     "expected_completed_session": "2026-11-10",
     "duplicate_current_session_skipped": true,
-    "run_id": "42895341610"
+    "run_id": "42948777561"
   },
   "automatic_event_observed": true,
   "upstream_validation": {
@@ -2106,10 +2106,10 @@
         "http_status": 200,
         "attempt": 1,
         "status": "RECEIVED",
-        "received_at": "2026-11-10T20:27:36.430051+00:00",
+        "received_at": "2026-11-11T02:51:41.095633+00:00",
         "sha256": "07bfd00abbc60ee74045cbb90528ef0dbf595be3021c2cf3f280f79d8c7cfbc9",
         "bytes": 3747,
-        "seconds": 0.41234432600000304
+        "seconds": 0.3892119979999933
       }
     ]
   },
@@ -2150,7 +2150,7 @@
   "source_data_audit": {
     "schema": "C3_DATA_AUDIT_V18",
     "asof": "2026-11-10",
-    "audited_at": "2026-11-10T20:27:45.445875+00:00",
+    "audited_at": "2026-11-11T02:51:49.623185+00:00",
     "original_snapshot_sha256": "43a61eecd38450d07e14a2afa4607a23b6f5f3f065c2e22eb09e8259d6e5df9b",
     "source_provider": "FINANCEDATA_KRX_CACHE",
     "original_received_at": "2026-11-10T19:22:34.024968+00:00",
@@ -2213,7 +2213,7 @@
       ],
       "historical_is_based_on_original_query_time_not_later_download_time": true
     },
-    "official_status": "OFFICIAL_MARKETS_NOT_COMPLETE",
+    "official_status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
     "official_response_diagnostics": [
       {
         "market": "KOSPI",
@@ -2228,19 +2228,20 @@
           "AUTH_KEY",
           "Accept"
         ],
-        "started_at": "2026-11-10T20:27:36.892583+00:00",
+        "started_at": "2026-11-11T02:51:41.452514+00:00",
         "http_status": 200,
         "content_type": "application/json; charset=utf-8",
-        "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
-        "body_bytes": 17,
+        "body_sha256": "8eeb3c0ef02294088be75b62a2a4f3ecbe04aa44463ed9c13db5f10b11fc4566",
+        "body_bytes": 290656,
         "json_top_keys": [
           "OutBlock_1"
         ],
         "outblock_type": "list",
-        "outblock_rows": 0,
-        "status": "OUTBLOCK_EMPTY",
+        "outblock_rows": 936,
+        "status": "NORMALIZED",
         "provider_error": {},
-        "received_at": "2026-11-10T20:27:38.914772+00:00"
+        "received_at": "2026-11-11T02:51:44.240630+00:00",
+        "normalized_rows": 936
       },
       {
         "market": "KOSDAQ",
@@ -2255,41 +2256,72 @@
           "AUTH_KEY",
           "Accept"
         ],
-        "started_at": "2026-11-10T20:27:38.914848+00:00",
+        "started_at": "2026-11-11T02:51:44.247999+00:00",
         "http_status": 200,
         "content_type": "application/json; charset=utf-8",
-        "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
-        "body_bytes": 17,
+        "body_sha256": "92f4d4dd47b4d02d7169fa019358f18fd335f80e39a91855d67445e6a8a6eead",
+        "body_bytes": 597626,
         "json_top_keys": [
           "OutBlock_1"
         ],
         "outblock_type": "list",
-        "outblock_rows": 0,
-        "status": "OUTBLOCK_EMPTY",
+        "outblock_rows": 1832,
+        "status": "NORMALIZED",
         "provider_error": {},
-        "received_at": "2026-11-10T20:27:40.391514+00:00"
+        "received_at": "2026-11-11T02:51:47.086222+00:00",
+        "normalized_rows": 1832
       }
     ],
-    "comparison": null,
-    "official_numeric_quality": null,
-    "official_listing_status": "BASE_INFO_RESPONSE_SCHEMA_OR_INTEGRITY_INVALID",
+    "comparison": {
+      "asof": "2026-11-10",
+      "left_rows": 2768,
+      "right_rows": 2768,
+      "compared": 2768,
+      "missing_on_right": [],
+      "extra_on_right": [],
+      "field_mismatches": [],
+      "matched_rows": 2768,
+      "same_ultimate_origin": "KRX",
+      "independent_vendor_certified": false,
+      "regular_only_certified": false
+    },
+    "official_numeric_quality": {
+      "status": "QUALITY_GATE_PASSED",
+      "errors": [],
+      "markets": {
+        "KOSPI": {
+          "rows": 936,
+          "baseline_rows": 936,
+          "retained_baseline_fraction": 1.0,
+          "newly_observed": [],
+          "no_longer_observed": [],
+          "invalid_ohlc": [],
+          "halt_like": 25,
+          "listing_or_delisting_cause_confirmed": false
+        },
+        "KOSDAQ": {
+          "rows": 1832,
+          "baseline_rows": 1832,
+          "retained_baseline_fraction": 1.0,
+          "newly_observed": [],
+          "no_longer_observed": [],
+          "invalid_ohlc": [],
+          "halt_like": 81,
+          "listing_or_delisting_cause_confirmed": false
+        }
+      },
+      "full_current_listing_census_verified": false,
+      "coverage_alarm_floor": 0.95,
+      "asof": "2026-11-10"
+    },
+    "official_listing_status": "BASE_INFO_AVAILABLE_ASOF_REQUESTED_NOT_INDUSTRY_PIT",
     "official_listing_diagnostics": [
       {
         "endpoint": "stk_isu_base_info",
         "requested_asof": "2026-11-10",
-        "raw_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+        "raw_sha256": "c1c7e104256ec4813d78d4b0f4524ff04026cc5d83c839fa3a5ba268c701f979",
         "outblock_type": "list",
-        "rows": 0,
-        "returned_field_names": [],
-        "returned_date_fields": [],
-        "later_listing_rows": 0
-      },
-      {
-        "endpoint": "stk_isu_base_info",
-        "requested_asof": "2026-11-05",
-        "raw_sha256": "244f4955f32d42135595d20aad412b10982b0abaa4cdacca878069ee323151c3",
-        "outblock_type": "list",
-        "rows": 938,
+        "rows": 936,
         "returned_field_names": [
           "ISU_ABBRV",
           "ISU_CD",
@@ -2309,10 +2341,10 @@
       },
       {
         "endpoint": "ksq_isu_base_info",
-        "requested_asof": "2026-11-05",
-        "raw_sha256": "a95cdc3b36c48ab7efe23014ee705b3a5e7d72ae115d8ea280296329d7400c91",
+        "requested_asof": "2026-11-10",
+        "raw_sha256": "30deca8cb70cf7226619ae1e21fc7c4e05fc49818d47ba1e82e2e4a334e9b05b",
         "outblock_type": "list",
-        "rows": 1831,
+        "rows": 1832,
         "returned_field_names": [
           "ISU_ABBRV",
           "ISU_CD",
@@ -2331,78 +2363,46 @@
         "later_listing_rows": 0
       }
     ],
-    "earlier_official_control": {
-      "asof": "2026-11-05",
-      "status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
-      "rows": 2769,
-      "response_diagnostics": [
-        {
-          "market": "KOSPI",
-          "asof": "2026-11-05",
-          "endpoint": "stk_bydd_trd",
-          "method": "GET",
-          "query": {
-            "basDd": "20261105"
-          },
-          "credential_present": true,
-          "request_header_names": [
-            "AUTH_KEY",
-            "Accept"
-          ],
-          "started_at": "2026-11-10T20:27:40.645367+00:00",
-          "http_status": 200,
-          "content_type": "application/json; charset=utf-8",
-          "body_sha256": "290b7d94486656cad2ff7f4be1ac68501907c57dab1d405e350fc3060594201b",
-          "body_bytes": 292158,
-          "json_top_keys": [
-            "OutBlock_1"
-          ],
-          "outblock_type": "list",
-          "outblock_rows": 938,
-          "status": "NORMALIZED",
-          "provider_error": {},
-          "received_at": "2026-11-10T20:27:41.887702+00:00",
-          "normalized_rows": 938
+    "earlier_official_control": null,
+    "earlier_listing_control": null,
+    "census": {
+      "asof": "2026-11-10",
+      "markets": {
+        "KOSPI": {
+          "official_requested_date_rows": 936,
+          "price_rows": 936,
+          "missing": [],
+          "extra": [],
+          "exact_membership_match": true
         },
-        {
-          "market": "KOSDAQ",
-          "asof": "2026-11-05",
-          "endpoint": "ksq_bydd_trd",
-          "method": "GET",
-          "query": {
-            "basDd": "20261105"
-          },
-          "credential_present": true,
-          "request_header_names": [
-            "AUTH_KEY",
-            "Accept"
-          ],
-          "started_at": "2026-11-10T20:27:41.896183+00:00",
-          "http_status": 200,
-          "content_type": "application/json; charset=utf-8",
-          "body_sha256": "6038da378f86d284b64416efedb17f5fd88f25f9ecfd47a8c767b18303dce02c",
-          "body_bytes": 599762,
-          "json_top_keys": [
-            "OutBlock_1"
-          ],
-          "outblock_type": "list",
-          "outblock_rows": 1831,
-          "status": "NORMALIZED",
-          "provider_error": {},
-          "received_at": "2026-11-10T20:27:43.405930+00:00",
-          "normalized_rows": 1831
+        "KOSDAQ": {
+          "official_requested_date_rows": 1832,
+          "price_rows": 1832,
+          "missing": [],
+          "extra": [],
+          "exact_membership_match": true
         }
-      ]
+      },
+      "requested_date_membership_match": true,
+      "share_kind_counts": {
+        "보통주": 2659,
+        "구형우선주": 76,
+        "신형우선주": 20,
+        "종류주권": 13
+      },
+      "security_group_counts": {
+        "주권": 2720,
+        "부동산투자회사": 23,
+        "사회간접자본투융자회사": 2,
+        "투자회사": 1,
+        "외국주권": 12,
+        "주식예탁증권": 10
+      },
+      "historical_vintage_independently_certified": false,
+      "halt_status_not_inferred_from_zero_volume": true,
+      "industry_and_spac_classification_not_supplied_by_basic_api": true,
+      "historical_classification_and_decisions_unchanged": true
     },
-    "earlier_listing_control": {
-      "asof": "2026-11-05",
-      "status": "BASE_INFO_AVAILABLE_ASOF_REQUESTED_NOT_INDUSTRY_PIT",
-      "market_counts": {
-        "KOSPI": 938,
-        "KOSDAQ": 1831
-      }
-    },
-    "census": null,
     "full_current_listing_census_independently_verified": false,
     "no_retroactive_price_or_classification_substitution": true,
     "registered_signals_changed": false,
@@ -2411,8 +2411,8 @@
     "regular_only_certified": false,
     "trade_approved": false,
     "orders_enabled": false,
-    "elapsed_seconds": 8.630834875999994,
-    "official_request_count": 7,
+    "elapsed_seconds": 8.247528607000007,
+    "official_request_count": 4,
     "unavailable_followup": [
       "REGULAR_ONLY_VOLUME_AND_TURNOVER",
       "INDEPENDENT_VENDOR_SESSION_ATTESTATION",
@@ -2422,5 +2422,5 @@
     "immutable_files_verified_unchanged": 46,
     "immutable_tree_sha256": "107a38addb3da5f7004f25a6fe14466eb7650842f06d1b5827ddbc854cf3d556"
   },
-  "checked_at": "2026-11-10T20:27:36.623700+00:00"
+  "checked_at": "2026-11-11T02:51:41.251143+00:00"
 }
