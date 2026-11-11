@@ -15,6 +15,7 @@ class ReplayTests(unittest.TestCase):
   x=evaluate(b,80,"X",115,100,125)
   self.assertTrue(x["filled"])
   self.assertEqual(x["outcomes"]["5"]["status"],"STOP")
+  self.assertLess(x["outcomes"]["5"]["return_pct"],(100/114-1)*100)
  def test_unfilled(self):
   b=self.bars()
   x=evaluate(b,80,"X",80,70,100)
@@ -24,6 +25,14 @@ class ReplayTests(unittest.TestCase):
   b=self.bars(85)
   x=evaluate(b,80,"X",115,100,125)
   self.assertEqual(x["outcomes"]["20"]["status"],"CENSORED")
+ def test_gap_below_stop_is_not_a_valid_entry(self):
+  b=self.bars();b[81]["open"]=90;b[81]["low"]=85;b[81]["high"]=120
+  x=evaluate(b,80,"X",115,100,125)
+  self.assertFalse(x["filled"])
+ def test_future_bar_does_not_change_signal(self):
+  b=self.bars();original=signals(b,80)
+  b[90]["close"]=9999
+  self.assertEqual(original,signals(b,80))
  def test_duplicate_day_rejected(self):
   b=self.bars();b[1]["date"]=b[0]["date"]
   with self.assertRaises(ValueError):replay(b)
