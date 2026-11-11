@@ -178,9 +178,9 @@ def plot(d,bars,row,plan):
     return av,g
 
 
-def create_cards(report,outdir='/tmp/c3-integrated-cards'):
+def create_cards(report,outdir='/tmp/c3-integrated-cards',allow_single=False):
     picks=report.get('research_top2') or []
-    if len(picks)!=2 or len({r['ticker'] for r in picks})!=2:raise ValueError('EXACTLY_TWO_UNIQUE_CANDIDATES_REQUIRED')
+    if not (len(picks) in ((1,2) if allow_single else (2,))) or len({r['ticker'] for r in picks})!=len(picks):raise ValueError('PRESENTATION_CANDIDATE_COUNT_INVALID')
     root=Path(outdir);root.mkdir(parents=True,exist_ok=True);files=[];diagnostics=[]
     for rank,r in enumerate(picks,1):
         asof=report['source_price_asof'];close=float(r.get('reference_close',r['close']));bars=validate_bars(r.get('chart_bars',[]),asof,close)
@@ -192,7 +192,7 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards'):
         text(d,1345,125,won(close),61,INK,True,anchor='ra');previous=float(bars[-2]['close']);change=close-previous;pct=100*change/previous
         text(d,1345,204,f'{change:+,.0f}원 ({pct:+.2f}%)',31,RED if change>0 else BLUE if change<0 else SUB,True,anchor='ra')
         gate=assess(r,bars)
-        banner=(('과거 연구 예시 · '+asof+' · 실전 승인 아님') if report.get('example_only') else (asof+' 종가 · 연구 후보 · 진입 대기/CASH' if not gate['eligible'] else asof+' 종가 기준 · 연구 관찰용'))
+        banner=(('과거 연구 예시 · '+asof+' · 실전 승인 아님') if report.get('example_only') else (asof+' · 타점검증 관찰 · 자동주문 아님' if report.get('final_presentation_review') else (asof+' 종가 · 연구 후보 · 진입 대기/CASH' if not gate['eligible'] else asof+' 종가 기준 · 연구 관찰용')))
         d.rectangle((48,252,1352,294),fill='#F0EBDD');text(d,700,258,banner,27,GOLD,True,anchor='ma')
         d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2);text(d,74,333,'일봉 · 최근 60거래일 가격과 거래량',31,INK,True)
         for i,n in enumerate((5,20,60)):
@@ -230,3 +230,57 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards'):
             second_entry='NO_VALIDATED_SECOND_ENTRY_PLAN',company_context_status=(r.get('company_context') or {}).get('dart_status','NOT_ATTACHED'),company_context_missing=(r.get('company_context') or {}).get('missing',[]),notes=rendered,layout=layout,sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
     (root/'render_diagnostics.json').write_text(json.dumps(dict(example_only=bool(report.get('example_only')),cards=diagnostics),ensure_ascii=False,indent=2)+'\n')
     return files
+
+
+def create_cash_card(report,outdir='/tmp/c3-integrated-cards'):
+    """One text-free-message PNG with no synthetic price, company or BUY signal."""
+    from datetime import date as _date
+    asof=report.get('source_price_asof')
+    if not isinstance(asof,str) or _date.fromisoformat(asof).isoformat()!=asof:
+        raise ValueError('CASH_SOURCE_DATE_UNVERIFIED')
+    v=report.get('final_presentation_review') or {}
+    if v.get('schema') not in ('C3_FINAL_PRESENTATION_REVIEW_V1','C3_FINAL_PRESENTATION_REVIEW_V21') or v.get('eligible_count')!=0 or v.get('asof')!=asof:
+        raise ValueError('CASH_PRESENTATION_REVIEW_MISMATCH')
+    root=Path(outdir);root.mkdir(parents=True,exist_ok=True)
+    im=Image.new('RGB',(W,H),PAPER);d=ImageDraw.Draw(im)
+    d.rectangle((0,0,W,105),fill=INK);d.rectangle((0,102,W,108),fill=GOLD)
+    text(d,55,29,'강현AI PRO | C3',48,'#F3E6CD',True)
+    text(d,1345,41,asof.replace('-','.'),31,'#EEEAE2',anchor='ra')
+    text(d,700,390,'CASH',155,GOLD,True,anchor='ma')
+    text(d,700,585,'신규 매수 관찰 종목 없음',52,INK,True,anchor='ma')
+    text(d,700,730,'기준일: '+asof,37,SUB,anchor='ma')
+    d.rounded_rectangle((55,860,1345,1810),radius=18,fill='white',outline='#DEDAD1',width=3)
+    text(d,100,910,'최종 관찰 판단',45,INK,True)
+    notes=[
+        '검증된 매수 타점을 충족한 후보가 없습니다.',
+        '후보 순위를 임의로 재구성하지 않았습니다.',
+        '확인되지 않은 손절가·목표가를 만들지 않았습니다.',
+        '시장 데이터 및 가격 근거가 불충분하면 보류합니다.'
+    ]
+    for i,note in enumerate(notes):
+        yy=1070+i*155
+        d.ellipse((110,yy+13,131,yy+34),fill=GOLD)
+        text(d,165,yy,note,33,INK)
+    blockers=sorted({str(k) for row in v.get('reviewed',[]) for k in row.get('source_blockers',[])})
+    if blockers:
+        text(d,700,1890,'원본 검증 불충분 · 추격매수 금지',35,RED,True,anchor='ma')
+    text(d,700,2225,'오늘은 무리한 신규 진입보다 CASH를 유지합니다.',36,INK,True,anchor='ma')
+    text(d,700,2330,'자료기준일 '+asof+' · 자동매매 아님 · 실전 BUY 승인 아님',24,SUB,anchor='ma')
+    path=root/'CASH_integrated.png';im.save(path,optimize=True)
+    diag={'example_only':False,'cash_only':True,'source_price_asof':asof,
+          'cards':[{'ticker':'CASH','name':'CASH','asof':asof,'source_rows':0,
+                    'visible_rows':0,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}]}
+    (root/'render_diagnostics.json').write_text(json.dumps(diag,ensure_ascii=False,indent=2)+'\n')
+    return [path]
+
+
+def create_final_cards(report,outdir='/tmp/c3-integrated-cards'):
+    """For explicitly enabled delivery filter only. 0->CASH, 1->one stock, 2->album."""
+    review=report.get('final_presentation_review') or {}
+    if review.get('schema')!='C3_FINAL_PRESENTATION_REVIEW_V21':
+        raise ValueError('FINAL_PRESENTATION_REVIEW_REQUIRED')
+    picks=report.get('research_top2') or []
+    if len(picks)!=review.get('eligible_count') or not 0<=len(picks)<=2:
+        raise ValueError('FINAL_CANDIDATE_COUNT_MISMATCH')
+    if not picks:return create_cash_card(report,outdir)
+    return create_cards(report,outdir,allow_single=True)
