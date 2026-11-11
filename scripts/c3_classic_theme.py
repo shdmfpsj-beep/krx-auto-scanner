@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 from c3_entry_geometry_gate import assess
 
 W,H=1400,2400
+VISIBLE_SESSIONS=60  # Actual candles on the image, independent of MA warm-up.
 INK,SUB,GOLD,PAPER='#292B2C','#6C7073','#AC8848','#FAF9F5'
 GREEN,BLUE,RED,PURPLE='#297756','#367CAF','#B84B48','#8568A0'
 TRADE_COLORS={'first':GREEN,'second':BLUE,'stop':RED,'r1':GOLD,'r2':PURPLE}
@@ -125,7 +126,7 @@ def price_scale(values):
 
 def chart_geometry(bars,row,plan,av=None):
     left,right,top,bottom=158.,1104.,392.,1015.
-    show=bars[-30:];offset=len(bars)-len(show);last_x=right-28
+    show=bars[-VISIBLE_SESSIONS:];offset=len(bars)-len(show);last_x=right-28
     step=(last_x-left)/(len(show)-1)
     av=av or {n:moving_average(bars,n) for n in (5,20,60)}
     audit=audit_averages(bars,av)
@@ -145,7 +146,7 @@ def chart_geometry(bars,row,plan,av=None):
 
 def plot(d,bars,row,plan):
     g,av=chart_geometry(bars,row,plan);left,right,top,bottom=[g[k] for k in ('left','right','top','bottom')]
-    show=bars[-30:];lo,hi=g['axis_min'],g['axis_max'];y=lambda v:bottom-(v-lo)/(hi-lo)*(bottom-top)
+    show=bars[-VISIBLE_SESSIONS:];lo,hi=g['axis_min'],g['axis_max'];y=lambda v:bottom-(v-lo)/(hi-lo)*(bottom-top)
     v=lo
     while v<=hi+.01:
         yy=y(v);d.line((left,yy,right,yy),fill='#E7E5DE',width=1);text(d,left-18,yy,f'{v:,.0f}',26,SUB,anchor='rm');v+=g['tick']
@@ -158,9 +159,10 @@ def plot(d,bars,row,plan):
     for i,r in enumerate(show):
         xx=left+i*g['step'];c=RED if r['close']>=r['open'] else BLUE
         d.line((xx,y(r['high']),xx,y(r['low'])),fill=c,width=3)
-        a,b=sorted((y(r['open']),y(r['close'])));d.rectangle((xx-8,a,xx+8,max(a+2,b)),fill=c)
-        if r['volume']>0:d.rectangle((xx-8,vbottom-r['volume']/vmax*(vbottom-vtop),xx+8,vbottom),fill=c)
-        if i%6==0 or i==len(show)-1:text(d,xx,1150,r['date'][5:].replace('-','/'),25,SUB,anchor='ma')
+        a,b=sorted((y(r['open']),y(r['close'])));candle_half_width=max(3,min(7,g['step']*0.28))
+        d.rectangle((xx-candle_half_width,a,xx+candle_half_width,max(a+2,b)),fill=c)
+        if r['volume']>0:d.rectangle((xx-candle_half_width,vbottom-r['volume']/vmax*(vbottom-vtop),xx+candle_half_width,vbottom),fill=c)
+        if i%12==0 or i==len(show)-1:text(d,xx,1150,r['date'][5:].replace('-','/'),25,SUB,anchor='ma')
     for n,path in g['paths'].items():
         pts=[(p['x'],p['y']) for p in path]
         if len(pts)>1:d.line(pts,fill=MA_COLORS[int(n)],width=4)
@@ -192,7 +194,7 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards'):
         gate=assess(r,bars)
         banner=(('과거 연구 예시 · '+asof+' · 실전 승인 아님') if report.get('example_only') else (asof+' 종가 · 연구 후보 · 진입 대기/CASH' if not gate['eligible'] else asof+' 종가 기준 · 연구 관찰용'))
         d.rectangle((48,252,1352,294),fill='#F0EBDD');text(d,700,258,banner,27,GOLD,True,anchor='ma')
-        d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2);text(d,74,333,'일봉 · 가격과 거래량',31,INK,True)
+        d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2);text(d,74,333,'일봉 · 최근 60거래일 가격과 거래량',31,INK,True)
         for i,n in enumerate((5,20,60)):
             xx=800+i*164;d.line((xx,353,xx+33,353),fill=MA_COLORS[n],width=4);text(d,xx+43,338,f'{n}일선',25,SUB)
         av,geometry=plot(d,bars,r,p);text(d,54,1218,'매매 관찰 구간',33,INK,True)
@@ -216,10 +218,14 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards'):
             lines=wrap(d,value,1002,31,3)
             for k,line in enumerate(lines):text(d,321,yy+23+k*38,line,31,INK)
             rendered.append(value);layout.append({'label':label,'lines':len(lines),'text_right_max':max(d.textlength(line,font=font(31)) for line in lines),'box_right':1352,'box_bottom':yy+156,'font_size':31})
-        text(d,700,2310,'기업자료: DART·기업 IR · 선정 후 조사이며 점수·매수가에 미반영',25,SUB,anchor='ma')
-        text(d,700,2352,'KRX 가격 · 정규장 범위 별도 검증 필요 · 실제 매수 승인이 아닙니다.',25,SUB,anchor='ma')
+        labels={'CHASE_ENTRY_PREMIUM_OVER_5PCT':'종가·매수가 괴리','FIRST_RESISTANCE_UNVERIFIED':'첫 저항 미확정','ENTRY_REWARD_RISK_BELOW_1_5':'R1 손익비 부족'}
+        risks=[labels[x] for x in gate.get('reasons',[]) if x in labels]
+        msg=' / '.join(risks[:2]) if risks else '원본 계획 기반 관찰 · 실전 주문 아님'
+        text(d,700,2294,'타점 판단: '+msg,23,RED if risks else SUB,True,anchor='ma')
+        text(d,700,2329,'기업자료: DART·기업 IR · 선정 후 조사이며 점수·매수가에 미반영',23,SUB,anchor='ma')
+        text(d,700,2364,'KRX 가격 · 정규장 범위 별도 검증 필요 · 실제 매수 승인이 아닙니다.',23,SUB,anchor='ma')
         path=root/(r['ticker']+'_integrated.png');im.save(path,optimize=True);files.append(path)
-        diagnostics.append(dict(ticker=r['ticker'],entry_geometry_review=gate,asof=asof,source_rows=len(bars),visible_rows=min(30,len(bars)),source_basis=r['chart_price_basis'],previous_close=previous,close=close,change=change,change_pct=pct,
+        diagnostics.append(dict(ticker=r['ticker'],entry_geometry_review=gate,asof=asof,source_rows=len(bars),visible_rows=min(VISIBLE_SESSIONS,len(bars)),visible_first_date=bars[-VISIBLE_SESSIONS]['date'],visible_last_date=bars[-1]['date'],source_basis=r['chart_price_basis'],previous_close=previous,close=close,change=change,change_pct=pct,
             ma_last={str(n):seq[-1] for n,seq in av.items()},ma_valid_points={str(n):sum(v is not None for v in seq) for n,seq in av.items()},last5=[dict(b,**{'ma'+str(n):av[n][i] for n in av}) for i,b in list(enumerate(bars))[-5:]],geometry=geometry,
             second_entry='NO_VALIDATED_SECOND_ENTRY_PLAN',company_context_status=(r.get('company_context') or {}).get('dart_status','NOT_ATTACHED'),company_context_missing=(r.get('company_context') or {}).get('missing',[]),notes=rendered,layout=layout,sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
     (root/'render_diagnostics.json').write_text(json.dumps(dict(example_only=bool(report.get('example_only')),cards=diagnostics),ensure_ascii=False,indent=2)+'\n')
