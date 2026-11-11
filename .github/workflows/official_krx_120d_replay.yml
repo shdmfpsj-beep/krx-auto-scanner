@@ -27,6 +27,7 @@ jobs:
           sparse-checkout: |
             /scripts/official_krx_120d_replay.py
             /scripts/official_history_independent_audit.py
+            /scripts/krx_holiday_reference_check.py
             /scripts/test_official_history_independent_audit.py
             /scripts/test_official_krx_120d_replay.py
             /scripts/test_c3_three_entry_replay.py
@@ -80,6 +81,12 @@ jobs:
         run: |
           if [[ -d output/official_history ]]; then
             python scripts/official_history_independent_audit.py --root output/official_history --out output/replay/independent_history_audit.json
+          fi
+      - name: Holiday reference crosscheck (not certification)
+        if: always()
+        run: |
+          if [[ -f output/replay/official_120d_replay_status.json ]]; then
+            python scripts/krx_holiday_reference_check.py --status output/replay/official_120d_replay_status.json --out output/replay/holiday_reference_check.json
           fi
       - uses: actions/upload-artifact@v4
         if: always()
