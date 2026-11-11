@@ -13,6 +13,7 @@ from c3_classic_theme import moving_average,validate_bars,notes,TRADE_COLORS
 def fixture():
     clock=datetime(2026,11,6,22,45,tzinfo=ZoneInfo('Asia/Seoul'))
     r={'source_price_asof':'2026-11-06','source_run_id':'SYNTHETIC','generated_at':'2026-11-06T13:30:00Z','source_received_at':'2026-11-06T13:29:00Z','data_quality_state':'OFFICIAL_VERIFIED','source_provider':'KRX_OFFICIAL_EOD','source_quality_gate':{'status':'QUALITY_GATE_PASSED','errors':[],'markets':{'KOSPI':{'rows':900},'KOSDAQ':{'rows':1800}}},'current_scope':{'price_rows':2700,'analysis_eligible':1800},'errors':[],'orders_enabled':False,'current_action':'CASH','research_top2_registered_for_source_session':True,'research_top2':[{'ticker':'000001'},{'ticker':'000002'}]}
+    r['analysis_completed_at']='2026-11-06T13:29:30Z'
     s={k:r[k] for k in ('source_price_asof','source_run_id','generated_at')};return r,s,clock
 
 class MemoryStore:
@@ -91,6 +92,39 @@ class DeliveryFaultTests(unittest.TestCase):
             p=Path(self.tmp.name)/(str(i)+'.png');Image.new('RGB',(4,4),color).save(p);self.files.append(p)
         self.report={'source_price_asof':'2026-11-06','source_run_id':'SYNTHETIC'}
     def tearDown(self):self.tmp.cleanup()
+    def test_one_photo_CASH_and_stock_share_same_daily_exclusive_claim(self):
+        single=Path(self.tmp.name,'CASH_integrated.png')
+        Image.new('RGB',(64,64),'white').save(single)
+        result={'source_price_asof':'2026-11-06','source_run_id':'SYNTHETIC',
+                'final_presentation_review':{'schema':'C3_FINAL_PRESENTATION_REVIEW_V21',
+                                             'delivery_kind':'CASH_1','eligible_count':0}}
+        store=MemoryStore()
+        bot=FakeBot();bot.send_single=lambda path:{'message_ids':[27],'media_group_hash':None,
+                         'photos':1,'captions_present':False,'text_present':False}
+        x=deliver([single],result,store,bot)
+        self.assertEqual(x['status'],'DELIVERED')
+        self.assertEqual(x['photos'],1)
+        result['final_presentation_review']['delivery_kind']='ALBUM_2'
+        dup=deliver(self.files,result,store,bot)
+        self.assertEqual(dup['status'],'DUPLICATE_BLOCKED')
+        self.assertEqual(dup['send_attempts'],0)
+
+    def test_one_photo_sendPhoto_has_no_text_caption_redirect_or_retry(self):
+        single=self.files[0]
+        bot=Telegram('SYNTHETIC_NOT_REAL_TOKEN','-1001234567890')
+        reply=Mock(status_code=200)
+        reply.json.return_value={'ok':True,'result':{'message_id':55,
+                              'photo':[{'file_id':'abc'}],'chat':{'id':-1001234567890}}}
+        with patch('c3_telegram_notify.requests.post',return_value=reply) as post:
+            out=bot.send_single(single)
+            self.assertEqual(out['message_ids'],[55])
+            self.assertEqual(out['photos'],1)
+            self.assertEqual(post.call_count,1)
+            self.assertIn('sendPhoto',post.call_args.args[0])
+            self.assertEqual(set(post.call_args.kwargs['data']),{'chat_id'})
+            self.assertEqual(set(post.call_args.kwargs['files']),{'photo'})
+            self.assertIs(post.call_args.kwargs['allow_redirects'],False)
+
     def test_repeat_events_and_changed_content_do_not_resend(self):
         store=MemoryStore();bot=FakeBot();a=deliver(self.files,self.report,store,bot)
         Image.new('RGB',(4,4),'red').save(self.files[0])
@@ -197,5 +231,149 @@ class FrozenDecisionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'HASH'):self.load(report,record)
         report,record=self.sample();report['research_top2'][0]['entry_plans']={'A':'changed'}
         with self.assertRaisesRegex(ValueError,'MISMATCH'):self.load(report,record)
+
+
+class FinalPresentationReviewTests(unittest.TestCase):
+    """Fixed real 2026-11-10 figures, plus synthetic safe-path cases."""
+
+    def fixed_nov10(self):
+        asof='2026-11-10'
+        def row(ticker,name,rank,close,low,high,stop,known_on,r1,rr):
+            return {'ticker':ticker,'name':name,'rank':rank,'source_price_asof':asof,
+                    'source_run_id':'42884437776','source_regular_only_certified':False,
+                    'signal_id':'FROZEN_'+ticker,'reference_close':close,
+                    'entry_plans':{'A_SUPPORT_LIMIT':{'plan':{'low':low,'high':high,
+                     'stop':stop,'known_on':known_on,'decision_date':asof,
+                     'resistance':r1,'net_r1_rr':rr}}}}
+        rows=[row('028050','삼성E&A',1,64600,59400,62600,56100,'2026-11-10',65500,0.33615940389023125),
+              row('180640','한진칼',2,239000,118000,122000,113800,'2026-10-27',None,None)]
+        return {'source_price_asof':asof,'source_run_id':'42884437776',
+                'source_validation_sha256':'4de3a1db908d6c28479d6862311e650075f7f5bcaa27bdbb990fc2a31158dd09',
+                'source_regular_only_certified':False,'research_top2_registered_for_source_session':True,
+                'orders_enabled':False,'current_action':'CASH','research_top2':rows}
+
+    def test_nov10_hanjin_stale_and_samsung_rr_block_keep_original_signals(self):
+        from c3_final_delivery_gate_v1 import review
+        from c3_telegram_inputs import canonical,digest
+        report=self.fixed_nov10();frozen=digest(canonical(report))
+        result=review(report)
+        self.assertEqual([x['technical_status'] for x in result['reviewed']],
+                         ['RISK_REJECTED','STALE_ENTRY'])
+        self.assertTrue(all(x['final_status']=='DATA_BLOCKED' for x in result['reviewed']))
+        self.assertEqual(result['eligible_count'],0)
+        self.assertEqual(result['candidate_pool_status'],'CANDIDATE_POOL_UNVERIFIED')
+        self.assertTrue(result['sendable'])
+        self.assertEqual(result['delivery_kind'],'CASH_1')
+        self.assertEqual(result['decision'],'CASH')
+        self.assertEqual(digest(canonical(report)),frozen)
+
+    def synthetic_report(self,n):
+        from datetime import date,timedelta
+        asof='2026-11-10'
+        bars=[{'date':(date(2026,11,10)-timedelta(days=89-i)).isoformat(),
+               'open':100,'high':101,'low':99,'close':100,'volume':100} for i in range(90)]
+        picks=[]
+        for i in range(n):
+            picks.append({'ticker':f'{i+1:06d}','name':'SYNTHETIC','rank':i+1,
+                'signal_id':f'SYNTHETIC_{i}','source_price_asof':asof,'source_run_id':'SYNTHETIC_RUN',
+                'source_regular_only_certified':True,'chart_price_basis':'KRX_UNADJUSTED_AS_TRADED',
+                'chart_bars':bars,'reference_close':100,'close':100,
+                'entry_plans':{'A_SUPPORT_LIMIT':{'plan':{
+                'low':97,'high':99,'stop':95,'resistance':110,'net_r1_rr':2.75,
+                'known_on':asof,'decision_date':asof}}}})
+        return {'source_price_asof':asof,'source_run_id':'SYNTHETIC_RUN',
+            'source_validation_sha256':'a'*64,'source_regular_only_certified':True,
+            'research_top2_registered_for_source_session':True,
+            'orders_enabled':False,'current_action':'CASH','research_top2':picks}
+
+    def test_zero_one_two_candidates_render_and_create_no_fake_prices(self):
+        from c3_final_delivery_gate_v1 import review,filtered_report_for_presentation
+        from c3_classic_theme import create_final_cards
+        from c3_telegram_notify import validate_photos
+        for count in (0,1,2):
+            with self.subTest(count=count), tempfile.TemporaryDirectory() as tmp:
+                report=self.synthetic_report(count);original=json.dumps(report,sort_keys=True)
+                result=review(report)
+                self.assertEqual(result['eligible_count'],count)
+                self.assertTrue(result['sendable'])
+                self.assertEqual(result['delivery_kind'],{0:'CASH_1',1:'STOCK_1',2:'ALBUM_2'}[count])
+                output=filtered_report_for_presentation(report,result)
+                self.assertEqual(len(output['research_top2']),count)
+                self.assertEqual(json.dumps(report,sort_keys=True),original)
+                paths=create_final_cards(output,tmp)
+                self.assertEqual(len(paths),1 if count<2 else 2)
+                self.assertEqual(len(validate_photos(paths,allow_single=True)),len(paths))
+                if count==0:
+                    self.assertEqual(paths[0].name,'CASH_integrated.png')
+                else:
+                    diag=json.loads(Path(tmp,'render_diagnostics.json').read_text())
+                    self.assertTrue(all(x['visible_rows']==60 for x in diag['cards']))
+
+    def test_only_authenticated_frozen_B_ranked_pool_can_promote_rank_three(self):
+        from c3_final_delivery_gate_v1 import review,filtered_report_for_presentation
+        from c3_telegram_inputs import canonical,digest
+        report=self.synthetic_report(2)
+        for row in report['research_top2']:row['model']='B'
+        report['research_top2'][1]['entry_plans']['A_SUPPORT_LIMIT']['plan']['resistance']=100
+        pool=copy.deepcopy(report['research_top2'])
+        third=copy.deepcopy(pool[0]);third.update(ticker='000003',name='SYNTHETIC3',rank=3,signal_id='THIRD')
+        pool.append(third)
+        proof={'schema':'C3_IMMUTABLE_B_POOL_V21',
+            'origin':'AUTHENTICATED_FROZEN_C3_B_DECISION',
+            'frozen_decision_sha256':'e'*64,'frozen_research_commit':'d'*40,
+            'source_run_id':report['source_run_id'],'asof':report['source_price_asof'],
+            'source_validation_sha256':report['source_validation_sha256'],
+            'pool_sha256':digest(canonical(pool))}
+        allowed=review(report,pool,proof)
+        self.assertEqual(allowed['candidate_pool_status'],'AUTHENTICATED_SAME_MODEL_B_POOL')
+        self.assertEqual([x['ticker'] for x in allowed['eligible']],['000001','000003'])
+        self.assertEqual(allowed['replacement_count'],1)
+        new=filtered_report_for_presentation(report,allowed,pool)
+        self.assertEqual([x['rank'] for x in new['research_top2']],[1,3])
+        self.assertEqual([x['rank'] for x in report['research_top2']],[1,2])
+        forged=copy.deepcopy(proof);forged['pool_sha256']='0'*64
+        rejected=review(report,pool,forged)
+        self.assertEqual(rejected['candidate_pool_status'],'CANDIDATE_POOL_UNVERIFIED')
+        self.assertEqual([x['ticker'] for x in rejected['eligible']],['000001'])
+
+    def test_unverified_alternate_pool_never_invents_a_third_pick(self):
+        from c3_final_delivery_gate_v1 import review
+        report=self.fixed_nov10()
+        fake={'ticker':'999999','source_price_asof':'2026-11-10','rank':3}
+        out=review(report,frozen_ranked_pool=[fake],pool_proof={'verified':True})
+        self.assertEqual(out['replacement_count'],0)
+        self.assertFalse(out['substitutes_invented'])
+        self.assertEqual([x['ticker'] for x in out['reviewed']],['028050','180640'])
+
+    def test_live_gate_dry_run_cash_never_constructs_telegram(self):
+        import c3_telegram_notify as notify
+        clock=datetime(2026,11,10,22,45,tzinfo=ZoneInfo('Asia/Seoul'))
+        report=self.fixed_nov10()
+        report.update(generated_at='2026-11-10T13:42:00Z',
+                      source_received_at='2026-11-10T13:30:00Z')
+        summary={k:report[k] for k in ('source_price_asof','source_run_id','generated_at')}
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(notify,'GitHub',return_value=Mock(sources=[])),patch.object(notify,'Telegram') as bot, \
+             patch.object(notify,'ReceiptStore') as receipts, \
+             patch.object(notify,'report_pair',return_value=(report,summary,'a'*40)), \
+             patch.object(notify,'report_error',return_value=None), \
+             patch.object(notify,'frozen_live_bars',side_effect=lambda gh,r,ref:r), \
+             patch.object(notify,'now_kst',return_value=clock), \
+             patch('c3_report_context.attach_context',side_effect=lambda r,*args:r), \
+             patch.dict('os.environ',{'C3_FINAL_GATE_ENABLED':'1'}), \
+             patch('sys.argv',['notify','--mode','live','--dry-run','--outdir',tmp]):
+            self.assertEqual(notify.main(),0)
+            bot.assert_not_called();receipts.assert_not_called()
+            d=json.loads(Path(tmp,'delivery_status.json').read_text())
+            self.assertEqual(d['status'],'DRY_RUN_VALIDATED_NO_DELIVERY')
+            self.assertEqual(d['photos'],1)
+            self.assertEqual(d['send_attempts'],0)
+            self.assertTrue(Path(tmp,'CASH_integrated.png').exists())
+            audit=json.loads(Path(tmp,'delivery_review.json').read_text())
+            self.assertEqual(audit['eligible_count'],0)
+            handoff=json.loads(Path(tmp,'presentation.json').read_text())
+            self.assertEqual(handoff['images'][0]['ticker'],'CASH')
+            self.assertFalse(handoff['chatgpt_delivery_verified'])
+
 
 if __name__=='__main__':unittest.main()

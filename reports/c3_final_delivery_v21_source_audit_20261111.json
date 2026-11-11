@@ -1,0 +1,83 @@
+{
+  "schema": "C3_FINAL_V21_READ_ONLY_20261110_SOURCE_AUDIT",
+  "asof": "2026-11-10",
+  "audit_date": "2026-11-11",
+  "operating_c3": {
+    "model": "B",
+    "source_run_id": "42884437776",
+    "public_report_blob_sha": "3b4c7855f4052eefa14cfdf0622c1eb0f9f31889",
+    "source_validation_sha256": "4de3a1db908d6c28479d6862311e650075f7f5bcaa27bdbb990fc2a31158dd09",
+    "original_ranked_picks": [
+      {
+        "rank": 1,
+        "ticker": "028050",
+        "close": 64600,
+        "first_entry": [
+          59400,
+          62600
+        ],
+        "net_r1_rr": 0.33615940389023125,
+        "technical_diagnosis": "RISK_REJECTED"
+      },
+      {
+        "rank": 2,
+        "ticker": "180640",
+        "close": 239000,
+        "first_entry": [
+          118000,
+          122000
+        ],
+        "first_resistance": null,
+        "technical_diagnosis": "STALE_ENTRY"
+      }
+    ],
+    "asof_full_ranked_B_pool_status": "NOT_CERTIFIED_BY_AVAILABLE_PUBLIC_ARTIFACT",
+    "immutable_frozen_decision_requires_authenticated_archive_key": true,
+    "do_not_invent_third_rank": true
+  },
+  "separate_market_research": {
+    "workflow_run_id": "42950912051",
+    "source_scan_run_id": "42950857593",
+    "artifact_id": 13824683585,
+    "top20_csv_sha256": "b990dc74a4e93cc479ff7e1247b7ffb423a61f5650eb54c8c1c2859a4d13b279",
+    "selected_top20_count": 20,
+    "first_ranked_tickers": [
+      "032640",
+      "105740"
+    ],
+    "first_entry_research_present_count": 0,
+    "v613_first_limit_present_count": 0,
+    "confirmed_trigger_methods_total": 0,
+    "relation_to_c3_B_ranked_pool": "DISTINCT_MODEL_NO_AUTOMATIC_PROMOTION",
+    "status": "CANDIDATE_POOL_UNVERIFIED"
+  },
+  "price_provenance": {
+    "krx_eod_workflow_run_id": "42950912051",
+    "official_kospi_rows": 936,
+    "official_kosdaq_rows": 1832,
+    "official_krx_response_hashes": {
+      "KOSPI": "8eeb3c0ef02294088be75b62a2a4f3ecbe04aa44463ed9c13db5f10b11fc4566",
+      "KOSDAQ": "92f4d4dd47b4d02d7169fa019358f18fd335f80e39a91855d67445e6a8a6eead"
+    },
+    "official_120day_replay_run_id": "42981532029",
+    "official_120day_replay_artifact_id": 13836979515,
+    "official_120day_replay_distinct_market_days": 124,
+    "regular_1530_only_volume_turnover_certified": false,
+    "independent_vendor_certified": false,
+    "historical_corporate_actions_adjusted_certified": false,
+    "trading_approval": false,
+    "orders_enabled": false,
+    "decision": "DATA_BLOCKED"
+  },
+  "policy": {
+    "existing_live_telegram_receipt_message_ids": [
+      38,
+      39
+    ],
+    "actual_resend_authorized": false,
+    "draft_PR_only": true,
+    "final_delivery_gate_enabled_default": false,
+    "existing_schedules_unchanged": true,
+    "no_new_selection_model_or_profitability_threshold_promotion": true
+  }
+}

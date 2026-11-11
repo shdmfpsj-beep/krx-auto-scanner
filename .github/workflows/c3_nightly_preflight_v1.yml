@@ -1,0 +1,110 @@
+name: C3 nightly read-only preflight and delivery regression
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/c3_nightly_preflight_v1.yml'
+      - 'scripts/c3_nightly_preflight_v1.py'
+      - 'scripts/test_c3_nightly_preflight_v1.py'
+      - 'scripts/c3_telegram_notify.py'
+      - 'scripts/c3_telegram_inputs.py'
+      - 'scripts/c3_classic_theme.py'
+      - 'scripts/c3_entry_geometry_gate.py'
+  push:
+    branches: ['research/c3-nightly-preflight-20261111']
+    paths:
+      - '.github/workflows/c3_nightly_preflight_v1.yml'
+      - 'scripts/c3_nightly_preflight_v1.py'
+      - 'scripts/test_c3_nightly_preflight_v1.py'
+      - 'scripts/c3_telegram_notify.py'
+      - 'scripts/c3_telegram_inputs.py'
+      - 'scripts/c3_classic_theme.py'
+      - 'scripts/c3_entry_geometry_gate.py'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-nightly-readonly-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+          path: engine
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing report dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow requests cryptography --disable-pip-version-check
+      - name: Run report, price-quality, PASS, finality and delivery regressions
+        env:
+          PYTHONPATH: scripts
+        run: |
+          mkdir -p /tmp/c3-nightly-preflight
+          python - <<'PY'
+          import json,unittest
+          from pathlib import Path
+          patterns=['test_c3_telegram_notify.py','test_c3_report_quality.py','test_c3_report_handoff.py',
+                    'test_c3_nightly_preflight_v1.py','test_krx_official_eod_v65.py',
+                    'test_c3_readiness_gate_v19.py','test_official_krx_120d_replay.py']
+          suite=unittest.TestSuite()
+          for name in patterns:suite.addTests(unittest.defaultTestLoader.discover('scripts',pattern=name))
+          result=unittest.TextTestRunner(verbosity=2).run(suite)
+          Path('/tmp/c3-nightly-preflight/regression_result.json').write_text(json.dumps({
+              'tests':result.testsRun,'failures':len(result.failures),'errors':len(result.errors),
+              'success':result.wasSuccessful(),'telegram_http_calls':0,'source':'SYNTHETIC_REGRESSION_NOT_REAL_DELIVERY'}))
+          raise SystemExit(0 if result.wasSuccessful() else 1)
+          PY
+      - name: Run pinned original ledger and missed-entry regressions
+        env:
+          PYTHONPATH: engine/scripts
+        run: |
+          python -m unittest discover -s engine/scripts -p 'test_c3_forward_ledger_v8.py' -v
+      - name: Probe today's official data and replay frozen source without delivery
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          PYTHONPATH: scripts
+          C3_FINAL_GATE_ENABLED: '0'
+        run: python scripts/c3_nightly_preflight_v1.py --outdir /tmp/c3-nightly-preflight
+      - name: Assert replay and original-record preservation separately from readiness
+        if: success() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('/tmp/c3-nightly-preflight/nightly_preflight.json').read_text())
+          assert a['telegram_send_attempts']==a['git_write_requests']==a['new_signals_registered']==0
+          assert a['frozen_replay']['status']=='HASH_AND_PLAN_MATCHED'
+          assert a['protected_tree_same_at_pinned_ref'] and a['source_report_not_mutated']
+          assert a['original_protected_blobs_unchanged_at_latest_head']
+          # SOURCE_PENDING is an honest data result, NEVER final zero picks.
+          if a['current_report_gate']!='PASSED':assert a['today_final_candidate_count'] is None
+          print('READ_ONLY_REPLAY_OK',a['status'],'NOT_A_TELEGRAM_DELIVERY_OR_DEPLOYMENT')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-nightly-preflight-20261111
+          path: /tmp/c3-nightly-preflight/
+          retention-days: 90
+          if-no-files-found: error

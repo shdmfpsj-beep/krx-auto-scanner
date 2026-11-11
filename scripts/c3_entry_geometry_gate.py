@@ -12,17 +12,19 @@ def assess(row, bars=None):
     reasons=[];metrics={}
     if not isinstance(close,(int,float)) or not math.isfinite(close) or close<=0:
         return {'status':'CASH','eligible':False,'reasons':['REFERENCE_CLOSE_MISSING'],'metrics':metrics}
-    if not p or not all(isinstance(p.get(k),(int,float)) for k in ('low','high','stop')):
+    if not p or not all(isinstance(p.get(k),(int,float)) and not isinstance(p.get(k),bool) and math.isfinite(p[k]) for k in ('low','high','stop')):
         return {'status':'CASH','eligible':False,'reasons':['ENTRY_PLAN_INCOMPLETE'],'metrics':metrics}
     low,high,stop=map(float,(p['low'],p['high'],p['stop']))
     if not 0<stop<low<=high:
-        reasons.append('INVALID_ENTRY_GEOMETRY')
+        return {'status':'CASH','eligible':False,'reasons':['INVALID_ENTRY_GEOMETRY'],'metrics':metrics}
     premium=100*(close/high-1)
     metrics['premium_over_entry_high_pct']=round(premium,2)
     if premium>MAX_ENTRY_PREMIUM_PCT:reasons.append('CHASE_ENTRY_PREMIUM_OVER_5PCT')
     if p.get('resistance') is None:
         reasons.append('FIRST_RESISTANCE_UNVERIFIED')
     else:
+        if not isinstance(p['resistance'],(int,float)) or isinstance(p['resistance'],bool) or not math.isfinite(p['resistance']):
+            return {'status':'CASH','eligible':False,'reasons':['FIRST_RESISTANCE_UNVERIFIED'],'metrics':metrics}
         resistance=float(p['resistance'])
         if resistance<=high:reasons.append('FIRST_RESISTANCE_NOT_ABOVE_ENTRY')
         else:
