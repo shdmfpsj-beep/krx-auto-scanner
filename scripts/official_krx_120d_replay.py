@@ -64,11 +64,23 @@ def main():
     actual_dates={r["date"] for r in rows}
     qualified=[r for r in rows if r["ticker"] in usable]
     events=replay(qualified) if len(actual_dates)>=120 else []
+    empty_responses=[];not_attempted=[];failed_responses=[]
+    for day in missing:
+        status_path=a.root/day/"krx_v65_collect_status.json"
+        if not status_path.exists():not_attempted.append(day)
+        else:
+            state=json.loads(status_path.read_text())
+            if state.get("status") in ("OFFICIAL_RESPONSE_MISSING_OR_EMPTY_OUTBLOCK","OFFICIAL_NO_SHORT_SECURITY_IDS_TO_JOIN"):
+                empty_responses.append(day)  # holiday CANDIDATE, not certified holiday
+            else:failed_responses.append({"date":day,"status":state.get("status")})
     summary={"requested_weekdays":len(days),"observed_market_dates":len(actual_dates),
+             "unattempted_days":not_attempted,"empty_response_holiday_candidates":empty_responses,
+             "failed_response_days":failed_responses,
              "missing_or_unusable_days":missing,"qualified_tickers":len(usable),
              "historical_rows":len(rows),"research_events":len(events),
              "source":"OFFICIAL_KRX_EOD_SESSION_SCOPE_UNCERTIFIED",
              "survivorship_bias_resolved":False,"corporate_actions_adjusted":False,
+             "net_cost_assumption_pct":0.65,"overlap_lockout_sessions":20,
              "vintage_pit_verified":False,"regular_1530_certified":False,
              "trade_approved":False,"orders_enabled":False,"decision":"CASH",
              "status":"RESEARCH_HISTORY_INCOMPLETE" if len(actual_dates)<120 else "RESEARCH_ONLY_UNCERTIFIED"}
