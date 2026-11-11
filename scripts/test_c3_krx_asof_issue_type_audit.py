@@ -13,6 +13,9 @@ class IssueTypeTests(unittest.TestCase):
   self.assertTrue(c['common_share_reported'])
   self.assertTrue(p['preferred_share_reported'])
   self.assertFalse(p['common_share_reported'])
+  old=parse_category({'LIST_DD':'1990/01/08','KIND_STKCERT_TP_NM':'구형우선주'},'2026-10-01')
+  self.assertTrue(old['preferred_share_reported'])
+  self.assertFalse(old['common_share_reported'])
  def test_unknown_class_never_common(self):
   r=parse_category({'LIST_DD':'2020/01/03','KIND_STKCERT_TP_NM':''},'2026-08-03')
   self.assertFalse(r['common_share_reported'])
