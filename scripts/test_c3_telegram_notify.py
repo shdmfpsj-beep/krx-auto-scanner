@@ -352,7 +352,7 @@ class FinalPresentationReviewTests(unittest.TestCase):
                       source_received_at='2026-11-10T13:30:00Z')
         summary={k:report[k] for k in ('source_price_asof','source_run_id','generated_at')}
         with tempfile.TemporaryDirectory() as tmp, \
-             patch.object(notify,'GitHub'),patch.object(notify,'Telegram') as bot, \
+             patch.object(notify,'GitHub',return_value=Mock(sources=[])),patch.object(notify,'Telegram') as bot, \
              patch.object(notify,'ReceiptStore') as receipts, \
              patch.object(notify,'report_pair',return_value=(report,summary,'a'*40)), \
              patch.object(notify,'report_error',return_value=None), \
