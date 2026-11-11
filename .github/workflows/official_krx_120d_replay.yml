@@ -11,6 +11,8 @@ on:
       - 'scripts/c3_stored_history_diagnostics.py'
       - 'scripts/c3_entry_expiry_diagnostics.py'
       - 'scripts/test_c3_entry_expiry_diagnostics.py'
+      - 'scripts/c3_selection_shadow_outcomes.py'
+      - 'scripts/test_c3_selection_shadow_outcomes.py'
       - '.github/workflows/official_krx_120d_replay.yml'
 permissions:
   contents: read
@@ -39,6 +41,9 @@ jobs:
             /scripts/c3_stored_history_diagnostics.py
             /scripts/c3_entry_expiry_diagnostics.py
             /scripts/test_c3_entry_expiry_diagnostics.py
+            /scripts/c3_selection_first_research.py
+            /scripts/c3_selection_shadow_outcomes.py
+            /scripts/test_c3_selection_shadow_outcomes.py
             /scripts/forward_ledger_v63.py
             /scripts/source_consensus_v64.py
             /scripts/free_structural_v52.py
@@ -53,6 +58,7 @@ jobs:
           python -m unittest discover -s scripts -p test_official_history_independent_audit.py -v
           python -m unittest discover -s scripts -p test_c3_three_entry_replay.py -v
           python -m unittest discover -s scripts -p test_c3_entry_expiry_diagnostics.py -v
+          python -m unittest discover -s scripts -p test_c3_selection_shadow_outcomes.py -v
       - name: Restore last successful official historical artifact
         shell: bash
         run: |
@@ -102,6 +108,16 @@ jobs:
           d=datetime.now(ZoneInfo('Asia/Seoul')).date()-timedelta(days=1)
           while d.weekday()>=5:d-=timedelta(days=1)
           subprocess.run([sys.executable,'scripts/c3_entry_expiry_diagnostics.py','--root','output/official_history','--end',d.isoformat(),'--out','output/replay/c3_entry_expiry_diagnostics.json'],check=True)
+          PY
+      - name: Measure technical-only selection shadow outcomes without financial PIT claims
+        run: |
+          python - <<'PY'
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          import subprocess,sys
+          d=datetime.now(ZoneInfo('Asia/Seoul')).date()-timedelta(days=1)
+          while d.weekday()>=5:d-=timedelta(days=1)
+          subprocess.run([sys.executable,'scripts/c3_selection_shadow_outcomes.py','--root','output/official_history','--end',d.isoformat(),'--out','output/replay/c3_selection_shadow_outcomes.json'],check=True)
           PY
       - name: Independently audit restored official history and provenance blockers
         if: always()
