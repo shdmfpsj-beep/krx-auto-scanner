@@ -78,8 +78,8 @@ def main():
     lane=state/"reports/c3_forward_v8"/ROOT_LANE
     market=read_record(lane/"markets"/(DAY+".json.gz"))
     decision=read_record(lane/"decisions"/(DAY+".json"))
-    if market["asof"]!=DAY or decision["decision_date"]!=DAY:
-        raise ValueError("FROZEN_DATE_NOT_NOV11")
+    if market["asof"]!=DAY or decision.get("price_asof")!=DAY:
+        raise ValueError("FROZEN_SOURCE_PRICE_DATE_NOT_NOV11")
     if decision["source_snapshot_hash"]!=hash_value(market):
         raise ValueError("ORIGINAL_DECISION_AND_MARKET_HASH_MISMATCH")
     old_b=[r["ticker"] for r in decision["models"]["B"]]
