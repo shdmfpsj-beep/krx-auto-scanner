@@ -69,14 +69,37 @@ def packet(report,ref,result,clock,outdir,dry_run=False,render_validated=None):
         cards=diagnostic['cards'];picks=report.get('research_top2') or []
         gate_path=root/'delivery_review.json'
         gate_rows={}
-        if gate_path.exists():
+        enabled=report.get('final_presentation_review')
+        if enabled:
+            if not gate_path.exists():raise ValueError('FINAL_GATE_EVIDENCE_FILE_MISSING')
             gate=json.loads(gate_path.read_text())
+            if gate!=enabled or gate.get('schema')!='C3_FINAL_PRESENTATION_REVIEW_V21':
+                raise ValueError('FINAL_GATE_EVIDENCE_CHANGED')
             if gate.get('asof')!=report.get('source_price_asof') or gate.get('source_run_id')!=report.get('source_run_id'):
                 raise ValueError('FINAL_GATE_SOURCE_IDENTITY_MISMATCH')
             gate_rows={r['ticker']:r for r in gate.get('eligible',[])}
-            if len(gate_rows)!=2 or {r['ticker'] for r in picks}!=set(gate_rows):
+            if len(gate_rows)!=len(picks) or {r['ticker'] for r in picks}!=set(gate_rows):
                 raise ValueError('FINAL_GATE_SELECTED_TICKERS_MISMATCH')
-        if len(cards)!=2 or [c['ticker'] for c in cards]!=[r['ticker'] for r in picks]:raise ValueError('HANDOFF_IMAGE_IDENTITY_MISMATCH')
+            out['final_presentation_review']={
+                k:copy.deepcopy(gate[k]) for k in ('schema','asof','eligible_count','candidate_pool_status',
+                                                    'delivery_kind','replacement_count','decision')
+            }
+            if not picks:
+                if len(cards)!=1 or cards[0].get('ticker')!='CASH' or not diagnostic.get('cash_only'):
+                    raise ValueError('CASH_HANDOFF_IMAGE_MISSING')
+                body=(root/'CASH_integrated.png').read_bytes()
+                if cards[0].get('asof')!=report['source_price_asof'] or cards[0].get('sha256')!=digest(body):
+                    raise ValueError('CASH_HANDOFF_IMAGE_DATE_OR_HASH_MISMATCH')
+                out['images'].append({'ticker':'CASH','name':'CASH_integrated.png','sha256':digest(body),
+                                      'bytes':len(body),'source_price_asof':report['source_price_asof'],
+                                      'research_selection_run_id':report.get('source_run_id'),
+                                      'render_run_id':os.environ.get('GITHUB_RUN_ID'),'final_state':'CASH'})
+                return out
+        elif gate_path.exists():
+            raise ValueError('UNEXPECTED_FINAL_GATE_FILE')
+        expected=(len(picks) if enabled else 2)
+        if len(cards)!=expected or [c['ticker'] for c in cards]!=[r['ticker'] for r in picks]:
+            raise ValueError('HANDOFF_IMAGE_IDENTITY_MISMATCH')
         for row,card in zip(picks,cards):
             body=(root/(row['ticker']+'_integrated.png')).read_bytes()
             if card['asof']!=report['source_price_asof'] or card['sha256']!=digest(body):raise ValueError('HANDOFF_IMAGE_DATE_OR_HASH_MISMATCH')
