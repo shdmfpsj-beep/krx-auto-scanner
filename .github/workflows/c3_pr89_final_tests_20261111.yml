@@ -32,6 +32,8 @@ jobs:
             /scripts/test_c3_pr87_frozen_holdout.py
             /scripts/c3_krx_asof_issue_type_audit.py
             /scripts/test_c3_krx_asof_issue_type_audit.py
+            /scripts/c3_fixed_v1_source_entry_audit.py
+            /scripts/test_c3_fixed_v1_source_entry_audit.py
             /scripts/free_structural_v52.py
             /scripts/first_pullback_v55.py
             /scripts/entry_strategy_v58.py
@@ -45,3 +47,4 @@ jobs:
           python -m unittest discover -s scripts -p test_c3_pr87_date_evidence_join.py -v
           python -m unittest discover -s scripts -p test_c3_pr87_frozen_holdout.py -v
           python -m unittest discover -s scripts -p test_c3_krx_asof_issue_type_audit.py -v
+          python -m unittest discover -s scripts -p test_c3_fixed_v1_source_entry_audit.py -v
