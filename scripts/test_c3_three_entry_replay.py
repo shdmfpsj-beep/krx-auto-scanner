@@ -42,6 +42,15 @@ class ReplayTests(unittest.TestCase):
  def test_unconfirmed_breakout_has_no_retest_signal(self):
   b=self.bars()
   self.assertFalse([x for x in signals(b,80) if x[0]=="BREAKOUT_RETEST"])
+ def test_intraday_entry_high_cannot_prove_target_before_fill(self):
+  b=self.bars();b[81]["open"]=120;b[81]["high"]=140;b[81]["low"]=110
+  x=evaluate(b,80,"MA20_PULLBACK",115,100,130)
+  self.assertTrue(x["filled"])
+  self.assertEqual(x["outcomes"]["5"]["status"],"CENSORED_ENTRY_SEQUENCE_UNCERTAIN")
+ def test_same_bar_stop_before_target(self):
+  b=self.bars();b[81]["open"]=120;b[81]["high"]=140;b[81]["low"]=95
+  x=evaluate(b,80,"MA20_PULLBACK",115,100,130)
+  self.assertEqual(x["outcomes"]["5"]["status"],"STOP")
  def test_duplicate_day_rejected(self):
   b=self.bars();b[1]["date"]=b[0]["date"]
   with self.assertRaises(ValueError):replay(b)
