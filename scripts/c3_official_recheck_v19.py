@@ -11,12 +11,29 @@ Published output contains status/counts and SHA hashes only.
 import argparse
 import json
 import os
+from datetime import date
 from pathlib import Path
 
 import hashlib
 from urllib.request import Request,urlopen
 from urllib.parse import urlencode
 from urllib.error import HTTPError,URLError
+
+def locked_source_day(readiness_path):
+    """Read the exact dated session from the readiness gate; never use wall-clock today."""
+    evidence=json.loads(Path(readiness_path).read_text(encoding="utf-8"))
+    if evidence.get("schema")!="C3_READY_AND_SOURCE_ATTESTATION_V19":
+        raise ValueError("READINESS_SCHEMA_MISMATCH")
+    day=evidence.get("expected_source_day")
+    if not isinstance(day,str):
+        raise ValueError("NO_EXPECTED_SOURCE_DAY")
+    try:
+        iso=date.fromisoformat(day).isoformat()
+    except ValueError as exc:
+        raise ValueError("INVALID_EXPECTED_SOURCE_DAY") from exc
+    if iso!=day or date.fromisoformat(day).weekday()>=5:
+        raise ValueError("INVALID_EXPECTED_SOURCE_DAY")
+    return day
 
 def collect(day,outdir,auth_key):
     """Metadata-only KRX diagnostic; no unverified OHLCV enters C3 signals."""
