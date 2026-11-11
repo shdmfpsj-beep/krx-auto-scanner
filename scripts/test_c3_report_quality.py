@@ -32,7 +32,7 @@ class ChartQualityTests(unittest.TestCase):
         self.assertEqual(len(self.bars)-g['offset'],60)
         self.assertEqual(g['paths']['5'][0]['date'],self.bars[-60]['date'])
         self.assertEqual(g['paths']['20'][0]['date'],self.bars[-60]['date'])
-        self.assertEqual(g['paths']['60'][0]['date'],self.bars[-60]['date'])
+        self.assertEqual(g['paths']['60'][0]['date'],self.bars[59]['date'])  # 60-MA only exists after 59 warm-up bars
         self.assertEqual(g['paths']['60'][-1]['date'],self.bars[-1]['date'])
         self.assertEqual(g['last_candle_x'],g['paths']['60'][-1]['x'])
 
