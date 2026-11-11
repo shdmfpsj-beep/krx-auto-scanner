@@ -10,6 +10,8 @@ on:
       - 'scripts/test_c3_financial_entry_cohort.py'
       - 'scripts/c3_three_model_pit_matrix.py'
       - 'scripts/test_c3_three_model_pit_matrix.py'
+      - 'scripts/c3_selection_first_research.py'
+      - 'scripts/test_c3_selection_first_research.py'
       - '.github/workflows/c3_three_entry_replay_tests.yml'
 permissions:
   contents: read
@@ -26,6 +28,8 @@ jobs:
             /scripts/test_c3_financial_entry_cohort.py
             /scripts/c3_three_model_pit_matrix.py
             /scripts/test_c3_three_model_pit_matrix.py
+            /scripts/c3_selection_first_research.py
+            /scripts/test_c3_selection_first_research.py
             /scripts/sector_financial_join.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -34,3 +38,4 @@ jobs:
           python -m unittest discover -s scripts -p test_c3_three_entry_replay.py -v
           python -m unittest discover -s scripts -p test_c3_financial_entry_cohort.py -v
           python -m unittest discover -s scripts -p test_c3_three_model_pit_matrix.py -v
+          python -m unittest discover -s scripts -p test_c3_selection_first_research.py -v
