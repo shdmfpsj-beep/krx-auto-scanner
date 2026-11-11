@@ -1,0 +1,57 @@
+name: C3 v1.1 DART title versus adjacent price anomalies (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v11-entry-geometry-corporate-actions-20261111]
+    paths: ['.github/workflows/c3_v11_dart_anomaly_titles.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  dart-date-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_v11_adjacent_anomaly_issuer.py
+            /scripts/c3_v11_dart_anomaly_titles.py
+            /scripts/test_c3_v11_dart_anomaly_titles.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Strict prior-date noncausality test for corporate-action titles
+        run: python -m unittest discover -s scripts -p test_c3_v11_dart_anomaly_titles.py -v
+      - name: Exact KRX price archive and independently collected DART receipt titles
+        run: |
+          mkdir -p official v18 output
+          gh run download 42950252617 -R "$GITHUB_REPOSITORY" -n c3-pr87-newdata-official-research-only -D official
+          gh run download 42914786449 -R "$GITHUB_REPOSITORY" -n sector-evidence-v18-report -D v18
+      - name: Link 73 adjacent anomalies to only prior-30-day receipt titles, no ex-date claim
+        run: |
+          python scripts/c3_v11_dart_anomaly_titles.py \
+            --root official/official_history \
+            --v18 v18 \
+            --out output/c3_v11_dart_anomaly_titles.json
+      - name: Source and safety invariants
+        run: |
+          python - <<'PY'
+          import json
+          p=json.load(open('output/c3_v11_dart_anomaly_titles.json'))
+          assert p['total_adjacent_anomalies']==73
+          assert p['dart_list_title_records']>=10000
+          assert p['original_corporate_action_filing_body_and_effective_date_verified'] is False
+          assert p['no_production_changes'] is True and p['trade_approved'] is False
+          assert p['strictly_prior_day_only'] is True and p['decision']=='CASH'
+          print('C3_DART_DATE_ONLY_NO_CAUSALITY_PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-v11-dart-price-disclosure-title-crosscheck
+          path: output/c3_v11_dart_anomaly_titles.json
+          retention-days: 30
+          if-no-files-found: warn
