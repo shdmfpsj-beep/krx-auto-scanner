@@ -1,6 +1,8 @@
 name: Official KRX 120-day historical research batch (CASH)
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '10 1 * * 1-5'
   push:
     branches: [main]
     paths:
