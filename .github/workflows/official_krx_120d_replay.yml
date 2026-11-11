@@ -9,6 +9,7 @@ on:
       - '.github/workflows/official_krx_120d_replay.yml'
 permissions:
   contents: read
+  actions: read
 jobs:
   history-batch:
     runs-on: ubuntu-latest
@@ -16,6 +17,8 @@ jobs:
     env:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
       PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,6 +40,24 @@ jobs:
         run: |
           python -m unittest discover -s scripts -p test_official_krx_120d_replay.py -v
           python -m unittest discover -s scripts -p test_c3_three_entry_replay.py -v
+      - name: Restore last successful official historical artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p output/official_history
+          runs="$(gh api "repos/$GH_REPO/actions/runs?per_page=100" --jq '[.workflow_runs[] | select(.path == ".github/workflows/official_krx_120d_replay.yml" and .conclusion == "success") | .id] | .[:12] | .[]')"
+          for id in $runs; do
+            [[ "$id" == "$GITHUB_RUN_ID" ]] && continue
+            mkdir -p restore
+            if gh run download "$id" -R "$GH_REPO" -n official-krx-120d-batch-research-only -D restore 2>/dev/null; then
+              if [[ -d restore/official_history ]]; then
+                cp -a restore/official_history/. output/official_history/
+                echo "RESTORED_HISTORY_FROM_RUN $id"
+                break
+              fi
+            fi
+            rm -rf restore
+          done
       - name: Request a capped batch of official historical dates
         run: |
           python - <<'PY'
