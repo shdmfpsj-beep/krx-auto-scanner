@@ -46,6 +46,45 @@ jobs:
           assert not s["trade_approved"] and not s["orders_enabled"] and s["decision"]=="CASH"
           print("OFFICIAL_EOD",s["asof"],s["status"],s["official_market_rows"])
           PY
+      - name: Audit official market files against source hashes and date
+        run: |
+          python - <<'PY'
+          import csv,hashlib,json
+          from datetime import datetime,timedelta
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          d=datetime.now(ZoneInfo("Asia/Seoul")).date()-timedelta(days=1)
+          while d.weekday()>=5:
+              d-=timedelta(days=1)
+          folder=Path("output")/d.isoformat()
+          p=json.loads((folder/"krx_v65_collect_status.json").read_text())
+          assert p["asof"]==d.isoformat()
+          assert p["trade_approved"] is False and p["orders_enabled"] is False
+          assert p["independent_1530_regular_session_certified"] is False
+          summary={"asof":d.isoformat(),"official_api_status":p["status"],
+                   "regular_1530_certified":False,"decision":"CASH",
+                   "market_rows":{},"market_file_hash_verified":False,
+                   "integrity":"NOT_VERIFIED"}
+          if p["official_dataset_usable"]:
+              all_codes=set()
+              for market in ("KOSPI","KOSDAQ"):
+                  f=folder/(market+"_official.csv")
+                  assert hashlib.sha256(f.read_bytes()).hexdigest()==p["market_file_sha256"][market]
+                  with f.open(encoding="utf-8-sig",newline="") as handle:
+                      rows=list(csv.DictReader(handle))
+                  assert rows and all(x["asof"]==d.isoformat() and x["market"]==market for x in rows)
+                  codes={x["ticker"] for x in rows}
+                  assert len(codes)==len(rows) and not codes.intersection(all_codes)
+                  all_codes.update(codes)
+                  summary["market_rows"][market]=len(rows)
+              assert len(all_codes)==p["official_market_rows"]
+              assert len(all_codes)>=2000
+              summary["market_file_hash_verified"]=True
+              summary["integrity"]="OFFICIAL_DAILY_FILES_VERIFIED_SESSION_UNCERTIFIED"
+          (folder/"official_independent_integrity.json").write_text(
+              json.dumps(summary,ensure_ascii=False,indent=2)+"\\n")
+          print("OFFICIAL_INTEGRITY",summary["integrity"],summary["market_rows"])
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
