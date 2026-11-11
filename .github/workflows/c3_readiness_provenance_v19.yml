@@ -2,6 +2,7 @@ name: C3 research finality and regular-session provenance audit (NO ORDER / NO S
 on:
   push:
     branches:
+      - main
       - fix/c3-readiness-provenance-20261107
     paths:
       - 'scripts/c3_readiness_gate_v19.py'
@@ -90,15 +91,14 @@ jobs:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_REF_NAME" == "fix/c3-readiness-provenance-20261107" ]]; then
-            SOURCE_DATE_TO_RECHECK="2026-11-06"
-          else
-            SOURCE_DATE_TO_RECHECK="$(TZ=Asia/Seoul date +%F)"
-          fi
+          # Use the exact source day frozen by the immediately preceding readiness
+          # assessment; an early morning run MUST NOT query today's unfinished session.
+          SOURCE_DATE_TO_RECHECK="$(python -c 'from c3_official_recheck_v19 import locked_source_day; print(locked_source_day("/tmp/c3-readiness-v19/c3_readiness_gate_v19.json"))')"
+          echo "SOURCE_DATE_TO_RECHECK=$SOURCE_DATE_TO_RECHECK" >> "$GITHUB_ENV"
           echo "DATED_SOURCE_RECHECK $SOURCE_DATE_TO_RECHECK NO_SESSION_ATTESTATION_EXPECTED"
           python scripts/c3_official_recheck_v19.py --date "$SOURCE_DATE_TO_RECHECK" --outdir /tmp/c3-official-v19
       - name: Refresh readiness with date-matched newest official EOD probe (still not session-certified)
-        run: python scripts/c3_readiness_gate_v19.py --recent-official /tmp/c3-official-v19/c3_official_dated_recheck_v19.json --outdir /tmp/c3-readiness-v19
+        run: python scripts/c3_readiness_gate_v19.py --date "$SOURCE_DATE_TO_RECHECK" --recent-official /tmp/c3-official-v19/c3_official_dated_recheck_v19.json --outdir /tmp/c3-readiness-v19
       - uses: actions/upload-artifact@v4
         if: always()
         with:
