@@ -8,6 +8,7 @@ import copy
 import csv
 import io
 import json
+import math
 import os
 import re
 import tempfile
@@ -44,6 +45,40 @@ def safe_code(exc):
     return value if isinstance(exc,ValueError) and re.fullmatch('[A-Z0-9_]{1,100}',value) else 'SOURCE_OR_TRANSPORT_UNAVAILABLE'
 
 
+def audit_cache(raw,day,previous=None):
+    """Internal dated CSV checks only; a KRX cache is not independent proof."""
+    rows=list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))))
+    issues=[];seen=set();markets={'KOSPI':0,'KOSDAQ':0};no_trades=0
+    for row in rows:
+        ticker=row.get('Code','');market={'STK':'KOSPI','KSQ':'KOSDAQ'}.get(row.get('MarketId'))
+        if not re.fullmatch('[0-9A-Z]{6}',ticker) or ticker in seen:issues.append({'ticker':ticker,'reason':'CODE_OR_DUPLICATE'})
+        seen.add(ticker)
+        if not row.get('Name') or market not in markets or row.get('Market')!=market:
+            issues.append({'ticker':ticker,'reason':'IDENTITY_OR_MARKET'})
+        else:markets[market]+=1
+        try:
+            o,h,l,c,v,a=[float(str(row[k]).replace(',','')) for k in ('Open','High','Low','Close','Volume','Amount')]
+            if not all(math.isfinite(x) and x>=0 for x in (o,h,l,c,v,a)) or v!=int(v):raise ValueError()
+            if v==0:
+                no_trades+=1
+                if a!=0:raise ValueError()
+            elif not 0<l<=min(o,c)<=max(o,c)<=h or a<=0:raise ValueError()
+        except (KeyError,TypeError,ValueError):issues.append({'ticker':ticker,'reason':'INVALID_OHLCV_OR_TURNOVER'})
+    if not rows or any(v==0 for v in markets.values()):issues.append({'reason':'EMPTY_MARKET'})
+    result={'status':'INTERNAL_CHECKS_PASSED_NOT_SOURCE_CERTIFIED' if not issues else 'INTERNAL_QUALITY_FAILED',
+            'requested_file_day':day,'rows':len(rows),'market_rows':markets,'issues':issues,
+            'zero_volume_rows':no_trades,'halt_or_delisting_not_inferred':True,
+            'regular_only_certified':False,'independent_source':False,'corporate_actions_certified':False}
+    if previous:
+        old={r['Code']:r for r in csv.DictReader(io.StringIO(previous.decode('utf-8-sig')))}
+        current={r['Code']:r for r in rows}
+        result['previous_cache_comparison']={'new_codes':sorted(set(current)-set(old)),
+            'absent_codes':sorted(set(old)-set(current)),
+            'changed_names':[t for t in current.keys()&old.keys() if current[t]['Name']!=old[t]['Name']],
+            'listing_cause_not_certified':True,'prior_cache_is_current_vintage_not_original_replacement':True}
+    return result
+
+
 def execute(outdir):
     out=Path(outdir);out.mkdir(parents=True,exist_ok=True)
     clock=datetime.now(ZoneInfo('Asia/Seoul'));day=expected_session(clock)
@@ -67,6 +102,14 @@ def execute(outdir):
                      source_scope=latest.get('current_scope'),protected_blob_count=len(immutable),
                      protected_tree_sha256=digest(canonical(immutable)))
         reason=report_error(latest,summary,clock)
+        original_run=gh.api('actions/runs/'+str(latest['source_run_id']))
+        audit['original_source_workflow']={k:original_run.get(k) for k in
+            ('id','path','head_sha','head_branch','status','conclusion','created_at','updated_at')}
+        artifacts=gh.api('actions/runs/'+str(latest['source_run_id'])+'/artifacts?per_page=100')
+        audit['original_source_artifacts']=[{k:r.get(k) for k in ('id','name','digest','expired')}
+            for r in artifacts.get('artifacts',[])]
+        if reason is None and (original_run.get('status')!='completed' or original_run.get('conclusion')!='success'):
+            reason='SOURCE_WORKFLOW_NOT_SUCCESSFUL'
         audit['current_report_gate']=reason or 'PASSED'
         if reason is None:
             audit['status']='CURRENT_RESEARCH_READY_SESSION_UNCERTIFIED'
@@ -99,6 +142,16 @@ def execute(outdir):
             cache=ReadOnlyGitHub(os.environ.get('GH_TOKEN',''),'FinanceData/fdr_krx_data_cache')
             cache_ref=cache.head('master')
             raw=cache.file('data/listing/krx/'+day+'.csv',cache_ref,missing_ok=True)
+            if raw:
+                prior=cache.file('data/listing/krx/'+latest['source_price_asof']+'.csv',cache_ref,missing_ok=True)
+                audit['today_cache_quality']=audit_cache(raw,day,prior)
+                history=cache.api('commits?sha='+cache_ref+'&path=data/listing/krx/'+day+'.csv&per_page=1')
+                audit['today_cache_quality']['file_commit']={
+                    'sha':history[0]['sha'],'committed_at':history[0]['commit']['committer']['date']} if history else None
+                if history:
+                    committed=datetime.fromisoformat(history[0]['commit']['committer']['date'].replace('Z','+00:00'))
+                    closed=datetime.fromisoformat(day+'T15:30:00+09:00')
+                    audit['today_cache_quality']['published_after_close_before_audit']=closed<=committed<=clock
             if raw and official.get('official_dataset_usable'):
                 rows={r['Code']:r for r in csv.DictReader(io.StringIO(raw.decode('utf-8-sig')))}
                 actual=[r for name in ('KOSPI','KOSDAQ') for r in read_csv(Path(tmp)/(name+'_official.csv'))]
@@ -116,6 +169,10 @@ def execute(outdir):
             elif raw:
                 audit['today_cache_comparison'].update(status='CACHE_ONLY_OFFICIAL_PENDING',cache_ref=cache_ref,cache_sha256=digest(raw))
         audit['protected_tree_same_at_pinned_ref']=immutable==protected(gh,ref,(lane,ROOT+'/key_envelopes/'))
+        newest_ref=gh.head(RESEARCH)
+        newest=protected(gh,newest_ref,(lane,ROOT+'/key_envelopes/'))
+        audit['original_protected_blobs_unchanged_at_latest_head']=all(newest.get(p)==s for p,s in immutable.items())
+        audit['end_research_ref']=newest_ref
         audit['source_report_not_mutated']=initial==digest(canonical(latest))
         try:
             receipt_ref=gh.head('delivery/c3-top2-telegram')

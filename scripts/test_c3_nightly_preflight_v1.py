@@ -15,6 +15,23 @@ import test_c3_telegram_notify as cases
 
 
 class NightlyPreflightTests(unittest.TestCase):
+    def test_dated_cache_checks_market_counts_and_do_not_certify_session(self):
+        from c3_nightly_preflight_v1 import audit_cache
+        raw=b'Code,Name,MarketId,Market,Open,High,Low,Close,Volume,Amount\n000001,ONE,STK,KOSPI,100,110,90,105,10,1050\n000002,TWO,KSQ,KOSDAQ,0,0,0,100,0,0\n'
+        result=audit_cache(raw,'2026-11-11',raw)
+        self.assertEqual(result['market_rows'],{'KOSPI':1,'KOSDAQ':1})
+        self.assertEqual(result['issues'],[]);self.assertFalse(result['regular_only_certified'])
+        self.assertEqual(result['zero_volume_rows'],1)
+
+    def test_cache_corrupt_numbers_duplicates_and_name_mismatches_fail_closed(self):
+        from c3_nightly_preflight_v1 import audit_cache
+        header='Code,Name,MarketId,Market,Open,High,Low,Close,Volume,Amount\n'
+        for row in ('000001,ONE,STK,KOSPI,100,90,80,105,10,1050\n',
+                    '000001,,STK,KOSPI,100,110,90,105,10,1050\n',
+                    '000001,ONE,STK,KOSPI,100,110,90,105,nan,1050\n'):
+            result=audit_cache((header+row+row).encode(),'2026-11-11')
+            self.assertEqual(result['status'],'INTERNAL_QUALITY_FAILED')
+
     def test_final_zero_one_two_pass_actual_input_gate_only_when_enabled(self):
         report, summary, clock = cases.fixture()
         for n in (0, 1, 2):

@@ -34,7 +34,7 @@ def won(v):return f'{v:,.0f}원' if v is not None else '미확정'
 def source_labels(report,row,bars):
     """Only original validity and timestamps; never invent an expiry date."""
     sessions=row.get('order_validity_sessions')
-    validity=(f'다음 {sessions}거래일 · 범위 미도달 PASS' if type(sessions) is int and sessions>0 else '원본 유효기간 미확정 · 진입 보류')
+    validity=(f'가격일 후 {sessions}거래일 · 범위 미도달 PASS' if type(sessions) is int and sessions>0 else '원본 유효기간 미확정 · 진입 보류')
     received=row.get('source_received_at') or report.get('source_received_at')
     stamp='수집 시각 미확정'
     if received:
@@ -46,6 +46,7 @@ def source_labels(report,row,bars):
     visible=min(VISIBLE_SESSIONS,len(bars))
     ma60_points=sum(i>=59 for i in range(len(bars)-visible,len(bars)))
     return dict(validity=validity,order_validity_sessions=sessions,
+                validity_anchor='SOURCE_PRICE_SESSION_NOT_RENDER_DATE',
                 decision_date=row.get('decision_date'),price_asof=report.get('source_price_asof'),
                 source_received_at=received,source_received_label=stamp,
                 ma60_visible_points=ma60_points,ma60_full_visible_window=ma60_points==visible,

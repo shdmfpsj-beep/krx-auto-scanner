@@ -96,6 +96,7 @@ jobs:
           assert a['telegram_send_attempts']==a['git_write_requests']==a['new_signals_registered']==0
           assert a['frozen_replay']['status']=='HASH_AND_PLAN_MATCHED'
           assert a['protected_tree_same_at_pinned_ref'] and a['source_report_not_mutated']
+          assert a['original_protected_blobs_unchanged_at_latest_head']
           # SOURCE_PENDING is an honest data result, NEVER final zero picks.
           if a['current_report_gate']!='PASSED':assert a['today_final_candidate_count'] is None
           print('READ_ONLY_REPLAY_OK',a['status'],'NOT_A_TELEGRAM_DELIVERY_OR_DEPLOYMENT')
