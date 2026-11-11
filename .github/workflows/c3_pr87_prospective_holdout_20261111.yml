@@ -63,6 +63,9 @@ jobs:
       - name: Audit actual as-of file joins on original baseline
         run: |
           python scripts/c3_pr87_date_evidence_join.py --cohort output/pr87_frozen_feature_cohort.json --root output/official_history --financial reports/v91_financial_pit_provisional.csv --financial-quality reports/v93_pit_quality_summary.json --paper reports/c3_paper/paper_ledger.json --registry reports/c3_selection_forward_registry_v17.csv --selection reports/c3_selection_evidence_v16.json --out output/derived/c3_pr87_date_evidence_join.json
+      - name: Audit as-of joins for the newly expanded 129-event research cohort
+        run: |
+          python scripts/c3_pr87_date_evidence_join.py --cohort output/replay/c3_selection_feature_cohort_extended.json --root output/official_history --financial reports/v91_financial_pit_provisional.csv --financial-quality reports/v93_pit_quality_summary.json --paper reports/c3_paper/paper_ledger.json --registry reports/c3_selection_forward_registry_v17.csv --selection reports/c3_selection_evidence_v16.json --out output/derived/c3_extended_date_evidence_join.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
