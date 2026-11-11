@@ -1,0 +1,64 @@
+name: C3 KRX index and issue-class source permission probe (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-new-data-quality-pit-20261111]
+    paths: ['.github/workflows/c3_aux_index_issue_probe_20261111.yml']
+permissions:
+  contents: read
+jobs:
+  read-only-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+    steps:
+      - name: Check official KRX index and issuer metadata service approvals without disclosing credentials
+        run: |
+          mkdir -p output
+          python - <<'PY'
+          import json,os,hashlib,urllib.request,urllib.error
+          paths=['idx/kospi_dd_trd','idx/kosdaq_dd_trd',
+                 'sto/stk_isu_base_info','sto/ksq_isu_base_info']
+          result={'schema':'C3_KRX_AUX_SERVICE_ACCESS_PROBE_V1','asof':'2026-11-10',
+                  'live_trading_approved':False,'decision':'CASH','sources':{}}
+          key=os.environ.get('KRX_AUTH_KEY')
+          for path in paths:
+              field={'status':'BLOCKED_AUTH_NOT_CONFIGURED','rows':0,
+                     'response_sha256':None,'sample_columns':[]}
+              if key:
+                  url='https://data-dbg.krx.co.kr/svc/apis/'+path+'?basDd=20261110'
+                  req=urllib.request.Request(url,headers={'AUTH_KEY':key,'Accept':'application/json'})
+                  try:
+                      with urllib.request.urlopen(req,timeout=15) as resp:
+                          b=resp.read(5*1024*1024+1)
+                      if len(b)>5*1024*1024:raise ValueError('RESPONSE_TOO_LARGE')
+                      data=json.loads(b.decode('utf-8'))
+                      rows=data.get('OutBlock_1')
+                      if not isinstance(rows,list) or not rows:
+                          field['status']='BLOCKED_EMPTY_OR_UNEXPECTED'
+                      elif any(str(r.get('BAS_DD','')).replace('-','') not in ('','20261110') for r in rows):
+                          field['status']='BLOCKED_WRONG_ASOF'
+                      else:
+                          field.update(status='AVAILABLE_UNCERTIFIED_SERVICE_SCOPE',
+                                       rows=len(rows),response_sha256=hashlib.sha256(b).hexdigest(),
+                                       sample_columns=sorted(rows[0].keys()),
+                                       example_identifiers=[str(r.get('IDX_NM') or r.get('ISU_SRT_CD') or '')
+                                            for r in rows[:3]])
+                  except urllib.error.HTTPError as ex:
+                      field['status']='BLOCKED_SERVICE_APPROVAL_OR_HTTP_'+str(ex.code)
+                  except (urllib.error.URLError,TimeoutError,OSError):
+                      field['status']='BLOCKED_NETWORK_OR_TIMEOUT'
+                  except (ValueError,UnicodeError,TypeError,KeyError):
+                      field['status']='BLOCKED_INVALID_RESPONSE'
+              result['sources'][path]=field
+              print(path,field['status'],field['rows'])
+          with open('output/aux_service_probe.json','w') as f:
+              json.dump(result,f,ensure_ascii=False,indent=2)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-krx-aux-source-access-probe
+          path: output/aux_service_probe.json
+          retention-days: 30
