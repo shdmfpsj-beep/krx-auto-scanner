@@ -1,19 +1,19 @@
 {
   "schema": "C3_DAILY_RESEARCH_V8",
-  "generated_at": "2026-11-11T02:51:41.251143+00:00",
-  "report_day_kst": "2026-11-11",
-  "source_run_id": "42884437776",
-  "source_price_asof": "2026-11-10",
-  "source_received_at": "2026-11-10T19:22:34.024968+00:00",
-  "attempted_price_asof": "2026-11-10",
-  "probe_received_at": "2026-11-10T19:22:34.024968+00:00",
-  "last_confirmed_price_asof": "2026-11-10",
+  "generated_at": "2026-11-11T19:25:50.612719+00:00",
+  "report_day_kst": "2026-11-12",
+  "source_run_id": "43086941571",
+  "source_price_asof": "2026-11-11",
+  "source_received_at": "2026-11-11T19:25:41.151294+00:00",
+  "attempted_price_asof": "2026-11-11",
+  "probe_received_at": "2026-11-11T19:25:41.151294+00:00",
+  "last_confirmed_price_asof": "2026-11-11",
   "source_diagnostics": [],
   "source_collection_status": "RESEARCH_VALIDATED",
   "data_quality_state": "RESEARCH_VALIDATED",
   "source_provider": "FINANCEDATA_KRX_CACHE",
   "source_regular_only_certified": false,
-  "source_validation_sha256": "4de3a1db908d6c28479d6862311e650075f7f5bcaa27bdbb990fc2a31158dd09",
+  "source_validation_sha256": "7483f5970742eb9d3e36c64358956b87eb19c2500b15449fbedff33ee7092231",
   "ledger_lane": "lanes/krx_unadjusted_v12",
   "source_prices_encrypted_at_rest": true,
   "primary_collection_status": "OFFICIAL_MARKETS_NOT_COMPLETE",
@@ -32,64 +32,65 @@
           "002787"
         ],
         "invalid_ohlc": [],
-        "halt_like": 25,
+        "halt_like": 24,
         "listing_or_delisting_cause_confirmed": false
       },
       "KOSDAQ": {
-        "rows": 1832,
+        "rows": 1833,
         "baseline_rows": 1831,
         "retained_baseline_fraction": 1.0,
         "newly_observed": [
+          "0153R0",
           "0162D0"
         ],
         "no_longer_observed": [],
         "invalid_ohlc": [],
-        "halt_like": 81,
+        "halt_like": 80,
         "listing_or_delisting_cause_confirmed": false
       }
     },
     "full_current_listing_census_verified": false,
     "coverage_alarm_floor": 0.95,
-    "asof": "2026-11-10"
+    "asof": "2026-11-11"
   },
   "current_scope": {
-    "price_rows": 2768,
+    "price_rows": 2769,
     "classification_counts": {
       "PHARMA_BIOTECH_EXCLUDED": 296,
       "VERIFIED_NONBIO_COMMON_AS_REPORTED": 2166,
-      "COMMON_SHARE_UNCONFIRMED_OR_SPECIAL": 160,
+      "COMMON_SHARE_UNCONFIRMED_OR_SPECIAL": 161,
       "CURRENT_KRX_TRADABILITY_UNCONFIRMED": 85,
       "SPAC_WITHOUT_OPERATING_BUSINESS": 53,
       "KIND_INDUSTRY_OR_BUSINESS_UNVERIFIED": 8
     },
-    "continuous_history": 2413,
-    "analysis_eligible": 1986,
-    "a_candidates": 129,
-    "b_candidates": 68,
-    "history_excluded": 355
+    "continuous_history": 2416,
+    "analysis_eligible": 1988,
+    "a_candidates": 149,
+    "b_candidates": 50,
+    "history_excluded": 353
   },
   "last_confirmed_scope": 1983,
   "errors": [],
-  "new_decision_registered": false,
-  "new_registered_signals": 0,
-  "new_registered_unique_tickers": 0,
+  "new_decision_registered": true,
+  "new_registered_signals": 4,
+  "new_registered_unique_tickers": 2,
   "research_top2_is_registered_today": true,
   "research_top2_registered_for_source_session": true,
   "registration_timing": "DELAYED_BEFORE_NEXT_POSSIBLE_OPEN",
-  "analysis_completed_at": "2026-11-10T19:22:41.574291+00:00",
-  "preview_price_asof": "2026-11-10",
+  "analysis_completed_at": "2026-11-11T19:25:49.989359+00:00",
+  "preview_price_asof": "2026-11-11",
   "performance": {
-    "registered_decision_days": 2,
-    "registered_source_sessions": 2,
-    "registered_signals": 8,
+    "registered_decision_days": 3,
+    "registered_source_sessions": 3,
+    "registered_signals": 12,
     "unique_registered_tickers": 3,
-    "latest_observed_session": "2026-11-10",
+    "latest_observed_session": "2026-11-11",
     "selection": {
       "A": {
         "5": {
-          "total_records": 4,
+          "total_records": 6,
           "completed_nonoverlap": 0,
-          "incomplete_or_excluded": 4,
+          "incomplete_or_excluded": 6,
           "mean_move_pct": null,
           "mean_excess_pct": null,
           "rise_rate_pct": null,
@@ -109,9 +110,9 @@
           }
         },
         "10": {
-          "total_records": 4,
+          "total_records": 6,
           "completed_nonoverlap": 0,
-          "incomplete_or_excluded": 4,
+          "incomplete_or_excluded": 6,
           "mean_move_pct": null,
           "mean_excess_pct": null,
           "rise_rate_pct": null,
@@ -131,9 +132,9 @@
           }
         },
         "20": {
-          "total_records": 4,
+          "total_records": 6,
           "completed_nonoverlap": 0,
-          "incomplete_or_excluded": 4,
+          "incomplete_or_excluded": 6,
           "mean_move_pct": null,
           "mean_excess_pct": null,
           "rise_rate_pct": null,
@@ -155,9 +156,9 @@
       },
       "B": {
         "5": {
-          "total_records": 4,
+          "total_records": 6,
           "completed_nonoverlap": 0,
-          "incomplete_or_excluded": 4,
+          "incomplete_or_excluded": 6,
           "mean_move_pct": null,
           "mean_excess_pct": null,
           "rise_rate_pct": null,
@@ -177,9 +178,9 @@
           }
         },
         "10": {
-          "total_records": 4,
+          "total_records": 6,
           "completed_nonoverlap": 0,
-          "incomplete_or_excluded": 4,
+          "incomplete_or_excluded": 6,
           "mean_move_pct": null,
           "mean_excess_pct": null,
           "rise_rate_pct": null,
@@ -199,9 +200,9 @@
           }
         },
         "20": {
-          "total_records": 4,
+          "total_records": 6,
           "completed_nonoverlap": 0,
-          "incomplete_or_excluded": 4,
+          "incomplete_or_excluded": 6,
           "mean_move_pct": null,
           "mean_excess_pct": null,
           "rise_rate_pct": null,
@@ -228,8 +229,7 @@
           "5": {
             "status_counts": {
               "OPEN_BELOW_BUDGET": 1,
-              "DAY_EXPIRED_NO_TOUCH": 1,
-              "PENDING_NEXT_SESSION": 1
+              "DAY_EXPIRED_NO_TOUCH": 2
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -241,8 +241,7 @@
           "10": {
             "status_counts": {
               "OPEN_BELOW_BUDGET": 1,
-              "DAY_EXPIRED_NO_TOUCH": 1,
-              "PENDING_NEXT_SESSION": 1
+              "DAY_EXPIRED_NO_TOUCH": 2
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -254,8 +253,7 @@
           "20": {
             "status_counts": {
               "OPEN_BELOW_BUDGET": 1,
-              "DAY_EXPIRED_NO_TOUCH": 1,
-              "PENDING_NEXT_SESSION": 1
+              "DAY_EXPIRED_NO_TOUCH": 2
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -307,7 +305,7 @@
           "5": {
             "status_counts": {
               "NO_SIGNAL": 2,
-              "PENDING_NEXT_SESSION": 1
+              "OBSERVATION_WINDOW_INCOMPLETE": 1
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -319,7 +317,7 @@
           "10": {
             "status_counts": {
               "NO_SIGNAL": 2,
-              "PENDING_NEXT_SESSION": 1
+              "OBSERVATION_WINDOW_INCOMPLETE": 1
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -331,7 +329,7 @@
           "20": {
             "status_counts": {
               "NO_SIGNAL": 2,
-              "PENDING_NEXT_SESSION": 1
+              "OBSERVATION_WINDOW_INCOMPLETE": 1
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -347,8 +345,7 @@
           "5": {
             "status_counts": {
               "OPEN_BELOW_BUDGET": 1,
-              "DAY_EXPIRED_NO_TOUCH": 1,
-              "PENDING_NEXT_SESSION": 1
+              "DAY_EXPIRED_NO_TOUCH": 2
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -360,8 +357,7 @@
           "10": {
             "status_counts": {
               "OPEN_BELOW_BUDGET": 1,
-              "DAY_EXPIRED_NO_TOUCH": 1,
-              "PENDING_NEXT_SESSION": 1
+              "DAY_EXPIRED_NO_TOUCH": 2
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -373,8 +369,7 @@
           "20": {
             "status_counts": {
               "OPEN_BELOW_BUDGET": 1,
-              "DAY_EXPIRED_NO_TOUCH": 1,
-              "PENDING_NEXT_SESSION": 1
+              "DAY_EXPIRED_NO_TOUCH": 2
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -426,7 +421,7 @@
           "5": {
             "status_counts": {
               "NO_SIGNAL": 2,
-              "PENDING_NEXT_SESSION": 1
+              "OBSERVATION_WINDOW_INCOMPLETE": 1
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -438,7 +433,7 @@
           "10": {
             "status_counts": {
               "NO_SIGNAL": 2,
-              "PENDING_NEXT_SESSION": 1
+              "OBSERVATION_WINDOW_INCOMPLETE": 1
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -450,7 +445,7 @@
           "20": {
             "status_counts": {
               "NO_SIGNAL": 2,
-              "PENDING_NEXT_SESSION": 1
+              "OBSERVATION_WINDOW_INCOMPLETE": 1
             },
             "completed": 0,
             "mean_net_pct": null,
@@ -462,7 +457,7 @@
         }
       }
     },
-    "overlapping_selection_records": 2,
+    "overlapping_selection_records": 6,
     "actual_broker_fills": 0,
     "orders_enabled": false,
     "current_action": "CASH",
@@ -481,7 +476,7 @@
     "panel": "b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932",
     "audit": "087ccd634f1b016fbf213649a360a88d287835971c3503f0d39826075707e193",
     "classification": "449e7187b4aa7b39e9ef4452a0399ac629de9cce105ced6ead48d968c0de674d",
-    "index_manifest": "4a06d44a7106c814e668caf57e9334dec1efea510f100060602b15f3a710bb2d",
+    "index_manifest": "8eae2de17e4d4ad5d8f6e6cc3ea7d4eab9f3c4f18686a04fe893d5d175b43dde",
     "pipeline_code": "2c5602e5f809c20c6d430a96594a758703dd901a961eb826bf8abdbb2710d6e7",
     "ledger_code": "8b9565fbfbc13ab284d0d39310319d6258b5f72797ff7883643c657991169a0d",
     "entry_code": "fb2a4d7eadd64030feb7b5943aee25125c7233022ddeeee14a484a5f66ecb396",
@@ -489,26 +484,32 @@
     "runtime_protocol": "74ec49e2db83c5740fa61be96e53a8294b35f3b2083a9bf3a3bf963a63d94d11"
   },
   "invocation": {
-    "event": "schedule",
+    "event": "workflow_run",
     "mode": "approved_daily",
     "engine_sha": "54e7120b01966930e176d431e85b679347210c41",
-    "upstream": null,
+    "upstream": {
+      "id": 43080595856,
+      "name": "KRX daily candidate scan",
+      "head_branch": "main",
+      "conclusion": "success",
+      "repository": "shdmfpsj-beep/krx-auto-scanner"
+    },
     "automatic_event_observed": true,
     "calendar_schedule_deployed_claimed": false,
     "source_of_truth": "GITHUB_EVENT_CONTEXT_NOT_USER_REQUEST_DATE",
     "orders_enabled": false,
-    "state_sha": "3032abe863ad55931d4fd8a6689ed7aacbc7d471",
-    "caller_commit": "1a0e098dbe36b60a459c9391e54a3760b7bea5d2",
-    "expected_completed_session": "2026-11-10",
-    "duplicate_current_session_skipped": true,
-    "run_id": "42948777561"
+    "state_sha": "5f29ad55d1024874a5ede31101f734b5e0af65a9",
+    "caller_commit": "d12655340428a88cab9940fa8b6434a46b79b323",
+    "expected_completed_session": "2026-11-11",
+    "duplicate_current_session_skipped": false,
+    "run_id": "43086941571"
   },
   "automatic_event_observed": true,
   "upstream_validation": {
     "status": "AUXILIARY_SCANNER_UNAVAILABLE",
     "error_type": "ValueError",
     "required_price_supply_not_bypassed": true,
-    "run_id": "",
+    "run_id": "43080595856",
     "prices_not_implicitly_certified": true
   },
   "provisional_source": {
@@ -517,24 +518,24 @@
     "used_for_paper_fills": false
   },
   "alternative_cache_readiness": {
-    "asof": "2026-11-10",
+    "asof": "2026-11-11",
     "provider": "FINANCEDATA_KRX_CACHE",
     "ultimate_origin": "KRX",
     "data_validation_performed": false,
     "actual_outage_recovery_observed": false,
     "status": "PUBLISHED_AFTER_CLOSE",
-    "file_commit": "ccf3b5b5359b025b3377077670b1bf3ab64345c7",
-    "file_commit_date": "2026-11-10T14:19:13Z",
+    "file_commit": "60af929a70eb1aeffeac17738a9df701c7be56b5",
+    "file_commit_date": "2026-11-11T12:10:41Z",
     "transport": [
       {
-        "url": "https://api.github.com/repos/FinanceData/fdr_krx_data_cache/commits?sha=master&path=data%2Flisting%2Fkrx%2F2026-11-10.csv&per_page=1",
+        "url": "https://api.github.com/repos/FinanceData/fdr_krx_data_cache/commits?sha=master&path=data%2Flisting%2Fkrx%2F2026-11-11.csv&per_page=1",
         "http_status": 200,
         "attempt": 1,
         "status": "RECEIVED",
-        "received_at": "2026-11-11T02:51:41.095633+00:00",
-        "sha256": "07bfd00abbc60ee74045cbb90528ef0dbf595be3021c2cf3f280f79d8c7cfbc9",
+        "received_at": "2026-11-11T19:25:32.379395+00:00",
+        "sha256": "b27e317261beba366dbf1cc40288517dc9c4e47fa3cfb0540f33704f13607f76",
         "bytes": 3747,
-        "seconds": 0.3892119979999933
+        "seconds": 0.28145464899999695
       }
     ]
   },
@@ -574,14 +575,14 @@
   ],
   "source_data_audit": {
     "schema": "C3_DATA_AUDIT_V18",
-    "asof": "2026-11-10",
-    "audited_at": "2026-11-11T02:51:49.623185+00:00",
-    "original_snapshot_sha256": "43a61eecd38450d07e14a2afa4607a23b6f5f3f065c2e22eb09e8259d6e5df9b",
+    "asof": "2026-11-11",
+    "audited_at": "2026-11-11T19:25:58.848345+00:00",
+    "original_snapshot_sha256": "a17e3400bdcaf948e57f73ac0d5fa5ee0df982adfa4730666522bcf94891d553",
     "source_provider": "FINANCEDATA_KRX_CACHE",
-    "original_received_at": "2026-11-10T19:22:34.024968+00:00",
+    "original_received_at": "2026-11-11T19:25:41.151294+00:00",
     "original_price_basis": "UNADJUSTED_AS_TRADED",
-    "original_cache_commit": "ccf3b5b5359b025b3377077670b1bf3ab64345c7",
-    "original_cache_file_commit": "ccf3b5b5359b025b3377077670b1bf3ab64345c7",
+    "original_cache_commit": "60af929a70eb1aeffeac17738a9df701c7be56b5",
+    "original_cache_file_commit": "60af929a70eb1aeffeac17738a9df701c7be56b5",
     "originally_published_after_close": true,
     "quality": {
       "status": "QUALITY_GATE_PASSED",
@@ -594,35 +595,35 @@
           "newly_observed": [],
           "no_longer_observed": [],
           "invalid_ohlc": [],
-          "halt_like": 25,
+          "halt_like": 24,
           "listing_or_delisting_cause_confirmed": false
         },
         "KOSDAQ": {
-          "rows": 1832,
-          "baseline_rows": 1832,
+          "rows": 1833,
+          "baseline_rows": 1833,
           "retained_baseline_fraction": 1.0,
           "newly_observed": [],
           "no_longer_observed": [],
           "invalid_ohlc": [],
-          "halt_like": 81,
+          "halt_like": 80,
           "listing_or_delisting_cause_confirmed": false
         }
       },
       "full_current_listing_census_verified": false,
       "coverage_alarm_floor": 0.95,
-      "asof": "2026-11-10"
+      "asof": "2026-11-11"
     },
     "bar_states": {
-      "VALID_TRADED_BAR": 2662,
-      "NO_TRADES_OBSERVED": 106
+      "VALID_TRADED_BAR": 2665,
+      "NO_TRADES_OBSERVED": 104
     },
     "original_session_contract": {
       "provider": "FINANCEDATA_KRX_CACHE",
       "source_table": "MDCSTAT01501",
       "documentation": "https://data.krx.co.kr/contents/MDC/MDI/outerLoader/index.cmd?screenId=MDCSTAT015",
-      "original_trade_day": "2026-11-10",
-      "collected_at": "2026-11-10T19:22:34.024968+00:00",
-      "capture_day_kst": "2026-11-11",
+      "original_trade_day": "2026-11-11",
+      "collected_at": "2026-11-11T19:25:41.151294+00:00",
+      "capture_day_kst": "2026-11-12",
       "ohlc_scope": "HISTORICAL_QUERY_REGULAR_OHLC_PER_KRX_DOCUMENT",
       "volume_scope": "ALL_TRADING_SESSIONS_PER_KRX_DOCUMENT",
       "turnover_scope": "ALL_TRADING_SESSIONS_PER_KRX_DOCUMENT",
@@ -638,115 +639,83 @@
       ],
       "historical_is_based_on_original_query_time_not_later_download_time": true
     },
-    "official_status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+    "official_status": "OFFICIAL_MARKETS_NOT_COMPLETE",
     "official_response_diagnostics": [
       {
         "market": "KOSPI",
-        "asof": "2026-11-10",
+        "asof": "2026-11-11",
         "endpoint": "stk_bydd_trd",
         "method": "GET",
         "query": {
-          "basDd": "20261110"
+          "basDd": "20261111"
         },
         "credential_present": true,
         "request_header_names": [
           "AUTH_KEY",
           "Accept"
         ],
-        "started_at": "2026-11-11T02:51:41.452514+00:00",
+        "started_at": "2026-11-11T19:25:51.015825+00:00",
         "http_status": 200,
         "content_type": "application/json; charset=utf-8",
-        "body_sha256": "8eeb3c0ef02294088be75b62a2a4f3ecbe04aa44463ed9c13db5f10b11fc4566",
-        "body_bytes": 290656,
+        "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+        "body_bytes": 17,
         "json_top_keys": [
           "OutBlock_1"
         ],
         "outblock_type": "list",
-        "outblock_rows": 936,
-        "status": "NORMALIZED",
+        "outblock_rows": 0,
+        "status": "OUTBLOCK_EMPTY",
         "provider_error": {},
-        "received_at": "2026-11-11T02:51:44.240630+00:00",
-        "normalized_rows": 936
+        "received_at": "2026-11-11T19:25:52.524775+00:00"
       },
       {
         "market": "KOSDAQ",
-        "asof": "2026-11-10",
+        "asof": "2026-11-11",
         "endpoint": "ksq_bydd_trd",
         "method": "GET",
         "query": {
-          "basDd": "20261110"
+          "basDd": "20261111"
         },
         "credential_present": true,
         "request_header_names": [
           "AUTH_KEY",
           "Accept"
         ],
-        "started_at": "2026-11-11T02:51:44.247999+00:00",
+        "started_at": "2026-11-11T19:25:52.524839+00:00",
         "http_status": 200,
         "content_type": "application/json; charset=utf-8",
-        "body_sha256": "92f4d4dd47b4d02d7169fa019358f18fd335f80e39a91855d67445e6a8a6eead",
-        "body_bytes": 597626,
+        "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+        "body_bytes": 17,
         "json_top_keys": [
           "OutBlock_1"
         ],
         "outblock_type": "list",
-        "outblock_rows": 1832,
-        "status": "NORMALIZED",
+        "outblock_rows": 0,
+        "status": "OUTBLOCK_EMPTY",
         "provider_error": {},
-        "received_at": "2026-11-11T02:51:47.086222+00:00",
-        "normalized_rows": 1832
+        "received_at": "2026-11-11T19:25:54.077822+00:00"
       }
     ],
-    "comparison": {
-      "asof": "2026-11-10",
-      "left_rows": 2768,
-      "right_rows": 2768,
-      "compared": 2768,
-      "missing_on_right": [],
-      "extra_on_right": [],
-      "field_mismatches": [],
-      "matched_rows": 2768,
-      "same_ultimate_origin": "KRX",
-      "independent_vendor_certified": false,
-      "regular_only_certified": false
-    },
-    "official_numeric_quality": {
-      "status": "QUALITY_GATE_PASSED",
-      "errors": [],
-      "markets": {
-        "KOSPI": {
-          "rows": 936,
-          "baseline_rows": 936,
-          "retained_baseline_fraction": 1.0,
-          "newly_observed": [],
-          "no_longer_observed": [],
-          "invalid_ohlc": [],
-          "halt_like": 25,
-          "listing_or_delisting_cause_confirmed": false
-        },
-        "KOSDAQ": {
-          "rows": 1832,
-          "baseline_rows": 1832,
-          "retained_baseline_fraction": 1.0,
-          "newly_observed": [],
-          "no_longer_observed": [],
-          "invalid_ohlc": [],
-          "halt_like": 81,
-          "listing_or_delisting_cause_confirmed": false
-        }
-      },
-      "full_current_listing_census_verified": false,
-      "coverage_alarm_floor": 0.95,
-      "asof": "2026-11-10"
-    },
-    "official_listing_status": "BASE_INFO_AVAILABLE_ASOF_REQUESTED_NOT_INDUSTRY_PIT",
+    "comparison": null,
+    "official_numeric_quality": null,
+    "official_listing_status": "BASE_INFO_RESPONSE_SCHEMA_OR_INTEGRITY_INVALID",
     "official_listing_diagnostics": [
       {
         "endpoint": "stk_isu_base_info",
-        "requested_asof": "2026-11-10",
-        "raw_sha256": "c1c7e104256ec4813d78d4b0f4524ff04026cc5d83c839fa3a5ba268c701f979",
+        "requested_asof": "2026-11-11",
+        "raw_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
         "outblock_type": "list",
-        "rows": 936,
+        "rows": 0,
+        "returned_field_names": [],
+        "returned_date_fields": [],
+        "later_listing_rows": 0
+      },
+      {
+        "endpoint": "stk_isu_base_info",
+        "requested_asof": "2026-11-05",
+        "raw_sha256": "244f4955f32d42135595d20aad412b10982b0abaa4cdacca878069ee323151c3",
+        "outblock_type": "list",
+        "rows": 938,
         "returned_field_names": [
           "ISU_ABBRV",
           "ISU_CD",
@@ -766,10 +735,10 @@
       },
       {
         "endpoint": "ksq_isu_base_info",
-        "requested_asof": "2026-11-10",
-        "raw_sha256": "30deca8cb70cf7226619ae1e21fc7c4e05fc49818d47ba1e82e2e4a334e9b05b",
+        "requested_asof": "2026-11-05",
+        "raw_sha256": "a95cdc3b36c48ab7efe23014ee705b3a5e7d72ae115d8ea280296329d7400c91",
         "outblock_type": "list",
-        "rows": 1832,
+        "rows": 1831,
         "returned_field_names": [
           "ISU_ABBRV",
           "ISU_CD",
@@ -788,46 +757,78 @@
         "later_listing_rows": 0
       }
     ],
-    "earlier_official_control": null,
-    "earlier_listing_control": null,
-    "census": {
-      "asof": "2026-11-10",
-      "markets": {
-        "KOSPI": {
-          "official_requested_date_rows": 936,
-          "price_rows": 936,
-          "missing": [],
-          "extra": [],
-          "exact_membership_match": true
+    "earlier_official_control": {
+      "asof": "2026-11-05",
+      "status": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+      "rows": 2769,
+      "response_diagnostics": [
+        {
+          "market": "KOSPI",
+          "asof": "2026-11-05",
+          "endpoint": "stk_bydd_trd",
+          "method": "GET",
+          "query": {
+            "basDd": "20261105"
+          },
+          "credential_present": true,
+          "request_header_names": [
+            "AUTH_KEY",
+            "Accept"
+          ],
+          "started_at": "2026-11-11T19:25:54.566686+00:00",
+          "http_status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "body_sha256": "290b7d94486656cad2ff7f4be1ac68501907c57dab1d405e350fc3060594201b",
+          "body_bytes": 292158,
+          "json_top_keys": [
+            "OutBlock_1"
+          ],
+          "outblock_type": "list",
+          "outblock_rows": 938,
+          "status": "NORMALIZED",
+          "provider_error": {},
+          "received_at": "2026-11-11T19:25:55.813732+00:00",
+          "normalized_rows": 938
         },
-        "KOSDAQ": {
-          "official_requested_date_rows": 1832,
-          "price_rows": 1832,
-          "missing": [],
-          "extra": [],
-          "exact_membership_match": true
+        {
+          "market": "KOSDAQ",
+          "asof": "2026-11-05",
+          "endpoint": "ksq_bydd_trd",
+          "method": "GET",
+          "query": {
+            "basDd": "20261105"
+          },
+          "credential_present": true,
+          "request_header_names": [
+            "AUTH_KEY",
+            "Accept"
+          ],
+          "started_at": "2026-11-11T19:25:55.822405+00:00",
+          "http_status": 200,
+          "content_type": "application/json; charset=utf-8",
+          "body_sha256": "6038da378f86d284b64416efedb17f5fd88f25f9ecfd47a8c767b18303dce02c",
+          "body_bytes": 599762,
+          "json_top_keys": [
+            "OutBlock_1"
+          ],
+          "outblock_type": "list",
+          "outblock_rows": 1831,
+          "status": "NORMALIZED",
+          "provider_error": {},
+          "received_at": "2026-11-11T19:25:57.116729+00:00",
+          "normalized_rows": 1831
         }
-      },
-      "requested_date_membership_match": true,
-      "share_kind_counts": {
-        "보통주": 2659,
-        "구형우선주": 76,
-        "신형우선주": 20,
-        "종류주권": 13
-      },
-      "security_group_counts": {
-        "주권": 2720,
-        "부동산투자회사": 23,
-        "사회간접자본투융자회사": 2,
-        "투자회사": 1,
-        "외국주권": 12,
-        "주식예탁증권": 10
-      },
-      "historical_vintage_independently_certified": false,
-      "halt_status_not_inferred_from_zero_volume": true,
-      "industry_and_spac_classification_not_supplied_by_basic_api": true,
-      "historical_classification_and_decisions_unchanged": true
+      ]
     },
+    "earlier_listing_control": {
+      "asof": "2026-11-05",
+      "status": "BASE_INFO_AVAILABLE_ASOF_REQUESTED_NOT_INDUSTRY_PIT",
+      "market_counts": {
+        "KOSPI": 938,
+        "KOSDAQ": 1831
+      }
+    },
+    "census": null,
     "full_current_listing_census_independently_verified": false,
     "no_retroactive_price_or_classification_substitution": true,
     "registered_signals_changed": false,
@@ -836,189 +837,77 @@
     "regular_only_certified": false,
     "trade_approved": false,
     "orders_enabled": false,
-    "elapsed_seconds": 8.247528607000007,
-    "official_request_count": 4,
+    "elapsed_seconds": 7.910179210000024,
+    "official_request_count": 7,
     "unavailable_followup": [
       "REGULAR_ONLY_VOLUME_AND_TURNOVER",
       "INDEPENDENT_VENDOR_SESSION_ATTESTATION",
       "OFFICIAL_HISTORICAL_LISTING_VINTAGE",
       "DATED_HALT_AND_DELISTING_EVENTS"
     ],
-    "immutable_files_verified_unchanged": 46,
-    "immutable_tree_sha256": "107a38addb3da5f7004f25a6fe14466eb7650842f06d1b5827ddbc854cf3d556"
+    "immutable_files_verified_unchanged": 62,
+    "immutable_tree_sha256": "1aa226fed4a44560c8893bec6e3e2beb4612eb81ada74246f4d376a1718560cf"
   },
-  "checked_at": "2026-11-11T02:51:41.251143+00:00",
   "research_top2": [
     {
-      "analysis_completed_at": "2026-11-10T19:22:41.574291+00:00",
-      "buy_approved": false,
-      "close": 64600.0,
-      "decision_date": "2026-11-11",
-      "entry_plans": {
-        "A_SUPPORT_LIMIT": {
-          "plan": {
-            "atr": 4307.142857142857,
-            "breakout_level": 67700.0,
-            "decision_date": "2026-11-10",
-            "execution_model": "ONE_SESSION_LIMIT",
-            "high": 62600,
-            "known_on": "2026-11-10",
-            "low": 59400,
-            "method": "PULLBACK",
-            "net_r1_rr": 0.33615940389023125,
-            "rank_turnover": 211633388890.6,
-            "reference_close": 64600.0,
-            "regime": "DOWN",
-            "resistance": 65500.0,
-            "resistance2": 67700.0,
-            "risk_pct": 10.383386581469649,
-            "rs20": 55.64023643902712,
-            "segment": 0,
-            "signal_key": "028050:2026-11-06",
-            "signal_rule": "A_SUPPORT_LIMIT",
-            "stop": 56100,
-            "support": 58300.0,
-            "support_date": "2026-11-06",
-            "ticker": "028050"
-          },
-          "reason": null
-        },
-        "B_CONFIRMED_PULLBACK": {
-          "plan": {
-            "atr": 4307.142857142857,
-            "confirmation": {
-              "line": "MA10",
-              "price": 62900.0
-            },
-            "current_atr": 4307.142857142857,
-            "decision_date": "2026-11-10",
-            "execution_model": "NEXT_OPEN_WITHIN_FROZEN_BUDGET",
-            "high": 64900,
-            "known_on": "2026-11-10",
-            "low": 58300,
-            "method": "BREAKOUT",
-            "net_r1_rr": 0.0048372686886833756,
-            "r1_unknown": false,
-            "rank_turnover": 211633388890.6,
-            "reference_close": 64600.0,
-            "regime": "DOWN",
-            "resistance": 65500.0,
-            "resistance2": 67700.0,
-            "risk_pct": 13.559322033898304,
-            "rs20": 55.64023643902712,
-            "segment": 0,
-            "signal_key": "028050:2026-11-06",
-            "signal_rule": "B_CONFIRMED_PULLBACK",
-            "stop": 56100,
-            "support": 58300.0,
-            "support_date": "2026-11-06",
-            "ticker": "028050"
-          },
-          "reason": null
-        },
-        "C_LIMITED_BREAKOUT": {
-          "plan": null,
-          "reason": "BREAKOUT_NOT_CONFIRMED"
-        }
-      },
-      "high252_ratio": null,
-      "higher_lows": false,
-      "industry": "건설",
-      "invalidation": [
-        "CLOSE_BELOW_FROZEN_STOP_THEN_NEXT_TRADABLE_OPEN",
-        "EXPIRED_ONE_ENTRY_SESSION",
-        "MISSING_OR_ACTION_DATA_CENSORED"
-      ],
-      "live_action": "CASH",
+      "ticker": "028050",
+      "name": "삼성E&A",
       "market": "KOSPI",
+      "industry": "건설",
       "market_regime": "DOWN",
+      "return20": 46.25550660792952,
+      "rs20": 56.79752740738899,
+      "turnover20": 218505057813.1,
+      "close": 66400.0,
+      "own_rs20": 56.79752740738899,
+      "rs_accel5": 2.3639255608810217,
+      "trend60": true,
+      "high252_ratio": null,
+      "turnover_ratio": 0.7731025336470374,
+      "volume_ratio": 0.7204422962978205,
+      "higher_lows": false,
+      "signal_id": "C3V8-4a1144c1f03945255a1b2a9b",
       "model": "B",
       "model_version": "V7_CURRENT_NATIVE_BOARD",
-      "name": "삼성E&A",
-      "order_validity_sessions": 1,
-      "own_rs20": 55.64023643902712,
-      "price_basis": "UNADJUSTED_AS_TRADED",
       "rank": 1,
-      "reference_close": 64600.0,
-      "registered_at": "2026-11-10T19:22:41.574291+00:00",
-      "registration_timing": "DELAYED_BEFORE_NEXT_POSSIBLE_OPEN",
-      "return20": 42.44762954796031,
-      "rs20": 55.64023643902712,
-      "rs_accel5": 7.288908606210427,
+      "decision_date": "2026-11-12",
+      "registered_at": "2026-11-11T19:25:49.989359+00:00",
+      "source_received_at": "2026-11-11T19:25:41.151294+00:00",
+      "source_run_id": "43086941571",
+      "source_price_asof": "2026-11-11",
+      "reference_close": 66400.0,
       "selection_reasons": [
         "CLOSE_GT_MA20_GT_MA50",
         "POSITIVE_OWN_BOARD_RS20",
         "TURNOVER20_RANK",
         "OWN_BOARD_RS_IMPROVING_5"
       ],
-      "signal_id": "C3V8-3b6ddbb49c491d8c22f41660",
-      "source_price_asof": "2026-11-10",
-      "source_received_at": "2026-11-10T19:22:34.024968+00:00",
-      "source_regular_only_certified": false,
-      "source_run_id": "42884437776",
-      "support_review": {
-        "buy_approved": false,
-        "confirmation_age_sessions": 0,
-        "confirmed_on": "2026-11-10",
-        "distance_from_close_current_atr": 1.9734660033167497,
-        "distance_from_close_pct": 13.157894736842104,
-        "not_a_new_profitability_rule": true,
-        "pivot_age_sessions": 2,
-        "pivot_date": "2026-11-06",
-        "plans": {
-          "A_SUPPORT_LIMIT": {
-            "costed_r1_rr": 0.33615940389023125,
-            "distance_pct": 10.383386581469649,
-            "r1_unknown": false
-          },
-          "B_CONFIRMED_PULLBACK": {
-            "costed_r1_rr": 0.0048372686886833756,
-            "distance_pct": 13.559322033898304,
-            "r1_unknown": false
-          }
-        },
-        "status": "MOST_RECENT_ALREADY_CONFIRMED_PIVOT",
-        "stop_moved_for_existing_signal": false,
-        "structure_stop": 56100,
-        "support": 58300.0
-      },
-      "ticker": "028050",
-      "trend60": true,
-      "turnover20": 211633388890.6,
-      "turnover_ratio": 0.8638690024687327,
-      "volume_ratio": 0.8004381416767762
-    },
-    {
-      "analysis_completed_at": "2026-11-10T19:22:41.574291+00:00",
-      "buy_approved": false,
-      "close": 239000.0,
-      "decision_date": "2026-11-11",
       "entry_plans": {
         "A_SUPPORT_LIMIT": {
           "plan": {
-            "atr": 5407.142857142857,
-            "breakout_level": 223500.0,
-            "decision_date": "2026-11-10",
-            "execution_model": "ONE_SESSION_LIMIT",
-            "high": 122000,
-            "known_on": "2026-10-27",
-            "low": 118000,
+            "ticker": "028050",
+            "decision_date": "2026-11-11",
             "method": "PULLBACK",
-            "net_r1_rr": null,
-            "rank_turnover": 86284944845.0,
-            "reference_close": 239000.0,
-            "regime": "DOWN",
-            "resistance": null,
-            "resistance2": null,
-            "risk_pct": 6.721311475409836,
-            "rs20": 96.47481548002385,
+            "signal_key": "028050:2026-11-06",
             "segment": 0,
-            "signal_key": "180640:2026-10-23",
+            "low": 59400,
+            "high": 62600,
+            "stop": 56100,
+            "support": 58300.0,
+            "support_date": "2026-11-06",
+            "known_on": "2026-11-10",
+            "atr": 4307.142857142857,
+            "reference_close": 66400.0,
+            "resistance": 67700.0,
+            "resistance2": null,
+            "breakout_level": 67700.0,
+            "net_r1_rr": 0.6488775622475197,
+            "risk_pct": 10.383386581469649,
+            "rank_turnover": 218505057813.1,
+            "rs20": 56.79752740738899,
+            "regime": "DOWN",
             "signal_rule": "A_SUPPORT_LIMIT",
-            "stop": 113800,
-            "support": 116600.0,
-            "support_date": "2026-10-23",
-            "ticker": "180640"
+            "execution_model": "ONE_SESSION_LIMIT"
           },
           "reason": null
         },
@@ -1027,109 +916,155 @@
           "reason": "FIRST_PULLBACK_NOT_CONFIRMED"
         },
         "C_LIMITED_BREAKOUT": {
-          "plan": {
-            "atr": 5407.142857142857,
-            "breakout_level": 223500.0,
-            "current_atr": 17428.571428571428,
-            "decision_date": "2026-11-10",
-            "execution_model": "NEXT_OPEN_WITHIN_FROZEN_BUDGET",
-            "high": 247500,
-            "known_on": "2026-10-27",
-            "low": 222500,
-            "method": "BREAKOUT",
-            "net_r1_rr": null,
-            "r1_unknown": true,
-            "rank_turnover": 86284944845.0,
-            "reference_close": 239000.0,
-            "regime": "DOWN",
-            "resistance": null,
-            "resistance2": null,
-            "risk_pct": 54.02020202020202,
-            "rs20": 96.47481548002385,
-            "segment": 0,
-            "signal_key": "180640:2026-10-23",
-            "signal_rule": "C_LIMITED_BREAKOUT",
-            "stop": 113800,
-            "support": 116600.0,
-            "support_date": "2026-10-23",
-            "ticker": "180640"
-          },
-          "reason": null
+          "plan": null,
+          "reason": "BREAKOUT_NOT_CONFIRMED"
         }
       },
-      "high252_ratio": null,
-      "higher_lows": false,
-      "industry": "항공사",
+      "support_review": {
+        "status": "MOST_RECENT_ALREADY_CONFIRMED_PIVOT",
+        "pivot_date": "2026-11-06",
+        "confirmed_on": "2026-11-10",
+        "pivot_age_sessions": 3,
+        "confirmation_age_sessions": 1,
+        "support": 58300.0,
+        "structure_stop": 56100,
+        "distance_from_close_pct": 15.512048192771084,
+        "distance_from_close_current_atr": 2.621818181818182,
+        "plans": {
+          "A_SUPPORT_LIMIT": {
+            "distance_pct": 10.383386581469649,
+            "costed_r1_rr": 0.6488775622475197,
+            "r1_unknown": false
+          }
+        },
+        "stop_moved_for_existing_signal": false,
+        "buy_approved": false,
+        "not_a_new_profitability_rule": true
+      },
+      "order_validity_sessions": 1,
       "invalidation": [
         "CLOSE_BELOW_FROZEN_STOP_THEN_NEXT_TRADABLE_OPEN",
         "EXPIRED_ONE_ENTRY_SESSION",
         "MISSING_OR_ACTION_DATA_CENSORED"
       ],
+      "source_regular_only_certified": false,
+      "price_basis": "UNADJUSTED_AS_TRADED",
+      "buy_approved": false,
       "live_action": "CASH",
+      "analysis_completed_at": "2026-11-11T19:25:49.989359+00:00",
+      "registration_timing": "DELAYED_BEFORE_NEXT_POSSIBLE_OPEN"
+    },
+    {
+      "ticker": "180640",
+      "name": "한진칼",
       "market": "KOSPI",
+      "industry": "항공사",
       "market_regime": "DOWN",
+      "return20": 62.93929712460064,
+      "rs20": 73.48131792406011,
+      "turnover20": 99026281965.0,
+      "close": 204000.0,
+      "own_rs20": 73.48131792406011,
+      "rs_accel5": 18.33803092152276,
+      "trend60": true,
+      "high252_ratio": null,
+      "turnover_ratio": 2.4623232302731646,
+      "volume_ratio": 2.2178010153394694,
+      "higher_lows": false,
+      "signal_id": "C3V8-9c3845754315061bbfc9708e",
       "model": "B",
       "model_version": "V7_CURRENT_NATIVE_BOARD",
-      "name": "한진칼",
-      "order_validity_sessions": 1,
-      "own_rs20": 96.47481548002385,
-      "price_basis": "UNADJUSTED_AS_TRADED",
       "rank": 2,
-      "reference_close": 239000.0,
-      "registered_at": "2026-11-10T19:22:41.574291+00:00",
-      "registration_timing": "DELAYED_BEFORE_NEXT_POSSIBLE_OPEN",
-      "return20": 83.28220858895705,
-      "rs20": 96.47481548002385,
-      "rs_accel5": 44.702419394426116,
+      "decision_date": "2026-11-12",
+      "registered_at": "2026-11-11T19:25:49.989359+00:00",
+      "source_received_at": "2026-11-11T19:25:41.151294+00:00",
+      "source_run_id": "43086941571",
+      "source_price_asof": "2026-11-11",
+      "reference_close": 204000.0,
       "selection_reasons": [
         "CLOSE_GT_MA20_GT_MA50",
         "POSITIVE_OWN_BOARD_RS20",
         "TURNOVER20_RANK",
         "OWN_BOARD_RS_IMPROVING_5"
       ],
-      "signal_id": "C3V8-2ddf51a07082bdb10db2f498",
-      "source_price_asof": "2026-11-10",
-      "source_received_at": "2026-11-10T19:22:34.024968+00:00",
-      "source_regular_only_certified": false,
-      "source_run_id": "42884437776",
+      "entry_plans": {
+        "A_SUPPORT_LIMIT": {
+          "plan": {
+            "ticker": "180640",
+            "decision_date": "2026-11-11",
+            "method": "PULLBACK",
+            "signal_key": "180640:2026-10-23",
+            "segment": 0,
+            "low": 118000,
+            "high": 122000,
+            "stop": 113800,
+            "support": 116600.0,
+            "support_date": "2026-10-23",
+            "known_on": "2026-10-27",
+            "atr": 5407.142857142857,
+            "reference_close": 204000.0,
+            "resistance": null,
+            "resistance2": null,
+            "breakout_level": 245000.0,
+            "net_r1_rr": null,
+            "risk_pct": 6.721311475409836,
+            "rank_turnover": 99026281965.0,
+            "rs20": 73.48131792406011,
+            "regime": "DOWN",
+            "signal_rule": "A_SUPPORT_LIMIT",
+            "execution_model": "ONE_SESSION_LIMIT"
+          },
+          "reason": null
+        },
+        "B_CONFIRMED_PULLBACK": {
+          "plan": null,
+          "reason": "FIRST_PULLBACK_NOT_CONFIRMED"
+        },
+        "C_LIMITED_BREAKOUT": {
+          "plan": null,
+          "reason": "BREAKOUT_NOT_CONFIRMED"
+        }
+      },
       "support_review": {
-        "buy_approved": false,
-        "confirmation_age_sessions": 10,
-        "confirmed_on": "2026-10-27",
-        "distance_from_close_current_atr": 7.18360655737705,
-        "distance_from_close_pct": 52.38493723849373,
-        "not_a_new_profitability_rule": true,
-        "pivot_age_sessions": 12,
+        "status": "MOST_RECENT_ALREADY_CONFIRMED_PIVOT",
         "pivot_date": "2026-10-23",
+        "confirmed_on": "2026-10-27",
+        "pivot_age_sessions": 13,
+        "confirmation_age_sessions": 11,
+        "support": 116600.0,
+        "structure_stop": 113800,
+        "distance_from_close_pct": 44.21568627450981,
+        "distance_from_close_current_atr": 4.4402250351617445,
         "plans": {
           "A_SUPPORT_LIMIT": {
-            "costed_r1_rr": null,
             "distance_pct": 6.721311475409836,
-            "r1_unknown": true
-          },
-          "C_LIMITED_BREAKOUT": {
             "costed_r1_rr": null,
-            "distance_pct": 54.02020202020202,
             "r1_unknown": true
           }
         },
-        "status": "MOST_RECENT_ALREADY_CONFIRMED_PIVOT",
         "stop_moved_for_existing_signal": false,
-        "structure_stop": 113800,
-        "support": 116600.0
+        "buy_approved": false,
+        "not_a_new_profitability_rule": true
       },
-      "ticker": "180640",
-      "trend60": true,
-      "turnover20": 86284944845.0,
-      "turnover_ratio": 3.1998896161547403,
-      "volume_ratio": 2.9548083813072856
+      "order_validity_sessions": 1,
+      "invalidation": [
+        "CLOSE_BELOW_FROZEN_STOP_THEN_NEXT_TRADABLE_OPEN",
+        "EXPIRED_ONE_ENTRY_SESSION",
+        "MISSING_OR_ACTION_DATA_CENSORED"
+      ],
+      "source_regular_only_certified": false,
+      "price_basis": "UNADJUSTED_AS_TRADED",
+      "buy_approved": false,
+      "live_action": "CASH",
+      "analysis_completed_at": "2026-11-11T19:25:49.989359+00:00",
+      "registration_timing": "DELAYED_BEFORE_NEXT_POSSIBLE_OPEN"
     }
   ],
   "operating_status": {
     "state": "MAIN_AUTOMATIC_EVENT_OBSERVED",
     "main_caller_observed": true,
     "automatic_event_observed": true,
-    "schedule_event_observed": true,
+    "schedule_event_observed": false,
     "chatgpt_notification_delivery_verified": false
   }
 }
