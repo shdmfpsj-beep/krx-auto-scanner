@@ -1,0 +1,55 @@
+name: KRX official independent daily source probe (no trading)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/krx_official_independent_collect.yml']
+  schedule:
+    - cron: '45 23 * * 0-4'
+permissions:
+  contents: read
+jobs:
+  official-eod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/krx_official_eod_v65.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /scripts/test_krx_official_eod_v65.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Offline collector tests
+        run: python -m unittest discover -s scripts -p test_krx_official_eod_v65.py
+      - name: Collect official EOD independently
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          from krx_official_eod_v65 import collect
+          d=datetime.now(ZoneInfo("Asia/Seoul")).date()-timedelta(days=1)
+          while d.weekday()>=5:
+              d-=timedelta(days=1)
+          s=collect(d.isoformat(),Path("output")/d.isoformat(),os.environ.get("KRX_AUTH_KEY"))
+          assert not s["trade_approved"] and not s["orders_enabled"] and s["decision"]=="CASH"
+          print("OFFICIAL_EOD",s["asof"],s["status"],s["official_market_rows"])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-krx-independent-eod
+          path: output/
+          retention-days: 30
+          if-no-files-found: warn
