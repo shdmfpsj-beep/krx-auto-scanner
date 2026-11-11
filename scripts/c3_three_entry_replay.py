@@ -22,13 +22,25 @@ def signals(bars,i):
     stop=min(x["low"] for x in history[-10:])
     resistance=max(x["high"] for x in history[-20:-1])
     prices={"MA20_PULLBACK":ma20*.995,"CLOSE_MINUS_1ATR":closes[-1]-atr,"BREAKOUT_RETEST":resistance*1.005}
-    return [(name,price,stop,resistance) for name,price in prices.items()
-            if price>stop and (price-stop)/price<=.12 and (resistance-price)/(price-stop)>=2]
+    result=[]
+    for name,price in prices.items():
+        if price<=stop or (price-stop)/price>.12:continue
+        if name=="BREAKOUT_RETEST" and closes[-1]<=resistance*1.005:continue
+        # A breakout entry above prior resistance cannot target that same resistance.
+        # Use an explicitly hypothetical 2R extension, not a claimed chart resistance.
+        target=price+2*(price-stop) if name=="BREAKOUT_RETEST" else resistance
+        if (target-price)/(price-stop)<2:continue
+        result.append((name,price,stop,target))
+    return result
 def evaluate(bars,i,model,entry,stop,resistance):
     # Only next session is eligible for limit order; later prices cannot create a fill.
     nxt=bars[i+1]
     filled=nxt["low"]<=entry and nxt["open"]>=stop
+    if model=="BREAKOUT_RETEST":
+        # Signal close must already confirm breakout; fill only on next-session retest.
+        filled=filled and nxt["high"]>=entry
     # Buy limit: gap down opens below limit, filled at open (price improvement).
+    # Breakout orders are NOT buy limits: require a later retest, not gap-through momentum.
     fill_price=min(entry,nxt["open"]) if filled else None
     row={"ticker":bars[i]["ticker"],"signal_date":bars[i]["date"],"model":model,
          "entry":round(entry,5),"stop":round(stop,5),

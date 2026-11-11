@@ -33,6 +33,15 @@ class ReplayTests(unittest.TestCase):
   b=self.bars();original=signals(b,80)
   b[90]["close"]=9999
   self.assertEqual(original,signals(b,80))
+ def test_breakout_uses_forward_2r_target(self):
+  b=self.bars();b[80]["close"]=130;b[80]["high"]=132
+  out=[x for x in signals(b,80) if x[0]=="BREAKOUT_RETEST"]
+  self.assertEqual(len(out),1)
+  _,entry,stop,target=out[0]
+  self.assertAlmostEqual((target-entry)/(entry-stop),2)
+ def test_unconfirmed_breakout_has_no_retest_signal(self):
+  b=self.bars()
+  self.assertFalse([x for x in signals(b,80) if x[0]=="BREAKOUT_RETEST"])
  def test_duplicate_day_rejected(self):
   b=self.bars();b[1]["date"]=b[0]["date"]
   with self.assertRaises(ValueError):replay(b)
