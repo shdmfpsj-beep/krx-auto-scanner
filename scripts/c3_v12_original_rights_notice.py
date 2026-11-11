@@ -58,12 +58,19 @@ def parse_rights(text,ticker,receipt_date):
         if cells:rows.append(cells)
     for field,labels in expected.items():
         matches=[]
-        for cells in rows:
-            for i,v in enumerate(cells[:-1]):
+        for row_index,cells in enumerate(rows):
+            for i,v in enumerate(cells):
                 key=re.sub(r"^[0-9]+[.)]","",v)
                 key=re.sub(r"\(원\)$","",key)
-                if key in labels:
-                    matches.append(cells[i+1])
+                if key not in labels:continue
+                # Korean KRX tables usually have six headers in one TR,
+                # followed by a second TR with six positionally aligned values.
+                # Some older notices use alternating label/value TD cells instead.
+                adjacent=cells[i+1] if i+1<len(cells) else None
+                if adjacent and not re.match(r"^[0-9]+[.)]",adjacent):
+                    matches.append(adjacent)
+                elif row_index+1<len(rows) and i<len(rows[row_index+1]):
+                    matches.append(rows[row_index+1][i])
         if len(set(matches))==1:values[field]=matches[0]
     # Ex-date and reference must appear in exact table fields, not nearby prose.
     mprice=re.fullmatch(r"(\d{1,3}(?:,\d{3})*|\d+)(?:원)?",values.get("reference_price",""))
