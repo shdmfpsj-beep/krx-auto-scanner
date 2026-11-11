@@ -50,7 +50,7 @@ jobs:
           mkdir -p /tmp/c3-emergency-source
           echo '{"synthetic_tests":"PASSED","current_market_certified":false,"telegram_send_attempts":0}' > /tmp/c3-emergency-source/test_status.json
       - name: Recollect exact target and test the already configured providers
-        if: github.event_name == 'workflow_dispatch' && inputs.retry_configured_broker == true
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         env:
           PYTHONPATH: scripts:engine/scripts
           GH_TOKEN: ${{ github.token }}
@@ -59,7 +59,8 @@ jobs:
           KIWOOM_APP_SECRET: ${{ secrets.KIWOOM_APP_SECRET }}
           KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
           KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
-        run: python scripts/c3_recovery_source_probe_v1.py --date 2026-11-11 --outdir /tmp/c3-emergency-source
+          BROKER_PROBE_ARGUMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.retry_configured_broker == true && '--probe-configured-broker' || '' }}
+        run: python scripts/c3_recovery_source_probe_v1.py --date 2026-11-11 --outdir /tmp/c3-emergency-source $BROKER_PROBE_ARGUMENT
       - name: Verify real preserved original charts and unchanged owner ledgers
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         env:

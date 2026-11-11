@@ -5,7 +5,8 @@ on:
     types: [completed]
     branches: [main]
   schedule:
-    - cron: '45 13 * * 1-5' # KST weekdays 22:45, after existing research caller
+    # Completion events are primary; following-day 01:10 is only a silent fallback.
+    - cron: '10 16 * * 1-5' # KST Tue-Sat 01:10 after late source retries
     - cron: '0 0 * * 1-5'   # KST weekdays 09:00 fallback
   workflow_dispatch:
     inputs:
@@ -65,7 +66,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
-          ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+          ref: 54e7120b01966930e176d431e85b679347210c41
           path: engine
           persist-credentials: false
           sparse-checkout: |
@@ -261,9 +262,9 @@ jobs:
     permissions:
       contents: write
       actions: read
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@54e7120b01966930e176d431e85b679347210c41
     with:
-      engine_ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+      engine_ref: 54e7120b01966930e176d431e85b679347210c41
       caller_mode: approved_daily
     secrets:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
@@ -301,7 +302,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
-          ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+          ref: 54e7120b01966930e176d431e85b679347210c41
           path: engine
           persist-credentials: false
           sparse-checkout: |

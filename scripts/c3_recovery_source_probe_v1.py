@@ -76,7 +76,7 @@ def kiwoom_probe(env=None,send=strict_source_post):
     return out
 
 
-def execute(outdir,target=TARGET):
+def execute(outdir,target=TARGET,probe_configured_broker=False):
     if date.fromisoformat(target).isoformat()!=target:raise ValueError('CANONICAL_TARGET_REQUIRED')
     out=Path(outdir);out.mkdir(parents=True,exist_ok=True)
     result={'schema':'C3_EMERGENCY_SOURCE_PROBE_V1','target_day':target,
@@ -103,7 +103,10 @@ def execute(outdir,target=TARGET):
                 'regular_only_certified':False,'aftermarket_scope_not_relabelled':True,
                 'received_at':datetime.now(timezone.utc).isoformat()}
         else:result['cache']={'status':'TARGET_NOT_PUBLISHED'}
-        result['kiwoom']=kiwoom_probe()
+        result['kiwoom']=(kiwoom_probe() if probe_configured_broker else {
+            'status':'NOT_RETRIED_DEVICE_AUTHORIZATION_REQUIRED',
+            'previous_observed_code':'8050','previous_evidence_run_id':'43066493622',
+            'requests':0,'regular_market_wide_certified':False})
         result['kis']={'app_key_present':bool(os.environ.get('KIS_APP_KEY')),
                        'app_secret_present':bool(os.environ.get('KIS_APP_SECRET')),
                        'regular_market_wide_certified':False}
@@ -117,5 +120,6 @@ def execute(outdir,target=TARGET):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--outdir',required=True);p.add_argument('--date',default=TARGET)
-    a=p.parse_args();r=execute(a.outdir,a.date)
+    p.add_argument('--probe-configured-broker',action='store_true',help='Only after resolving the observed device authorization error')
+    a=p.parse_args();r=execute(a.outdir,a.date,a.probe_configured_broker)
     raise SystemExit(1 if r['status']=='PROBE_TRANSPORT_FAILED' else 0)

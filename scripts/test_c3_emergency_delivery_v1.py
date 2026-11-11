@@ -87,6 +87,20 @@ class OriginalDecisionTests(unittest.TestCase):
 
 
 class VariablePhotoTests(unittest.TestCase):
+    def test_image_hash_error_stops_before_any_telegram_client_or_claim(self):
+        import c3_telegram_notify as notify
+        r,s,clock=fixture()
+        for row in r['research_top2']:row['chart_bars']=[{}]*119
+        def broken_image(report,out):
+            paths=[];cards=[]
+            for i,row in enumerate(report['research_top2']):
+                p=Path(out,row['ticker']+'_integrated.png');Image.new('RGB',(4,4),('white','black')[i]).save(p);paths.append(p)
+                cards.append(dict(ticker=row['ticker'],asof=report['source_price_asof'],sha256='0'*64))
+            Path(out,'render_diagnostics.json').write_text(json.dumps({'cards':cards}))
+            return paths
+        with tempfile.TemporaryDirectory() as tmp,patch.object(notify,'GitHub',return_value=Mock(sources=[])),patch.object(notify,'report_pair',return_value=(r,s,'a'*40)),patch.object(notify,'frozen_live_bars',side_effect=lambda g,r,ref:r),patch.object(notify,'now_kst',return_value=clock),patch('c3_report_context.attach_context',side_effect=lambda r,*a:r),patch('c3_classic_theme.create_cards',side_effect=broken_image),patch.object(notify,'Telegram') as bot,patch.object(notify,'ReceiptStore') as store,patch('sys.argv',['notify','--mode','live','--outdir',tmp]):
+            self.assertEqual(notify.main(),1)
+            bot.assert_not_called();store.assert_not_called()
     def test_zero_original_candidates_render_one_cash_png_with_no_stock_or_price(self):
         r,s,clock=fixture();r['research_top2']=[]
         r['input_provenance']={'decision_payload_sha256':'a'*64}

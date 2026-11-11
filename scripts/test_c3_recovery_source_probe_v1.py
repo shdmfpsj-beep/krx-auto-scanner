@@ -1,9 +1,17 @@
-import unittest
+import unittest,tempfile,types,sys
 from unittest.mock import Mock,patch
-from c3_recovery_source_probe_v1 import kiwoom_probe,strict_source_post
+from c3_recovery_source_probe_v1 import kiwoom_probe,strict_source_post,execute
 
 
 class ReadOnlyProviderProbeTests(unittest.TestCase):
+    def test_observed_device_failure_is_not_automatically_retried(self):
+        source=types.SimpleNamespace(collect_day=lambda day,*a,**kw:{'asof':day,'official_market_rows':0})
+        gh=Mock();gh.head.return_value='a'*40;gh.file.return_value=None
+        with tempfile.TemporaryDirectory() as tmp,patch.dict(sys.modules,{'c3_eod_source_v9':source}),patch('c3_recovery_source_probe_v1.GitHub',return_value=gh),patch('c3_recovery_source_probe_v1.kiwoom_probe') as broker:
+            result=execute(tmp)
+            broker.assert_not_called();self.assertEqual(result['kiwoom']['requests'],0)
+            self.assertFalse(result['regular_only_certified'])
+
     def test_strict_transport_is_documented_contract_without_redirects(self):
         reply=Mock(status_code=200,content=b'{}',headers={});reply.json.return_value={'return_code':0}
         with patch('c3_recovery_source_probe_v1.requests.post',return_value=reply) as send:

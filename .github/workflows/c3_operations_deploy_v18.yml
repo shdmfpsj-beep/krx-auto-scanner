@@ -36,21 +36,25 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
-          pin='077113ac2f5e93fecc4c47850b36e5eda2173e3d'
+          pin='54e7120b01966930e176d431e85b679347210c41'
           caller=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
           sender=Path('.github/workflows/c3_top2_telegram.yml').read_text()
           assert caller.count(pin)==4
           assert sender.count(pin)==4
           assert "ENGINE='"+pin+"'" in Path('scripts/c3_report_handoff.py').read_text()
-          assert "'15 13 * * 1-5'" in caller and "'45 13 * * 1-5'" in sender
+          expected={"5,20,35,50 14 * * 1-5","5,20,35,50 15 * * 1-5","20 23 * * 0-4"}
+          assert set(re.findall(r"cron: '([^']+)'",caller))==expected
+          assert set(re.findall(r"cron: '([^']+)'",sender))=={'10 16 * * 1-5','0 0 * * 1-5'}
+          assert "workflows: ['C3 approved research daily caller']" in sender
+          assert 'cancel-in-progress: false' in caller and 'cancel-in-progress: false' in sender
           assert 'retention-days: 90' in Path('.github/workflows/krx_recovery_scan.yml').read_text()
           assert 'retention-days: 14' not in Path('.github/workflows/krx_recovery_scan.yml').read_text()
           assert 'TELEGRAM_' not in caller
-          print('Matched pins and preserved schedules; zero registration or send entry points')
+          print('Existing selection engine pin, bounded retries and completion-event delivery verified; check has no registration or send entry points')
           PY
       - uses: actions/checkout@v4
         with:
-          ref: 077113ac2f5e93fecc4c47850b36e5eda2173e3d
+          ref: 54e7120b01966930e176d431e85b679347210c41
           path: engine-preflight
           persist-credentials: false
           sparse-checkout: |
