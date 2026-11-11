@@ -1,0 +1,74 @@
+name: C3 v1.2 final 73-test focused research regression
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-v12-pit-timing-primary-filings-20261111]
+    paths: ['.github/workflows/c3_v12_final_73_tests.yml']
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/official_krx_120d_replay.py
+            /scripts/c3_three_entry_replay.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/c3_selection_first_research.py
+            /scripts/c3_selection_feature_cohort.py
+            /scripts/test_c3_selection_feature_cohort.py
+            /scripts/c3_temporal_quality_validation.py
+            /scripts/test_c3_temporal_quality_validation.py
+            /scripts/c3_pr87_date_evidence_join.py
+            /scripts/test_c3_pr87_date_evidence_join.py
+            /scripts/c3_pr87_frozen_holdout.py
+            /scripts/test_c3_pr87_frozen_holdout.py
+            /scripts/c3_krx_asof_issue_type_audit.py
+            /scripts/test_c3_krx_asof_issue_type_audit.py
+            /scripts/c3_fixed_v1_source_entry_audit.py
+            /scripts/test_c3_fixed_v1_source_entry_audit.py
+            /scripts/c3_v11_entry_geometry_diagnostic.py
+            /scripts/test_c3_v11_entry_geometry_diagnostic.py
+            /scripts/c3_v11_adjacent_anomaly_issuer.py
+            /scripts/test_c3_v11_adjacent_anomaly_issuer.py
+            /scripts/c3_v11_dart_anomaly_titles.py
+            /scripts/test_c3_v11_dart_anomaly_titles.py
+            /scripts/c3_v12_dart_pit_calendar_audit.py
+            /scripts/test_c3_v12_dart_pit_calendar_audit.py
+            /scripts/c3_v12_opendart_original_receipts.py
+            /scripts/test_c3_v12_opendart_original_receipts.py
+            /scripts/c3_v12_discontinuity_exposure.py
+            /scripts/test_c3_v12_discontinuity_exposure.py
+            /scripts/c3_v12_original_rights_notice.py
+            /scripts/test_c3_v12_original_rights_notice.py
+            /scripts/c3_v12_rights_anomaly_annotation.py
+            /scripts/test_c3_v12_rights_anomaly_annotation.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: All research-focused regression families without a network or data mutation
+        run: |
+          python -m unittest discover -s scripts -p test_c3_selection_feature_cohort.py -v
+          python -m unittest discover -s scripts -p test_c3_temporal_quality_validation.py -v
+          python -m unittest discover -s scripts -p test_c3_pr87_date_evidence_join.py -v
+          python -m unittest discover -s scripts -p test_c3_pr87_frozen_holdout.py -v
+          python -m unittest discover -s scripts -p test_c3_krx_asof_issue_type_audit.py -v
+          python -m unittest discover -s scripts -p test_c3_fixed_v1_source_entry_audit.py -v
+          python -m unittest discover -s scripts -p test_c3_v11_entry_geometry_diagnostic.py -v
+          python -m unittest discover -s scripts -p test_c3_v11_adjacent_anomaly_issuer.py -v
+          python -m unittest discover -s scripts -p test_c3_v11_dart_anomaly_titles.py -v
+          python -m unittest discover -s scripts -p test_c3_v12_dart_pit_calendar_audit.py -v
+          python -m unittest discover -s scripts -p test_c3_v12_opendart_original_receipts.py -v
+          python -m unittest discover -s scripts -p test_c3_v12_discontinuity_exposure.py -v
+          python -m unittest discover -s scripts -p test_c3_v12_original_rights_notice.py -v
+          python -m unittest discover -s scripts -p test_c3_v12_rights_anomaly_annotation.py -v
