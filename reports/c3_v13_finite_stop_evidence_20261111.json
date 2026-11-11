@@ -1,0 +1,178 @@
+{
+  "schema": "C3_FIXED_V13_FINITE_RESEARCH_STOP_REPORT_20261111",
+  "report_date": "2026-11-11",
+  "fixed_source_scope": {
+    "main_unchanged_sha": "1a0e098dbe36b60a459c9391e54a3760b7bea5d2",
+    "pr87": "MERGED",
+    "pr88": "DRAFT",
+    "pr89": "DRAFT",
+    "pr90": "DRAFT",
+    "pr91": "DRAFT",
+    "krx_last_date": "2026-11-10",
+    "krx_150_sessions": 150,
+    "krx_395575_rows": 395575,
+    "shadow_events": 129,
+    "post_sep16_shadow_events_frozen": 51,
+    "original_PR89_KRX_action_run": 42950252617,
+    "original_PR89_KRX_artifact_sha256": "60acbfc1ccaa65b9485fb05856eb89d531d37eb3a8ba8a7f31ed1037654f516f"
+  },
+  "A_financial": {
+    "completion_state": "BLOCKED_AUDIT_COMPLETE",
+    "exact_receipts_disposed": 14,
+    "VERIFIED": 0,
+    "INVALID": 0,
+    "BLOCKED": 14,
+    "recaptured_identical_original_binary_SHA256": 14,
+    "original_source_amount_string_presence_for_revenue_operating_liabilities_equity": 14,
+    "original_receipt_content_not_republished": true,
+    "primary_reason_breakdown": {
+      "unparsed_original_statement_row_consolidated_or_standalone_period_corrections": 10,
+      "unparsed_statement_plus_unverified_pre_archive_market_calendar": 4
+    },
+    "source_action_run": 42965983658,
+    "source_artifact_id": 13831252406,
+    "source_artifact_sha256": "693eb0175ed7d64a3c5bb4345e9ce1c7d2a95b2b8ccdcb4cad4ae86786c65db8",
+    "prior_original_dart_run": 42960511407,
+    "prior_original_dart_artifact_sha256": "22c872fb3a38bc5acd0346303490017a894359093ebd465867201f789011e85a",
+    "original_financial_numeric_PIT_promoted": 0,
+    "frozen_14_case_dated_classification": {
+      "next_session_valid": 2,
+      "incorrect_weekend_or_nontrading": 8,
+      "outside_krx_150day_history": 4
+    },
+    "note": "Literal matched numeric strings in a whole source document do NOT certify the correct FS table, period, amount unit, account name or contemporaneous amended status. Do not rank financial quality on this basis.",
+    "research_finished_for_this_snapshot": true,
+    "reactivation_condition": "New official per-filing comparable account-level original XBRL or table-with-unit and issuer-division evidence plus full historical trading calendar; no blind retries."
+  },
+  "B_price_corporate_index": {
+    "overall": "PARTIAL_WITH_BLOCKED_SUBTASKS",
+    "original_verified_rights_ex_reference": 5,
+    "original_adjacent_price_flags": 73,
+    "remaining_adjacent_not_ex_reference_certified": 68,
+    "ticker_gap_337_not_causally_explained": 337,
+    "identified_original_official_KIND_disclosure_viewers": [
+      {
+        "ticker": "023150",
+        "name": "MH에탄올",
+        "KRX_KIND_receipt": "20261016000603",
+        "official_url": "https://kind.krx.co.kr/common/disclsviewer.do?acptno=20261016000603&docno=&method=search&viewerhost=",
+        "actual_ex_reference_price_value_verified": false
+      },
+      {
+        "ticker": "009140",
+        "name": "케이아이이",
+        "KRX_KIND_receipt": "20261019000438",
+        "official_url": "https://kind.krx.co.kr/common/disclsviewer.do?acptno=20261019000438&docno=&method=search&viewerhost=",
+        "actual_ex_reference_price_value_verified": false
+      }
+    ],
+    "rights_notice_source_v12_run": 42961535357,
+    "rights_notice_hash_artifact_id": 13828864185,
+    "regular_1530_only_daily_OHLCV_verified": false,
+    "KRX_market_information_has_end_of_day_distribution_at": "16:00/18:10",
+    "KRX_cash_index_api_access": "BLOCKED_HTTP_401",
+    "alternative_FSC_index_API": "KNOWN_GET/getStockMarketIndex_V2_REQUIRES_APPLICATION_KEY; PUBLIC_DATA_RIGHTS_MUST_BE_REVIEWED",
+    "official_21close_index_series_PIT_certified_count": 0,
+    "source_definition_urls": [
+      "https://openapi.krx.co.kr/contents/OPP/DATA/OPPDATA002.jsp",
+      "https://www.data.go.kr/data/15094807/openapi.do"
+    ],
+    "stop_repeated_KRX_401_calls": true,
+    "no_market_index_proxies_substituted": true,
+    "reopen_only_on_specific_rights_original_reference_or_new_approved_key": true
+  },
+  "C_new_entry": {
+    "completion_state": "NOT_READY_FOR_NEW_INDEPENDENT_TRADE_PERFORMANCE",
+    "last_operational_snapshot_asof": "2026-11-10",
+    "operating_top2_observed": [
+      {
+        "ticker": "028050",
+        "name": "삼성E&A",
+        "range_krw": [
+          59400,
+          62600
+        ],
+        "structure_stop_krw": 56100,
+        "reference_close_krw": 64600,
+        "risk_to_R1_rr": 0.33615940389023125,
+        "action": "CASH",
+        "issue": "HISTORY_GAP_REVIEW; R1_RR_BELOW_1"
+      },
+      {
+        "ticker": "180640",
+        "name": "한진칼",
+        "range_krw": [
+          118000,
+          122000
+        ],
+        "structure_stop_krw": 113800,
+        "reference_close_krw": 239000,
+        "risk_to_R1_rr": null,
+        "action": "CASH",
+        "issue": "HISTORY_GAP_REVIEW; LIMIT_OVER_10PCT_BELOW_CLOSE"
+      }
+    ],
+    "actual_source_lifecycle_run_id": 42948924696,
+    "actual_source_lifecycle_artifact_id": 13823464232,
+    "actual_source_lifecycle_artifact_sha256": "abd273f24afc56971f0001cb5aa195b8491b93e7c55e491bfc285b015bf4dd1c",
+    "new_approved_operational_entries_after_20261110": 0,
+    "independent_new_verified_fills": 0,
+    "intraday_sequence_proof": 0,
+    "first_second_entry_new_rule_proposed": false,
+    "frozen_51_historical_events_optimized_again": false,
+    "data_too_new_or_missing_maturity": "CENSORED_OR_NOT_READY",
+    "original_selection_analysis_from_pr89": {
+      "5": {
+        "n": 40,
+        "positive": 17,
+        "win_rate": 0.425,
+        "wilson95": [
+          0.2851,
+          0.578
+        ],
+        "mean_close_return_pct": -2.8068
+      },
+      "10": {
+        "n": 35,
+        "positive": 14,
+        "win_rate": 0.4,
+        "wilson95": [
+          0.2555,
+          0.5643
+        ],
+        "mean_close_return_pct": -5.3555
+      },
+      "20": {
+        "n": 20,
+        "positive": 6,
+        "win_rate": 0.3,
+        "wilson95": [
+          0.1455,
+          0.519
+        ],
+        "mean_close_return_pct": -12.9058
+      }
+    },
+    "older_close_returns_are_not_trades": true,
+    "reopen_when": "new operational date-specific signals and price source with after-close event details; require min 30 independent validated prospective observations and 95% CI net improvement excludes <=0",
+    "new_model_promotion_allowed": false
+  },
+  "final_research_stop": {
+    "A": "BLOCKED",
+    "B": "PARTIAL",
+    "C": "NOT_READY",
+    "operating_decision": "KEEP_CASH",
+    "no_live_trading_permitted": true,
+    "no_model_change": true,
+    "no_main_change": true,
+    "keep_120d_collection": true,
+    "keep_ledger_approval_CASH_PASS_Telegram": true,
+    "new_work_research_only": true,
+    "research_stop_on_current_data": true,
+    "next_question_prerequisites": [
+      "Per-receipt audited original financial statement rows, period, unit, FS basis and historical filing amendments for fixed 14.",
+      "Original official KRX rights price for two remaining KIND notices and lawful approved 15:30 OHLCV/21-session index dataset.",
+      "First new independent operating TOP2 events after 2026-11-10 with verified price provenance and 30 matured comparable prospective entries."
+    ]
+  }
+}
