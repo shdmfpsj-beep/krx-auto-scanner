@@ -11,6 +11,11 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_v12_primary_proof_gate.py
+            tests/test_c3_v12_primary_proof_gate.py
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
