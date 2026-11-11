@@ -84,7 +84,7 @@ jobs:
           assert s['kis_krx_minute_price_probe']['investor_flow_validated'] is False
           print('REGULAR_ONLY_SOURCE_RESULT',s['market_source_status'],s['blockers'])
           PY
-                - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: krx-regular-only-18h-final
