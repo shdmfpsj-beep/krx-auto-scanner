@@ -1,0 +1,75 @@
+name: C3 fixed-v1 archival source and entry evidence (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-new-data-quality-pit-20261111]
+    paths: ['.github/workflows/c3_fixed_v1_source_entry_audit.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  history-provenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_fixed_v1_source_entry_audit.py
+            /scripts/test_c3_fixed_v1_source_entry_audit.py
+            /scripts/c3_selection_first_research.py
+            /scripts/c3_three_entry_replay.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Read-only source semantics and gap classification tests
+        run: |
+          python -m unittest discover -s scripts -p test_c3_fixed_v1_source_entry_audit.py -v
+      - name: Download and independently preserve exact historical KRX and v18 artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p official v18 output
+          gh run download 42950252617 -R "$GITHUB_REPOSITORY" -n c3-pr87-newdata-official-research-only -D official
+          gh run download 42914786449 -R "$GITHUB_REPOSITORY" -n sector-evidence-v18-report -D v18
+          test -s official/replay/c3_selection_feature_cohort_extended.json
+          test -s v18/diagnostics/collection_status.json
+          test -s v18/catalysts/disclosures.csv
+          test -s v18/market/daily_flows/KOSPI/2026-11-10_foreign.csv
+      - name: Recompute historical price-field equality, prior-only investor flows, anomaly gaps and 1/2 entry feasibility
+        run: |
+          python scripts/c3_fixed_v1_source_entry_audit.py \
+             --root official/official_history \
+             --v18 v18 \
+             --cohort official/replay/c3_selection_feature_cohort_extended.json \
+             --out output/c3_fixed_v1_source_entry_audit.json
+      - name: Guard source facts without authorizing any operational trades
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('output/c3_fixed_v1_source_entry_audit.json').read_text())
+          assert r['official_price_days']==150
+          assert r['selected_events']==129
+          assert r['independent_method_price_comparison']['ALL_SIX_FIELDS_MATCH']==129
+          assert r['unadjusted_price_discontinuity_count']==410
+          assert r['discontinuity_by_market_gap']['TICKER_SESSION_GAP']==337
+          assert r['discontinuity_by_market_gap']['PREVIOUS_MARKET_DAY']==73
+          assert r['cross_source_discontinuity_reproduced']==410
+          assert r['prior_market_day_foreign_institution_file_coverage']['PRIOR_5D_TWO_INVESTORS']>0
+          assert r['post_sep16_entry_coverage']['ENTRY1_REFERENCE_AVAILABLE']==51
+          assert r['post_sep16_entry_coverage']['ENTRY2_REFERENCE_AVAILABLE']==1
+          assert r['trade_approved'] is False and r['orders_enabled'] is False
+          assert r['decision']=='CASH' and r['feature_weights_changed'] is False
+          assert r['operating_selection_changed'] is False and r['ledger_changed'] is False
+          print('FIXED_V1_FROZEN_SOURCE_AND_ENTRY_PROVENANCE_QC_PASS')
+          PY
+      - name: Save summary only, never redistribute full historical source records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-fixed-v1-historical-source-entry-audit
+          path: output/c3_fixed_v1_source_entry_audit.json
+          retention-days: 30
+          if-no-files-found: warn

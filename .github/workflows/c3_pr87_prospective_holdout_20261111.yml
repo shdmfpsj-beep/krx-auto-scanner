@@ -1,0 +1,75 @@
+name: C3 frozen PR87 prospective holdout and strict evidence join (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-new-data-quality-pit-20261111]
+    paths: ['.github/workflows/c3_pr87_prospective_holdout_20261111.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  research-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: scripts
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/official_krx_120d_replay.py
+            /scripts/c3_three_entry_replay.py
+            /scripts/krx_official_eod_v65.py
+            /scripts/forward_ledger_v63.py
+            /scripts/source_consensus_v64.py
+            /scripts/c3_selection_first_research.py
+            /scripts/c3_selection_feature_cohort.py
+            /scripts/test_c3_selection_feature_cohort.py
+            /scripts/c3_temporal_quality_validation.py
+            /scripts/test_c3_temporal_quality_validation.py
+            /scripts/c3_pr87_date_evidence_join.py
+            /scripts/test_c3_pr87_date_evidence_join.py
+            /scripts/c3_pr87_frozen_holdout.py
+            /scripts/test_c3_pr87_frozen_holdout.py
+            /scripts/free_structural_v52.py
+            /scripts/first_pullback_v55.py
+            /scripts/entry_strategy_v58.py
+            /scripts/shadow_five_day_v59.py
+            /reports/v91_financial_pit_provisional.csv
+            /reports/v93_pit_quality_summary.json
+            /reports/c3_paper/paper_ledger.json
+            /reports/c3_selection_forward_registry_v17.csv
+            /reports/c3_selection_evidence_v16.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Run strictly read-only research regression tests
+        run: |
+          python -m unittest discover -s scripts -p test_c3_selection_feature_cohort.py -v
+          python -m unittest discover -s scripts -p test_c3_temporal_quality_validation.py -v
+          python -m unittest discover -s scripts -p test_c3_pr87_date_evidence_join.py -v
+          python -m unittest discover -s scripts -p test_c3_pr87_frozen_holdout.py -v
+      - name: Restore isolated fully expanded KRX research artifact
+        run: |
+          mkdir -p output
+          gh run download 42950252617 -R "$GITHUB_REPOSITORY" -n c3-pr87-newdata-official-research-only -D output
+          test -f output/pr87_frozen_feature_cohort.json
+          test -f output/replay/c3_selection_feature_cohort_extended.json
+          test -f output/replay/c3_temporal_quality_validation_extended.json
+      - name: Run frozen later-period temporal feature holdout
+        run: |
+          mkdir -p output/derived
+          python scripts/c3_pr87_frozen_holdout.py --frozen output/pr87_frozen_feature_cohort.json --extended output/replay/c3_selection_feature_cohort_extended.json --quality output/replay/c3_temporal_quality_validation_extended.json --root output/official_history --out output/derived/c3_pr87_prospective_holdout.json
+      - name: Audit actual as-of file joins on original baseline
+        run: |
+          python scripts/c3_pr87_date_evidence_join.py --cohort output/pr87_frozen_feature_cohort.json --root output/official_history --financial reports/v91_financial_pit_provisional.csv --financial-quality reports/v93_pit_quality_summary.json --paper reports/c3_paper/paper_ledger.json --registry reports/c3_selection_forward_registry_v17.csv --selection reports/c3_selection_evidence_v16.json --out output/derived/c3_pr87_date_evidence_join.json
+      - name: Audit as-of joins for the newly expanded 129-event research cohort
+        run: |
+          python scripts/c3_pr87_date_evidence_join.py --cohort output/replay/c3_selection_feature_cohort_extended.json --root output/official_history --financial reports/v91_financial_pit_provisional.csv --financial-quality reports/v93_pit_quality_summary.json --paper reports/c3_paper/paper_ledger.json --registry reports/c3_selection_forward_registry_v17.csv --selection reports/c3_selection_evidence_v16.json --out output/derived/c3_extended_date_evidence_join.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-pr87-independent-holdout-and-pit-join
+          path: output/derived/
+          if-no-files-found: warn
+          retention-days: 30

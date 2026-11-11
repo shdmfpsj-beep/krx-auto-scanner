@@ -1,0 +1,43 @@
+name: C3 historical issuer share-class metadata audit (research only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [research/c3-new-data-quality-pit-20261111]
+    paths: ['.github/workflows/c3_asof_issue_type_20261111.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  asof-metadata-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_krx_asof_issue_type_audit.py
+            /scripts/test_c3_krx_asof_issue_type_audit.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Test strict as-of classification against future listings
+        run: |
+          python -m unittest discover -s scripts -p test_c3_krx_asof_issue_type_audit.py -v
+      - name: Restore separate expanded official KRX source artifact
+        run: |
+          mkdir -p output
+          gh run download 42950252617 -R "$GITHUB_REPOSITORY" -n c3-pr87-newdata-official-research-only -D output
+          test -f output/replay/c3_selection_feature_cohort_extended.json
+      - name: Source-date issuer classification probe with digest evidence
+        run: |
+          python scripts/c3_krx_asof_issue_type_audit.py --cohort output/replay/c3_selection_feature_cohort_extended.json --root output/official_history --max-requests 130 --out output/issuer_asof_category_report.json
+      - name: Export sanitized hash-and-category metadata only
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-issuer-historical-asof-share-class
+          path: output/issuer_asof_category_report.json
+          retention-days: 30
+          if-no-files-found: warn
