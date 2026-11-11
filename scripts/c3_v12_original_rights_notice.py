@@ -89,7 +89,7 @@ def parse_rights(text,ticker,receipt_date):
         "cause_table_bonus_issue":cause_bonus,
         "original_structured_notice_approved":bool(
            price and actual_date and is_ticker_matching and cause_bonus and
-           actual_date>receipt_date)
+           actual_date>receipt_date.isoformat())
     }
 
 def run(evidence,source_prices,key):
