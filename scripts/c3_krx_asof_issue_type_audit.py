@@ -22,7 +22,7 @@ def parse_category(row,selection_date):
     return {'status':'DATED_METADATA_REPORTED_VINTAGE_NOT_INDEPENDENTLY_VERIFIED',
         'kind':kind,'security_group':security,'segment':segment,
         'common_share_reported':kind=='보통주',
-        'preferred_share_reported':kind in ('우선주','우선주권'),
+        'preferred_share_reported':bool(kind and '우선주' in kind),
         'listing_date_reported':listing or None}
 
 def fetch(day,market,key,opener=urlopen):
