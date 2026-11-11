@@ -124,6 +124,15 @@ def main():
 
     snapshots={rec["asof"]:rec for rec in (
         read_record(path) for path in sorted((lane/"markets").glob("*.json.gz")))}
+    # The original engine explicitly inserts the preserved Nov04 baseline
+    # between the 120d panel and frozen Nov05+ daily receipts.
+    from c3_current_candidates_v7 import fresh_snapshot
+    baseline=input_dir/"latest/requested-date-probe/2026-11-04"
+    old,oldmeta=fresh_snapshot(baseline)
+    if not old or oldmeta.get("asof")!="2026-11-04":
+        raise ValueError("FROZEN_NOV04_BASELINE_UNAVAILABLE")
+    snapshots[oldmeta["asof"]]=dict(
+        rows={t:dict(v,date=oldmeta["asof"]) for t,v in old.items()})
     past,excluded=histories(panel,quality,prices,snapshots,sessions,DAY)
     market_regimes={m:regime([market["indices"][m][day] for day in sessions])
                     for m in ("KOSPI","KOSDAQ")}
