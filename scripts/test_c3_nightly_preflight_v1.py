@@ -32,6 +32,15 @@ class NightlyPreflightTests(unittest.TestCase):
             result=audit_cache((header+row+row).encode(),'2026-11-11')
             self.assertEqual(result['status'],'INTERNAL_QUALITY_FAILED')
 
+    def test_kosdaq_global_is_same_board_and_konex_is_explicitly_out_of_scope(self):
+        from c3_nightly_preflight_v1 import audit_cache
+        raw=b'Code,Name,MarketId,Market,Open,High,Low,Close,Volume,Amount\n000001,ONE,STK,KOSPI,100,110,90,105,10,1050\n000002,TWO,KSQ,KOSDAQ GLOBAL,100,110,90,105,10,1050\n000003,THREE,KNX,KONEX,100,110,90,105,10,1050\n'
+        result=audit_cache(raw,'2026-11-11',raw)
+        self.assertEqual(result['status'],'INTERNAL_CHECKS_PASSED_NOT_SOURCE_CERTIFIED')
+        self.assertEqual(result['market_rows'],{'KOSPI':1,'KOSDAQ':1})
+        self.assertEqual(result['raw_rows'],3);self.assertEqual(result['rows'],2)
+        self.assertEqual(result['out_of_scope_rows'],1);self.assertEqual(result['excluded_market_ids'],{'KNX':1})
+
     def test_final_zero_one_two_pass_actual_input_gate_only_when_enabled(self):
         report, summary, clock = cases.fixture()
         for n in (0, 1, 2):

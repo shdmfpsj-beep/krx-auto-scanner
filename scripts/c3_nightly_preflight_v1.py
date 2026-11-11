@@ -47,13 +47,21 @@ def safe_code(exc):
 
 def audit_cache(raw,day,previous=None):
     """Internal dated CSV checks only; a KRX cache is not independent proof."""
-    rows=list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))))
+    raw_rows=list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))))
+    # Mirror the already approved adapter: MarketId is the board key.
+    # KOSDAQ GLOBAL is a KOSDAQ segment; KONEX is outside this system's scope.
+    rows=[r for r in raw_rows if r.get('MarketId') in ('STK','KSQ')]
+    excluded={}
+    for row in raw_rows:
+        if row.get('MarketId') not in ('STK','KSQ'):
+            key=row.get('MarketId','MISSING');excluded[key]=excluded.get(key,0)+1
     issues=[];seen=set();markets={'KOSPI':0,'KOSDAQ':0};no_trades=0
     for row in rows:
         ticker=row.get('Code','');market={'STK':'KOSPI','KSQ':'KOSDAQ'}.get(row.get('MarketId'))
         if not re.fullmatch('[0-9A-Z]{6}',ticker) or ticker in seen:issues.append({'ticker':ticker,'reason':'CODE_OR_DUPLICATE'})
         seen.add(ticker)
-        if not row.get('Name') or market not in markets or row.get('Market')!=market:
+        accepted_labels={'KOSPI':('KOSPI',),'KOSDAQ':('KOSDAQ','KOSDAQ GLOBAL')}
+        if not row.get('Name','').strip() or market not in markets or row.get('Market') not in accepted_labels.get(market,()):
             issues.append({'ticker':ticker,'reason':'IDENTITY_OR_MARKET'})
         else:markets[market]+=1
         try:
@@ -66,11 +74,12 @@ def audit_cache(raw,day,previous=None):
         except (KeyError,TypeError,ValueError):issues.append({'ticker':ticker,'reason':'INVALID_OHLCV_OR_TURNOVER'})
     if not rows or any(v==0 for v in markets.values()):issues.append({'reason':'EMPTY_MARKET'})
     result={'status':'INTERNAL_CHECKS_PASSED_NOT_SOURCE_CERTIFIED' if not issues else 'INTERNAL_QUALITY_FAILED',
-            'requested_file_day':day,'rows':len(rows),'market_rows':markets,'issues':issues,
+            'requested_file_day':day,'raw_rows':len(raw_rows),'rows':len(rows),'market_rows':markets,'issues':issues,
+            'out_of_scope_rows':sum(excluded.values()),'excluded_market_ids':excluded,
             'zero_volume_rows':no_trades,'halt_or_delisting_not_inferred':True,
             'regular_only_certified':False,'independent_source':False,'corporate_actions_certified':False}
     if previous:
-        old={r['Code']:r for r in csv.DictReader(io.StringIO(previous.decode('utf-8-sig')))}
+        old={r['Code']:r for r in csv.DictReader(io.StringIO(previous.decode('utf-8-sig'))) if r.get('MarketId') in ('STK','KSQ')}
         current={r['Code']:r for r in rows}
         result['previous_cache_comparison']={'new_codes':sorted(set(current)-set(old)),
             'absent_codes':sorted(set(old)-set(current)),
@@ -153,7 +162,7 @@ def execute(outdir):
                     closed=datetime.fromisoformat(day+'T15:30:00+09:00')
                     audit['today_cache_quality']['published_after_close_before_audit']=closed<=committed<=clock
             if raw and official.get('official_dataset_usable'):
-                rows={r['Code']:r for r in csv.DictReader(io.StringIO(raw.decode('utf-8-sig')))}
+                rows={r['Code']:r for r in csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))) if r.get('MarketId') in ('STK','KSQ')}
                 actual=[r for name in ('KOSPI','KOSDAQ') for r in read_csv(Path(tmp)/(name+'_official.csv'))]
                 mapping={'open':'Open','high':'High','low':'Low','close':'Close','volume':'Volume','turnover_krw':'Amount'}
                 mismatches=[]
