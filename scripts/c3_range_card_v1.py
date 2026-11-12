@@ -24,7 +24,8 @@ def box_notes(row,p,report):
     q=(row.get('financial') or {}).get('statement') or {};sr=p.get('stop_reliability',{}) if p else {}
     quants=f"RS20 {row.get('own_rs20',0):+.2f}%p · 5일 개선 {row.get('rs_accel5',0):+.2f}%p · 거래대금20일 {row.get('turnover20',0)/1e8:,.0f}억원. {row.get('sector','업종 미확인')} / 시장 {report['regime']['observed_regime']}(미인증)."
     if q:
-        finance=f"{q.get('fiscal_year','')}년 공시 API({q.get('fs_div','구분 미확인')}) · 매출 {q['revenue_krw']/1e8:,.0f}억 · 영업익 {q['operating_profit_krw']/1e8:,.0f}억 · 영업CF {q['operating_cashflow_ytd_krw']/1e8:,.0f}억. 사후 조회, 원문 PIT 미확인."
+        period='분기' if q.get('income_period_basis')=='SINGLE_QUARTER' else '해당기간'
+        finance=f"{q.get('fiscal_year','')}년 API({q.get('fs_div','구분 미확인')}) · {period} 매출 {q['revenue_krw']/1e8:,.0f}억 · 영업익 {q['operating_profit_krw']/1e8:,.0f}억 · 누적 영업CF {q['operating_cashflow_ytd_krw']/1e8:,.0f}억. 사후 조회, 원문 PIT 미확인."
     else:finance='재무 원문 및 당시 이용 가능 자료 미확인. 재무 우량 기업 확정 아님.'
     issue='확인된 뉴스·외국인·기관 수급 원본 없음. 주요 이슈와 수급 강도를 추정하지 않음.'
     if q:issue+=f" 공시 접수 {q.get('published_on','미확인')} / 현재 API 근거."
@@ -88,6 +89,7 @@ def render(row,bars,report,path):
         range=[r['low'],r['high']],stop=p['stop'],r1=p['r1'],r2=p['r2'],is_diagnostic=diagnostic,rank=rank,
         stop_reliability=sr.get('status'),range_status=pr.get('status'),visible_bars=60,source_bars=len(bars),ma60_visible_points=len(geometry['paths']['60']),
         ma_audit=geometry['average_audit'],source_received_at=report['source_received_at'],generated_at=report['generated_at'],
+        chart_source_sha256=row.get('chart_source_sha256'),
         theme='USER_REFERENCE_IVORY_GREY_V3',reference_image_sha256=REFERENCE_SHA256,layout=layout,analysis_sections=[n[0] for n in notes],
         entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',buy_approved=False)
     info=PngImagePlugin.PngInfo();info.add_text('C3_manifest',json.dumps(payload,ensure_ascii=False,sort_keys=True))

@@ -245,7 +245,7 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
         source_date=DAY,source_received_at=source['final_collection_at'],source_run_id=provenance['original_source_run_id'],source_hash=provenance['original_market_payload_sha256'],
         generated_at=datetime.now(timezone.utc).isoformat(),research_run_id=os.environ.get('GITHUB_RUN_ID'),research_commit=os.environ.get('GITHUB_SHA'),
         regime=regime,watch_top2=watch,entry_fit_top2=fit,final_research_top2=fit,
-        final_research_ranking_policy='RESELECT_ALL_QUALIFIED_AFTER_ENTRY_GEOMETRY',confirmed_company_quality_top2=[],
+        final_research_ranking_policy='RESELECT_ALL_QUALIFIED_AFTER_GEOMETRY_PRACTICALITY_AND_STOP_EVIDENCE',confirmed_company_quality_top2=[],
         selection_rank_frozen_before_range=True,financial_context_collected_at=company['collected_at'],
         financial_original_pit_verified=False,regular_only_certified=False,current_action='CASH',buy_approved=False,
         entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',automated_order_enabled=False,telegram_requests=0,original_ledgers_modified=False,
@@ -266,7 +266,7 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
         source_doc=dict(ticker=r['ticker'],source_date=DAY,original_source_run_id=report['source_run_id'],
             original_market_payload_sha256=report['source_hash'],panel_sha256=provenance['panel_sha256'],bars=bars)
         write(out/'chart_sources'/(r['ticker']+'.json'),source_doc)
-        manifest=render(r,bars,report,p);manifest['chart_source_sha256']=hash_value(source_doc)
+        manifest=render(dict(r,chart_source_sha256=hash_value(source_doc)),bars,report,p)
         manifests.append(manifest);paths.append(p)
     for t in ('028050','051160'):
         row=dict(by[t]);legacy=row['range_review']['legacy_best']
@@ -274,7 +274,11 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
         plan=next(p for p in row['range_review']['plans'] if p['method']==legacy['method'] and p['support']==legacy['support'] and p['stop']==legacy['stop'])
         row.update(display_plan=plan,is_diagnostic=True,reason_text='기존 연구 가격 불변 · 제외 사유 진단')
         path=out/'case_reviews'/('C3_CASE_'+DAY.replace('-','')+'_'+t+'.png')
-        case_manifests.append(render(row,current[t][-119:],report,path));case_paths.append(path)
+        case_bars=current[t][-119:]
+        chart_source=dict(ticker=t,source_date=DAY,original_source_run_id=report['source_run_id'],
+            original_market_payload_sha256=report['source_hash'],panel_sha256=provenance['panel_sha256'],bars=case_bars)
+        write(out/'chart_sources'/(t+'.json'),chart_source)
+        case_manifests.append(render(dict(row,chart_source_sha256=hash_value(chart_source)),case_bars,report,path));case_paths.append(path)
         write(out/'case_reviews'/(t+'_structure.json'),dict(ticker=t,name=row['name'],asof=DAY,plan=plan,
             latest20=current[t][-20:],all_plans=row['range_review']['plans'],original_plan_numbers_unchanged=True,not_a_final_top2=True))
     write(out/'case_review_manifest.json',dict(cards=case_manifests,final_top2=False))
@@ -308,6 +312,7 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
         research_entry_fit=len(fit),final_research_top2=[dict(ticker=r['ticker'],name=r['name'],range=[r['display_plan']['range']['low'],r['display_plan']['range']['high']]) for r in fit],
          buy_approved=False,action='CASH',regime=regime,historical_range_events=history['range_events'],
         png_count=len(paths),diagnostic_case_pngs=len(case_paths),all149_original_numeric_plans_unchanged=True,
+        historical_metrics_scope='REUSED_PR106_REFERENCE_NOT_V3_BACKTEST' if reuse_history else 'V3_EXPLORATORY_NOT_INDEPENDENT',
         telegram_actual_requests=0,elapsed_seconds=round(time.monotonic()-started,2)))
     print(json.dumps(dict(funnel=report['funnel'],watch=selected_ids,final_research_top2=[r['ticker'] for r in fit],png_count=len(paths),buy_approved=False),ensure_ascii=False))
 
