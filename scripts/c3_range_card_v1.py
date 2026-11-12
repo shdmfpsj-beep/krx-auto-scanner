@@ -65,7 +65,7 @@ def render(row,bars,report,path):
     previous=bars[-2]['close'];change=row['close']-previous;pct=100*change/previous
     text(d,1345,204,f'{change:+,.0f}원 ({pct:+.2f}%)',31,RED if change>0 else BLUE,True,anchor='ra')
     d.rectangle((48,252,1352,294),fill='#F0EBDD')
-    banner=report['source_date']+' 과거 자료 재검토 · '+(('구조 확인 · 연구 관찰' if row.get('case_selected') else '구조 진단 / PASS') if diagnostic else '연구 관찰 / 실제 BUY 승인 아님')
+    banner=report['source_date']+(' 과거 자료 재검토 · ' if report.get('mode')!='PROSPECTIVE_RESEARCH_OBSERVATION' else ' 전일장 연구 관찰 · ')+(('구조 확인 · 연구 관찰' if row.get('case_selected') else '구조 진단 / PASS') if diagnostic else '연구 관찰 / 실제 BUY 승인 아님')
     text(d,700,258,banner,27,GOLD,True,anchor='ma')
     d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2)
     text(d,74,333,'일봉 · 최근 60거래일 가격과 거래량',31,INK,True)
@@ -97,7 +97,7 @@ def render(row,bars,report,path):
     text(d,700,2267,'KRX 일별·보존 캐시 / 정규장 전용 미인증 / 재무 원문 PIT 미확인',23,SUB,anchor='ma')
     text(d,700,2303,'가격 '+report['source_date']+' · 수집 '+stamp(report['source_received_at'])+' · 생성 '+stamp(report['generated_at']),21,SUB,anchor='ma')
     text(d,700,2330,'연구용 · 실제 매수 승인 없음 · 주문 횟수·수량·체결 방식은 사용자 결정',23,RED,True,anchor='ma')
-    text(d,700,2368,'유효기간 비교 1·2·3거래일 / 이번 재현은 과거 계획, 현재 주문 지시 아님',21,SUB,anchor='ma')
+    text(d,700,2368,'유효기간 비교 1·2·3거래일 / '+('전일장 연구 관찰, 실제 BUY 승인 아님' if report.get('mode')=='PROSPECTIVE_RESEARCH_OBSERVATION' else '이번 재현은 과거 계획, 현재 주문 지시 아님'),21,SUB,anchor='ma')
     payload=dict(ticker=row['ticker'],name=row['name'],close=row['close'],price_asof=report['source_date'],
         source_run_id=report['source_run_id'],source_hash=report['source_hash'],report_hash=report['report_payload_sha256'],
         range=[r['low'],r['high']],stop=p['stop'],r1=p['r1'],r2=p['r2'],is_diagnostic=diagnostic,rank=rank,
@@ -117,7 +117,7 @@ def hold_card(report,path):
     d.rectangle((0,0,W,98),fill=INK);d.rectangle((0,94,W,99),fill=GOLD)
     text(d,52,26,'강현AI PRO | C3 TOP2',46,'#F3E6CD',True);text(d,1345,37,report['source_date'].replace('-','.'),31,'#EEEAE2',anchor='ra')
     text(d,700,220,'CASH',130,GOLD,True,anchor='ma');text(d,700,410,'최종 매수 관찰 후보 없음',52,INK,True,anchor='ma')
-    text(d,700,520,'11월 11일 과거 자료 재검토 · 현재 매수 추천 아님',32,SUB,anchor='ma')
+    text(d,700,520,report['source_date']+(' 과거 자료 재검토' if report.get('mode')!='PROSPECTIVE_RESEARCH_OBSERVATION' else ' 전일장 연구 관찰')+' · BUY 승인 아님',32,SUB,anchor='ma')
     funnel=report['funnel'];lines=[
         ('01 전체시장 재현',f"KRX {funnel['full_market']:,} → 분석 {funnel['analysis_eligible']:,} → 기술 {funnel['technical']}종목"),
         ('02 범위 실용성','좁거나 먼 구간은 별도 보류. 범위를 억지로 넓히지 않음.'),
