@@ -11,6 +11,35 @@ from c3_dynamic_entry_v2 import first_pullback_context,retest_structure
 from c3_single_entry_range_v1 import PROTOCOL,factors,endpoint,legal_ticks,active_resistances
 from c3_range_structure_v3 import reassess,variation,invalidation
 
+def first_after_breakout(bars,atr):
+    """First price pullback in an established trend; no new HMA turn needed.
+
+    Reuses existing 20-session breakout, 1.2 volume, .25ATR dip and .8ATR
+    extension tolerances. A previous completed reclaim disqualifies a new
+    'first' signal. This covers an existing uptrend rather than loosening RS.
+    """
+    audits=[];found=None;n=len(bars)
+    if n<80:return None,audits
+    c=[b['close'] for b in bars];ma20=statistics.mean(c[-20:]);ma60=statistics.mean(c[-60:])
+    if not c[-1]>ma20>ma60 or ma20<=statistics.mean(c[-25:-5]):return None,audits
+    for j in range(max(20,n-20),n-2):
+        level=max(b['high'] for b in bars[j-20:j]);avg=statistics.mean(b['volume'] for b in bars[j-20:j])
+        if bars[j]['close']<=level or bars[j-1]['close']>level or not avg or bars[j]['volume']/avg<1.2:continue
+        dip=None;peak=bars[j]['close'];reclaim=None
+        for k in range(j+1,n):
+            peak=max(peak,bars[k-1]['close'])
+            if dip is None and bars[k]['close']<bars[k-1]['close'] and bars[k]['low']<=peak-.25*atr:dip=k
+            elif dip is not None and bars[k]['close']>bars[k-1]['high']:
+                reclaim=k;break
+        retained=not any(b['close']<level-.25*atr for b in bars[j+1:])
+        audits.append(dict(breakout_date=bars[j]['date'],level=level,first_dip=bars[dip]['date'] if dip is not None else None,
+            first_reclaim=bars[reclaim]['date'] if reclaim is not None else None,support_retained=retained))
+        if dip is None or reclaim!=n-1 or not retained or bars[-1]['close']>peak+.8*atr:continue
+        normal=statistics.mean(b['volume'] for b in bars[-21:-1])
+        if bars[dip]['volume']>1.5*normal:continue
+        found=dict(breakout_index=j,breakout_level=level,dip_index=dip,breakout_volume_ratio=bars[j]['volume']/avg)
+    return found,audits
+
 
 def zone_geometry(low,high,stop,r1,r2,close,atr,structure_confirmed):
     reasons=[]
@@ -96,6 +125,17 @@ def review_v4(bars,legacy):
                 previous_high=bars[-2]['high'],reclaim_close=bars[-1]['close'],
                 pullback_mean_volume=statistics.mean(b['volume'] for b in leg[:-1]) if len(leg)>1 else None,
                 reclaim_volume=bars[-1]['volume'],earlier_completed_reclaim=False,phase_rule='REUSED_V55_PLUS_PR104_FIRST_PULLBACK_CONTEXT')))
+        price_first,breakout_audits=first_after_breakout(bars,a)
+        audit['price_breakout_first_pullback_audit']=breakout_audits
+        if price_first:
+            j=price_first['breakout_index'];dip=price_first['dip_index'];leg=bars[dip:];lowbar=min(leg,key=lambda b:b['low'])
+            choices=[p for p in legacy['plans'] if p['method'].startswith('TREND_CONFIRMED_MA') and p['evidence']['touch_date']>=bars[dip]['date']]
+            anchor=min(choices,key=lambda p:abs(p['support']-bars[-1]['close']))['support'] if choices else lowbar['low']
+            out.append(_plan(bars,'FIRST_PULLBACK',anchor,lowbar['low'],bars[-1]['date'],dict(
+                breakout_date=bars[j]['date'],breakout_level=price_first['breakout_level'],breakout_volume_ratio=price_first['breakout_volume_ratio'],
+                pullback_start=bars[dip]['date'],low_date=lowbar['date'],reclaim_date=bars[-1]['date'],
+                previous_high=bars[-2]['high'],reclaim_close=bars[-1]['close'],earlier_completed_reclaim=False,
+                phase_rule='ESTABLISHED_TREND_FIRST_PULLBACK_AFTER_OBSERVED_BREAKOUT')))
         # Completed breakout/retest is also its own evidence path. Inspect all
         # post-breakout lows and closes, including the confirmation candle.
         for p in legacy['plans']:
@@ -116,7 +156,7 @@ def review_v4(bars,legacy):
 
 def reasons(row,version='v4'):
     result=[];q=row.get('financial',{})
-    if not q.get('observed_positive'):result.append('COMPANY_UNKNOWN' if q.get('status')=='UNAVAILABLE_OR_FUTURE_REPORT' else 'COMPANY_OBSERVED_METRICS_FAIL')
+    if not q.get('observed_positive'):result.append('COMPANY_UNKNOWN' if q.get('status') in ('UNAVAILABLE_OR_FUTURE_REPORT','HISTORICAL_PIT_UNAVAILABLE') else 'COMPANY_OBSERVED_METRICS_FAIL')
     if not row['momentum_pass']:result.append('RS_NOT_POSITIVE_AND_IMPROVING')
     if not row['liquidity_pass']:result.append('TURNOVER_BELOW_EXISTING_FLOOR')
     review=row['range_review'] if version=='v4' else row['range_review']['v3_review']

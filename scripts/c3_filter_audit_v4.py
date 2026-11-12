@@ -67,14 +67,19 @@ def rejection_cohorts(allbars,eligible,meta,market,out_asof):
                 path={b['date']:b for b in bs};wanted=sessions[start:start+h+1]
                 if any(d not in path or not path[d]['tradable'] or path[d]['action_boundary'] or path[d]['segment']!=segment for d in wanted):returns[str(h)]=None;continue
                 returns[str(h)]=100*(path[wanted[-1]]['close']/past[-1]['close']-1)
-            outcomes={}
+            outcomes={};paired={}
+            byday={b['date']:b for b in bs}
+            for h in (5,10,20):
+                end=start+3+h
+                wanted=sessions[start:end+1]
+                paired[str(h)]=bool(end<len(sessions) and sessions[end]<=out_asof and all(d in byday and byday[d]['tradable'] and not byday[d]['action_boundary'] and byday[d]['segment']==segment for d in wanted))
             for tag,plan in [('v3',old),('v4',new)]:
                 outcomes[tag]={choice:{str(v):{str(h):evaluate_trade(single_scenario(plan,choice),bs,bi,sessions,v,h,out_asof)
                     for h in (5,10,20)} for v in (1,2,3)} for choice in ('upper','middle','lower')} if plan else {}
             events.append(dict(ticker=t,name=meta[t]['name'],date=day,rs20=cf['own_rs20'],rs_accel5=cf['rs_accel5'],
                 turnover20=f['turnover20'],v3_price_pass=old is not None,v4_price_pass=new is not None,
                 rs_pass=row['momentum_pass'],turnover_pass=row['liquidity_pass'],selection_close_returns=returns,
-                outcomes=outcomes,v3_rejection_reasons=reasons(row,'v3'),v4_rejection_reasons=reasons(row,'v4'),
+                outcomes=outcomes,paired_maturity=paired,v3_rejection_reasons=reasons(row,'v3'),v4_rejection_reasons=reasons(row,'v4'),
                 history_financial_quality='UNAVAILABLE_NOT_BACKFILLED'))
     groups={}
     for name,predicate in [('V3_PRICE_REJECTED',lambda e:not e['v3_price_pass']),('V4_NEWLY_ADMITTED',lambda e:e['v4_price_pass'] and not e['v3_price_pass']),
@@ -96,9 +101,27 @@ def rejection_cohorts(allbars,eligible,meta,market,out_asof):
                     stops=sum(r['status'].startswith('STOP') for r in fills),r1_touched=sum(r.get('r1_hit_before_stop',False) for r in fills),
                     range_unreached=sum(r['status']=='PASS_UNFILLED' for r in mature),
                     mean_mae_pct=statistics.mean(r['mae_pct'] for r in fills) if fills else None,actual_fill_confirmed=False)
+    paired_trade={}
+    for cohort,predicate in [('ALL_TECHNICAL',lambda e:True),('RS_POSITIVE_IMPROVING_AND_LIQUID',lambda e:e['rs_pass'] and e['turnover_pass'])]:
+        paired_trade[cohort]={}
+        for tag in ('v3','v4'):
+            paired_trade[cohort][tag]={}
+            for choice in ('upper','middle','lower'):
+                paired_trade[cohort][tag][choice]={}
+                for h in (5,10,20):
+                    selected=[e for e in events if predicate(e) and e['paired_maturity'][str(h)]]
+                    rs=[e['outcomes'][tag][choice]['1'][str(h)] if e['outcomes'][tag] else dict(status='NO_RANGE_CASH',return_pct=0,filled=False) for e in selected]
+                    if any(r.get('return_pct') is None for r in rs):raise ValueError('PAIRED_COMMON_CLOCK_HAS_CENSORED_MODEL_OUTCOME')
+                    fills=[r for r in rs if r.get('filled')]
+                    paired_trade[cohort][tag][choice][str(h)]=dict(common_opportunities=len(rs),fills=len(fills),
+                        no_range_cash=sum(r['status']=='NO_RANGE_CASH' for r in rs),unfilled=sum(r['status']=='PASS_UNFILLED' for r in rs),
+                        net_expectancy_per_selected_opportunity_pct=statistics.mean(r['return_pct'] for r in rs) if rs else None,
+                        stops=sum(r['status'].startswith('STOP') for r in fills),paired_population_includes_no_range_cash=True,
+                        actual_fills_confirmed=False)
     examples=sorted([e for e in events if not e['v3_price_pass'] and e['selection_close_returns']['10'] is not None and e['selection_close_returns']['10']>0],
         key=lambda e:(e['date'],e['ticker']))[:5]
     return dict(session_offsets=[67,45,23],cohort_dates=days,price_only_technical_events=len(events),groups=groups,trade=trade,
+        paired_cash_inclusive_trade=paired_trade,unpaired_range_only_means_are_not_model_superiority_evidence=True,
         illustrative_missed_rises=[{k:e[k] for k in ('ticker','name','date','selection_close_returns','v3_rejection_reasons','v4_price_pass')} for e in examples],
         reused_and_current_universe_conditioned_not_independent_validation=True,parameters_optimized=False,financial_or_future_global_inputs_used=False,
         superiority_proven=False),events

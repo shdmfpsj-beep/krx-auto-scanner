@@ -1,6 +1,6 @@
 import copy,unittest
 from unittest.mock import patch
-from c3_entry_structure_v4 import zone_geometry,review_v4,reasons
+from c3_entry_structure_v4 import zone_geometry,review_v4,reasons,first_after_breakout
 from c3_filter_audit_v4 import exclusion_audit
 from test_c3_range_structure_v3 import fixture as base_fixture
 
@@ -27,6 +27,21 @@ class IntactZones(unittest.TestCase):
         self.assertFalse(zone_geometry(100,110,97,102,None,110,10,True)['valid'])
 
 class TypedEvidence(unittest.TestCase):
+    def breakout_bars(self):
+        b,_=fixture();b[-8].update(open=140,low=139,high=155,close=150,volume=2000000)
+        b[-7].update(open=151,low=150,high=165,close=160,volume=10000)
+        for i,c in zip(range(len(b)-6,len(b)-1),[155,154,153,152,154]):b[i].update(open=c-1,low=c-6,high=c+4,close=c,volume=10000)
+        b[-1].update(open=155,low=154,high=161,close=159,volume=10000)
+        return b
+    def test_established_trend_first_pullback_not_requiring_a_new_hma_turn(self):
+        b=self.breakout_bars();r,a=first_after_breakout(b,10)
+        self.assertIsNotNone(r);self.assertEqual(a[0]['first_reclaim'],b[-1]['date'])
+    def test_earlier_completed_reclaim_is_not_a_fresh_first_pullback(self):
+        b=self.breakout_bars();b[-3].update(open=159,low=158,high=164,close=162)
+        r,a=first_after_breakout(b,10);self.assertIsNone(r);self.assertNotEqual(a[0]['first_reclaim'],b[-1]['date'])
+    def test_broken_breakout_support_rejects_first_pullback(self):
+        b=self.breakout_bars();b[-4].update(open=119,low=116,high=122,close=120)
+        r,a=first_after_breakout(b,10);self.assertIsNone(r);self.assertFalse(a[0]['support_retained'])
     def test_first_pullback_can_use_one_confirmed_reclaim(self):
         b,_=fixture();old=dict(plans=[],best=None,reason=None)
         with patch('c3_entry_structure_v4.confirmed_turn',return_value=90),patch('c3_entry_structure_v4.phase',return_value='FIRST_PULLBACK_RECLAIM'),patch('c3_entry_structure_v4.first_pullback_context',return_value=100),patch('c3_entry_structure_v4.active_resistances',return_value=([dict(price=140)],[])):
