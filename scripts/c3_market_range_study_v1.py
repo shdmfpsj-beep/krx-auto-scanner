@@ -83,6 +83,27 @@ def choose_watch(rows,financial,sector):
     pool.sort(key=lambda r:(not r['financial']['confirmed'],not r['financial']['growth_observed'],not r['sector_proxy_positive'],-r['turnover20'],-r['own_rs20'],r['ticker']))
     return pool
 
+def choose_practical_top2(stock_pool,all_candidates,limit=2):
+    """Reselect across the full screened pool; never lock the final TOP2 before entry checks.
+
+    The pre-entry WATCH ranks are retained for diagnostics, while the final
+    research cards include only candidates with a structurally validated
+    observation range. Preserve the existing qualitative order among
+    entry-qualified names; do not tune thresholds to a desired ticker.
+    """
+    selected=[]
+    for stock in stock_pool:
+        row=dict(all_candidates[stock['ticker']])
+        plan=row['range_review']['best']
+        if not plan:continue
+        row.update(display_plan=plan,status='ENTRY RANGE',data_status='UNVERIFIED',
+            buy_approved=False,selection_scope='FULL_STOCK_POOL_ENTRY_FIT_RESELECTION',
+            reason_text='매출·영업이익·현금흐름 양수 API 관찰 · RS '+f"{row['own_rs20']:.1f}%p"+
+            ' / 최근 개선 '+f"{row['rs_accel5']:.1f}%p"+' · 재무 원문 PIT 미확인')
+        selected.append(row)
+        if len(selected)>=limit:break
+    return selected
+
 def history_comparison(allbars,eligible,meta,market,out):
     """Limited price-only rerun; already reused history is NOT a holdout."""
     sessions=market['sessions'];idx=market['indices'];source_days=sorted({b['date'] for bs in allbars.values() for b in bs})[-85:]
@@ -193,12 +214,12 @@ def run(engine,state,old,out,fetch=True):
             reason_text='매출·영업이익·현금흐름 양수 API 관찰 · RS '+f"{r['own_rs20']:.1f}%p"+' / 최근 개선 '+f"{r['rs_accel5']:.1f}%p"+' · 재무 원문 PIT 미확인')
         if not p:r['entry_hold_reason']='CURRENT_SUPPORT_TOO_DEEP_OR_ACTIVE_RESISTANCE_UNCONFIRMED'
         watch.append(r)
-    fit=[dict(r) for r in stock_pool if by[r['ticker']]['range_review']['best']][:2]
-    for r in fit:r['display_plan']=by[r['ticker']]['range_review']['best']
+    fit=choose_practical_top2(stock_pool,by)
     report=dict(schema='C3_AI_MARKET_ENTRY_RANGE_REPORT_V2',model_version=PROTOCOL['model_version'],mode='ARCHIVED_PRICE_CURRENT_CONTEXT_REVIEW',
         source_date=DAY,source_received_at=source['final_collection_at'],source_run_id=provenance['original_source_run_id'],source_hash=provenance['original_market_payload_sha256'],
         generated_at=datetime.now(timezone.utc).isoformat(),research_run_id=os.environ.get('GITHUB_RUN_ID'),research_commit=os.environ.get('GITHUB_SHA'),
-        regime=regime,watch_top2=watch,entry_fit_top2=fit,confirmed_company_quality_top2=[],
+        regime=regime,watch_top2=watch,entry_fit_top2=fit,final_research_top2=fit,
+        final_research_ranking_policy='RESELECT_ALL_QUALIFIED_AFTER_ENTRY_GEOMETRY',confirmed_company_quality_top2=[],
         selection_rank_frozen_before_range=True,financial_context_collected_at=company['collected_at'],
         financial_original_pit_verified=False,regular_only_certified=False,current_action='CASH',buy_approved=False,
         entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',automated_order_enabled=False,telegram_requests=0,original_ledgers_modified=False,
@@ -209,9 +230,11 @@ def run(engine,state,old,out,fetch=True):
         certification_state='UNVERIFIED_NOT_CONFIRMED_ZERO_CANDIDATES',latest_source_probe=probe,provenance=provenance)
     report['report_payload_sha256']=hash_value(report)
     write(out/'report.json',report);write(out/'all149_range_diagnostics.json',dict(asof=DAY,rows=diags))
-    write(out/'frozen_selection_ids.json',dict(selected_before_range=selected_ids,selected_after_range=[r['ticker'] for r in watch],same=True))
+    write(out/'frozen_selection_ids.json',dict(selected_before_range=selected_ids,selected_after_range=[r['ticker'] for r in watch],same=True,
+        final_research_top2=[r['ticker'] for r in fit],watch_only=[r['ticker'] for r in watch if r['ticker'] not in {v['ticker'] for v in fit}],
+        final_rescreen_scope='FULL_149_TECHNICAL_CANDIDATES_NOT_FIXED_WATCH_TOP2'))
     paths=[];manifests=[]
-    for r in watch:
+    for r in fit:
         p=out/'cards'/('C3_WATCH_'+DAY.replace('-','')+'_'+r['ticker']+'.png')
         bars=current[r['ticker']][-119:]
         source_doc=dict(ticker=r['ticker'],source_date=DAY,original_source_run_id=report['source_run_id'],
@@ -230,7 +253,7 @@ def run(engine,state,old,out,fetch=True):
         scenarios=tests,zero_scenario_card=zero_manifest,first_claim=claim,repeat=duplicate,actual_telegram_requests=0,status='LIVE_SEND_HELD_RESEARCH_NOT_APPROVED',
         legacy_messages_40_41_42_untouched=True))
     forward=[]
-    for r in watch:
+    for r in fit:
         p=r['range_review']['best'];record=dict(source_date=DAY,ticker=r['ticker'],source_run_id=report['source_run_id'],source_hash=report['source_hash'],
             model_version=PROTOCOL['model_version'],created_at=report['generated_at'],source_received_at=report['source_received_at'],
             reasons=r['reason_text'],market_regime=regime,range=p['range'] if p else None,plan=p,
@@ -242,9 +265,10 @@ def run(engine,state,old,out,fetch=True):
         code_supports_immutable_records_and_5_10_20_updates=True,reason='FROZEN_NOV11_REPLAY_NOT_NEW_FORWARD_SIGNAL'))
     history=history_comparison(allbars,eligible,meta,market,out)
     write(out/'execution_summary.json',dict(funnel=report['funnel'],watch=[dict(ticker=r['ticker'],name=r['name'],close=r['close'],status=r['status']) for r in watch],
-        research_entry_fit=len(fit),buy_approved=False,action='CASH',regime=regime,historical_range_events=history['range_events'],
+        research_entry_fit=len(fit),final_research_top2=[dict(ticker=r['ticker'],name=r['name'],range=[r['display_plan']['range']['low'],r['display_plan']['range']['high']]) for r in fit],
+         buy_approved=False,action='CASH',regime=regime,historical_range_events=history['range_events'],
         png_count=len(paths),telegram_actual_requests=0,elapsed_seconds=round(time.monotonic()-started,2)))
-    print(json.dumps(dict(funnel=report['funnel'],watch=selected_ids,png_count=len(paths),buy_approved=False),ensure_ascii=False))
+    print(json.dumps(dict(funnel=report['funnel'],watch=selected_ids,final_research_top2=[r['ticker'] for r in fit],png_count=len(paths),buy_approved=False),ensure_ascii=False))
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--engine',type=Path,required=True);p.add_argument('--state',type=Path,required=True)

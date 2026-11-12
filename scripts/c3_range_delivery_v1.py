@@ -9,7 +9,7 @@ from unittest.mock import patch
 from c3_telegram_notify import Telegram,validate_photos
 
 def envelope(paths,manifests,report):
-    expected=max(1,len(report['watch_top2']))
+    expected=max(1,len(report.get('final_research_top2',report['watch_top2'])))
     if len(paths)!=expected or len(manifests)!=expected:raise ValueError('RESEARCH_CARD_COUNT_MISMATCH')
     hashes=validate_photos(paths)
     for p,m,h in zip(paths,manifests,hashes):

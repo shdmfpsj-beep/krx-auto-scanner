@@ -7,7 +7,7 @@ import c3_single_entry_range_v1 as e
 import c3_market_context_v1 as m
 from c3_range_forward_v1 import register,immutable,hash_value,update_existing
 from c3_range_delivery_v1 import envelope,transport_test,safe_claim
-from c3_market_range_study_v1 import financial_review,choose_watch
+from c3_market_range_study_v1 import financial_review,choose_watch,choose_practical_top2
 from test_c3_dynamic_entry_v2 import bars,trade_fixture
 from c3_dynamic_entry_v2 import evaluate_trade
 
@@ -98,6 +98,26 @@ class SourceAndSelection(unittest.TestCase):
         fin={r['ticker']:dict(observed_positive=True,confirmed=False,growth_observed=True) for r in rows}
         before=[r['ticker'] for r in choose_watch(rows,fin,{})];rows[0]['range_valid']=False;rows[1]['range_valid']=True
         self.assertEqual(before,[r['ticker'] for r in choose_watch(rows,fin,{})])
+    def test_full_pool_reselects_when_former_second_has_no_range(self):
+        # Original WATCH first two: 000001 and 000002. Practical result must
+        # replace the second with 000003 without inventing a price for 000002.
+        pool=[dict(ticker='000001'),dict(ticker='000002'),dict(ticker='000003')]
+        by={}
+        for stock in pool:
+            t=stock['ticker']
+            valid=t!='000002'
+            by[t]=dict(stock,own_rs20=15.0,rs_accel5=2.0,
+                range_review=dict(best=dict(range_valid=True,range=dict(low=9000,high=9500),stop=8500,r1=11000,r2=None) if valid else None))
+        result=choose_practical_top2(pool,by)
+        self.assertEqual([r['ticker'] for r in result],['000001','000003'])
+        self.assertTrue(all(r['status']=='ENTRY RANGE' and not r['buy_approved'] for r in result))
+        self.assertEqual(len(pool),3)
+
+    def test_no_entry_fit_does_not_force_a_final_card(self):
+        pool=[dict(ticker='000001')]
+        by={'000001':dict(ticker='000001',range_review=dict(best=None))}
+        self.assertEqual(choose_practical_top2(pool,by),[])
+
     def test_negative_rs_not_promoted_by_entry(self):
         rows=[dict(ticker='000001',sector='A',momentum_pass=False,liquidity_pass=True,turnover20=20,own_rs20=-3,range_valid=True)]
         self.assertEqual(choose_watch(rows,{'000001':dict(observed_positive=True)},{}),[])
