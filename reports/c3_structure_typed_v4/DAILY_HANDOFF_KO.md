@@ -16,11 +16,12 @@ PR108의 가격·필터 연구 결과를 바꾸지 않고 실제 날짜를 받�
 
 `.github/workflows/c3_range_daily_adapter_v4.yml`은 **workflow_call 전용**이며 새 cron이나 자동 실전 전송을 만들지 않는다.
 
-승인된 아침 호출자가 실제 공식 정합성 증거와 원본 등록을 완료한 뒤 같은 실행에서 다음 세 입력을 전달해야 한다.
+승인된 아침 호출자가 실제 공식 정합성 증거와 원본 등록을 완료한 뒤 같은 실행에서 다음 네 입력을 전달해야 한다.
 
-1. `registered_state_sha`: 원본 등록을 보존한 정확한 Git 커밋
-2. `registration_proof`: PR101 방식의 완료 등록 증거 JSON
-3. `official_source_proof`: 해당 날짜 공식-캐시 일치 증거 JSON
+1. `research_code_sha`: 검증한 V4 코드의 정확한40자리 커밋. 호출자의 main 커밋을 연구 코드로 잘못 체크아웃하지 않는다.
+2. `registered_state_sha`: 원본 등록을 보존한 정확한 Git 커밋
+3. `registration_proof`: PR101 방식의 완료 등록 증거 JSON
+4. `official_source_proof`: 해당 날짜 공식-캐시 일치 증거 JSON
 
 공식 조회 실패나 원본 등록 지연이면 호출하지 않는다. 어댑터도 다시 검증한다. 승인 엔진은 `54e7120b01966930e176d431e85b679347210c41`로 고정한다. 실제 회사 자료는 기존 DART 조회기를 사용하고 원문 PIT 인증으로 승격하지 않는다.
 

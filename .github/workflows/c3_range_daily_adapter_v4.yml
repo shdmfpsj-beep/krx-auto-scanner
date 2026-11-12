@@ -2,6 +2,9 @@ name: C3 V4 registered daily observation adapter (NO SEND)
 on:
   workflow_call:
     inputs:
+      research_code_sha:
+        type: string
+        required: true
       registered_state_sha:
         type: string
         required: true
@@ -34,6 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.research_code_sha }}
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
@@ -55,13 +59,16 @@ jobs:
           REGISTRATION_PROOF: ${{ inputs.registration_proof }}
           OFFICIAL_SOURCE_PROOF: ${{ inputs.official_source_proof }}
           STATE_SHA: ${{ inputs.registered_state_sha }}
+          RESEARCH_CODE_SHA: ${{ inputs.research_code_sha }}
         run: |
           python - <<'PY'
-          import json,os
+          import json,os,re,subprocess
           from pathlib import Path
           from datetime import datetime,timezone
           from c3_range_daily_v4 import lineage
           from c3_forward_ledger_v8 import read_record
+          expected=os.environ['RESEARCH_CODE_SHA']
+          if not re.fullmatch('[a-f0-9]{40}',expected) or subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()!=expected:raise ValueError('PINNED_V4_CODE_COMMIT_REQUIRED')
           root=Path('evidence');root.mkdir(exist_ok=True)
           proof=json.loads(os.environ['REGISTRATION_PROOF']);source=json.loads(os.environ['OFFICIAL_SOURCE_PROOF'])
           (root/'registration.json').write_text(json.dumps(proof));(root/'source.json').write_text(json.dumps(source))

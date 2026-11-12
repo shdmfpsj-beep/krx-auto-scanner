@@ -34,7 +34,7 @@ def lineage(latest,market,decision,source,proof,state_sha,caller,clock,mode):
         source.get('status')!='OFFICIAL_CACHE_MATCHED' or source.get('requested_day')!=day or
         source.get('normalized_rows_sha256')!=normalized_hash(rows)):
         raise ValueError('DAILY_OFFICIAL_PROOF_MISMATCH')
-    if mode=='replay':return dict(status='READ_ONLY_REPLAY',forward_allowed=False)
+    if mode=='replay':return dict(status='READ_ONLY_REPLAY',forward_allowed=False,registered_state_sha=state_sha,source_run_id=run,market_payload_sha256=hash_value(market))
     if mode!='forward':raise ValueError('INVALID_DAILY_MODE')
     check_review(proof,state_sha,day,caller)
     if (proof['source_run_id']!=run or proof['market_payload_sha256']!=hash_value(market) or
@@ -48,7 +48,7 @@ def lineage(latest,market,decision,source,proof,state_sha,caller,clock,mode):
     received=datetime.fromisoformat(source['final_collection_at'].replace('Z','+00:00'))
     if received.tzinfo is None or not datetime.fromisoformat(day+'T15:30:00+09:00')<=received<=clock:
         raise ValueError('INVALID_DAILY_SOURCE_RECEIPT_TIME')
-    return dict(status='REGISTERED_PROSPECTIVE_SOURCE',forward_allowed=True)
+    return dict(status='REGISTERED_PROSPECTIVE_SOURCE',forward_allowed=True,registered_state_sha=state_sha,registration_run_id=str(caller),source_run_id=run,market_payload_sha256=hash_value(market),decision_payload_sha256=hash_value(decision),registration_proof_sha256=hash_value(proof))
 
 
 def decision_identity(report):
@@ -89,7 +89,7 @@ def freeze(root,report,clock,mode):
             model_version=model,created_at=frozen['generated_at'],source_received_at=frozen['source_received_at'],
             reasons=row.get('reason_text',''),market_regime=frozen['regime'],range=plan['range'] if plan else None,plan=plan,
             stop=plan['stop'] if plan else None,r1=plan['r1'] if plan else None,r2=plan['r2'] if plan else None,
-            selection_role='ENTRY_FIT' if frozen['final_research_top2'] else 'WATCH_ONLY',buy_approved=False,
+            selection_role='ENTRY_FIT' if frozen['final_research_top2'] else 'WATCH_ONLY',buy_approved=False,registration_lineage=frozen.get('registration_lineage',{}),model_code_sha256=frozen['model_code_sha256'],
             execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',automated_order_enabled=False)
         records.append(register(root,record,clock))
     return dict(status=status,identity_sha256=identity,records=records,entry_fit=len(frozen['final_research_top2']),
@@ -143,7 +143,8 @@ def build(engine,state,old,source_path,company_path,out,records,mode='replay',re
         mode='PROSPECTIVE_RESEARCH_OBSERVATION' if mode=='forward' else 'ARCHIVED_PRICE_CURRENT_CONTEXT_REVIEW',
         source_date=day,source_received_at=source['final_collection_at'],source_run_id=latest['source_run_id'],source_hash=hash_value(market),
         original_decision_hash=hash_value(decision),analysis_identity_sha256=hash_value(dict(rows=rows,domestic=domestic)),
-        generated_at=clock.isoformat(),research_run_id=os.environ.get('GITHUB_RUN_ID'),research_commit=os.environ.get('GITHUB_SHA'),
+        generated_at=clock.isoformat(),research_run_id=os.environ.get('GITHUB_RUN_ID'),registration_lineage=checked,
+        research_commit=subprocess.check_output(['git','-C',str(scripts.parent),'rev-parse','HEAD'],text=True).strip(),upstream_caller_sha=os.environ.get('GITHUB_SHA'),
         watch_top2=watch,entry_fit_top2=fit,final_research_top2=fit,regime=regime,current_action='CASH',
         buy_approved=False,regular_only_certified=False,financial_original_pit_verified=False,telegram_requests=0,
         automated_order_enabled=False,original_ledgers_modified=False,entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',
