@@ -57,6 +57,26 @@ class RangeRisk(unittest.TestCase):
         b,s,p=trade_fixture();b[1].update(open=101,low=90,high=130)
         got=evaluate_trade(p,b,0,s,1,5);self.assertTrue(got['status'].startswith('STOP'));self.assertLess(got['return_pct'],0)
 
+
+    def test_manual_fill_counts_are_not_limited_and_total_risk_grows(self):
+        p=dict(range_valid=True,range=self.make(),stop=9000,r1=13000,r2=14500)
+        lo=p['range']['low'];mid=p['range']['endpoints']['middle']['price'];hi=p['range']['high']
+        one=e.evaluate_user_fills(p,[dict(price=lo,quantity=1)],1_000_000)
+        three=e.evaluate_user_fills(p,[dict(price=lo,quantity=1),dict(price=mid,quantity=1),dict(price=hi,quantity=1)],1_000_000)
+        self.assertEqual(one['fill_count'],1)
+        self.assertEqual(three['fill_count'],3)
+        self.assertGreater(three['loss_at_structural_stop_krw'],one['loss_at_structural_stop_krw'])
+        self.assertGreater(three['total_capital_at_risk_pct'],one['total_capital_at_risk_pct'])
+        self.assertFalse(three['orders_placed'])
+        self.assertFalse(three['actual_fills_verified'])
+
+    def test_optional_fills_reject_outside_range_or_overspending(self):
+        p=dict(range_valid=True,range=self.make(),stop=9000,r1=13000,r2=14500)
+        with self.assertRaises(ValueError):e.evaluate_user_fills(p,[dict(price=p['range']['low']-10,quantity=1)],1_000_000)
+        with self.assertRaises(ValueError):e.evaluate_user_fills(p,[dict(price=p['range']['low'],quantity=200)],1_000_000)
+        with self.assertRaises(ValueError):e.evaluate_user_fills(p,[dict(price=p['range']['low'],quantity=0)],1_000_000)
+
+
 class SourceAndSelection(unittest.TestCase):
     def test_unfinished_us_session_excluded(self):
         d,c=m.last_completed_us(datetime.fromisoformat('2026-11-12T04:00:00+09:00'));self.assertEqual(d,'2026-11-10')
