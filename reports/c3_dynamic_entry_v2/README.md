@@ -1,5 +1,7 @@
 # Dynamic Entry Geometry V2 — independent research
 
+**FINAL: see [RESULTS_KO.md](RESULTS_KO.md). Initial dynamic outcomes below were invalidated by the omitted-failed-retest defect. Corrected run 43164556284 / code 7f7916328a9434dc7bc9751d0d34518f0d17163b: 75 tests pass, 13 new Nov11 plans, zero geometry-passing candidates, no operational promotion.**
+
 This branch calculates new support-based entry ranges from completed prices. It does not replace, register, edit or send any operational C3 signal. The production engine remains 54e7120b01966930e176d431e85b679347210c41. The frozen November 11 original is source run 43086941571. Production main, original ledgers/stops, Telegram receipts and morning schedules are protected by before/after blob inventories.
 
 ## Reuse and changes
