@@ -10,6 +10,27 @@ from c3_morning_final_v1 import packet,render,validate_image,finish_delivery,pub
 from c3_telegram_inputs import canonical,digest
 
 
+class ApprovedEngineMorningWindowTests(unittest.TestCase):
+    def guard(self):
+        import textwrap
+        path=Path(__file__).resolve().parent.parent/'.github/workflows/c3_morning_research_adapter_v1.yml'
+        script=path.read_text().split('          def require_morning_window',1)[1].split("          require_morning_window(os.environ",1)[0]
+        namespace={};exec(textwrap.dedent('          def require_morning_window'+script),namespace)
+        return namespace['require_morning_window']
+    def test_real_adapter_window_rejects_delayed_or_current_day_registration(self):
+        check=self.guard()
+        self.assertEqual(check('2026-11-11',datetime.fromisoformat('2026-11-12T08:59:59+09:00')),'2026-11-11')
+        for clock in ('2026-11-12T09:00:00+09:00','2026-11-12T16:00:00+09:00'):
+            with self.assertRaisesRegex(ValueError,'WINDOW_MISSED'):check('2026-11-11',datetime.fromisoformat(clock))
+        with self.assertRaisesRegex(ValueError,'PRIOR_COMPLETED'):check('2026-11-12',datetime.fromisoformat('2026-11-12T08:10:00+09:00'))
+    def test_adapter_locks_collection_target_and_preserves_approved_event_validation(self):
+        p=Path(__file__).resolve().parent.parent/'.github/workflows/c3_morning_research_adapter_v1.yml'
+        s=p.read_text()
+        self.assertIn("if target != os.environ['EXPECTED_MORNING_SOURCE_DAY']:raise ValueError('SOURCE_DAY_CHANGED_AFTER_PREFLIGHT')",s)
+        self.assertIn("audit=invocation(os.environ['GITHUB_REPOSITORY'],os.environ['GITHUB_REF'],os.environ['GITHUB_EVENT_NAME']",s)
+        self.assertNotIn("GITHUB_EVENT_NAME']='",s)
+
+
 class CalendarAndSourceTests(unittest.TestCase):
     def test_latest_prior_session_on_regular_day_monday_and_holiday(self):
         for clock,expected in [('2026-11-12T08:10:00+09:00','2026-11-11'),

@@ -39,3 +39,5 @@
 11/11 금번 재평가에서 확보한 146개 재무 스냅샷은 원래 조회 시각(11/12 09:27 KST 시작)과 미인증 PIT 상태를 그대로 보존해 배포 재현에 재사용한다. 아티팩트13902868724의 ZIP SHA256 ca26e3e5ab90b3275bec1f742e97a288a35338fb22852f84ad363cdc300df0c7, 동일 날짜와149개 코드·이름을 검사한다. 이는 새 조회가 아니며 다른 거래일에는 재사용하지 않는다. 새 거래일 운영에서는 해당일 공개 가능 재무를 새로 조회한다.
 
 전달 단계는 분석 완료 아티팩트에 포함된 PNG 원본 바이트·메타데이터·해시·동결 결정 해시를 검사한 후 그대로 사용한다. 렌더러나 main이 바뀌었다고 다른 이미지를 조용히 다시 생성해서 전송하지 않는다.
+
+The morning reusable adapter retains the approved engine scripts and invocation checks at commit 54e7120b01966930e176d431e85b679347210c41. It rejects an actual job start at or after 09:00 KST and locks the collector's computed target to the official preflight source day. A delayed job cannot turn into today's signal registration. The one-time deployment push only replays existing records and never bypasses the approved event contract.

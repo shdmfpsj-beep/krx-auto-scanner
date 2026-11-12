@@ -39,7 +39,7 @@ jobs:
           pin='54e7120b01966930e176d431e85b679347210c41'
           caller=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
           sender=Path('.github/workflows/c3_top2_telegram.yml').read_text()
-          assert caller.count(pin)==5
+          assert caller.count(pin)==4
           assert sender.count(pin)==4
           assert "ENGINE='"+pin+"'" in Path('scripts/c3_report_handoff.py').read_text()
           assert set(re.findall(r"cron: '([^']+)'",caller))=={'10,20,30 23 * * 0-4'}

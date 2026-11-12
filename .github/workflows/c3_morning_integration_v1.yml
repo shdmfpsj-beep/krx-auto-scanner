@@ -2,9 +2,9 @@ name: C3 morning full-market integration (NO SEND / NO LEDGER WRITES)
 on:
   push:
     branches: ['fix/c3-morning-orchestration-20261112']
-    paths: ['scripts/c3_*v1.py','scripts/c3_candidate_entry_review_v2.py','scripts/test_c3_morning_v1.py','.github/workflows/c3_morning_integration_v1.yml']
+    paths: ['scripts/c3_*v1.py','scripts/c3_candidate_entry_review_v2.py','scripts/test_c3_morning_v1.py','.github/workflows/c3_morning_integration_v1.yml','.github/workflows/c3_morning_research_adapter_v1.yml']
   pull_request:
-    paths: ['scripts/c3_morning_source_v1.py','scripts/c3_morning_final_v1.py','scripts/c3_candidate_entry_review_v2.py','scripts/c3_company_quality_review_v1.py','scripts/test_c3_morning_v1.py','.github/workflows/c3_morning_integration_v1.yml']
+    paths: ['scripts/c3_morning_source_v1.py','scripts/c3_morning_final_v1.py','scripts/c3_candidate_entry_review_v2.py','scripts/c3_company_quality_review_v1.py','scripts/test_c3_morning_v1.py','.github/workflows/c3_morning_integration_v1.yml','.github/workflows/c3_morning_research_adapter_v1.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,6 +20,7 @@ jobs:
           sparse-checkout: |
             /scripts/*.py
             /config/*.json
+            /.github/workflows/c3_morning_research_adapter_v1.yml
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:

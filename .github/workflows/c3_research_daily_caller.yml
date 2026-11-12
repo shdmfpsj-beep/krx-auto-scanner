@@ -9,7 +9,7 @@ on:
     paths: ['config/c3_morning_deploy_request.json']
   workflow_dispatch:
   pull_request:
-    paths: ['.github/workflows/c3_research_daily_caller.yml','scripts/c3_morning_source_v1.py']
+    paths: ['.github/workflows/c3_research_daily_caller.yml','scripts/c3_morning_source_v1.py','.github/workflows/c3_morning_research_adapter_v1.yml']
 permissions:
   contents: read
   actions: read
@@ -26,6 +26,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             /.github/workflows/c3_research_daily_caller.yml
+            /.github/workflows/c3_morning_research_adapter_v1.yml
           sparse-checkout-cone-mode: false
       - name: Check the pinned caller without running production collection
         run: |
@@ -35,9 +36,12 @@ jobs:
           p=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
           pin='54e7120b01966930e176d431e85b679347210c41'
           job=p.split('\n  research:\n',1)[1].split('\n  morning-review:\n',1)[0]
-          called=re.search(r'uses: shdmfpsj-beep/krx-auto-scanner/\.github/workflows/c3_daily_research_v8\.yml@([a-f0-9]{40})',job)
+          called='uses: ./.github/workflows/c3_morning_research_adapter_v1.yml' in job
           configured=re.search(r'^      engine_ref: ([a-f0-9]{40})$',job,re.M)
-          assert called and configured and called[1]==configured[1]==pin
+          assert called and configured and configured[1]==pin
+          adapter=Path('.github/workflows/c3_morning_research_adapter_v1.yml').read_text()
+          assert 'require_morning_window' in adapter and 'SOURCE_DAY_CHANGED_AFTER_PREFLIGHT' in adapter
+          assert 'source_day: ${{ needs.source-ready.outputs.source_day }}' in job
           secrets=job.split('\n    secrets:\n',1)[1]
           assert 'inherit' not in secrets
           assert set(re.findall(r'^      ([A-Z_]+):',secrets,re.M))=={'KRX_AUTH_KEY'}
@@ -95,10 +99,11 @@ jobs:
     permissions:
       contents: write
       actions: read
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@54e7120b01966930e176d431e85b679347210c41
+    uses: ./.github/workflows/c3_morning_research_adapter_v1.yml
     with:
       engine_ref: 54e7120b01966930e176d431e85b679347210c41
       caller_mode: approved_daily
+      source_day: ${{ needs.source-ready.outputs.source_day }}
       upstream_run_id: ${{ needs.source-ready.outputs.run_id }}
     secrets:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
