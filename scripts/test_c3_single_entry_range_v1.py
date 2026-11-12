@@ -5,7 +5,7 @@ from unittest.mock import patch
 from PIL import Image
 import c3_single_entry_range_v1 as e
 import c3_market_context_v1 as m
-from c3_range_forward_v1 import register,immutable,hash_value
+from c3_range_forward_v1 import register,immutable,hash_value,update_existing
 from c3_range_delivery_v1 import envelope,transport_test,safe_claim
 from c3_market_range_study_v1 import financial_review,choose_watch
 from test_c3_dynamic_entry_v2 import bars,trade_fixture
@@ -23,6 +23,15 @@ class RangeRisk(unittest.TestCase):
         self.assertEqual(r['structural_range'],[9400,10000])
     def test_no_target_cannot_make_range(self):self.assertFalse(e.risk_intersection(9400,10000,9000,None,None,10000,1000)['valid'])
     def test_resistance_inside_range_not_skipped(self):self.assertFalse(e.risk_intersection(9400,10000,9000,9800,14500,10000,1000)['valid'])
+    def test_already_broken_high_cannot_be_current_r1(self):
+        closes=[100,110,130,120,115,150,145,140,145,150];highs=[105,115,140,125,120,160,150,145,150,155]
+        b=[dict(date=f'2026-10-{i+1:02d}',close=c,high=highs[i]) for i,c in enumerate(closes)]
+        active,discarded=e.active_resistances(b,100,5)
+        self.assertEqual([v['price'] for v in active],[160]);self.assertEqual(discarded[0]['price'],140)
+    def test_future_resistance_break_cannot_change_past(self):
+        b=[dict(date=f'2026-10-{i+1:02d}',close=c,high=h) for i,(c,h) in enumerate([(100,105),(110,115),(130,140),(120,125),(115,120)])]
+        self.assertEqual(len(e.active_resistances(b,100,5)[0]),1)
+        self.assertEqual(len(e.active_resistances(b+[dict(date='2026-10-06',close=150,high=155)],100,5)[0]),0)
     def test_deep_support_not_shifted_up(self):
         r=e.risk_intersection(5000,5200,4800,13000,14500,10000,1000);self.assertFalse(r['valid'])
         self.assertGreater(r['distance_limited_lower'],5200)
@@ -100,6 +109,24 @@ class ImmutableForward(unittest.TestCase):
             p=Path(td)/'a.json';self.assertEqual(immutable(p,dict(a=1)),'CREATED')
             self.assertEqual(immutable(p,dict(a=1)),'ALREADY_RECORDED')
             with self.assertRaises(ValueError):immutable(p,dict(a=2))
+    def test_daily_updates_mature_5_10_20_and_are_idempotent(self):
+        from datetime import date,timedelta
+        days=[];day=date(2026,11,12)
+        while len(days)<30:
+            if day.weekday()<5:days.append(day.isoformat())
+            day+=timedelta(days=1)
+        bs=[dict(date=d,open=100+i,high=102+i,low=99+i,close=101+i,volume=10000,segment=0,tradable=True) for i,d in enumerate(days)]
+        index={d:100+i for i,d in enumerate(days)}
+        with tempfile.TemporaryDirectory() as td:
+            r=self.record();register(td,r,datetime.fromisoformat(r['created_at']))
+            a=update_existing(td,{'028050':bs},{'028050':index},days,days[-1]);self.assertEqual(a['results'][0]['status'],'CREATED')
+            self.assertTrue(all(v['status']=='OBSERVED_PRICE_ONLY' for v in a['results'][0]['horizons'].values()))
+            self.assertEqual(update_existing(td,{'028050':bs},{'028050':index},days,days[-1])['results'][0]['status'],'ALREADY_RECORDED')
+    def test_tracking_missing_provider_does_not_fake_outcome(self):
+        with tempfile.TemporaryDirectory() as td:
+            r=self.record();register(td,r,datetime.fromisoformat(r['created_at']))
+            a=update_existing(td,{}, {},['2026-11-12'],'2026-11-12')
+            self.assertEqual(a['results'][0]['status'],'UNAVAILABLE_PRICE_OR_BENCHMARK')
 
 class SafeDelivery(unittest.TestCase):
     def test_zero_one_two_image_only_contract(self):
@@ -110,6 +137,15 @@ class SafeDelivery(unittest.TestCase):
             for n in (0,1,2):
                 r=transport_test(paths[:max(1,n)]);self.assertEqual(r['status'],'MOCK_DELIVERED');self.assertEqual(r['actual_telegram_requests'],0)
                 self.assertEqual(r['receipt']['photos'],max(1,n));self.assertFalse(r['receipt']['captions_present'])
+    def test_zero_candidate_image_must_match_source_provenance(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/'a.png';Image.new('RGB',(400,600),'red').save(p)
+            import hashlib
+            report=dict(watch_top2=[],source_date='2026-11-11',source_run_id='123',source_hash='a'*64,report_payload_sha256='b'*64)
+            manifest=dict(png_sha256=hashlib.sha256(p.read_bytes()).hexdigest(),source_run_id='123',source_hash='a'*64,report_hash='b'*64,price_asof='2026-11-11')
+            self.assertEqual(envelope([p],[manifest],report)['image_count'],1)
+            manifest['source_run_id']='999'
+            with self.assertRaises(ValueError):envelope([p],[manifest],report)
     def test_ambiguous_send_claim_blocks_repeat(self):
         claims={};key='research-observation-v1/2026-11-11/test'
         safe_claim(claims,key,dict(status='UNCERTAIN'));self.assertEqual(safe_claim(claims,key,{}),'DUPLICATE_BLOCKED')

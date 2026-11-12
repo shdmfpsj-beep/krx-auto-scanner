@@ -115,10 +115,14 @@ def history_comparison(allbars,eligible,meta,market,out):
             if len(picked)==2:break
         for r in picked:
             t=r['ticker'];last[t]=sessions.index(day);p=generate_ranges(r['past'])['best']
-            if not p:continue
             scenarios={choice:{str(v):{str(h):evaluate_trade(single_scenario(p,choice),allbars[t],r['bi'],sessions,v,h,DAY)
+                if p else dict(status='NO_RANGE_CASH' if sessions.index(day)+3+h<len(sessions) and sessions[sessions.index(day)+3+h]<=DAY else 'PENDING_FUTURE_SESSIONS',
+                    return_pct=0. if sessions.index(day)+3+h<len(sessions) and sessions[sessions.index(day)+3+h]<=DAY else None,filled=False)
                 for h in (5,10,20)} for v in (1,2,3)} for choice in ('upper','middle','lower')}
-            events.append(dict(ticker=t,name=meta[t]['name'],date=day,plan=p,scenarios=scenarios))
+            record=dict(source_date=day,ticker=t,model_version=PROTOCOL['model_version'],plan=p,
+                price_prefix_hash=hash_value(r['past']),scope='PRICE_ONLY_REUSED_HISTORY_REPLAY_NOT_FORWARD')
+            selection=observe(record,allbars[t],idx[meta[t]['market']],sessions,DAY)
+            events.append(dict(ticker=t,name=meta[t]['name'],date=day,plan=p,scenarios=scenarios,selection_outcomes=selection))
     result={}
     for choice in ('upper','middle','lower'):
         result[choice]={}
@@ -137,7 +141,21 @@ def history_comparison(allbars,eligible,meta,market,out):
                     r2_rate_pct=100*sum(r.get('r2_path_hit',False) for r in filled)/len(filled) if filled else None,
                     missed_rally_ge10pct=sum(r.get('missed_rally_mfe_pct',0)>=10 for r in complete if not r.get('filled')),
                     daily_fills_confirmed=False)
-    summary=dict(price_only_days=days,range_events=len(events),scope='NOV11_SURVIVOR_UNIVERSE_PRICE_ONLY_REUSED_HISTORY_NOT_INDEPENDENT',
+    selection_metrics={}
+    for horizon in (5,10,20):
+        matured=[e['selection_outcomes']['horizons'][str(horizon)] for e in events if e['selection_outcomes']['horizons'][str(horizon)].get('selection_return_pct') is not None]
+        selection_metrics[str(horizon)]=dict(mature=len(matured),positive_rate_pct=100*sum(r['selection_return_pct']>0 for r in matured)/len(matured) if matured else None,
+            average_selection_close_return_pct=statistics.mean(r['selection_return_pct'] for r in matured) if matured else None,
+            average_excess_pct=statistics.mean(r['excess_pct'] for r in matured if r['excess_pct'] is not None) if any(r['excess_pct'] is not None for r in matured) else None)
+    replay_tracking=[]
+    for event in events[:3]:
+        r=dict(source_date=event['date'],ticker=event['ticker'],model_version=PROTOCOL['model_version'],plan=event['plan'],scope='REPLAY_NOT_NEW_FORWARD')
+        o=observe(r,allbars[r['ticker']],idx[meta[r['ticker']]['market']],sessions,DAY)
+        first=append_outcome(out/'replay_tracking_only',r,o);again=append_outcome(out/'replay_tracking_only',r,o)
+        replay_tracking.append(dict(source_date=r['source_date'],ticker=r['ticker'],first=first,repeat=again,actual_forward_signal=False))
+    summary=dict(price_only_days=days,selected_opportunities=len(events),range_events=sum(e['plan'] is not None for e in events),
+        no_range_is_cash_and_included_in_expectancy=True,selection_metrics=selection_metrics,replay_tracking=replay_tracking,
+        scope='NOV11_SURVIVOR_UNIVERSE_PRICE_ONLY_REUSED_HISTORY_NOT_INDEPENDENT',portfolio_return_not_simulated=True,
         financial_or_current_global_context_used=False,parameters_optimized=False,profitability_proven=False,results=result)
     write(out/'historical_single_entry_events.json',events);write(out/'historical_single_entry_summary.json',summary)
     return summary
@@ -170,9 +188,10 @@ def run(engine,state,old,out,fetch=True):
     watch=[]
     for t in selected_ids:
         r=dict(by[t]);p=r['range_review']['best']
-        display=p or next(iter(r['range_review']['plans']),None)
-        r.update(display_plan=display,status='ENTRY RANGE' if p else 'WATCH',data_status='UNVERIFIED',buy_approved=False,
+        diagnostic=min(r['range_review']['plans'],key=lambda a:(r['close']-a['structural_high'])/a['atr14']) if r['range_review']['plans'] else None
+        r.update(display_plan=p,diagnostic_plan=diagnostic,status='ENTRY RANGE' if p else 'WATCH',data_status='UNVERIFIED',buy_approved=False,
             reason_text='매출·영업이익·현금흐름 양수 API 관찰 · RS '+f"{r['own_rs20']:.1f}%p"+' / 최근 개선 '+f"{r['rs_accel5']:.1f}%p"+' · 재무 원문 PIT 미확인')
+        if not p:r['entry_hold_reason']='CURRENT_SUPPORT_TOO_DEEP_OR_ACTIVE_RESISTANCE_UNCONFIRMED'
         watch.append(r)
     fit=[dict(r) for r in stock_pool if by[r['ticker']]['range_review']['best']][:2]
     for r in fit:r['display_plan']=by[r['ticker']]['range_review']['best']
@@ -193,15 +212,22 @@ def run(engine,state,old,out,fetch=True):
     write(out/'frozen_selection_ids.json',dict(selected_before_range=selected_ids,selected_after_range=[r['ticker'] for r in watch],same=True))
     paths=[];manifests=[]
     for r in watch:
-        p=out/'cards'/('C3_WATCH_'+DAY.replace('-','')+'_'+r['ticker']+'.png');manifests.append(render(r,current[r['ticker']],report,p));paths.append(p)
+        p=out/'cards'/('C3_WATCH_'+DAY.replace('-','')+'_'+r['ticker']+'.png')
+        bars=current[r['ticker']][-119:]
+        source_doc=dict(ticker=r['ticker'],source_date=DAY,original_source_run_id=report['source_run_id'],
+            original_market_payload_sha256=report['source_hash'],panel_sha256=provenance['panel_sha256'],bars=bars)
+        write(out/'chart_sources'/(r['ticker']+'.json'),source_doc)
+        manifest=render(r,bars,report,p);manifest['chart_source_sha256']=hash_value(source_doc)
+        manifests.append(manifest);paths.append(p)
     if not paths:
         p=out/'cards'/('C3_UNVERIFIED_'+DAY.replace('-','')+'.png');manifests.append(hold_card(report,p));paths.append(p)
     write(out/'card_manifest.json',dict(source_run_id=report['source_run_id'],report_hash=report['report_payload_sha256'],cards=manifests))
     packet=envelope(paths,manifests,report)
-    tests={str(n):transport_test(paths[:n] if n else [paths[0]]) for n in (0,1,2) if n<2 or len(paths)>=2}
+    zero_card=out/'safe_test_inputs/C3_UNVERIFIED_ZERO_CANDIDATE_TEST.png';zero_manifest=hold_card(report,zero_card)
+    tests={str(n):transport_test(paths[:n] if n else [zero_card]) for n in (0,1,2) if n<2 or len(paths)>=2}
     claims={};claim=safe_claim(claims,packet['key'],packet);duplicate=safe_claim(claims,packet['key'],packet)
     write(out/'telegram_safe_test.json',dict(envelope=packet,zero_candidates_mean_one_hold_card=True,
-        scenarios=tests,first_claim=claim,repeat=duplicate,actual_telegram_requests=0,status='LIVE_SEND_HELD_RESEARCH_NOT_APPROVED',
+        scenarios=tests,zero_scenario_card=zero_manifest,first_claim=claim,repeat=duplicate,actual_telegram_requests=0,status='LIVE_SEND_HELD_RESEARCH_NOT_APPROVED',
         legacy_messages_40_41_42_untouched=True))
     forward=[]
     for r in watch:

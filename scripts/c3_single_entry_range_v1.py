@@ -30,6 +30,17 @@ def legal_ticks(low,high):
         yield p
         p=up(p+tick(p))
 
+def active_resistances(bars,above,atr):
+    """Re-use confirmed pivots, but reject levels already closed above.
+
+    A historical high below the current close is not an overhead resistance.
+    This is structural correctness, not moving a target to improve reward.
+    All discarded pivots remain in diagnostics with their observed break.
+    """
+    discarded=[]
+    active=resistance_levels(bars,above,atr,active_only=True,audit=discarded)
+    return active,discarded
+
 def risk_intersection(low,high,stop,r1,r2,close,atr):
     """Risk rises and RR falls monotonically with entry. Distance falls.
 
@@ -54,6 +65,7 @@ def risk_intersection(low,high,stop,r1,r2,close,atr):
             raise ValueError('RANGE_CONTAINS_UNSAFE_TICK')
     return dict(valid=True,low=lo,high=hi,endpoints=dict(zip(('lower','middle','upper'),points)),
         ticks_checked=checked,all_legal_ticks_passed=True,min_net_r1_rr=points[-1]['net_r1_rr'],
+        width_atr=(hi-lo)/atr,narrower_than_support_tolerance=(hi-lo)<PROTOCOL['support_band_atr']*atr,
         anchors_modified=False,structural_range=[low,high],risk_intersection_shrank_range=(lo!=low or hi!=high))
 
 def _candidate(bars,method,anchor,invalid,known,evidence):
@@ -63,13 +75,13 @@ def _candidate(bars,method,anchor,invalid,known,evidence):
     stop=down(invalid-PROTOCOL['stop_buffer_atr']*a)
     # Crucially search ABOVE the structural range, not above today's close:
     # an intervening resistance must not be silently skipped to inflate RR.
-    levels=resistance_levels(bars,lo,a)
+    levels,broken=active_resistances(bars,lo,a)
     r1=levels[0]['price'] if levels else None;r2=levels[1]['price'] if len(levels)>1 else None
     result=risk_intersection(lo,hi,stop,r1,r2,close,a)
     deep=hi<close-min(a,close*PROTOCOL['max_distance_pct']/100)
     state='ENTRY RANGE' if result['valid'] else 'WAIT_DEEP_PULLBACK' if deep else 'WATCH'
     return dict(method=method,asof=bars[-1]['date'],reference_close=close,atr14=a,support=anchor,
-        structural_low=lo,structural_high=hi,stop=stop,r1=r1,r2=r2,resistance_evidence=levels,support_known_on=known,
+        structural_low=lo,structural_high=hi,stop=stop,r1=r1,r2=r2,resistance_evidence=levels,broken_resistances_excluded=broken,support_known_on=known,
         evidence=evidence,range=result,status=state,range_valid=result['valid'],
         validity_sessions=PROTOCOL['validity_sessions'],default_validity_sessions=1,
         cancel_conditions=['OPEN_BELOW_RANGE_OR_STOP','OPEN_AT_OR_ABOVE_R1','CLOSE_BREAKS_SUPPORT','TREND_LOST','RANGE_NOT_REACHED_BY_EXPIRY_PASS'],

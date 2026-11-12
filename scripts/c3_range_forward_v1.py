@@ -32,7 +32,8 @@ def register(root,record,clock,replay=False):
     if record['source_date']!=prior_session(clock)['requested_day']:raise ValueError('STALE_OR_NONCOMPLETED_FORWARD_SOURCE')
     stamp=datetime.fromisoformat(record['created_at'].replace('Z','+00:00'))
     received=datetime.fromisoformat(record['source_received_at'].replace('Z','+00:00'))
-    if stamp.tzinfo is None or received.tzinfo is None or not received<=stamp<=clock or clock-stamp>timedelta(hours=24):raise ValueError('INVALID_FORWARD_AVAILABILITY_TIME')
+    closed=datetime.fromisoformat(record['source_date']+'T15:30:00+09:00')
+    if stamp.tzinfo is None or received.tzinfo is None or not closed<=received<=stamp<=clock or clock-stamp>timedelta(hours=24):raise ValueError('INVALID_FORWARD_AVAILABILITY_TIME')
     if record.get('max_purchases')!=1 or record.get('additional_purchases_allowed') is not False:raise ValueError('SINGLE_PURCHASE_POLICY_REQUIRED')
     for key in ('source_run_id','source_hash','model_version','ticker','reasons','market_regime','range','stop','r1','r2'):
         if key not in record:raise ValueError('FORWARD_PROVENANCE_FIELD_MISSING:'+key)
@@ -58,7 +59,7 @@ def observe(record,bars,index,sessions,asof):
         if start+horizon>=len(sessions) or sessions[start+horizon]>asof:
             out[str(horizon)]=dict(status='PENDING_FUTURE_SESSIONS',selection_return_pct=None);continue
         dates=sessions[start:start+horizon+1];path=[by.get(d) for d in dates]
-        if any(not b or not b.get('tradable',True) or b.get('action_boundary') or b['segment']!=path[0]['segment'] for b in path):
+        if not path[0] or any(not b or not b.get('tradable',True) or b.get('action_boundary') or b['segment']!=path[0]['segment'] for b in path):
             out[str(horizon)]=dict(status='UNVERIFIED_MISSING_HALT_OR_ACTION_BOUNDARY');continue
         end=dates[-1];ret=100*(path[-1]['close']/path[0]['close']-1)
         benchmark=100*(index[end]/index[day]-1) if day in index and end in index else None
@@ -72,3 +73,26 @@ def observe(record,bars,index,sessions,asof):
 def append_outcome(root,record,outcome):
     key=record['model_version']+'/'+record['source_date']+'/'+record['ticker']+'/'+outcome['asof']
     return immutable(Path(root)/'outcomes'/(key+'.json'),outcome)
+
+def update_existing(root,bars_by_ticker,index_by_ticker,sessions,asof):
+    """Daily callable: never rewrites an observation, only new dated outcomes.
+
+    Persistence and scheduler wiring must be supplied by the approved caller;
+    this research utility never modifies a production ledger or workflow.
+    """
+    results=[]
+    for path in sorted((Path(root)/'observations').glob('*/*/*.json')):
+        saved=json.loads(path.read_text());record=saved['record']
+        if saved.get('sha256')!=hash_value(record):raise ValueError('FORWARD_OBSERVATION_HASH_MISMATCH')
+        t=record['ticker']
+        if t not in bars_by_ticker or t not in index_by_ticker:
+            results.append(dict(ticker=t,status='UNAVAILABLE_PRICE_OR_BENCHMARK'));continue
+        outcome=observe(record,bars_by_ticker[t],index_by_ticker[t],sessions,asof)
+        results.append(dict(ticker=t,status=append_outcome(root,record,outcome),horizons=outcome['horizons']))
+    return dict(asof=asof,observations=len(results),results=results,original_records_modified=False)
+
+if __name__=='__main__':
+    import argparse
+    p=argparse.ArgumentParser();p.add_argument('--records',type=Path,required=True);p.add_argument('--inputs',type=Path,required=True)
+    p.add_argument('--asof',required=True);a=p.parse_args();doc=json.loads(a.inputs.read_text())
+    print(json.dumps(update_existing(a.records,doc['bars_by_ticker'],doc['index_by_ticker'],doc['sessions'],a.asof),ensure_ascii=False))

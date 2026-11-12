@@ -14,7 +14,7 @@ def envelope(paths,manifests,report):
     hashes=validate_photos(paths)
     for p,m,h in zip(paths,manifests,hashes):
         if m['png_sha256']!=h:raise ValueError('IMAGE_HASH_MISMATCH')
-        if report['watch_top2'] and any(m.get(k)!=report[v] for k,v in (
+        if any(m.get(k)!=report[v] for k,v in (
             ('source_run_id','source_run_id'),('source_hash','source_hash'),('report_hash','report_payload_sha256'),('price_asof','source_date'))):
             raise ValueError('IMAGE_SOURCE_OR_REPORT_PROVENANCE_MISMATCH')
     return dict(key='research-observation-v1/'+report['source_date']+'/'+report['report_payload_sha256'],

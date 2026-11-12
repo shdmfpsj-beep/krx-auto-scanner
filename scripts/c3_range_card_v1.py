@@ -91,13 +91,14 @@ def render(row,bars,report,path):
     else:
         text(d,80,1540,'우량성 확인 전 기술·재무 관찰 후보',33,GOLD,True)
         wrapped(d,80,1600,'현재 구조에서 위험 조건을 충족한 연속 매수 범위가 없습니다. 신규 진입은 CASH입니다.',1020,34,WHITE)
-        text(d,80,1745,'범위를 임의 상향하지 않습니다. 매수 승인 아님.',29,MUTED)
+        text(d,80,1745,'구조손절·R1·R2 미확정  ·  범위를 임의 상향하지 않음',28,MUTED)
     y=1834
     if p:
         text(d,55,y,'구조손절 '+won(p['stop'])+'   R1 '+won(p['r1'])+'   R2 '+won(p['r2']),30,WHITE);y+=48
     y=wrapped(d,55,y,row['reason_text'],1085,29,MUTED)
     text(d,55,1986,'가격 기준 '+report['source_date']+'  |  원본 수집 '+stamp(report['source_received_at']),24,MUTED)
-    text(d,55,2026,'검토·이미지 생성 '+stamp(report['generated_at'])+'  |  과거 원본 재검토',24,MUTED)
+    mode='과거 원본 재검토' if report.get('mode')=='ARCHIVED_PRICE_CURRENT_CONTEXT_REVIEW' else '신규 거래일 연구 관찰'
+    text(d,55,2026,'검토·이미지 생성 '+stamp(report['generated_at'])+'  |  '+mode,24,MUTED)
     text(d,55,2066,'정규장·재무 PIT 미인증  /  BUY 승인 없음  /  신규 매수 CASH',26,RED,True)
     text(d,55,2120,'매수 범위는 분할매수가 아닙니다. 실계좌 주문은 실행하지 않습니다.',23,MUTED)
     payload=dict(ticker=row['ticker'],name=row['name'],close=row['close'],price_asof=report['source_date'],
@@ -120,5 +121,8 @@ def hold_card(report,path):
     text(d,65,1590,'가격 기준일 '+report['source_date'],36,WHITE)
     text(d,65,1680,'검토 '+stamp(report['generated_at']),32,MUTED)
     text(d,65,1840,'신규 매수 CASH · 주문 및 실제 Telegram 전송 없음',29,RED)
-    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);im.save(path)
-    return dict(png=path.name,png_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),status='UNVERIFIED',not_no_candidate_confirmation=True)
+    payload=dict(source_run_id=report['source_run_id'],source_hash=report['source_hash'],
+        report_hash=report['report_payload_sha256'],price_asof=report['source_date'],status='UNVERIFIED',not_no_candidate_confirmation=True)
+    info=PngImagePlugin.PngInfo();info.add_text('C3_manifest',json.dumps(payload,ensure_ascii=False,sort_keys=True))
+    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);im.save(path,pnginfo=info)
+    return dict(payload,png=path.name,png_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
