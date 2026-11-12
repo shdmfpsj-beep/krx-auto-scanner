@@ -41,10 +41,10 @@ class RangeRisk(unittest.TestCase):
     def test_causal_prefix_ignores_future(self):
         b=bars(125);original=e.generate_ranges(b[:110]);b[-1]['close']=1
         self.assertEqual(original,e.generate_ranges(b[:110]))
-    def test_one_choice_is_one_limit_with_range_cancel_floor(self):
+    def test_independent_price_scenarios_preserve_range_cancel_floor(self):
         p=dict(range_valid=True,range=self.make(),stop=9000,r1=13000,r2=14500)
         for choice in ('upper','middle','lower'):
-            s=e.single_scenario(p,choice);self.assertEqual(s['max_purchases'],1);self.assertEqual(s['low'],p['range']['low'])
+            s=e.single_scenario(p,choice);self.assertNotIn('max_purchases',s);self.assertEqual(s['low'],p['range']['low'])
             self.assertEqual(s['high'],p['range']['endpoints'][choice]['price'])
     def test_opening_improvement_within_range_is_not_mistaken_cancel(self):
         b,s,p=trade_fixture();p.update(low=99,high=101)
@@ -87,8 +87,8 @@ class SourceAndSelection(unittest.TestCase):
 
 class ImmutableForward(unittest.TestCase):
     def record(self):
-        return dict(source_date='2026-11-12',ticker='028050',source_run_id='test-only',source_hash='a'*64,model_version='C3_MARKET_SINGLE_ENTRY_RANGE_V1',
-            created_at='2026-11-13T00:00:00+00:00',source_received_at='2026-11-12T23:30:00+00:00',reasons=['test'],market_regime='UNVERIFIED',range=None,stop=100,r1=200,r2=250,max_purchases=1,additional_purchases_allowed=False)
+        return dict(source_date='2026-11-12',ticker='028050',source_run_id='test-only',source_hash='a'*64,model_version='C3_MARKET_ENTRY_RANGE_V2',
+            created_at='2026-11-13T00:00:00+00:00',source_received_at='2026-11-12T23:30:00+00:00',reasons=['test'],market_regime='UNVERIFIED',range=None,stop=100,r1=200,r2=250,execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT')
     def test_register_idempotence_and_stop_conflict(self):
         with tempfile.TemporaryDirectory() as td:
             r=self.record();clock=datetime.fromisoformat(r['created_at'])
@@ -100,10 +100,16 @@ class ImmutableForward(unittest.TestCase):
             r=self.record();r['source_date']='2026-11-11';clock=datetime.fromisoformat(r['created_at'])
             with self.assertRaises(ValueError):register(td,r,clock)
             self.assertEqual(register(td,r,clock,replay=True)['writes'],0)
-    def test_additional_buy_policy_rejected(self):
+    def test_forward_record_has_no_entry_count_limit(self):
         with tempfile.TemporaryDirectory() as td:
-            r=self.record();r['max_purchases']=2
-            with self.assertRaises(ValueError):register(td,r,datetime.fromisoformat(r['created_at']))
+            r=self.record();self.assertNotIn('max_purchases',r);self.assertNotIn('additional_purchases_allowed',r)
+            got=register(td,r,datetime.fromisoformat(r['created_at']))
+            self.assertEqual(got['status'],'CREATED')
+    def test_protocol_keeps_user_execution_discretion(self):
+        self.assertEqual(e.PROTOCOL['range_execution'],'USER_DISCRETION_NO_PRESCRIBED_ENTRY_COUNT')
+        self.assertNotIn('maximum_purchases_per_opportunity',e.PROTOCOL)
+        self.assertNotIn('additional_purchases_allowed',e.PROTOCOL)
+        self.assertFalse(e.PROTOCOL['orders_enabled'])
     def test_outcome_append_not_overwrite(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/'a.json';self.assertEqual(immutable(p,dict(a=1)),'CREATED')
