@@ -83,11 +83,11 @@ def render(row,bars,report,path):
     for i in (0,20,40,59):text(d,left+(i+.5)*step,1452,bs[i]['date'][5:],23,MUTED,anchor='mt')
     d.rounded_rectangle((55,1515,1145,1805),radius=22,fill=PANEL)
     if valid:
-        text(d,80,1532,'매수 관찰 범위  ·  범위 안에서 한 번만 진입',29,TEAL,True)
+        text(d,80,1532,'매수 관찰 범위  ·  주문 방식은 사용자 판단',29,TEAL,True)
         text(d,80,1577,won(r['low'])+' ~ '+won(r['high'])+'원',49,WHITE,True)
         text(d,80,1645,'하단 위험 '+f"{r['endpoints']['lower']['stop_risk_pct']:.2f}%"+'  /  상단 위험 '+f"{r['endpoints']['upper']['stop_risk_pct']:.2f}%",29,MUTED)
         text(d,80,1692,'최소 순손익비 R1 '+f"{r['min_net_r1_rr']:.2f}배"+'  ·  미도달 PASS',31,GOLD)
-        text(d,80,1745,'추격·추가매수 금지  ·  가격일 후 1거래일 연구',28,MUTED)
+        text(d,80,1745,'추격 매수 주의  ·  가격일 후 1거래일 연구',28,MUTED)
     else:
         text(d,80,1540,'우량성 확인 전 기술·재무 관찰 후보',33,GOLD,True)
         wrapped(d,80,1600,'현재 구조에서 위험 조건을 충족한 연속 매수 범위가 없습니다. 신규 진입은 CASH입니다.',1020,34,WHITE)
@@ -100,12 +100,13 @@ def render(row,bars,report,path):
     mode='과거 원본 재검토' if report.get('mode')=='ARCHIVED_PRICE_CURRENT_CONTEXT_REVIEW' else '신규 거래일 연구 관찰'
     text(d,55,2026,'검토·이미지 생성 '+stamp(report['generated_at'])+'  |  '+mode,24,MUTED)
     text(d,55,2066,'정규장·재무 PIT 미인증  /  BUY 승인 없음  /  신규 매수 CASH',26,RED,True)
-    text(d,55,2120,'매수 범위는 분할매수가 아닙니다. 실계좌 주문은 실행하지 않습니다.',23,MUTED)
+    text(d,55,2120,'주문 횟수·비중은 사용자가 결정합니다. 자동 주문은 없습니다.',23,MUTED)
     payload=dict(ticker=row['ticker'],name=row['name'],close=row['close'],price_asof=report['source_date'],
         source_run_id=report['source_run_id'],source_hash=report['source_hash'],report_hash=report['report_payload_sha256'],
         range=[r['low'],r['high']] if r else None,stop=p['stop'] if p else None,r1=p['r1'] if p else None,r2=p['r2'] if p else None,
         visible_bars=60,ma60_visible_points=60,source_bars=len(bars),ma_audit=audit,
-        source_received_at=report['source_received_at'],generated_at=report['generated_at'],max_purchases=1,buy_approved=False)
+        source_received_at=report['source_received_at'],generated_at=report['generated_at'],
+        execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',buy_approved=False)
     info=PngImagePlugin.PngInfo();info.add_text('C3_manifest',json.dumps(payload,ensure_ascii=False,sort_keys=True))
     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);im.save(path,pnginfo=info)
     with Image.open(path) as saved:
