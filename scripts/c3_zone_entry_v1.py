@@ -40,6 +40,14 @@ def allocation(plan,split=(.5,.5),capital=None):
         full_fill_net_r1_rr=rr(r1),full_fill_net_r2_rr=rr(r2),actual_fill_verified=False)
 
 
+def reported_limit_mark(plan,close,split=(.5,.5)):
+    """User's nominal price convention, NOT a claimed auction fill."""
+    a=allocation(plan,split);pnl=a['quantity']*sale_unit(close)-a['costed_krw']
+    return dict(allocation=a,mark_close=close,pnl_krw=pnl,plan_capital_return_pct=100*pnl/a['capital_krw'],
+                invested_cost_return_pct=100*pnl/a['costed_krw'] if a['costed_krw'] else None,
+                assumption='NOMINAL_LIMIT_PRICES_AS_REPORTED; NOT_VERIFIED_EXECUTION',actual_fill_verified=False)
+
+
 def zone_plan(bars,ticker='SYNTHETIC'):
     if len(bars)<65:return None,['INSUFFICIENT_CONTIGUOUS_HISTORY']
     pivots=confirmed_pivots(bars,lookback=P['pivot_lookback'])

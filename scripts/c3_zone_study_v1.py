@@ -3,7 +3,7 @@ import argparse,csv,gzip,hashlib,json,math,statistics,time
 from collections import Counter,defaultdict
 from pathlib import Path
 from c3_dynamic_study_v2 import load_dataset,write,DAY
-from c3_zone_entry_v1 import P,MODELS,PROTOCOL_PATH,zone_plan,allocation
+from c3_zone_entry_v1 import P,MODELS,PROTOCOL_PATH,zone_plan,allocation,reported_limit_mark
 from c3_zone_execution_v1 import simulate
 from c3_selection_scope_v5 import selection_features,digest
 from c3_selection_factors_v6 import causal_factors,regime
@@ -36,6 +36,7 @@ def metric(group,model,v,h):
         expectancy_plan_capital_net_pct=mean([o['conservative_plan_return_pct'] for _,o in pairs]),optimistic_bound_mean_pct=mean([o['optimistic_plan_return_pct'] for _,o in pairs]),
         mean_filled_plan_net_pct=mean([o['conservative_plan_return_pct'] for _,o in first]),mean_first_only_plan_net_pct=mean([o['conservative_plan_return_pct'] for _,o in only]),mean_both_plan_net_pct=mean([o['conservative_plan_return_pct'] for _,o in second]),
         stop_count=sum(o['worst']['stop_occurred'] for _,o in first),stop_rate_among_filled_pct=100*sum(o['worst']['stop_occurred'] for _,o in first)/len(first) if first else None,
+        first_only_stop_count=sum(o['worst']['stop_occurred'] for _,o in only),both_filled_stop_count=sum(o['worst']['stop_occurred'] for _,o in second),
         r1_rate_among_filled_pct=100*sum(o['worst']['r1_reached'] for _,o in first)/len(first) if first else None,r2_rate_among_filled_pct=100*sum(o['worst']['r2_reached'] for _,o in first)/len(first) if first else None,
         plan_nav_mfe_pct=mean([o['worst']['plan_nav_mfe_pct'] for _,o in first]),plan_nav_mae_pct=mean([o['worst']['plan_nav_mae_pct'] for _,o in first]),
         mean_plan_close_mdd_pct=mean([o['worst']['max_drawdown_close_pct'] for _,o in first]),worst_plan_close_mdd_pct=min([o['worst']['max_drawdown_close_pct'] for _,o in first],default=None),
@@ -53,6 +54,9 @@ def paired_delta(group,left,right,v='1',h='20'):
     values=[a['conservative_plan_return_pct']-b['conservative_plan_return_pct'] for _,a,b in pairs];sd=statistics.stdev(values) if len(values)>1 else None
     required=math.ceil(((1.9599639845+.8416212336)*sd/P['power_planning_effect_plan_pct'])**2) if sd and sd>0 else None
     return dict(n=len(values),mean_plan_pct=statistics.mean(values) if values else None,median_plan_pct=statistics.median(values) if values else None,
+        mean_cross_envelope_lower_pct=statistics.mean([a['conservative_plan_return_pct']-b['optimistic_plan_return_pct'] for _,a,b in pairs]) if pairs else None,
+        mean_cross_envelope_upper_pct=statistics.mean([a['optimistic_plan_return_pct']-b['conservative_plan_return_pct'] for _,a,b in pairs]) if pairs else None,
+        envelope_note='Each model adverse path can differ; cross-envelope differences avoid assuming independently worst outcomes occurred on the same intraday path',
         positive_differences=sum(v>0 for v in values),negative_differences=sum(v<0 for v in values),zero_differences=sum(v==0 for v in values),
         descriptive_month_cluster_ci=cluster_ci([(e['date'][:7],a['conservative_plan_return_pct']-b['conservative_plan_return_pct']) for e,a,b in pairs]),
         planning_effect_pct=P['power_planning_effect_plan_pct'],paired_sd_pct=sd,iid_power_sample_lower_bound=required,independently_unseen_complete_samples=0,
@@ -77,7 +81,8 @@ def case_replays(allbars,cache,market,state,out):
                 comparisons[m]=simulate(use,allbars[t],i,market['sessions'],split=split,cutoff=DAY,allow_partial=True)
             hold={m:simulate(p,allbars[t],i,market['sessions'],split=SPLITS[m],cutoff=DAY,allow_partial=True,exit_policy='CASE_CLOSE_STOP_NO_R1_EXIT') for m in ('A_SINGLE_UPPER','B_ORIGINAL_ZONE_50_50','H_HALF_UPPER_REST_CASH')}
             reported=dict(source='USER_REPORTED_NOT_BROKER_RECEIPT',reported_orders=[dict(limit=63500,budget_krw=2500000),dict(limit=60700,budget_krw=2500000)] if t=='028050' else [dict(limit=23500,budget_krw=2500000)],
-                reported_fill_state='BOTH_REPORTED_FILLED' if t=='028050' else 'UPPER_REPORTED_FILLED; LOWER_NOT_REPORTED',actual_quantities=None,exact_execution_timestamps=None,broker_execution_verified=False)
+                reported_fill_state='BOTH_REPORTED_FILLED' if t=='028050' else 'UPPER_REPORTED_FILLED; LOWER_NOT_REPORTED',actual_quantities=None,exact_execution_timestamps=None,broker_execution_verified=False,
+                applies_to_original_nov05_zone_example=True,not_a_new_user_order_for_each_replayed_date=True,submitted_at=None,limits_are_not_proven_actual_fill_prices=True)
             if day=='2026-11-05' and p:
                 expected=(60700,63500,57700) if t=='028050' else (22100,23500,20600)
                 if (p['low'],p['high'],p['stop'])!=expected:raise ValueError('ARCHIVED_USER_CASE_PLAN_CHANGED')
@@ -86,6 +91,8 @@ def case_replays(allbars,cache,market,state,out):
                 original_decision_payload_sha256=hash_value(record) if record else None,source_run_id=(row or {}).get('source_run_id') or raw.get('source_run_id'),
                 original_source_received_at=(row or {}).get('source_received_at') or raw['source_labels']['source_received_at'],original_registered_at=(row or {}).get('registered_at'),
                 original_selection_reasons=(row or {}).get('selection_reasons'),user_report=reported,comparisons=comparisons,hold_no_r1_case_diagnostic=hold,observed_after_signal=observed,
+                nominal_limit_mark_scenarios={m:reported_limit_mark(p,allbars[t][-1]['close'],SPLITS[m]) for m in ('A_SINGLE_UPPER','B_ORIGINAL_ZONE_50_50','H_HALF_UPPER_REST_CASH')} if p else None,
+                first_future_open_below_both_limits=bool(p and observed and observed[0]['open']<p['low']),
                 limited_forward_sessions=len(observed),not_twenty_day_performance=True,preopen_availability_authenticated=False,chart_bars=past[-119:])
             cases.append(c)
     write(out/'case_replays.json',cases);return cases
@@ -169,10 +176,17 @@ def run(engine,state,old,out):
     for fold,models in performance.items():
         for model,vs in models.items():
             for v,hs in vs.items():
-                for h,metrics in hs.items():rows.append(dict(fold=fold,model=model,validity=v,horizon=h,**{k:v for k,v in metrics.items() if not isinstance(v,(dict,list))}))
+                for h,metrics in hs.items():rows.append(dict(fold=fold,model=model,validity=v,horizon=h,**flat_metric(metrics)))
     with (out/'paired_metrics.csv').open('w',newline='') as f:
         w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
     print('ZONE_STUDY_SUMMARY',json.dumps(dict(counts=summary['counts'],paired=comparisons,elapsed=summary['elapsed_seconds']),ensure_ascii=False),flush=True)
+
+
+def flat_metric(metrics):
+    """Keep a fixed CSV schema when a confidence interval is None or a pair."""
+    out={k:v for k,v in metrics.items() if k not in ('market_regime','descriptive_month_cluster_ci')}
+    ci=metrics.get('descriptive_month_cluster_ci');out['ci95_low']=ci[0] if ci else None;out['ci95_high']=ci[1] if ci else None
+    return out
 
 
 if __name__=='__main__':

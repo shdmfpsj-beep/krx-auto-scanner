@@ -39,6 +39,20 @@ class ZoneMath(unittest.TestCase):
     def test_missing_support_has_no_invented_range(self):
         b,_,_=fixture(80)
         with patch.object(z,'confirmed_pivots',return_value=[]):self.assertIsNone(z.zone_plan(b)[0])
+    def test_nominal_reported_price_scenario_is_not_broker_proof(self):
+        r=z.reported_limit_mark(dict(high=63500,low=60700,stop=57700,resistance=65500,resistance2=None),66400)
+        self.assertAlmostEqual(r['allocation']['weighted_average_price'],62065);self.assertFalse(r['actual_fill_verified'])
+
+
+class EvidenceExport(unittest.TestCase):
+    def test_csv_schema_same_with_or_without_interval(self):
+        from c3_zone_study_v1 import flat_metric
+        a=flat_metric(dict(n=1,descriptive_month_cluster_ci=None,market_regime={}));b=flat_metric(dict(n=30,descriptive_month_cluster_ci=[-1,2],market_regime={}))
+        self.assertEqual(list(a),list(b));self.assertIsNone(a['ci95_low']);self.assertEqual(b['ci95_high'],2)
+    def test_cross_envelopes_cover_independent_path_difference(self):
+        from c3_zone_study_v1 import paired_delta
+        o={m:{'1':{'20':dict(conservative_plan_return_pct=1,optimistic_plan_return_pct=3)}} for m in z.MODELS}
+        r=paired_delta([dict(date='2026-01-01',outcomes=o)],z.MODELS[1],z.MODELS[0]);self.assertEqual(r['mean_cross_envelope_lower_pct'],-2);self.assertEqual(r['mean_cross_envelope_upper_pct'],2)
 
 
 class QueuedLimitExecution(unittest.TestCase):
