@@ -1,7 +1,7 @@
 name: C3 first morning registration preflight (NO SEND / NO LEDGER WRITES)
 on:
   push:
-    branches: [main, fix/c3-first-morning-preflight-20261113, fix/c3-queued-retirement-evidence-20261112]
+    branches: [main, fix/c3-first-morning-preflight-20261113, fix/c3-queued-retirement-evidence-20261112, fix/c3-morning-retry-delivery-20261112]
     paths:
       - 'scripts/c3_morning_registration_v1.py'
       - 'scripts/test_c3_morning_registration_v1.py'
@@ -101,7 +101,7 @@ jobs:
           if-no-files-found: warn
   retire-obsolete-sender:
     needs: verify
-    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.event.before == '022eb5a7a42224799e8cfa97ec692ba6e9f9f041'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:

@@ -124,6 +124,10 @@ def finish_delivery(report,image,gh,send=False,bot=None):
     validate_image(image,report)
     if report.get('status')!='SELECTION_HELD' or report.get('final_top2')!=[] or report.get('buy_approved') is not False or report.get('orders_enabled') is not False:
         raise ValueError('UNAPPROVED_MORNING_RECOMMENDATION')
+    # An early failed collection/registration cannot consume the final date
+    # claim and block the scheduled 08:20/30 recovery. No Telegram/store call.
+    if report.get('analysis_completed') is not True:
+        return {'status':'DEFERRED_SOURCE_OR_REGISTRATION_NOT_READY','send_attempts':0,'final_date_claim_created':False}
     fingerprint=bot.fingerprint if bot is not None else known_recipient_fingerprint(gh)
     preflight=delivery_preflight(gh,report['asof'],fingerprint)
     if preflight['status']=='DUPLICATE_BLOCKED':return preflight
@@ -174,7 +178,7 @@ if __name__=='__main__':
     if a.prepared_report:
         result,image=prepared_image(load(a.source),load(a.entry),load(a.company),a.prepared_report,a.prepared_image,out)
     else:result=packet(load(a.source),load(a.entry),load(a.company));image=render(result,out)
-    bot=Telegram(os.environ.get('TELEGRAM_BOT_TOKEN',''),os.environ.get('TELEGRAM_CHAT_ID','')) if a.send else None
+    bot=Telegram(os.environ.get('TELEGRAM_BOT_TOKEN',''),os.environ.get('TELEGRAM_CHAT_ID','')) if a.send and result.get('analysis_completed') is True else None
     result['delivery']=finish_delivery(result,image,gh,a.send,bot)
     (out/'morning_final.json').write_bytes(canonical(result)+b'\n')
     if a.publish:
@@ -189,5 +193,5 @@ if __name__=='__main__':
     (out/'morning_integrity.json').write_bytes(canonical(integrity)+b'\n')
     if not unchanged:raise ValueError('ORIGINAL_PROTECTED_RECORD_CHANGED')
     print(json.dumps(dict(asof=result['asof'],status=result['status'],delivery=result['delivery']['status'],send_attempts=result['delivery'].get('send_attempts',0))))
-    if a.send and (result['delivery'].get('status') not in ('DELIVERED','DUPLICATE_BLOCKED') or 'receipt_write_status' in result['delivery']):
+    if a.send and (result['delivery'].get('status') not in ('DELIVERED','DUPLICATE_BLOCKED','DEFERRED_SOURCE_OR_REGISTRATION_NOT_READY') or 'receipt_write_status' in result['delivery']):
         raise SystemExit(1)
