@@ -91,4 +91,31 @@ class ObsoleteSenderTests(unittest.TestCase):
         call=Mock(side_effect=[r,error(),r,error(),r,{'total_count':0}])
         result=retire(call,Mock());self.assertEqual(result['status'],'BLOCKED_GITHUB_CANCEL_CONFLICT');self.assertEqual(result['cancel_requests'],2);self.assertEqual(result['observed_jobs'],0);self.assertEqual(call.call_count,6)
 
+
+class WaitingForRegistrationDeliveryTests(unittest.TestCase):
+    def test_missing_source_or_registration_cannot_consume_the_final_date_claim(self):
+        import tempfile
+        from unittest.mock import Mock,patch
+        from c3_morning_final_v1 import packet,render,finish_delivery
+        source=dict(schema='C3_MORNING_OFFICIAL_SOURCE_V1',requested_day='2026-11-11',status='OFFICIAL_CACHE_MATCHED',ready=True,regular_only_certified=False,compared_rows=2769)
+        for missing_source in (True,False):
+            sample=dict(source,status='SOURCE_UNAVAILABLE',ready=False) if missing_source else source
+            report=packet(sample);gh=Mock();bot=Mock(fingerprint='a'*16)
+            with tempfile.TemporaryDirectory() as tmp,patch('c3_morning_final_v1.delivery_preflight',return_value={'status':'READY_NO_PRIOR_DATE_CLAIM'}),patch('c3_morning_final_v1.ReceiptStore') as store,patch('c3_morning_final_v1.deliver',return_value={'status':'DELIVERED','send_attempts':1}) as send:
+                result=finish_delivery(report,render(report,tmp),gh,True,bot)
+                self.assertEqual(result['status'],'DEFERRED_SOURCE_OR_REGISTRATION_NOT_READY')
+                self.assertEqual(result['send_attempts'],0);store.assert_not_called();send.assert_not_called();gh.assert_not_called();bot.verify_group.assert_not_called()
+    def test_later_successful_retry_can_deliver_once_after_early_deferral(self):
+        import tempfile
+        from unittest.mock import Mock,patch
+        from c3_morning_final_v1 import packet,render,finish_delivery
+        from test_c3_morning_v1 import MorningStatusTests
+        source,entry=MorningStatusTests().fixture();pending=packet(source);complete=packet(source,entry)
+        with tempfile.TemporaryDirectory() as tmp,patch('c3_morning_final_v1.delivery_preflight',return_value={'status':'READY_NO_PRIOR_DATE_CLAIM'}),patch('c3_morning_final_v1.ReceiptStore'),patch('c3_morning_final_v1.deliver',return_value={'status':'DELIVERED','send_attempts':1}) as send:
+            gh=Mock();bot=Mock(fingerprint='a'*16)
+            self.assertEqual(finish_delivery(pending,render(pending,Path(tmp,'pending')),gh,True,bot)['send_attempts'],0)
+            send.assert_not_called()
+            result=finish_delivery(complete,render(complete,Path(tmp,'complete')),gh,True,bot)
+            self.assertEqual(result['status'],'DELIVERED');send.assert_called_once()
+
 if __name__=='__main__':unittest.main()

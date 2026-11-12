@@ -23,3 +23,9 @@ Official KRX evidence: https://openapi.krx.co.kr/contents/OPP/USES/service/OPPUS
 ## Actual deployment follow-up
 
 PR101 merged as main022eb5a7a42224799e8cfa97ec692ba6e9f9f041. Main run43148053564 passed its registered-source/31-test verification. KIS had no configured credential pair (ready_count0); the existing Kiwoom token endpoint rejected the read-only attempt with HTTP400 and an HTML response. Neither is certified. The queued legacy sender's ordinary cancel request returned HTTP409; that job failed and did not create a cancellation result file. Follow-up code preserves the failure evidence and allows only one documented force-cancel attempt on the same still-queued exact legacy run, then confirms actual status. It cannot claim cancellation from an HTTP request or keep retrying indefinitely. Repeated deployment checks do not repeat the provider authentication probes already recorded in artifact13912931566.
+
+## Retry delivery correction
+
+A fault reproduction showed that the first source/registration-incomplete run could still submit a held-status photo and consume the durable final-date claim, preventing a later successful08:20/30 attempt from delivering. Two no-network tests failed against that behavior. Delivery now returns DEFERRED_SOURCE_OR_REGISTRATION_NOT_READY before recipient lookup, receipt-store initialization or Telegram calls whenever the source-matched registered analysis is incomplete. It creates no final-date claim; a later verified retry can deliver once. This is scheduling/delivery control, not a new trading filter or a relaxation of source certification. The deferred state is distinct from DELIVERED, valid zero candidates, and transport failure.
+
+Ordinary and force cancellation of the exact legacy queued sender both returned409 in main run43148956349. The resulting failure artifact is preserved. The deployment-only cleanup is restricted to its one follow-up deployment and does not keep retrying on future code changes.
