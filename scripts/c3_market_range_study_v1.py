@@ -195,13 +195,13 @@ def run(engine,state,old,out,fetch=True):
         watch.append(r)
     fit=[dict(r) for r in stock_pool if by[r['ticker']]['range_review']['best']][:2]
     for r in fit:r['display_plan']=by[r['ticker']]['range_review']['best']
-    report=dict(schema='C3_AI_MARKET_SINGLE_ENTRY_RANGE_REPORT_V1',model_version=PROTOCOL['model_version'],mode='ARCHIVED_PRICE_CURRENT_CONTEXT_REVIEW',
+    report=dict(schema='C3_AI_MARKET_ENTRY_RANGE_REPORT_V2',model_version=PROTOCOL['model_version'],mode='ARCHIVED_PRICE_CURRENT_CONTEXT_REVIEW',
         source_date=DAY,source_received_at=source['final_collection_at'],source_run_id=provenance['original_source_run_id'],source_hash=provenance['original_market_payload_sha256'],
         generated_at=datetime.now(timezone.utc).isoformat(),research_run_id=os.environ.get('GITHUB_RUN_ID'),research_commit=os.environ.get('GITHUB_SHA'),
         regime=regime,watch_top2=watch,entry_fit_top2=fit,confirmed_company_quality_top2=[],
         selection_rank_frozen_before_range=True,financial_context_collected_at=company['collected_at'],
         financial_original_pit_verified=False,regular_only_certified=False,current_action='CASH',buy_approved=False,
-        max_purchases=1,additional_purchases_allowed=False,telegram_requests=0,original_ledgers_modified=False,
+        entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',automated_order_enabled=False,telegram_requests=0,original_ledgers_modified=False,
         funnel=dict(full_market=2769,continuous_history=2416,analysis_eligible=1988,technical=149,original_b=50,
             positive_improving_rs=sum(r['momentum_pass'] for r in rows),observed_positive_financial=sum(v['observed_positive'] for v in finance.values()),
             original_pit_confirmed=sum(v['confirmed'] for v in finance.values()),current_review_watch_eligible=len(stock_pool),
@@ -234,7 +234,8 @@ def run(engine,state,old,out,fetch=True):
         p=r['range_review']['best'];record=dict(source_date=DAY,ticker=r['ticker'],source_run_id=report['source_run_id'],source_hash=report['source_hash'],
             model_version=PROTOCOL['model_version'],created_at=report['generated_at'],source_received_at=report['source_received_at'],
             reasons=r['reason_text'],market_regime=regime,range=p['range'] if p else None,plan=p,
-            stop=p['stop'] if p else None,r1=p['r1'] if p else None,r2=p['r2'] if p else None,max_purchases=1,additional_purchases_allowed=False)
+            stop=p['stop'] if p else None,r1=p['r1'] if p else None,r2=p['r2'] if p else None,
+            execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',automated_order_enabled=False)
         reg=register(out/'research_only_forward',record,clock,replay=True)
         forward.append(dict(registration=reg,observation=observe(record,allbars[r['ticker']],market['indices'][r['market']],market['sessions'],DAY)))
     write(out/'forward_tracking.json',dict(records=forward,backdated_forward_registrations=0,live_daily_deployment=False,
