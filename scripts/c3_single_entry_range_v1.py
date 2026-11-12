@@ -1,4 +1,4 @@
-"""One continuous observation range, one user-chosen entry, no added position.
+"""One continuous observation range; entry count and sizing remain user discretion.
 
 The stop and confirmed resistances are frozen BEFORE risk intersection. The
 intersection can discard prices but cannot change these structural anchors.
@@ -85,7 +85,7 @@ def _candidate(bars,method,anchor,invalid,known,evidence):
         evidence=evidence,range=result,status=state,range_valid=result['valid'],
         validity_sessions=PROTOCOL['validity_sessions'],default_validity_sessions=1,
         cancel_conditions=['OPEN_BELOW_RANGE_OR_STOP','OPEN_AT_OR_ABOVE_R1','CLOSE_BREAKS_SUPPORT','TREND_LOST','RANGE_NOT_REACHED_BY_EXPIRY_PASS'],
-        max_purchases=1,additional_purchases_allowed=False,buy_approved=False)
+        buy_approved=False)
 
 def generate_ranges(bars):
     if len(bars)<80:return dict(plans=[],best=None,reason='INSUFFICIENT_CAUSAL_HISTORY')
@@ -131,9 +131,9 @@ def generate_ranges(bars):
     return dict(plans=plans,best=best,reason=None if plans else 'NO_CONFIRMED_CURRENT_SUPPORT')
 
 def single_scenario(plan,choice):
-    if choice not in ('upper','middle','lower') or not plan['range_valid']:raise ValueError('ONE_VALID_PRICE_CHOICE_REQUIRED')
+    if choice not in ('upper','middle','lower') or not plan['range_valid']:raise ValueError('VALID_INDEPENDENT_PRICE_SCENARIO_REQUIRED')
     price=plan['range']['endpoints'][choice]['price']
-    # low is a cancellation boundary, NOT another order. There is exactly
-    # one limit (high); an opening price improvement must remain in range.
+    # This function evaluates one hypothetical price choice independently.
+    # It is not a user trade-count policy or an instruction to split orders.
     return dict(low=plan['range']['low'],high=price,stop=plan['stop'],resistance=plan['r1'],resistance2=plan['r2'],
-        range_floor=plan['range']['low'],range_ceiling=plan['range']['high'],choice=choice,max_purchases=1)
+        range_floor=plan['range']['low'],range_ceiling=plan['range']['high'],choice=choice)
