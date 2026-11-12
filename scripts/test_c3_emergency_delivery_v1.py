@@ -81,8 +81,8 @@ class OriginalDecisionTests(unittest.TestCase):
             clock=datetime.fromisoformat(stamp)
             expected='2026-11-11' if clock.weekday()==3 else '2026-11-13'
             self.assertEqual(expected_session(clock),expected)
-    def test_analysis_must_complete_after_receipt_before_publication(self):
-        r,s,clock=fixture();r['analysis_completed_at']='2026-11-06T13:28:00Z'
+    def test_original_analysis_must_complete_before_publication(self):
+        r,s,clock=fixture();r['analysis_completed_at']='2026-11-06T13:31:00Z'
         self.assertEqual(report_error(r,s,clock),'ANALYSIS_COMPLETION_TIME_MISMATCH')
 
 

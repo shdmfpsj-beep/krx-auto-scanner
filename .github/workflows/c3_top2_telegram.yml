@@ -447,7 +447,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           C3_MORNING_SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-        run: python scripts/c3_morning_final_v1.py --source evidence/morning_source.json --entry evidence/entry/reselection_summary.json --company evidence/company/combined_review.json --outdir morning-delivery --send --publish
+        run: python scripts/c3_morning_final_v1.py --source evidence/morning_source.json --entry evidence/entry/reselection_summary.json --company evidence/company/combined_review.json --outdir morning-delivery --prepared-report evidence/final/morning_final.json --prepared-image evidence/final/C3_morning_status.png --send --publish
       - uses: actions/upload-artifact@v4
         if: always()
         with:

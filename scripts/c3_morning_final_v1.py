@@ -18,6 +18,7 @@ def packet(source,entry=None,company=None):
     good=source.get('status')=='OFFICIAL_CACHE_MATCHED' and source.get('ready') is True
     analysis=bool(good and entry and entry.get('price_asof')==day and
         entry.get('full_market_price_rows')==source.get('compared_rows') and
+        re.fullmatch('[a-f0-9]{64}',str(entry.get('original_frozen_decision_payload_sha256',''))) and
         entry.get('source_proof_sha256')==digest(canonical(source)+b'\n'))
     # SHA is over the exact source-proof file bytes, not a re-labelled boolean.
     reasons=[]
@@ -29,6 +30,8 @@ def packet(source,entry=None,company=None):
     else:reasons.extend(company.get('blockers',[]))
     return dict(schema='C3_MORNING_FINAL_STATUS_V1',asof=day,generated_at=datetime.now(timezone.utc).isoformat(),
         source_run_id=entry.get('original_source_run_id') if analysis else None,
+        frozen_decision_payload_sha256=entry.get('original_frozen_decision_payload_sha256') if analysis else None,
+        original_source_validation_sha256=entry.get('original_source_validation_sha256') if analysis else None,
         morning_run_id=os.environ.get('C3_MORNING_SOURCE_RUN_ID') or os.environ.get('GITHUB_RUN_ID'),source_sha256=digest(canonical(source)),
         entry_review_sha256=digest(canonical(entry)) if entry else None,
         source=copy.deepcopy(source),analysis_completed=analysis,
@@ -64,7 +67,7 @@ def render(report,outdir):
     txt(75,1325,'범위 미도달 PASS · 미인증 자료는 CASH 유지',31,ink,True)
     txt(75,1410,'자동 주문 없음 · 이전 거래일 추천으로 대체하지 않음',27,sub)
     metadata=PngImagePlugin.PngInfo()
-    for k in ('asof','source_run_id','source_sha256','entry_review_sha256','morning_run_id'):
+    for k in ('asof','source_run_id','frozen_decision_payload_sha256','source_sha256','entry_review_sha256','morning_run_id'):
         metadata.add_text(k,json.dumps(report.get(k)))
     p=out/'C3_morning_status.png';im.save(p,optimize=True,pnginfo=metadata)
     validate_image(p,report)
@@ -75,9 +78,25 @@ def render(report,outdir):
 def validate_image(path,report):
     with Image.open(path) as im:
         if im.format!='PNG' or im.size!=(1200,1580):raise ValueError('MORNING_STATUS_IMAGE_INVALID')
-        for k in ('asof','source_run_id','source_sha256','entry_review_sha256','morning_run_id'):
+        for k in ('asof','source_run_id','frozen_decision_payload_sha256','source_sha256','entry_review_sha256','morning_run_id'):
             if json.loads(im.info.get(k,'"MISSING"'))!=report.get(k):raise ValueError('MORNING_IMAGE_SOURCE_LINEAGE_MISMATCH')
         im.verify()
+
+
+def prepared_image(source,entry,company,report_path,image_path,outdir):
+    """Send the exact completed artifact bytes, never a later re-render."""
+    report=json.loads(Path(report_path).read_text());expected=packet(source,entry,company)
+    fields=('schema','asof','source_run_id','frozen_decision_payload_sha256',
+        'original_source_validation_sha256','morning_run_id','source_sha256','entry_review_sha256',
+        'analysis_completed','scope','geometry_research_pass_count','company_status_counts',
+        'status','final_candidate_count','final_top2','decision','buy_approved','orders_enabled','blockers')
+    if any(report.get(k)!=expected.get(k) for k in fields):raise ValueError('PREPARED_MORNING_REPORT_SOURCE_MISMATCH')
+    body=Path(image_path).read_bytes()
+    if digest(body)!=(report.get('image') or {}).get('sha256'):raise ValueError('PREPARED_MORNING_IMAGE_HASH_MISMATCH')
+    validate_image(image_path,report)
+    out=Path(outdir);out.mkdir(parents=True,exist_ok=True)
+    target=out/'C3_morning_status.png';target.write_bytes(body)
+    return report,target
 
 
 def known_recipient_fingerprint(gh):
@@ -103,7 +122,7 @@ def delivery_preflight(gh,day,fingerprint):
 
 def finish_delivery(report,image,gh,send=False,bot=None):
     validate_image(image,report)
-    if report.get('status')!='SELECTION_HELD' or report.get('final_top2')!=[] or report.get('buy_approved') is not False:
+    if report.get('status')!='SELECTION_HELD' or report.get('final_top2')!=[] or report.get('buy_approved') is not False or report.get('orders_enabled') is not False:
         raise ValueError('UNAPPROVED_MORNING_RECOMMENDATION')
     fingerprint=bot.fingerprint if bot is not None else known_recipient_fingerprint(gh)
     preflight=delivery_preflight(gh,report['asof'],fingerprint)
@@ -112,8 +131,9 @@ def finish_delivery(report,image,gh,send=False,bot=None):
     if bot is None:raise ValueError('MORNING_DELIVERY_BOT_REQUIRED')
     # Same durable final/date claim and the existing verified destination.
     payload=dict(source_price_asof=report['asof'],source_run_id=report['source_run_id'],
-        source_validation_sha256=report['source_sha256'],research_top2=[],
-        input_provenance={'decision_payload_sha256':report['entry_review_sha256']},
+        source_validation_sha256=report['original_source_validation_sha256'],research_top2=[],
+        input_provenance={'decision_payload_sha256':report['frozen_decision_payload_sha256']},
+        morning_source_proof_sha256=report['source_sha256'],
         morning_status_sha256=digest(canonical(report)),status='SELECTION_HELD',orders_enabled=False)
     return deliver([image],payload,ReceiptStore(gh),bot)
 
@@ -145,11 +165,15 @@ def protected_snapshot(gh):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--source',required=True);p.add_argument('--entry');p.add_argument('--company');p.add_argument('--outdir',required=True);p.add_argument('--send',action='store_true');p.add_argument('--publish',action='store_true');a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--source',required=True);p.add_argument('--entry');p.add_argument('--company');p.add_argument('--outdir',required=True);p.add_argument('--send',action='store_true');p.add_argument('--publish',action='store_true')
+    p.add_argument('--prepared-report');p.add_argument('--prepared-image');a=p.parse_args()
     load=lambda name:json.loads(Path(name).read_text()) if name and Path(name).exists() else None
     gh=GitHub(os.environ.get('GH_TOKEN',''))
     before,before_refs=protected_snapshot(gh)
-    result=packet(load(a.source),load(a.entry),load(a.company));out=Path(a.outdir);image=render(result,out)
+    out=Path(a.outdir)
+    if a.prepared_report:
+        result,image=prepared_image(load(a.source),load(a.entry),load(a.company),a.prepared_report,a.prepared_image,out)
+    else:result=packet(load(a.source),load(a.entry),load(a.company));image=render(result,out)
     bot=Telegram(os.environ.get('TELEGRAM_BOT_TOKEN',''),os.environ.get('TELEGRAM_CHAT_ID','')) if a.send else None
     result['delivery']=finish_delivery(result,image,gh,a.send,bot)
     (out/'morning_final.json').write_bytes(canonical(result)+b'\n')

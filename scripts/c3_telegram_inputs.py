@@ -1,6 +1,7 @@
 """Pin report inputs to one Git revision and one KRX unadjusted price family."""
 import base64,csv,hashlib,importlib,io,json,os,re,sys,tempfile
 from pathlib import Path
+from datetime import datetime,timezone
 from urllib.parse import quote
 import requests
 
@@ -134,6 +135,12 @@ def frozen_live_bars(gh,report,ref):
     if record['sha256']!=digest(canonical(payload)) or payload['price_asof']!=day:raise ValueError('IMMUTABLE_DECISION_HASH_OR_DATE_MISMATCH')
     if report.get('source_regular_only_certified') is True and payload.get('regular_only_certified') is not True:
         raise ValueError('FROZEN_DECISION_REGULAR_SESSION_UNCERTIFIED')
+    if report.get('source_regular_only_certified') is True:
+        try:
+            stamps=[datetime.fromisoformat(str(payload[k]).replace('Z','+00:00')) for k in ('source_received_at','analysis_completed_at','known_at')]
+            if any(t.tzinfo is None for t in stamps) or not stamps[0]<=stamps[1]<=stamps[2]:raise ValueError('CLOCK')
+            if payload['analysis_completed_at']!=report.get('analysis_completed_at'):raise ValueError('CLOCK')
+        except (KeyError,TypeError,ValueError):raise ValueError('FROZEN_ORIGINAL_SOURCE_ANALYSIS_CLOCK_MISMATCH') from None
     if report.get('source_hashes') is not None and report['source_hashes']!=payload.get('source_hashes'):
         raise ValueError('PUBLIC_AND_FROZEN_SOURCE_HASHES_MISMATCH')
     frozen=payload['models']['B'];public=report.get('research_top2')

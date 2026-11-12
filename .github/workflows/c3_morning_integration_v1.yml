@@ -70,7 +70,10 @@ jobs:
         env:
           PYTHONPATH: scripts
           OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
-        run: python scripts/c3_company_quality_review_v1.py --candidates evidence/entry/technical_candidates.json --entry evidence/entry/reselection_summary.json --outdir evidence/company
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          snapshot_sha=$(python scripts/c3_nov11_company_snapshot_reuse_v1.py --out /tmp/c3-nov11-company.json)
+          python scripts/c3_company_quality_review_v1.py --candidates evidence/entry/technical_candidates.json --entry evidence/entry/reselection_summary.json --outdir evidence/company --reuse-file /tmp/c3-nov11-company.json --reuse-sha "$snapshot_sha"
       - name: Create the source-matched PNG and check real prior receipts without Telegram credentials
         if: github.event_name != 'pull_request'
         env:

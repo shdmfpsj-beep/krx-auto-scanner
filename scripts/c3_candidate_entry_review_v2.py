@@ -283,6 +283,8 @@ def main():
        "price_asof":DAY,"checked_at_utc":datetime.now(timezone.utc).isoformat(),
        "original_source_run_id":ORIGINAL_SOURCE_RUN,
        "original_decision_source_sha256":decision["source_snapshot_hash"],
+       "original_frozen_decision_payload_sha256":hash_value(decision),
+       "original_source_validation_sha256":original.get('source_validation_sha256'),
        "original_b_top2":old_b,
        "research_only":True,"new_retroactive_registration":False,
        "original_signal_ledger_modified":False,"official_daily_cache_all_fields_matched":True,

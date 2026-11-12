@@ -163,10 +163,28 @@ def collect(candidates,key=None,client=None,lookup=None):
     return result
 
 
+def reuse_evidence(path,expected_sha,candidates):
+    """Explicit same-asof replay only; keep the actual old collection clock."""
+    body=Path(path).read_bytes()
+    if hashlib.sha256(body).hexdigest()!=expected_sha:raise ValueError('DATED_COMPANY_EVIDENCE_HASH_MISMATCH')
+    evidence=json.loads(body)
+    wanted={(r['ticker'],r['name']) for r in candidates['rows']}
+    actual={(r['ticker'],r['name']) for r in evidence.get('companies',[])}
+    if (evidence.get('schema')!='C3_COMPANY_QUALITY_FACTS_V1' or evidence.get('asof')!=candidates['asof'] or
+        wanted!=actual or len(actual)!=len(evidence['companies'])):
+        raise ValueError('DATED_COMPANY_EVIDENCE_DATE_OR_UNIVERSE_MISMATCH')
+    if evidence.get('original_document_pit_verified') is not False:raise ValueError('DATED_COMPANY_EVIDENCE_PIT_SCOPE_MISMATCH')
+    evidence.update(reused_evidence_sha256=expected_sha,reused_at=datetime.now(timezone.utc).isoformat(),
+        new_api_request_count=0,reuse_is_not_new_collection=True)
+    return evidence
+
+
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--candidates',required=True);p.add_argument('--entry',required=True);p.add_argument('--outdir',required=True);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--candidates',required=True);p.add_argument('--entry',required=True);p.add_argument('--outdir',required=True)
+    p.add_argument('--reuse-file');p.add_argument('--reuse-sha');a=p.parse_args()
     out=Path(a.outdir);out.mkdir(parents=True,exist_ok=True)
-    result=collect(json.loads(Path(a.candidates).read_text()))
+    candidates=json.loads(Path(a.candidates).read_text())
+    result=reuse_evidence(a.reuse_file,a.reuse_sha,candidates) if a.reuse_file else collect(candidates)
     (out/'company_quality.json').write_text(json.dumps(result,ensure_ascii=False,indent=2,allow_nan=False)+'\n')
     combined=join_quality(json.loads(Path(a.entry).read_text()),result)
     (out/'combined_review.json').write_text(json.dumps(combined,ensure_ascii=False,indent=2,allow_nan=False)+'\n')

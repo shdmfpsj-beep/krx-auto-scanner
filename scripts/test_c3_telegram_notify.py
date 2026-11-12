@@ -40,6 +40,9 @@ class FakeBot:
 class TelegramNotifyTests(unittest.TestCase):
     def setUp(self):self.latest,self.summary,self.clock=fixture()
     def test_verified_registered_new_session(self):self.assertIsNone(report_error(self.latest,self.summary,self.clock))
+    def test_later_reread_does_not_move_original_analysis_clock(self):
+        self.latest['source_received_at']='2026-11-06T13:29:45Z'
+        self.assertIsNone(report_error(self.latest,self.summary,self.clock))
     def test_yesterday_cannot_be_today(self):
         self.latest['source_price_asof']='2026-11-05';self.summary['source_price_asof']='2026-11-05'
         self.assertEqual(report_error(self.latest,self.summary,self.clock),'NO_NEW_COMPLETED_SESSION')

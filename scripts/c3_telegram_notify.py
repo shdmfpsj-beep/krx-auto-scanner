@@ -57,7 +57,8 @@ def report_error(latest,summary,current):
         generated=iso_timestamp(latest['generated_at']);received=iso_timestamp(latest['source_received_at'])
         completed=iso_timestamp(latest['analysis_completed_at'])
         if not timedelta(0)<=current.astimezone(timezone.utc)-generated<=timedelta(hours=30):return 'STALE_OR_FUTURE_REPORT'
-        if not received<=completed<=generated:return 'ANALYSIS_COMPLETION_TIME_MISMATCH'
+        close=iso_timestamp(day+'T15:30:00+09:00')
+        if not close<=completed<=generated:return 'ANALYSIS_COMPLETION_TIME_MISMATCH'
         if not datetime.fromisoformat(day+'T15:30:00+09:00')<=received<=generated:return 'INVALID_SOURCE_RECEIPT_TIME'
     except (ValueError,TypeError,KeyError):return 'INVALID_REPORT_GENERATION_TIME'
     return None

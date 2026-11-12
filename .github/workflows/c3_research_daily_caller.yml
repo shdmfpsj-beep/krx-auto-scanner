@@ -91,7 +91,7 @@ jobs:
 
   research:
     needs: source-ready
-    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.source-ready.outputs.ready == 'true'
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.event_name != 'push' && needs.source-ready.outputs.ready == 'true'
     permissions:
       contents: write
       actions: read
@@ -141,7 +141,9 @@ jobs:
           name: c3-morning-source
           path: evidence
       - name: Reproduce frozen A/B before all-candidate entry review
-        if: needs.research.result == 'success'
+        # Deployment push replays the already registered immutable day only.
+        # It cannot bypass the pinned engine's approved invocation contract.
+        if: needs.research.result == 'success' || (github.event_name == 'push' && needs.source-ready.outputs.ready == 'true')
         env:
           PYTHONPATH: scripts:engine/scripts
           GH_TOKEN: ${{ github.token }}
@@ -155,11 +157,21 @@ jobs:
           key: c3-dart-corp-v1-${{ runner.os }}-${{ github.run_id }}
           restore-keys: c3-dart-corp-v1-${{ runner.os }}-
       - name: Join dated company facts to all technical candidates
-        if: needs.research.result == 'success'
+        # Deployment push replays the already registered immutable day only.
+        # It cannot bypass the pinned engine's approved invocation contract.
+        if: needs.research.result == 'success' || (github.event_name == 'push' && needs.source-ready.outputs.ready == 'true')
         env:
           PYTHONPATH: scripts
           OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
-        run: python scripts/c3_company_quality_review_v1.py --candidates evidence/entry/technical_candidates.json --entry evidence/entry/reselection_summary.json --outdir evidence/company
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_DAY: ${{ needs.source-ready.outputs.source_day }}
+        run: |
+          if [ "$SOURCE_DAY" = '2026-11-11' ]; then
+            snapshot_sha=$(python scripts/c3_nov11_company_snapshot_reuse_v1.py --out /tmp/c3-nov11-company.json)
+            python scripts/c3_company_quality_review_v1.py --candidates evidence/entry/technical_candidates.json --entry evidence/entry/reselection_summary.json --outdir evidence/company --reuse-file /tmp/c3-nov11-company.json --reuse-sha "$snapshot_sha"
+          else
+            python scripts/c3_company_quality_review_v1.py --candidates evidence/entry/technical_candidates.json --entry evidence/entry/reselection_summary.json --outdir evidence/company
+          fi
       - name: Record finality and image without sending before completion
         if: always() && !cancelled()
         env:
