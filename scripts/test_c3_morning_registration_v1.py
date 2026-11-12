@@ -74,4 +74,21 @@ class ObsoleteSenderTests(unittest.TestCase):
         for status in ('in_progress','completed'):
             call=Mock(return_value={'status':status});self.assertEqual(retire(call,Mock())['cancel_requests'],0);self.assertEqual(call.call_count,1)
 
+    def test_one_force_cancel_after_conflict_and_confirmation(self):
+        from c3_retire_obsolete_sender_v1 import retire,TARGET,OLD_HEAD,REPO
+        from unittest.mock import Mock
+        from urllib.error import HTTPError
+        r=dict(id=TARGET,name='C3 TOP2 Telegram notification',event='schedule',head_sha=OLD_HEAD,head_branch='main',status='queued',repository={'full_name':REPO})
+        call=Mock(side_effect=[r,HTTPError('https://api.github.com',409,'Conflict',{},None),r,{},dict(r,status='completed',conclusion='cancelled')])
+        result=retire(call,Mock());self.assertEqual(result['status'],'CANCELLED');self.assertEqual(result['cancel_requests'],2)
+        self.assertTrue(call.call_args_list[3].args[1].endswith('/force-cancel'))
+    def test_conflicts_remain_failure_evidence_without_retry_loop(self):
+        from c3_retire_obsolete_sender_v1 import retire,TARGET,OLD_HEAD,REPO
+        from unittest.mock import Mock
+        from urllib.error import HTTPError
+        r=dict(id=TARGET,name='C3 TOP2 Telegram notification',event='schedule',head_sha=OLD_HEAD,head_branch='main',status='queued',repository={'full_name':REPO})
+        error=lambda:HTTPError('https://api.github.com',409,'Conflict',{},None)
+        call=Mock(side_effect=[r,error(),r,error(),r,{'total_count':0}])
+        result=retire(call,Mock());self.assertEqual(result['status'],'BLOCKED_GITHUB_CANCEL_CONFLICT');self.assertEqual(result['cancel_requests'],2);self.assertEqual(result['observed_jobs'],0);self.assertEqual(call.call_count,6)
+
 if __name__=='__main__':unittest.main()

@@ -1,7 +1,7 @@
 name: C3 first morning registration preflight (NO SEND / NO LEDGER WRITES)
 on:
   push:
-    branches: [main, fix/c3-first-morning-preflight-20261113]
+    branches: [main, fix/c3-first-morning-preflight-20261113, fix/c3-queued-retirement-evidence-20261112]
     paths:
       - 'scripts/c3_morning_registration_v1.py'
       - 'scripts/test_c3_morning_registration_v1.py'
@@ -80,13 +80,13 @@ jobs:
           print('Original historical decision/market hashes and run id match; no signal or Telegram write')
           PY
       - name: Test the existing free minute provider on one past-day sample only
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && github.event.before == 'd051d5d1eb75f466d3fa06a3ebfffef6658e1f92'
         env:
           KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
           KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
         run: python scripts/kis_regular_minute_cli.py --date 20261111 --tickers 005930 --out evidence/kis_regular_minute.json
       - name: Test existing Kiwoom quote connection without account/order access
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && github.event.before == 'd051d5d1eb75f466d3fa06a3ebfffef6658e1f92'
         env:
           PYTHONPATH: scripts
           KIWOOM_APP_KEY: ${{ secrets.KTSCA_API_KEY }}
