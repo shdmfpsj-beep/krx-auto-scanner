@@ -1,0 +1,119 @@
+name: C3 Market Single Entry Range V1 (research / NO SEND)
+on:
+  push:
+    branches: [research/c3-market-entry-range-v1-20261112]
+    paths:
+      - 'scripts/c3_*range*v1.py'
+      - 'scripts/c3_market_context_v1.py'
+      - 'scripts/c3_range_*v1.py'
+      - 'scripts/test_c3_single_entry_range_v1.py'
+      - 'config/c3_single_entry_range_v1.json'
+      - '.github/workflows/c3_market_entry_range_v1.yml'
+  pull_request:
+    paths:
+      - 'scripts/c3_*range*v1.py'
+      - 'scripts/c3_market_context_v1.py'
+      - 'scripts/c3_range_*v1.py'
+      - 'scripts/test_c3_single_entry_range_v1.py'
+      - 'config/c3_single_entry_range_v1.json'
+      - '.github/workflows/c3_market_entry_range_v1.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-market-entry-range-v1-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  frozen-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: scripts:engine/scripts
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+            /.github/workflows/*.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+        with:
+          ref: da44b0225e228353a77a57998fc31c482ce8e11a
+          path: state
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing price-reader and image dependencies
+        run: python -m pip install --disable-pip-version-check requests pillow pandas==2.2.3 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 yfinance==0.2.66
+      - name: Install existing Korean chart font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+      - name: Causal indicators, structural plans, conservative fills and reused strategy regressions
+        run: |
+          mkdir -p evidence/tests
+          python -m unittest test_c3_single_entry_range_v1 test_c3_dynamic_entry_v2 test_first_pullback_v55 test_entry_strategy_v58 test_free_structural_v52 test_c3_telegram_notify test_c3_morning_registration_v1 -v 2>&1 | tee evidence/tests/regression.log
+      - name: Snapshot production originals and delivery receipts (read only)
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/c3_dynamic_integrity_v2.py --phase before --out evidence/integrity
+      - name: Restore exact official-cache proof and dated finance context (no provider queries)
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import hashlib,io,subprocess,zipfile
+          from pathlib import Path
+          raw=subprocess.check_output(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/13905434320/zip'],timeout=60)
+          assert hashlib.sha256(raw).hexdigest()=='9caeeee78544337da9cda33d0a825ecc26303f1060ad857d529c77f49c348547','ORIGINAL_PROOF_ARCHIVE_HASH_MISMATCH'
+          with zipfile.ZipFile(io.BytesIO(raw)) as z:
+              assert z.getinfo('morning_source.json').file_size<2*1024*1024
+              p=Path('evidence/source-original/morning_source.json');p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(z.read('morning_source.json'))
+          PY
+          python scripts/c3_nov11_company_snapshot_reuse_v1.py --out evidence/company/company_quality.json
+      - name: Reproduce frozen 2769 / 1988 / 149 / 50 / 4 / 0 control before new research
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+        run: python scripts/c3_candidate_entry_review_v2.py --date 2026-11-11 --engine engine --state state --source-proof evidence/source-original/morning_source.json --outdir evidence/original
+      - name: Review current global sources, generate single-entry ranges, mobile cards and forward diagnostics
+        if: github.event_name == 'push'
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+        run: python scripts/c3_market_range_study_v1.py --engine engine --state state --old evidence/original --out evidence/market-range
+      - name: Verify production originals, registered stops and receipts remain unchanged
+        if: always() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/c3_dynamic_integrity_v2.py --phase after --out evidence/integrity
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-market-single-entry-range-v1
+          path: |
+            evidence/tests/
+            evidence/integrity/
+            evidence/source-original/morning_source.json
+            evidence/company/company_quality.json
+            evidence/original/reselection_summary.json
+            evidence/original/technical_candidates.json
+            evidence/original/all_technical_entry_diagnostics.json
+            evidence/market-range/
+            config/c3_single_entry_range_v1.json
+          if-no-files-found: error
+          retention-days: 90
