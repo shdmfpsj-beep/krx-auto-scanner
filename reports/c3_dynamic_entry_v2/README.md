@@ -32,3 +32,13 @@ No Telegram API call, credential for delivery, registration/publish function, li
 ## Evidence
 
 The Actions workflow `c3_dynamic_entry_research_v2.yml` preserves the exact protocol, original replay, all current candidate diagnostics, historical event/outcome rows, real PNGs and their source hashes, tests, and protected before/after inventories. Actual execution results will be appended after inspecting the run and artifacts.
+
+## First actual execution (fixed protocol; no parameter tuning)
+
+Commit `5dc4ee51b7474df3536894c89daba7c5908e911b`, push run **43163227570**, PR-test run **43163260439** both succeeded. The push artifact **13918294316** has ZIP SHA256 `939be0d53bc611e8b87ca9de56ca22d569df45b2d90e9e7dcc38af7c939ce23c`. Regression: **72 passed, 0 failed**. The full retained source has **1,012,593 rows / 372 sessions, 2025-05-02 through 2026-11-11** (panel SHA256 `b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932`). All original last-90 suffixes and 2769/2416/1988/149/50/4/0 counts reproduced.
+
+November 11 produced 13 new plans, 3 geometry-passing tickers, and 1 geometry+momentum+liquidity ticker (425420). The development-chosen BandWidth variant has **zero** final technical candidates on that date; the base-only ticker is an ablation watch, not a selected TOP2. Its future chart is explicitly labeled as such. No financial-quality original/PIT is authenticated, so integrated selection remains held with candidate count null and CASH.
+
+Development signals: 2025-08-28 through 2026-08-07; outcomes stop 2026-09-10; comparison segment 2026-09-11 through 2026-11-11, with a 23-session purge. For 1-day expiry / 20-day outcome, development chose DYNAMIC_BB (33 complete opportunities, 17 fills, opportunity mean +1.3297%, filled mean +2.5812%). Its comparison segment contains only 4 complete opportunities, **zero fills**. Zero return is uninvested cash, not demonstrated profitable trading. DYNAMIC comparison: 16 complete / 2 fills / opportunity mean -0.7988%; C3_ORIGINAL: 11 complete / 2 fills / -1.3190%; ADX: 12 complete / 3 fills / -1.3612%; both filters: 1 complete / 0 fills / 0%. These different opportunity cohorts are not paired evidence of causal improvement.
+
+Verdict: **RESEARCH MAINTAIN**, no operational promotion. Subsequent reporting changes add method funnels, direct company-evidence gate statuses, source-linked MA audit values and a clearly labeled base-model watch chart. They do not change the protocol, historical selections or outcomes; verify equality against the first artifact after execution.

@@ -133,7 +133,7 @@ def study(engine,state,old,out):
     source_days=sorted({b['date'] for rows in allbars.values() for b in rows});hold_start=source_days[-DEFAULT['holdout_last_sessions']]
     hold_i=sessions.index(hold_start);dev_end=sessions[hold_i-DEFAULT['purge_sessions']-1]
     active=sorted(d for d in available if d<=dev_end or d>=hold_start)
-    current_diag=[];daily={};method_counts=Counter();setup_counts=Counter();quality_reasons=Counter();historical_setups=defaultdict(Counter)
+    current_diag=[];daily={};method_counts=Counter();setup_counts=Counter();quality_reasons=Counter();historical_setups=defaultdict(Counter);funnels=defaultdict(lambda:defaultdict(Counter))
     for number,day in enumerate(active):
         pool=[];regimes={m:regime([v for d,v in sorted(idx[m].items()) if d<=day]) for m in ('KOSPI','KOSDAQ')}
         for t in sorted(eligible):
@@ -148,7 +148,11 @@ def study(engine,state,old,out):
                 regime=regimes[m],momentum_pass=strong,liquidity_pass=liquid,indicators=fi,plans=new,best_plan=best,structural_watch=watch,
                 dynamic_geometry_pass=best is not None,financial_quality='UNKNOWN_PIT_NOT_RANKED',buy_approved=False)
             pool.append(r)
-            for p in new:historical_setups['DEVELOPMENT' if day<=dev_end else 'HOLDOUT'][p['method']]+=1
+            fold='DEVELOPMENT' if day<=dev_end else 'HOLDOUT'
+            for p in new:
+                historical_setups[fold][p['method']]+=1;funnel=funnels[fold][p['method']];funnel['generated']+=1
+                funnel['setup_confirmed']+=int(p['setup_confirmed']);funnel['geometry_pass']+=int(p['geometry_pass']);funnel['geometry_and_momentum_liquidity']+=int(p['geometry_pass'] and strong and liquid)
+                for reason in p['reasons']:funnel[reason]+=1
             if day==DAY:
                 current_diag.append(r)
                 for p in new:setup_counts[p['method']]+=1;method_counts[p['method']]+=int(p['geometry_pass'])
@@ -210,10 +214,13 @@ def study(engine,state,old,out):
     company_file=Path('evidence/company/company_quality.json')
     company=json.loads(company_file.read_text()) if company_file.exists() else {};facts={r['ticker']:r for r in company.get('companies',[])}
     for r in current_diag:
-        q=facts.get(r['ticker']) or {};r['company_context_only']=dict(status=q.get('status','MISSING'),latest_statement=q.get('latest_statement'),
+        q=facts.get(r['ticker']) or {};r['company_quality_gate']=company_gate(q,DAY);r['selected_model_pass']=any(x['ticker']==r['ticker'] for x in daily[DAY][chosen]);r['company_context_only']=dict(status=q.get('status','MISSING'),latest_statement=q.get('latest_statement'),
             original_document_pit_verified=q.get('original_document_pit_verified',False),not_used_for_ranking=True)
+    by_ticker={r['ticker']:r for r in current_diag}
     for r in technical:
-        r['company_context_only']=next((x.get('company_context_only') for x in current_diag if x['ticker']==r['ticker']),None)
+        r.update({k:by_ticker[r['ticker']][k] for k in ('company_context_only','company_quality_gate','selected_model_pass')})
+    base_watch=[dict(by_ticker[r['ticker']],chosen_plan=r['chosen_plan'],not_final_selected_model=True) for r in daily[DAY]['DYNAMIC'] if not by_ticker[r['ticker']]['selected_model_pass']][:2]
+    integrated=[dict(r) for r in daily[DAY][chosen] if company_gate(facts.get(r['ticker']),DAY)=='CONFIRMED_FACTS_ONLY'][:2]
     cases=[];old_diag=json.loads((old/'all_technical_entry_diagnostics.json').read_text())['rows']
     for t in CASES:
         row=next((r for r in current_diag if r['ticker']==t),None)
@@ -223,12 +230,13 @@ def study(engine,state,old,out):
     counts=dict(new_setups=dict(setup_counts),geometric_pass_by_method=dict(method_counts),technical_reviewed=len(current_diag),
         generated_plans=sum(len(r['plans']) for r in current_diag),geometry_pass_tickers=sum(r['best_plan'] is not None for r in current_diag),
         geometry_momentum_liquidity=sum(r['best_plan'] is not None and r['momentum_pass'] and r['liquidity_pass'] for r in current_diag),
-        strict_pit_company_confirmed=0,technical_research_top2=len(technical),quality_rejections=dict(quality_reasons))
+        strict_pit_company_confirmed=sum(r['company_quality_gate']=='CONFIRMED_FACTS_ONLY' for r in current_diag),technical_research_top2=len(technical),quality_rejections=dict(quality_reasons))
     report=dict(schema='C3_DYNAMIC_ENTRY_STUDY_V2',asof=DAY,provenance=provenance,counts=counts,protocol=DEFAULT,
         protocol_sha256=digest(ROOT_PROTOCOL()),split=dict(first_signal_day=active[0] if active else None,development_signal_end=dev_end,
         development_outcome_end=sessions[hold_i-1],holdout_start=hold_start,last=DAY,purge_sessions=23,independent_unseen_validation=False),
-        performance=performance,independent_strategy_setups={k:dict(v) for k,v in historical_setups.items()},dedup_suppressed=dict(suppressed),development_chosen_model=chosen,selector_status=selector,
-        technical_research_top2=technical,strict_integrated_top2=[],final_candidate_count=None,status='RESEARCH_MAINTAIN_SOURCE_AND_FINANCE_UNCERTIFIED',
+        performance=performance,independent_strategy_setups={k:dict(v) for k,v in historical_setups.items()},independent_strategy_funnels={k:{m:dict(v) for m,v in methods.items()} for k,methods in funnels.items()},dedup_suppressed=dict(suppressed),development_chosen_model=chosen,selector_status=selector,
+        technical_research_top2=technical,ablation_base_watch_candidates=base_watch,strict_integrated_top2=integrated,final_candidate_count=None,status='RESEARCH_MAINTAIN_SOURCE_AND_FINANCE_UNCERTIFIED',
+        company_evidence={k:company.get(k) for k in ('asof','collected_at','requested','status_counts','original_document_pit_verified','selection_use')},
         decision='CASH',buy_approved=False,orders_enabled=False,telegram_requests=0,original_registered_signals_modified=False,
         elapsed_seconds=time.monotonic()-started,
         limitations=['REGULAR_SESSION_SCOPE_UNCERTIFIED','FINANCIAL_ORIGINAL_PIT_UNVERIFIED_NO_HISTORICAL_FINANCE_FILTER',

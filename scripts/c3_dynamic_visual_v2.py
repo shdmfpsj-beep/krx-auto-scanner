@@ -45,7 +45,7 @@ def card(row,bars,report,out,kind):
     y=1315
     for label,value in rows:
         d.line((52,y+60,1348,y+60),fill='#DDD8CE',width=2);text(d,56,y,label,27,SUB);text(d,1340,y,value,28,INK,True,anchor='ra');y+=85
-    status='기술·타점 조건 통과 · 기업 품질은 미확정' if plan.get('geometry_pass') and row.get('momentum_pass',True) and row.get('liquidity_pass',True) else '관찰/제외 · 조건 미충족'
+    status=('기본 타점만 통과 · 선택된 BandWidth 조건은 미통과' if row.get('not_final_selected_model') else '기술·타점 조건 통과 · 기업 품질은 미확정') if plan.get('geometry_pass') and row.get('momentum_pass',True) and row.get('liquidity_pass',True) else '관찰/제외 · 조건 미충족'
     text(d,700,1940,status,30,'#B84B48',True,anchor='ma')
     text(d,700,2002,'미도달 PASS · 지지 붕괴/갭/저항 선도달 시 취소 · 텔레그램 발송 없음',25,SUB,anchor='ma')
     text(d,700,2074,'원본 '+str(report['provenance']['original_source_run_id'])+' · 결정 '+report['provenance']['original_decision_payload_sha256'][:16],23,SUB,anchor='ma')
@@ -56,12 +56,13 @@ def card(row,bars,report,out,kind):
         check.verify()
     return dict(trace,status='RESEARCH_CHART_CREATED',file=path.name,sha256=hashlib.sha256(path.read_bytes()).hexdigest(),source_rows=119,visible_candles=60,ma60_visible_points=len(g['paths']['60']),
         source_first=bars[0]['date'],visible_first=bars[-60]['date'],last=bars[-1]['date'],displayed_plan=plan,
-        charted_prices_equal_plan=True,buy_approved=False)
+        source119_sha256=sha(bars),visible60_sha256=sha(bars[-60:]),average_audit=g['average_audit'],charted_prices_equal_plan=True,buy_approved=False)
 
 
 def create_images(report,cases,current,out):
     out=Path(out);out.mkdir(parents=True,exist_ok=True);rows=[]
     for r in report['technical_research_top2']:rows.append(card(r,current[r['ticker']],report,out,'technical_preview'))
+    for r in report.get('ablation_base_watch_candidates',[]):rows.append(card(r,current[r['ticker']],report,out,'ablation_watch_not_top2'))
     for c in cases[:4]:
         r=c.get('dynamic')
         if r and r['ticker'] in current:rows.append(card(r,current[r['ticker']],report,out,'case'))
