@@ -34,7 +34,6 @@ def register(root,record,clock,replay=False):
     received=datetime.fromisoformat(record['source_received_at'].replace('Z','+00:00'))
     closed=datetime.fromisoformat(record['source_date']+'T15:30:00+09:00')
     if stamp.tzinfo is None or received.tzinfo is None or not closed<=received<=stamp<=clock or clock-stamp>timedelta(hours=24):raise ValueError('INVALID_FORWARD_AVAILABILITY_TIME')
-    if record.get('max_purchases')!=1 or record.get('additional_purchases_allowed') is not False:raise ValueError('SINGLE_PURCHASE_POLICY_REQUIRED')
     for key in ('source_run_id','source_hash','model_version','ticker','reasons','market_regime','range','stop','r1','r2'):
         if key not in record:raise ValueError('FORWARD_PROVENANCE_FIELD_MISSING:'+key)
     # Stable identity independent of mutated stop/range: a changed model run
@@ -46,7 +45,7 @@ def register(root,record,clock,replay=False):
     return dict(status=result,key=key,sha256=digest)
 
 def observe(record,bars,index,sessions,asof):
-    """Selection-close returns/excess, plus independent one-price outcomes.
+    """Selection-close returns/excess, plus independent reference-price outcomes.
 
     Price bars crossing an action/halt/gap boundary cannot yield a result.
     Intraday execution remains a conservative daily-bar model, not a fill.
