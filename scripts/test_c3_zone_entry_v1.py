@@ -118,6 +118,14 @@ class QueuedLimitExecution(unittest.TestCase):
         self.assertLess(simulate(p,b,0,s)['worst']['max_drawdown_close_pct'],0)
     def test_hypothetical_fills_never_marked_broker_verified(self):
         b,s,p=fixture();self.assertFalse(simulate(p,b,0,s)['actual_fill_verified'])
+    def test_hold_diagnostic_does_not_exit_at_first_resistance(self):
+        b,s,p=fixture();b[1].update(open=101,low=100,high=116,close=110)
+        r=simulate(p,b,0,s,exit_policy='CASE_CLOSE_STOP_NO_R1_EXIT')
+        self.assertEqual(r['worst']['exit']['reason'],'HORIZON_CLOSE');self.assertTrue(r['worst']['r1_reached'])
+    def test_close_stop_diagnostic_waits_for_next_open(self):
+        b,s,p=fixture();b[1].update(open=101,low=100,high=108,close=106);b[2].update(open=103,low=93,high=108,close=94);b[3].update(open=90,low=85,high=96,close=92)
+        r=simulate(p,b,0,s,exit_policy='CASE_CLOSE_STOP_NO_R1_EXIT')
+        self.assertEqual(r['worst']['exit']['price'],90);self.assertEqual(r['worst']['exit']['date'],s[3])
 
 
 if __name__=='__main__':unittest.main()

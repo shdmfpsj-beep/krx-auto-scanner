@@ -131,6 +131,7 @@ def run(engine,state,old,out):
             bi=next(i for i,b in enumerate(allbars[t]) if b['date']==day);cutoff=sessions[hold_i-1] if e['fold']=='DEVELOPMENT' else DAY
             for m in MODELS+(RAW,):
                 e['outcomes'][m]={str(v):{str(h):simulate(plans[m],allbars[t],bi,sessions,SPLITS[m],v,h,cutoff=cutoff) for h in (5,10,20)} for v in (1,2,3)}
+            e['existing_close_stop_hold_sensitivity']={m:simulate(plans[m],allbars[t],bi,sessions,SPLITS[m],1,20,cutoff=cutoff,exit_policy='CASE_CLOSE_STOP_NO_R1_EXIT') for m in MODELS}
             events.append(e)
         if di%40==0:print('ZONE_SCREEN_PROGRESS',day,len(pool),len(events),flush=True)
     folds=('DEVELOPMENT','REUSED_CHRONOLOGICAL_HOLDOUT');performance={}
@@ -144,6 +145,12 @@ def run(engine,state,old,out):
         raw_minus_original_zone=paired_delta([e for e in events if e['fold']==fold],RAW,MODELS[1]),
         diagnostic_only=True,candidate_gate_unchanged=True,not_preregistered_confirmatory_evidence=True) for fold in folds}
     common_plan_metrics={fold:{m:metric([e for e in events if e['fold']==fold and e['all_three_valid']],m,'1','20') for m in MODELS[:3]} for fold in folds}
+    hold_sensitivity={}
+    for fold in folds:
+        alt=[dict(e,outcomes={m:{'1':{'20':e['existing_close_stop_hold_sensitivity'][m]}} for m in MODELS}) for e in events if e['fold']==fold]
+        hold_sensitivity[fold]=dict(metrics={m:metric(alt,m,'1','20') for m in MODELS},B_MINUS_A=paired_delta(alt,MODELS[1],MODELS[0]),
+            B_MINUS_HALF_UPPER=paired_delta(alt,MODELS[1],MODELS[3]),diagnostic_only=True,
+            policy='NO_R1_EXIT; CLOSE_STOP_NEXT_OPEN; TIME_EXIT_AT_HORIZON_CLOSE',not_frozen_C3_portfolio_replay=True,not_selected_by_best_return=True)
     zone_rows=[r for r in daily_diag if r['zone']];price_ok=[r for r in zone_rows if r['zone']['geometry_pass']];quality=[r for r in price_ok if r['momentum_pass'] and r['liquidity_pass']]
     cases=case_replays(allbars,cache,market,state,out)
     width={}
@@ -169,7 +176,7 @@ def run(engine,state,old,out):
             chronological_events=len(events),duplicate_signals_suppressed=suppressed),
         company_evidence_context_only={k:company.get(k) for k in ('asof','collected_at','requested','status_counts','original_document_pit_verified','selection_use')},
         technical_research_top2=quality[:2],financial_pit_confirmed_top2=[],final_candidate_count=None,decision='CASH',status='SELECTION_HELD_SOURCE_AND_FINANCE_UNCERTIFIED',
-        performance=performance,paired_comparisons=comparisons,raw_zone_gate_ablation=raw_diagnostics,all_three_valid_plan_subset=common_plan_metrics,width_distance_diagnostics=width,
+        performance=performance,paired_comparisons=comparisons,raw_zone_gate_ablation=raw_diagnostics,existing_close_stop_hold_sensitivity=hold_sensitivity,all_three_valid_plan_subset=common_plan_metrics,width_distance_diagnostics=width,
         original_b_selected_by_day=daily_original,failures=failures[:8],verdict='RESEARCH_MAINTAIN_NOT_PROMOTED',orders_enabled=False,telegram_requests=0,ledger_writes=0,
         limitations=['PRESERVED_HISTORY_REUSED_NOT_INDEPENDENT_UNSEEN','CURRENT_NOV11_UNIVERSE_AND_SECTOR_SURVIVORSHIP_BIAS','FINANCIAL_ORIGINAL_PIT_AND_BUSINESS_QUALITY_UNKNOWN',
         'REGULAR_ONLY_OHLCV_AND_TURNOVER_UNCERTIFIED','OHLC_BOUNDS_NOT_BROKER_FILLS_OR_QUEUE_PROOF','DAILY_EXTREMA_SEQUENCE_ASSUMPTIONS_AND_GAP_LOW_STRESS_NOT_GUARANTEED_TRUE_BOUNDS',
