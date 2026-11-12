@@ -52,12 +52,18 @@ def indicator_at(bars,pre=None):
         adx_filter=bool(a and a['adx']>=25 and a['plus_di']>a['minus_di']))
 
 
-def resistance_levels(bars,above,atr):
+def resistance_levels(bars,above,atr,active_only=False,audit=None):
     # Confirmed high pivots: two CLOSED right-side bars, never future pivots.
     found=[]
     for i in range(max(2,len(bars)-62),len(bars)-2):
         h=bars[i]['high']
         if h>above and h>bars[i-1]['high'] and h>bars[i-2]['high'] and h>=bars[i+1]['high'] and h>=bars[i+2]['high']:
+            if active_only:
+                broken=[b['date'] for b in bars[i+2:] if b['close']>h]
+                if broken:
+                    if audit is not None:audit.append(dict(price=h,pivot_date=bars[i]['date'],known_on=bars[i+2]['date'],
+                        reason='ALREADY_CLOSED_ABOVE_CONFIRMED_RESISTANCE',first_break=broken[0]))
+                    continue
             found.append((h,bars[i]['date'],bars[i+2]['date']))
     clusters=[]
     for value,pivot,known in sorted(found):
