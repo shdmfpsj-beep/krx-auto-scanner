@@ -79,6 +79,29 @@ jobs:
           assert p['market_payload_sha256']=='076d80581421a7f24e08da1bd607d4ecfec6b26d1d170daec0e0360d73c25b22'
           print('Original historical decision/market hashes and run id match; no signal or Telegram write')
           PY
+      - name: Record deployed production workflow activation without changing it
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PYCODE'
+          import json,os,urllib.request,re
+          from datetime import datetime,timezone
+          from pathlib import Path
+          rows=[]
+          for filename in ('c3_research_daily_caller.yml','c3_top2_telegram.yml'):
+              url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/workflows/'+filename
+              req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req,timeout=25) as f:raw=json.load(f)
+              rows.append({k:raw.get(k) for k in ('id','name','path','state')})
+          report=dict(checked_at=datetime.now(timezone.utc).isoformat(),commit=os.environ['GITHUB_SHA'],workflows=rows,
+              caller_cron_utc=re.findall(r"cron: '([^']+)'",Path('.github/workflows/c3_research_daily_caller.yml').read_text()),
+              workflow_changes=0,telegram_requests=0)
+          Path('evidence').mkdir(exist_ok=True)
+          Path('evidence/production_workflow_states.json').write_text(json.dumps(report,indent=2)+'\n')
+          print(json.dumps(report))
+          assert all(r['state']=='active' for r in rows),'PRODUCTION_WORKFLOW_NOT_ACTIVE'
+          PYCODE
       - name: Test the existing free minute provider on one past-day sample only
         if: github.ref == 'refs/heads/main' && github.event_name == 'push' && github.event.before == 'd051d5d1eb75f466d3fa06a3ebfffef6658e1f92'
         env:
