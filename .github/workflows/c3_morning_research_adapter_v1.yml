@@ -15,6 +15,15 @@ on:
       caller_mode:
         required: true
         type: string
+    outputs:
+      registered_state_sha:
+        value: ${{ jobs.preserve-research-only.outputs.registered_state_sha }}
+      source_run_id:
+        value: ${{ jobs.preserve-research-only.outputs.source_run_id }}
+      source_day:
+        value: ${{ jobs.preserve-research-only.outputs.source_day }}
+      registration_proof:
+        value: ${{ jobs.preserve-research-only.outputs.registration_proof }}
     secrets:
       KRX_AUTH_KEY:
         required: false
@@ -34,13 +43,21 @@ jobs:
     env:
       EXPECTED_MORNING_SOURCE_DAY: ${{ inputs.source_day }}
       PYTHONDONTWRITEBYTECODE: '1'
-      PYTHONPATH: scripts
+      PYTHONPATH: scripts:morning-orchestrator/scripts
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.engine_ref || github.sha }}
           persist-credentials: true
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: morning-orchestrator
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_morning_registration_v1.py
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -210,6 +227,10 @@ jobs:
           summary=json.loads((root/'mobile/summary.json').read_text());audit=handoff(summary,(root/'mobile/mobile_report.md').read_text())
           (root/'report_handoff_audit.json').write_text(json.dumps(audit,indent=2)+'\n')
           PY
+      - name: Seal only this completed registered source before publication
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python morning-orchestrator/scripts/c3_morning_registration_v1.py --latest /tmp/c3-forward8/result/current/latest.json --ledger reports/c3_forward_v8 --day "$EXPECTED_MORNING_SOURCE_DAY" --caller-run-id '${{ github.run_id }}' --proof /tmp/c3-forward8/result/registered_source.json
       - name: Preserve immutable local evidence even when collection or registration fails
         if: always()
         run: |
@@ -228,6 +249,11 @@ jobs:
           if-no-files-found: error
   preserve-research-only:
     needs: validate-and-run
+    outputs:
+      registered_state_sha: ${{ steps.handoff.outputs.registered_state_sha }}
+      source_run_id: ${{ steps.handoff.outputs.source_run_id }}
+      source_day: ${{ steps.handoff.outputs.source_day }}
+      registration_proof: ${{ steps.handoff.outputs.registration_proof }}
     if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && (github.ref == 'refs/heads/research/c3-ledger-integrity-audit-20261104' || (github.ref == 'refs/heads/main' && inputs.caller_mode == 'approved_daily'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -239,6 +265,14 @@ jobs:
         with:
           ref: research/c3-ledger-integrity-audit-20261104
           persist-credentials: true
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: morning-orchestrator
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/c3_morning_registration_v1.py
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v4
         with:
           name: c3-forward-v8-prospective-evidence
@@ -268,3 +302,12 @@ jobs:
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'research: preserve prospective C3 decision and paper status (NO ORDERS)'
           git push origin HEAD:refs/heads/research/c3-ledger-integrity-audit-20261104
+      - name: Return the exact published registration commit
+        id: handoff
+        run: python morning-orchestrator/scripts/c3_morning_registration_v1.py --complete --caller-run-id '${{ github.run_id }}' --proof /tmp/c3-forward8-validated/registered_source.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c3-morning-registration
+          path: /tmp/c3-forward8-validated/registered_source.json
+          retention-days: 90
+          if-no-files-found: error

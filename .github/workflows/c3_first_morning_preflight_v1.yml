@@ -1,0 +1,126 @@
+name: C3 first morning registration preflight (NO SEND / NO LEDGER WRITES)
+on:
+  push:
+    branches: [main, fix/c3-first-morning-preflight-20261113]
+    paths:
+      - 'scripts/c3_morning_registration_v1.py'
+      - 'scripts/test_c3_morning_registration_v1.py'
+      - 'scripts/c3_morning_provider_probe_v1.py'
+      - 'scripts/c3_retire_obsolete_sender_v1.py'
+      - 'scripts/c3_candidate_entry_review_v2.py'
+      - '.github/workflows/c3_morning_research_adapter_v1.yml'
+      - '.github/workflows/c3_research_daily_caller.yml'
+      - '.github/workflows/c3_first_morning_preflight_v1.yml'
+  pull_request:
+    paths:
+      - 'scripts/c3_morning_registration_v1.py'
+      - 'scripts/test_c3_morning_registration_v1.py'
+      - 'scripts/c3_morning_provider_probe_v1.py'
+      - 'scripts/c3_retire_obsolete_sender_v1.py'
+      - 'scripts/c3_candidate_entry_review_v2.py'
+      - '.github/workflows/c3_morning_research_adapter_v1.yml'
+      - '.github/workflows/c3_research_daily_caller.yml'
+      - '.github/workflows/c3_first_morning_preflight_v1.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+            /.github/workflows/*.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        if: github.event_name != 'pull_request'
+        with:
+          # Exact already registered 11/11 source, never new/intraday data.
+          ref: 99a5e872f4f07a279b46ece9589fdb3771e18e8d
+          path: state
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing test and source-reader dependencies
+        run: python -m pip install requests pillow pandas==2.2.3 'cryptography>=43,<47' exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Install the existing required Korean report font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+      - name: Next-session, stale-source, failed-registration, race and delay faults
+        env:
+          PYTHONPATH: scripts:engine/scripts
+        run: python -m unittest test_c3_morning_registration_v1 test_c3_morning_v1 -v
+      - name: Verify actual historical encrypted decision and market lineage without registering
+        if: github.event_name != 'pull_request'
+        env:
+          PYTHONPATH: scripts:engine/scripts
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+        run: |
+          python scripts/c3_morning_registration_v1.py --latest state/reports/c3_forward_v8/latest.json --ledger state/reports/c3_forward_v8 --day 2026-11-11 --proof evidence/readonly_registered_source.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('evidence/readonly_registered_source.json').read_text())
+          assert p['mode']=='READ_ONLY_REPLAY' and p['source_run_id']=='43086941571'
+          assert p['decision_payload_sha256']=='1990a9f2629d62b1c6c1ae35f78635305c577572b6d58652bd2cad4d5d9641fc'
+          assert p['market_payload_sha256']=='076d80581421a7f24e08da1bd607d4ecfec6b26d1d170daec0e0360d73c25b22'
+          print('Original historical decision/market hashes and run id match; no signal or Telegram write')
+          PY
+      - name: Test the existing free minute provider on one past-day sample only
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+        run: python scripts/kis_regular_minute_cli.py --date 20261111 --tickers 005930 --out evidence/kis_regular_minute.json
+      - name: Test existing Kiwoom quote connection without account/order access
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          PYTHONPATH: scripts
+          KIWOOM_APP_KEY: ${{ secrets.KTSCA_API_KEY }}
+          KIWOOM_APP_SECRET: ${{ secrets.KIWOOM_APP_SECRET }}
+        run: python scripts/c3_morning_provider_probe_v1.py --day 20261111 --out evidence/kiwoom_past_day.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-first-morning-preflight
+          path: evidence/*.json
+          retention-days: 90
+          if-no-files-found: warn
+  retire-obsolete-sender:
+    needs: verify
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: /scripts/c3_retire_obsolete_sender_v1.py
+          sparse-checkout-cone-mode: false
+      - name: Retire only the observed pre-migration queued sender
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/c3_retire_obsolete_sender_v1.py --out evidence/obsolete_sender.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-obsolete-sender-retirement
+          path: evidence/obsolete_sender.json
+          retention-days: 90
+          if-no-files-found: error
