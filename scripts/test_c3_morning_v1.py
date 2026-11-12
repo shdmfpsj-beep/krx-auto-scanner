@@ -2,10 +2,12 @@
 import copy,json,tempfile,unittest
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock,patch
 from c3_morning_source_v1 import prior_session,verify_calendar,bounded_target,compare,cache_rows,normalized_hash
 from c3_company_quality_review_v1 import statement_facts,join_quality,collect
 from c3_candidate_entry_review_v2 import all_geometry_reasons,usable
+from c3_morning_final_v1 import packet,render,validate_image,finish_delivery,publish
+from c3_telegram_inputs import canonical,digest
 
 
 class CalendarAndSourceTests(unittest.TestCase):
@@ -55,6 +57,15 @@ def payload(receipt='20260814000001',division='CFS'):
 
 
 class FinancialAndGeometryTests(unittest.TestCase):
+    def test_cold_company_mapping_precedes_the_financial_budget(self):
+        events=[];client=Mock(calls=0,audit=[])
+        client.get.return_value={'status':'000','list':[]}
+        def mapping():events.append('mapping');return {'000001':'00000001'}
+        def budget(*a,**kw):events.append('financial_budget');return client
+        with patch('c3_report_context.DartClient.mapping',side_effect=mapping),patch('c3_company_quality_review_v1.BudgetClient',side_effect=budget):
+            result=collect({'asof':'2026-11-11','rows':[{'ticker':'000001','name':'SYNTHETIC'}]},key='SYNTHETIC')
+        self.assertEqual(events,['mapping','financial_budget'])
+        self.assertFalse(result['original_document_pit_verified'])
     def test_actual_period_division_currency_and_receipt_required(self):
         filing=dict(receipt_no='20260814000001',published_on='2026-08-14')
         facts=statement_facts(payload(),filing,'CFS',2026,'11012')
@@ -76,6 +87,41 @@ class FinancialAndGeometryTests(unittest.TestCase):
         p=dict(low=118000,high=122000,stop=113800,resistance=None,risk_pct=6.72,net_r1_rr=None)
         r=all_geometry_reasons(p,204000)
         self.assertIn('MISSING_FINITE_R1_OR_GEOMETRY',r);self.assertIn('STALE_ENTRY_TOO_FAR_BELOW_CLOSE',r)
+
+
+class MorningStatusTests(unittest.TestCase):
+    def fixture(self):
+        s=dict(schema='C3_MORNING_OFFICIAL_SOURCE_V1',requested_day='2026-11-11',status='OFFICIAL_CACHE_MATCHED',ready=True,regular_only_certified=False,compared_rows=2769)
+        e=dict(price_asof='2026-11-11',full_market_price_rows=2769,source_proof_sha256=digest(canonical(s)+b'\n'),original_source_run_id='SYNTHETIC',reviewed_technical_tickers=149,analysis_eligible=1988,stock_preselector_count=149,original_b_filter_count=50,eligible_entry_feasible_tickers=0)
+        return s,e
+    def test_zero_research_candidates_is_not_final_zero_under_uncertified_data(self):
+        s,e=self.fixture();r=packet(s,e)
+        self.assertTrue(r['analysis_completed']);self.assertIsNone(r['final_candidate_count']);self.assertEqual(r['final_top2'],[])
+        self.assertEqual(r['geometry_research_pass_count'],0);self.assertFalse(r['buy_approved'])
+    def test_other_run_or_missing_analysis_does_not_publish_old_candidates(self):
+        s,e=self.fixture();e['source_proof_sha256']='0'*64
+        r=packet(s,e);self.assertFalse(r['analysis_completed']);self.assertEqual(r['scope'],{});self.assertIsNone(r['geometry_research_pass_count'])
+    def test_real_png_preserves_trace_and_rejects_changed_day_before_delivery(self):
+        s,e=self.fixture();r=packet(s,e)
+        with tempfile.TemporaryDirectory() as tmp:
+            path=render(r,tmp);validate_image(path,r)
+            r['asof']='2026-11-12'
+            with self.assertRaisesRegex(ValueError,'LINEAGE'):validate_image(path,r)
+    def test_existing_date_delivery_stops_before_any_telegram_request(self):
+        s,e=self.fixture();r=packet(s,e);gh=Mock();bot=Mock(fingerprint='a'*16)
+        with tempfile.TemporaryDirectory() as tmp:
+            image=render(r,tmp)
+            with patch('c3_morning_final_v1.delivery_preflight',return_value={'status':'DUPLICATE_BLOCKED','send_attempts':0}):
+                answer=finish_delivery(r,image,gh,True,bot)
+            self.assertEqual(answer['status'],'DUPLICATE_BLOCKED');bot.verify_group.assert_not_called();bot.send_album.assert_not_called()
+    def test_publisher_only_appends_derived_morning_paths(self):
+        s,e=self.fixture();gh=Mock();gh.head.return_value='a'*40
+        gh.api.side_effect=[{'tree':{'sha':'b'*40}},{'sha':'c'*40},{'sha':'d'*40},{}]
+        with patch('c3_report_handoff.active_research',return_value=[]):r=publish(gh,packet(s,e))
+        self.assertEqual(r['status'],'PUBLISHED_DERIVED_ONLY')
+        tree=gh.api.call_args_list[1].kwargs['payload']['tree']
+        self.assertTrue(all(x['path'].startswith('reports/c3_morning_v1/') for x in tree))
+        self.assertFalse(gh.api.call_args_list[-1].kwargs['payload']['force'])
 
 
 if __name__=='__main__':unittest.main()

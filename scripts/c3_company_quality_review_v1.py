@@ -15,7 +15,7 @@ from krx_opendart_financial_v91 import get_corp_codes
 CF={'ifrs-full_CashFlowsFromUsedInOperatingActivities','ifrs-full_CashFlowsFromUsedInOperatingActivitiesContinuingOperations'}
 
 
-def statement_facts(payload,filing,division,year,report_code):
+def statement_facts(payload,filing,division,year,report_code,corp_code=None):
     if payload.get('status')!='000':raise ValueError('FINANCIAL_API_NOT_AVAILABLE')
     rows=payload.get('list') or []
     if not rows or {str(r.get('rcept_no','')) for r in rows}!={filing['receipt_no']}:
@@ -23,6 +23,8 @@ def statement_facts(payload,filing,division,year,report_code):
     if any(str(r.get('bsns_year'))!=str(year) or r.get('reprt_code')!=report_code or
            r.get('currency')!='KRW' or r.get('fs_div') not in (None,'',division) for r in rows):
         raise ValueError('FINANCIAL_PERIOD_DIVISION_OR_CURRENCY_MISMATCH')
+    if corp_code is not None and any(r.get('corp_code')!=corp_code for r in rows):
+        raise ValueError('FINANCIAL_CORPORATION_ID_MISMATCH')
     get=lambda ids,section,key='thstrm_amount':extract_metric(rows,ids,section,key)
     revenue=get(REVENUE,'IS');op=get(OPERATING,'IS');assets=get(ASSETS,'BS');liabilities=get(LIABILITIES,'BS');equity=get(EQUITY,'BS')
     previous_key='frmtrm_amount' if report_code=='11011' else 'frmtrm_q_amount'
@@ -32,6 +34,8 @@ def statement_facts(payload,filing,division,year,report_code):
     return dict(receipt_no=filing['receipt_no'],published_on=filing['published_on'],
         url='https://dart.fss.or.kr/dsaf001/main.do?rcpNo='+filing['receipt_no'],
         fiscal_year=year,report_code=report_code,fs_div=division,currency='KRW',
+        income_period_basis='ANNUAL' if report_code=='11011' else 'SINGLE_QUARTER',
+        cashflow_period_basis='FISCAL_YEAR_TO_DATE',
         revenue_krw=revenue,operating_profit_krw=op,previous_comparable_revenue_krw=prev_revenue,
         previous_comparable_operating_profit_krw=prev_op,assets_krw=assets,liabilities_krw=liabilities,
         equity_krw=equity,operating_cashflow_ytd_krw=cf,balance_identity_gap_fraction=balance_gap,
@@ -45,16 +49,19 @@ def join_quality(entry_review,quality):
     if entry_review['price_asof']!=quality['asof']:raise ValueError('COMPANY_ENTRY_ASOF_MISMATCH')
     by={r['ticker']:r for r in quality['companies']}
     combined=[]
-    for row in entry_review.get('new_research_top2',[]):
+    for row in entry_review.get('geometry_research_pool',entry_review.get('new_research_top2',[])):
         facts=by.get(row['ticker']) or {};latest=facts.get('latest_statement') or {}
         combined.append(dict(row,company_quality_status=facts.get('status','MISSING'),
             financial_facts=latest,company_competitiveness_verified=False,
+            observed_positive_core_metrics=facts.get('observed_positive_core_metrics'),
             financial_pit_verified=False,buy_approved=False))
     # Never turn an experimental geometry winner plus a current API snapshot
     # into an original signal or validated new trading model.
     return dict(schema='C3_COMBINED_COMPANY_ENTRY_REVIEW_V1',asof=quality['asof'],
         technical_reviewed=entry_review['reviewed_technical_tickers'],
-        company_reviewed=len(quality['companies']),geometry_research_top2=combined,
+        company_reviewed=len(quality['companies']),geometry_research_top2=combined[:2],
+        all_geometry_company_reviews=combined,
+        research_top2_after_documented_positive_facts=[r for r in combined if r['observed_positive_core_metrics'] is True][:2],
         company_status_counts=dict(Counter(r['status'] for r in quality['companies'])),
         final_top2=[],final_candidate_count=None,decision='CASH',buy_approved=False,orders_enabled=False,
         blockers=['REGULAR_ONLY_SOURCE_UNCERTIFIED','EXPERIMENTAL_ENTRY_THRESHOLDS_NOT_PROFITABILITY_VALIDATED',
@@ -63,13 +70,14 @@ def join_quality(entry_review,quality):
 
 
 class BudgetClient:
-    def __init__(self,key,max_requests=600,seconds=240):
+    def __init__(self,key,max_requests=600,seconds=540):
         self.key=key;self.limit=max_requests;self.seconds=seconds;self.start=time.monotonic()
         self.lock=threading.Lock();self.calls=0;self.audit=[];self.stop=False;self.last_request=0
     def get(self,endpoint,params):
         with self.lock:
-            if self.stop or self.calls>=self.limit or time.monotonic()-self.start>self.seconds:
-                raise ValueError('DART_REVIEW_BUDGET_OR_PROVIDER_STOP')
+            if self.stop:raise ValueError('DART_REVIEW_PROVIDER_STOP')
+            if self.calls>=self.limit:raise ValueError('DART_REVIEW_REQUEST_BUDGET')
+            if time.monotonic()-self.start>self.seconds:raise ValueError('DART_REVIEW_TIME_BUDGET')
             delay=max(0,.08-(time.monotonic()-self.last_request))
             if delay:time.sleep(delay)
             self.calls+=1;self.last_request=time.monotonic()
@@ -96,10 +104,15 @@ def collect(candidates,key=None,client=None,lookup=None):
     key=key or os.environ.get('OPENDART_API_KEY','')
     if not key and client is None:
         result['companies']=[dict(ticker=r['ticker'],status='MISSING_DART_KEY') for r in rows];return result
-    client=client or BudgetClient(key)
-    try:lookup=lookup if lookup is not None else get_corp_codes(key)
+    try:
+        if lookup is None:
+            # Reuse the existing hash-checked 30-day public corporation map.
+            # Its cold download must not consume the financial-phase budget.
+            from c3_report_context import DartClient
+            lookup=DartClient(key,Path(os.environ.get('C3_DART_MAPPING_TMP','/tmp/c3-corp-map'))).mapping()
     except Exception:
         result['companies']=[dict(ticker=r['ticker'],status='CORPORATION_MAP_UNAVAILABLE') for r in rows];return result
+    client=client or BudgetClient(key)
     def company(row):
         out=dict(ticker=row['ticker'],name=row['name'],status='FINANCIAL_EVIDENCE_PENDING',
             business_competitiveness_verified=False,financial_pit_verified=False,statements=[],buy_approved=False)
@@ -116,7 +129,12 @@ def collect(candidates,key=None,client=None,lookup=None):
                 if annual:
                     choices.append((year,'11011',dict(receipt_no=annual[1],published_on=str(annual[0]))));break
             interim=latest_interim_filing(filings,day)
-            if interim:
+            annual_year=choices[0][0] if choices else None
+            if interim and (annual_year is None or interim['fiscal_year']>annual_year):
+                # One newest available statement contains current/previous
+                # comparable income plus BS and cash flow. Do not spend two
+                # extra requests on superseded annual accounts for every name.
+                choices=[]
                 choices.append((interim['fiscal_year'],interim['report_code'],dict(receipt_no=interim['receipt_no'],published_on=interim.get('received_on',interim.get('filing_date','')))))
             # The existing parser's exact receipt date comes from the listing.
             dated={f['rcept_no']:str(f['rcept_dt']) for f in filings.get('list',[])}
@@ -128,7 +146,7 @@ def collect(candidates,key=None,client=None,lookup=None):
                 for division in ('CFS','OFS'):
                     payload=client.get('fnlttSinglAcntAll.json',dict(corp_code=corp,bsns_year=str(year),reprt_code=code,fs_div=division))
                     if payload.get('status')=='013':continue
-                    parsed=statement_facts(payload,filing,division,year,code);break
+                    parsed=statement_facts(payload,filing,division,year,code,corp);break
                 if parsed:out['statements'].append(parsed)
             if not out['statements']:raise ValueError('NO_MATCHING_DATED_STATEMENT')
             out['latest_statement']=max(out['statements'],key=lambda s:(s['fiscal_year'],{'11011':4,'11013':1,'11012':2,'11014':3}[s['report_code']]))

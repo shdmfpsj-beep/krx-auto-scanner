@@ -286,6 +286,7 @@ def main():
        "original_b_top2":old_b,
        "research_only":True,"new_retroactive_registration":False,
        "original_signal_ledger_modified":False,"official_daily_cache_all_fields_matched":True,
+       "source_proof_sha256":digest(args.source_proof),
        "session_regular_only_certified":False,
        "source_price_basis":"UNADJUSTED_AS_TRADED",
        "full_market_price_rows":len(prices),
@@ -296,6 +297,7 @@ def main():
        "reviewed_technical_tickers":len(diagnostic),
        "reviewed_entry_variants":len(diagnostic)*len(ENTRIES),
        "b_pool_research_pass_count":len(b_feasible),
+       "original_strength_and_geometry_research_top2":[public(row,i+1) for i,row in enumerate([r for r in feasible if r['own_rs20']>0 and r['rs_accel5']>0][:2])],
        "non_b_pool_research_pass_count":len([r for r in feasible if r['ticker'] not in {b['ticker'] for b in bpool}]),
        "original_b_rejection_counts":dict(b_failures),
        "original_b_usable_plan_counts":dict(b_plan_counts),
@@ -303,6 +305,7 @@ def main():
        "geometry_rejected_reasons":dict(failures),
        "eligible_entry_feasible_tickers":len(feasible),
        "new_research_top2":top,
+       "geometry_research_pool":[public(row,i+1) for i,row in enumerate(feasible)],
        "revision_status":("TWO_RESEARCH_ENTRY_FEASIBLE" if len(top)==2
                           else "ONE_RESEARCH_ENTRY_FEASIBLE" if len(top)==1
                           else "CASH_NO_ENTRY_FEASIBLE"),

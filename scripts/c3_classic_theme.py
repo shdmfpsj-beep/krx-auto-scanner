@@ -1,12 +1,14 @@
 """One white/gold C3 card. True OHLCV paths and dated company context only."""
 import functools, hashlib, json, math, os
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from c3_entry_geometry_gate import assess
 
 W,H=1400,2400
+VISIBLE_SESSIONS=60  # Actual candles on the image, independent of MA warm-up.
 INK,SUB,GOLD,PAPER='#292B2C','#6C7073','#AC8848','#FAF9F5'
 GREEN,BLUE,RED,PURPLE='#297756','#367CAF','#B84B48','#8568A0'
 TRADE_COLORS={'first':GREEN,'second':BLUE,'stop':RED,'r1':GOLD,'r2':PURPLE}
@@ -27,6 +29,28 @@ def text(d,x,y,value,size=32,color=INK,bold=False,anchor=None):
 
 
 def won(v):return f'{v:,.0f}원' if v is not None else '미확정'
+
+
+def source_labels(report,row,bars):
+    """Only original validity and timestamps; never invent an expiry date."""
+    sessions=row.get('order_validity_sessions')
+    validity=(f'가격일 후 {sessions}거래일 · 범위 미도달 PASS' if type(sessions) is int and sessions>0 else '원본 유효기간 미확정 · 진입 보류')
+    received=row.get('source_received_at') or report.get('source_received_at')
+    stamp='수집 시각 미확정'
+    if received:
+        try:
+            dt=datetime.fromisoformat(str(received).replace('Z','+00:00'))
+            if dt.tzinfo is None:raise ValueError('TIMEZONE_REQUIRED')
+            stamp='수집 '+dt.astimezone(ZoneInfo('Asia/Seoul')).strftime('%m/%d %H:%M KST')
+        except (TypeError,ValueError):pass
+    visible=min(VISIBLE_SESSIONS,len(bars))
+    ma60_points=sum(i>=59 for i in range(len(bars)-visible,len(bars)))
+    return dict(validity=validity,order_validity_sessions=sessions,
+                validity_anchor='SOURCE_PRICE_SESSION_NOT_RENDER_DATE',
+                decision_date=row.get('decision_date'),price_asof=report.get('source_price_asof'),
+                source_received_at=received,source_received_label=stamp,
+                ma60_visible_points=ma60_points,ma60_full_visible_window=ma60_points==visible,
+                required_rows_for_full_ma60_window=VISIBLE_SESSIONS+59)
 
 
 def validate_bars(rows,asof,close):
@@ -125,7 +149,7 @@ def price_scale(values):
 
 def chart_geometry(bars,row,plan,av=None):
     left,right,top,bottom=158.,1104.,392.,1015.
-    show=bars[-30:];offset=len(bars)-len(show);last_x=right-28
+    show=bars[-VISIBLE_SESSIONS:];offset=len(bars)-len(show);last_x=right-28
     step=(last_x-left)/(len(show)-1)
     av=av or {n:moving_average(bars,n) for n in (5,20,60)}
     audit=audit_averages(bars,av)
@@ -145,7 +169,7 @@ def chart_geometry(bars,row,plan,av=None):
 
 def plot(d,bars,row,plan):
     g,av=chart_geometry(bars,row,plan);left,right,top,bottom=[g[k] for k in ('left','right','top','bottom')]
-    show=bars[-30:];lo,hi=g['axis_min'],g['axis_max'];y=lambda v:bottom-(v-lo)/(hi-lo)*(bottom-top)
+    show=bars[-VISIBLE_SESSIONS:];lo,hi=g['axis_min'],g['axis_max'];y=lambda v:bottom-(v-lo)/(hi-lo)*(bottom-top)
     v=lo
     while v<=hi+.01:
         yy=y(v);d.line((left,yy,right,yy),fill='#E7E5DE',width=1);text(d,left-18,yy,f'{v:,.0f}',26,SUB,anchor='rm');v+=g['tick']
@@ -158,9 +182,10 @@ def plot(d,bars,row,plan):
     for i,r in enumerate(show):
         xx=left+i*g['step'];c=RED if r['close']>=r['open'] else BLUE
         d.line((xx,y(r['high']),xx,y(r['low'])),fill=c,width=3)
-        a,b=sorted((y(r['open']),y(r['close'])));d.rectangle((xx-8,a,xx+8,max(a+2,b)),fill=c)
-        if r['volume']>0:d.rectangle((xx-8,vbottom-r['volume']/vmax*(vbottom-vtop),xx+8,vbottom),fill=c)
-        if i%6==0 or i==len(show)-1:text(d,xx,1150,r['date'][5:].replace('-','/'),25,SUB,anchor='ma')
+        a,b=sorted((y(r['open']),y(r['close'])));candle_half_width=max(3,min(7,g['step']*0.28))
+        d.rectangle((xx-candle_half_width,a,xx+candle_half_width,max(a+2,b)),fill=c)
+        if r['volume']>0:d.rectangle((xx-candle_half_width,vbottom-r['volume']/vmax*(vbottom-vtop),xx+candle_half_width,vbottom),fill=c)
+        if i%12==0 or i==len(show)-1:text(d,xx,1150,r['date'][5:].replace('-','/'),25,SUB,anchor='ma')
     for n,path in g['paths'].items():
         pts=[(p['x'],p['y']) for p in path]
         if len(pts)>1:d.line(pts,fill=MA_COLORS[int(n)],width=4)
@@ -176,12 +201,14 @@ def plot(d,bars,row,plan):
     return av,g
 
 
-def create_cards(report,outdir='/tmp/c3-integrated-cards'):
+def create_cards(report,outdir='/tmp/c3-integrated-cards',allow_single=True):
     picks=report.get('research_top2') or []
-    if len(picks)!=2 or len({r['ticker'] for r in picks})!=2:raise ValueError('EXACTLY_TWO_UNIQUE_CANDIDATES_REQUIRED')
+    if not picks:return create_cash_card(report,outdir)
+    if not (len(picks) in ((1,2) if allow_single else (2,))) or len({r['ticker'] for r in picks})!=len(picks):raise ValueError('PRESENTATION_CANDIDATE_COUNT_INVALID')
     root=Path(outdir);root.mkdir(parents=True,exist_ok=True);files=[];diagnostics=[]
     for rank,r in enumerate(picks,1):
         asof=report['source_price_asof'];close=float(r.get('reference_close',r['close']));bars=validate_bars(r.get('chart_bars',[]),asof,close)
+        source=source_labels(report,r,bars)
         if r.get('chart_price_basis')!='KRX_UNADJUSTED_AS_TRADED':raise ValueError('CHART_PRICE_BASIS_NOT_VERIFIED')
         p=((r.get('entry_plans') or {}).get('A_SUPPORT_LIMIT') or {}).get('plan');im=Image.new('RGB',(W,H),PAPER);d=ImageDraw.Draw(im)
         d.rectangle((0,0,W,98),fill=INK);d.rectangle((0,94,W,99),fill=GOLD)
@@ -190,11 +217,13 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards'):
         text(d,1345,125,won(close),61,INK,True,anchor='ra');previous=float(bars[-2]['close']);change=close-previous;pct=100*change/previous
         text(d,1345,204,f'{change:+,.0f}원 ({pct:+.2f}%)',31,RED if change>0 else BLUE if change<0 else SUB,True,anchor='ra')
         gate=assess(r,bars)
-        banner=(('과거 연구 예시 · '+asof+' · 실전 승인 아님') if report.get('example_only') else (asof+' 종가 · 연구 후보 · 진입 대기/CASH' if not gate['eligible'] else asof+' 종가 기준 · 연구 관찰용'))
+        banner=(('과거 연구 예시 · '+asof+' · 실전 승인 아님') if report.get('example_only') else (asof+' · 타점검증 관찰 · 자동주문 아님' if report.get('final_presentation_review') else (asof+' 종가 · 연구 후보 · 진입 대기/CASH' if not gate['eligible'] else asof+' 종가 기준 · 연구 관찰용')))
         d.rectangle((48,252,1352,294),fill='#F0EBDD');text(d,700,258,banner,27,GOLD,True,anchor='ma')
-        d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2);text(d,74,333,'일봉 · 가격과 거래량',31,INK,True)
+        d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2);text(d,74,333,'일봉 · 최근 60거래일 가격과 거래량',31,INK,True)
         for i,n in enumerate((5,20,60)):
-            xx=800+i*164;d.line((xx,353,xx+33,353),fill=MA_COLORS[n],width=4);text(d,xx+43,338,f'{n}일선',25,SUB)
+            xx=770+i*175;d.line((xx,353,xx+28,353),fill=MA_COLORS[n],width=4)
+            label=(f'60일선 {source["ma60_visible_points"]}/60' if n==60 and not source['ma60_full_visible_window'] else f'{n}일선')
+            text(d,xx+34,338,label,22,SUB)
         av,geometry=plot(d,bars,r,p);text(d,54,1218,'매매 관찰 구간',33,INK,True)
         cells=[('1차 매수 범위',won(p['low'])+' ~\n'+won(p['high']) if p else '미성립',GREEN),('2차 매수 범위','미확정',BLUE),('손절가',won(p.get('stop')) if p else '미확정',RED),('1차 저항',won(p.get('resistance')) if p else '미확정',GOLD),('2차 저항',won(p.get('resistance2')) if p else '미확정',PURPLE)]
         for i,(label,value,c) in enumerate(cells):
@@ -216,11 +245,50 @@ def create_cards(report,outdir='/tmp/c3-integrated-cards'):
             lines=wrap(d,value,1002,31,3)
             for k,line in enumerate(lines):text(d,321,yy+23+k*38,line,31,INK)
             rendered.append(value);layout.append({'label':label,'lines':len(lines),'text_right_max':max(d.textlength(line,font=font(31)) for line in lines),'box_right':1352,'box_bottom':yy+156,'font_size':31})
-        text(d,700,2310,'기업자료: DART·기업 IR · 선정 후 조사이며 점수·매수가에 미반영',25,SUB,anchor='ma')
-        text(d,700,2352,'KRX 가격 · 정규장 범위 별도 검증 필요 · 실제 매수 승인이 아닙니다.',25,SUB,anchor='ma')
+        labels={'CHASE_ENTRY_PREMIUM_OVER_5PCT':'종가·매수가 괴리','FIRST_RESISTANCE_UNVERIFIED':'첫 저항 미확정','ENTRY_REWARD_RISK_BELOW_1_5':'R1 손익비 부족'}
+        risks=[labels[x] for x in gate.get('reasons',[]) if x in labels]
+        msg=' / '.join(risks[:2]) if risks else '원본 계획 기반 관찰 · 실전 주문 아님'
+        text(d,700,2294,'타점 판단: '+msg,23,RED if risks else SUB,True,anchor='ma')
+        text(d,700,2329,f'선정 {source["decision_date"] or "미확정"} · 가격 {asof} · '+source['source_received_label'],21,SUB,anchor='ma')
+        text(d,700,2364,'유효: '+source['validity']+(' · 정규장 인증' if report.get('source_regular_only_certified') is True else ' · 정규장 미인증')+' · 자동주문 없음',21,SUB,anchor='ma')
         path=root/(r['ticker']+'_integrated.png');im.save(path,optimize=True);files.append(path)
-        diagnostics.append(dict(ticker=r['ticker'],entry_geometry_review=gate,asof=asof,source_rows=len(bars),visible_rows=min(30,len(bars)),source_basis=r['chart_price_basis'],previous_close=previous,close=close,change=change,change_pct=pct,
+        diagnostics.append(dict(ticker=r['ticker'],source_run_id=report.get('source_run_id'),
+            decision_payload_sha256=(report.get('input_provenance') or {}).get('decision_payload_sha256'),
+            source_validation_sha256=report.get('source_validation_sha256'),entry_geometry_review=gate,asof=asof,source_rows=len(bars),visible_rows=min(VISIBLE_SESSIONS,len(bars)),visible_first_date=bars[-VISIBLE_SESSIONS]['date'],visible_last_date=bars[-1]['date'],source_basis=r['chart_price_basis'],previous_close=previous,close=close,change=change,change_pct=pct,
             ma_last={str(n):seq[-1] for n,seq in av.items()},ma_valid_points={str(n):sum(v is not None for v in seq) for n,seq in av.items()},last5=[dict(b,**{'ma'+str(n):av[n][i] for n in av}) for i,b in list(enumerate(bars))[-5:]],geometry=geometry,
-            second_entry='NO_VALIDATED_SECOND_ENTRY_PLAN',company_context_status=(r.get('company_context') or {}).get('dart_status','NOT_ATTACHED'),company_context_missing=(r.get('company_context') or {}).get('missing',[]),notes=rendered,layout=layout,sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
+            second_entry='NO_VALIDATED_SECOND_ENTRY_PLAN',source_labels=source,original_support_plan=p,company_context_status=(r.get('company_context') or {}).get('dart_status','NOT_ATTACHED'),company_context_missing=(r.get('company_context') or {}).get('missing',[]),notes=rendered,layout=layout,sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
     (root/'render_diagnostics.json').write_text(json.dumps(dict(example_only=bool(report.get('example_only')),cards=diagnostics),ensure_ascii=False,indent=2)+'\n')
     return files
+
+
+def create_cash_card(report,outdir='/tmp/c3-integrated-cards'):
+    """An authenticated, completed empty original B decision only."""
+    if (report.get('source_regular_only_certified') is not True or
+        report.get('research_top2_registered_for_source_session') is not True or
+        report.get('research_top2')!=[] or report.get('errors') or
+        not (report.get('input_provenance') or {}).get('decision_payload_sha256')):
+        raise ValueError('EMPTY_ORIGINAL_DECISION_NOT_VERIFIED')
+    asof=report['source_price_asof'];date.fromisoformat(asof)
+    root=Path(outdir);root.mkdir(parents=True,exist_ok=True)
+    im=Image.new('RGB',(W,H),PAPER);d=ImageDraw.Draw(im)
+    d.rectangle((0,0,W,105),fill=INK);d.rectangle((0,102,W,108),fill=GOLD)
+    text(d,55,29,'강현AI PRO | C3 TOP2',45,'#F3E6CD',True)
+    text(d,700,390,'CASH',155,GOLD,True,anchor='ma')
+    text(d,700,630,'원본 선정 후보 없음',60,INK,True,anchor='ma')
+    text(d,700,820,'가격 기준일 '+asof,40,SUB,anchor='ma')
+    text(d,700,1110,'코스피·코스닥 분석 완료',43,INK,True,anchor='ma')
+    text(d,700,1260,'기존 B 모델의 등록 후보: 0개',39,INK,anchor='ma')
+    text(d,700,1470,'자료 수집 실패와 구분된 최종 결과입니다.',32,SUB,anchor='ma')
+    text(d,700,2180,'새로운 가격·손절가·매수 규칙을 만들지 않았습니다.',30,SUB,anchor='ma')
+    if report.get('example_only') or report.get('historical_test_only'):
+        text(d,700,2300,'재현 테스트 · 실제 발송 없음',32,RED,True,anchor='ma')
+    path=root/'CASH_integrated.png';im.save(path,optimize=True)
+    diag={'example_only':bool(report.get('example_only')),'cash_only':True,'source_price_asof':asof,
+        'cards':[{'ticker':'CASH','asof':asof,'source_rows':0,'visible_rows':0,
+          'source_run_id':report.get('source_run_id'),
+          'decision_payload_sha256':report['input_provenance']['decision_payload_sha256'],
+          'source_validation_sha256':report.get('source_validation_sha256'),
+          'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}]}
+    (root/'render_diagnostics.json').write_text(json.dumps(diag,ensure_ascii=False,indent=2)+'\n')
+    return [path]
+

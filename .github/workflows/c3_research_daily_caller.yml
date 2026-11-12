@@ -1,16 +1,15 @@
 name: C3 approved research daily caller
 on:
-  workflow_run:
-    workflows: ['KRX daily candidate scan']
-    types: [completed]
-    branches: [main]
   schedule:
-    # Retry windows, not a publication SLA. KST 22:15 and 08:20.
-    - cron: '15 13 * * 1-5'
-    - cron: '20 23 * * 0-4'
+    # UTC Sun-Thu 23:10/20/30 = KST Mon-Fri 08:10/20/30.
+    # Attempts, not a provider/Actions completion guarantee.
+    - cron: '10,20,30 23 * * 0-4'
+  push:
+    branches: [main]
+    paths: ['config/c3_morning_deploy_request.json']
   workflow_dispatch:
   pull_request:
-    paths: ['.github/workflows/c3_research_daily_caller.yml']
+    paths: ['.github/workflows/c3_research_daily_caller.yml','scripts/c3_morning_source_v1.py']
 permissions:
   contents: read
   actions: read
@@ -35,7 +34,7 @@ jobs:
           from pathlib import Path
           p=Path('.github/workflows/c3_research_daily_caller.yml').read_text()
           pin='54e7120b01966930e176d431e85b679347210c41'
-          job=p.split('\n  research:\n',1)[1]
+          job=p.split('\n  research:\n',1)[1].split('\n  morning-review:\n',1)[0]
           called=re.search(r'uses: shdmfpsj-beep/krx-auto-scanner/\.github/workflows/c3_daily_research_v8\.yml@([a-f0-9]{40})',job)
           configured=re.search(r'^      engine_ref: ([a-f0-9]{40})$',job,re.M)
           assert called and configured and called[1]==configured[1]==pin
@@ -45,7 +44,7 @@ jobs:
           assert 'needs: source-ready' in job and 'needs.source-ready.outputs.run_id' in job
           assert 'caller_mode: approved_daily' in job and 'refs/heads/main' in job
           pre=p.split('\n  source-ready:\n',1)[1].split('\n  research:\n',1)[0]
-          assert 'ref: '+pin in pre and 'scripts/c3_fast_ops_v18.py' in pre and 'persist-credentials: false' in pre
+          assert 'ref: '+pin in pre and 'scripts/c3_morning_source_v1.py' in pre and 'persist-credentials: false' in pre
           print('Pinned engine, read-only source preflight and explicit single secret valid; production disabled on PR')
           PYCODE
   source-ready:
@@ -56,31 +55,43 @@ jobs:
       actions: read
     outputs:
       run_id: ${{ steps.source.outputs.run_id }}
+      ready: ${{ steps.source.outputs.ready }}
+      source_day: ${{ steps.source.outputs.source_day }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 54e7120b01966930e176d431e85b679347210c41
           persist-credentials: false
           sparse-checkout: |
-            /scripts/c3_fast_ops_v18.py
-            /scripts/c3_artifact_audit_v18.py
+            /scripts/*.py
+            /config/c3_morning_deploy_request.json
           sparse-checkout-cone-mode: false
-      - name: Validate pinned independent price-supply preflight
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests pandas==2.2.3 exchange-calendars==4.13.2 cryptography --disable-pip-version-check
+      - name: Verify prior-session official KRX and cache before the existing engine
         id: source
         env:
+          PYTHONPATH: scripts:engine/scripts
           GH_TOKEN: ${{ github.token }}
-          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id || '' }}
-        run: python scripts/c3_fast_ops_v18.py --run-id "$UPSTREAM_RUN_ID" --outdir /tmp/c3-source-preflight
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python scripts/c3_morning_source_v1.py --outdir evidence
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: c3-caller-source-preflight
-          path: /tmp/c3-source-preflight/
+          name: c3-morning-source
+          path: evidence/morning_source.json
           retention-days: 90
-          if-no-files-found: warn
+          if-no-files-found: error
+
   research:
     needs: source-ready
-    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.source-ready.outputs.ready == 'true'
     permissions:
       contents: write
       actions: read
@@ -91,3 +102,89 @@ jobs:
       upstream_run_id: ${{ needs.source-ready.outputs.run_id }}
     secrets:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+  morning-review:
+    needs: [source-ready, research]
+    if: always() && !cancelled() && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.source-ready.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing report dependencies and Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install requests pillow pandas==2.2.3 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 --disable-pip-version-check
+      - uses: actions/download-artifact@v4
+        with:
+          name: c3-morning-source
+          path: evidence
+      - name: Reproduce frozen A/B before all-candidate entry review
+        if: needs.research.result == 'success'
+        env:
+          PYTHONPATH: scripts:engine/scripts
+          GH_TOKEN: ${{ github.token }}
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+          SOURCE_DAY: ${{ needs.source-ready.outputs.source_day }}
+        run: python scripts/c3_candidate_entry_review_v2.py --date "$SOURCE_DAY" --engine engine --state state --source-proof evidence/morning_source.json --outdir evidence/entry
+      - uses: actions/cache@v4
+        with:
+          path: .cache/c3-dart/
+          key: c3-dart-corp-v1-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: c3-dart-corp-v1-${{ runner.os }}-
+      - name: Join dated company facts to all technical candidates
+        if: needs.research.result == 'success'
+        env:
+          PYTHONPATH: scripts
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+        run: python scripts/c3_company_quality_review_v1.py --candidates evidence/entry/technical_candidates.json --entry evidence/entry/reselection_summary.json --outdir evidence/company
+      - name: Record finality and image without sending before completion
+        if: always() && !cancelled()
+        env:
+          PYTHONPATH: scripts:engine/scripts
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/c3_morning_final_v1.py --source evidence/morning_source.json --entry evidence/entry/reselection_summary.json --company evidence/company/combined_review.json --outdir evidence/final --publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-morning-final-inputs
+          path: |
+            evidence/morning_source.json
+            evidence/entry/reselection_summary.json
+            evidence/company/combined_review.json
+            evidence/final/*.json
+            evidence/final/*.png
+          retention-days: 90
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-morning-company-entry-evidence
+          path: |
+            evidence/entry/all_technical_entry_diagnostics.json
+            evidence/entry/technical_candidates.json
+            evidence/company/company_quality.json
+          retention-days: 90
+          if-no-files-found: warn
