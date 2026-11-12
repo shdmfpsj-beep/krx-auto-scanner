@@ -1,0 +1,161 @@
+{
+  "schema": "C3_PR87_TEMPORAL_EVIDENCE_AUDIT_20261111",
+  "provenance": {
+    "source_pr": 87,
+    "source_merge_sha": "1a0e098dbe36b60a459c9391e54a3760b7bea5d2",
+    "source_actions_run_id": 42939460173,
+    "source_artifact_id": 13819064332,
+    "source_artifact_digest": "sha256:bb9656985f9a9aa8766dc8b97651469427612c7f30d22fc5f98d26067b9b3a8e",
+    "cohort_path": "replay/c3_selection_feature_cohort.json",
+    "history_path": "official_history/YYYY-MM-DD/{KOSPI,KOSDAQ}_official.csv",
+    "financial_path": "reports/v91_financial_pit_provisional.csv",
+    "financial_quality_path": "reports/v93_pit_quality_summary.json",
+    "operational_paths": [
+      "reports/c3_paper/paper_ledger.json",
+      "reports/c3_selection_forward_registry_v17.csv",
+      "reports/c3_selection_evidence_v16.json"
+    ]
+  },
+  "historical": {
+    "start": "2026-04-01",
+    "end": "2026-09-15",
+    "market_dates": 114,
+    "rows": 300107,
+    "tickers": 2739,
+    "independent_price_discontinuity_flags": 337,
+    "minimum_120_actual_sessions_met": false,
+    "historical_pit_universe_verified": false,
+    "regular_1530_certified": false,
+    "corporate_actions_adjusted_verified": false
+  },
+  "cohort": {
+    "raw": 108,
+    "deduped": 78,
+    "suppressed": 30,
+    "lockout": 20,
+    "unique_tickers": 78,
+    "horizon": {
+      "5": {
+        "original_observed": 72,
+        "quality_valid": 60,
+        "excluded": 12,
+        "up_valid": 25,
+        "mean_return_pct": 0.375
+      },
+      "10": {
+        "original_observed": 63,
+        "quality_valid": 51,
+        "excluded": 12,
+        "up_valid": 19,
+        "mean_return_pct": -3.568
+      },
+      "20": {
+        "original_observed": 43,
+        "quality_valid": 37,
+        "excluded": 6,
+        "up_valid": 12,
+        "mean_return_pct": -4.765
+      }
+    },
+    "continuation_common_quality_valid_20": {
+      "n": 37,
+      "up_5": 14,
+      "up_10": 12,
+      "up_20": 12,
+      "up_5_and_20": 7,
+      "up_10_and_20": 8,
+      "up_all": 7
+    }
+  },
+  "holdout": {
+    "5": {
+      "split": "2026-08-07",
+      "train_matured_before_split": 26,
+      "test_after_split": 30,
+      "auc_oriented_on_train": {
+        "momentum_20d_pct": 0.5024,
+        "rvol_20d": 0.3206,
+        "ma20_extension_pct": 0.6124,
+        "ma20_vs_ma60_pct": 0.6029,
+        "stop_distance_pct": 0.5502
+      },
+      "bootstrap_95pct_ma20_extension": [
+        0.372,
+        0.835
+      ],
+      "bootstrap_95pct_ma20_vs_ma60": [
+        0.347,
+        0.837
+      ]
+    },
+    "10": {
+      "split": "2026-08-03",
+      "train_matured_before_split": 17,
+      "test_after_split": 24,
+      "status": "INSUFFICIENT_MATURED_TRAIN"
+    },
+    "20": {
+      "split": "2026-07-27",
+      "train_matured_before_split": 0,
+      "test_after_split": 16,
+      "status": "INSUFFICIENT_MATURED_TRAIN"
+    }
+  },
+  "joins": {
+    "kospI_kosdaq_benchmark": {
+      "status": "BLOCKED",
+      "reason": "KOSPI/KOSDAQ equity files are not market index histories; no independently aligned as-of index levels in source artifact"
+    },
+    "foreign_institutional_flow": {
+      "status": "BLOCKED",
+      "reason": "No dated investor-type flow columns in restored KRX OHLCV artifact"
+    },
+    "opendart_v91_provisional": {
+      "status": "PARTIAL_DATE_JOIN_ONLY",
+      "event_count": 78,
+      "matching_events": 4,
+      "ticker_signal_available": [
+        [
+          "281820",
+          "2026-06-30",
+          "2026-05-14"
+        ],
+        [
+          "240810",
+          "2026-07-01",
+          "2026-03-17"
+        ],
+        [
+          "053350",
+          "2026-07-14",
+          "2026-03-21"
+        ],
+        [
+          "108490",
+          "2026-09-04",
+          "2026-08-15"
+        ]
+      ],
+      "pit_numeric_certified": false
+    },
+    "opendart_v93": {
+      "status": "BLOCKED_STRICT_PIT",
+      "reason": "v93 audit states strict_pit_approved=false; original numeric vintage unverified"
+    },
+    "operational_top2_same_date": {
+      "status": "BLOCKED",
+      "reason": "Inspectible dated operating records from 2026-10-30 and 2026-11-02/10; PR87 selection dates 2026-06-30 through 2026-09-15"
+    }
+  },
+  "changes": {
+    "feature_weights_changed": false,
+    "production_scanner_changed": false,
+    "collector_request_schedule_unchanged": true,
+    "ledger_changed": false,
+    "approval_changed": false,
+    "cash_changed": false,
+    "pass_until_entry_unchanged": true,
+    "prediction_promoted": false
+  },
+  "conclusion": "No verified predictive improvement; only add read-only QC and maturity-purged temporal diagnostics. Need independently new market data, certified corporate actions and dated PIT joins before signal/rank promotion."
+}

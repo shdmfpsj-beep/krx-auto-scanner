@@ -15,6 +15,8 @@ on:
       - 'scripts/test_c3_selection_shadow_outcomes.py'
       - 'scripts/c3_selection_feature_cohort.py'
       - 'scripts/test_c3_selection_feature_cohort.py'
+      - 'scripts/c3_temporal_quality_validation.py'
+      - 'scripts/test_c3_temporal_quality_validation.py'
       - '.github/workflows/official_krx_120d_replay.yml'
 permissions:
   contents: read
@@ -48,6 +50,8 @@ jobs:
             /scripts/test_c3_selection_shadow_outcomes.py
             /scripts/c3_selection_feature_cohort.py
             /scripts/test_c3_selection_feature_cohort.py
+            /scripts/c3_temporal_quality_validation.py
+            /scripts/test_c3_temporal_quality_validation.py
             /scripts/forward_ledger_v63.py
             /scripts/source_consensus_v64.py
             /scripts/free_structural_v52.py
@@ -64,6 +68,7 @@ jobs:
           python -m unittest discover -s scripts -p test_c3_entry_expiry_diagnostics.py -v
           python -m unittest discover -s scripts -p test_c3_selection_shadow_outcomes.py -v
           python -m unittest discover -s scripts -p test_c3_selection_feature_cohort.py -v
+          python -m unittest discover -s scripts -p test_c3_temporal_quality_validation.py -v
       - name: Restore last successful official historical artifact
         shell: bash
         run: |
@@ -133,6 +138,19 @@ jobs:
           d=datetime.now(ZoneInfo('Asia/Seoul')).date()-timedelta(days=1)
           while d.weekday()>=5:d-=timedelta(days=1)
           subprocess.run([sys.executable,'scripts/c3_selection_feature_cohort.py','--root','output/official_history','--end',d.isoformat(),'--out','output/replay/c3_selection_feature_cohort.json'],check=True)
+          PY
+      - name: Audit as-of feature provenance and temporal holdout (read only)
+        run: |
+          python - <<'PY'
+          from datetime import datetime,timedelta
+          from zoneinfo import ZoneInfo
+          import subprocess,sys
+          d=datetime.now(ZoneInfo('Asia/Seoul')).date()-timedelta(days=1)
+          while d.weekday()>=5:d-=timedelta(days=1)
+          subprocess.run([sys.executable,'scripts/c3_temporal_quality_validation.py',
+            '--root','output/official_history','--end',d.isoformat(),
+            '--cohort','output/replay/c3_selection_feature_cohort.json',
+            '--out','output/replay/c3_temporal_quality_validation.json'],check=True)
           PY
       - name: Independently audit restored official history and provenance blockers
         if: always()
