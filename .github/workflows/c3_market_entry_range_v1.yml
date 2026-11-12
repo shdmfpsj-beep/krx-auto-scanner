@@ -93,6 +93,7 @@ jobs:
       - name: Review current global sources, generate single-entry ranges, mobile cards and forward diagnostics
         if: github.event_name == 'push'
         env:
+          GH_TOKEN: ${{ github.token }}
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
           C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
         run: python scripts/c3_market_range_study_v1.py --engine engine --state state --old evidence/original --out evidence/market-range
