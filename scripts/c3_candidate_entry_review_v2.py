@@ -76,6 +76,7 @@ def main():
     p.add_argument("--outdir",type=Path,required=True)
     p.add_argument("--date",default=None)
     p.add_argument("--source-run-id",default=None)
+    p.add_argument("--registration-proof",type=Path)
     p.add_argument("--source-proof",type=Path,required=True)
     args=p.parse_args()
     args.outdir.mkdir(parents=True,exist_ok=True)
@@ -95,7 +96,7 @@ def main():
     if (original.get("source_price_asof")!=DAY or
         original.get("source_run_id")!=ORIGINAL_SOURCE_RUN or
         original.get("research_top2_registered_for_source_session") is not True):
-        raise ValueError("FROZEN_NOV11_SOURCE_NOT_AVAILABLE")
+        raise ValueError("REGISTERED_SOURCE_NOT_AVAILABLE")
     expected=original["current_scope"]
     source_hashes=original["source_hashes"]
 
@@ -103,7 +104,7 @@ def main():
     market=read_record(lane/"markets"/(DAY+".json.gz"))
     decision=read_record(lane/"decisions"/(DAY+".json"))
     if market["asof"]!=DAY or decision.get("price_asof")!=DAY:
-        raise ValueError("FROZEN_SOURCE_PRICE_DATE_NOT_NOV11")
+        raise ValueError("FROZEN_SOURCE_PRICE_DATE_MISMATCH")
     if decision["source_snapshot_hash"]!=hash_value(market):
         raise ValueError("ORIGINAL_DECISION_AND_MARKET_HASH_MISMATCH")
     proof=json.loads(args.source_proof.read_text())
@@ -112,6 +113,16 @@ def main():
     if (proof.get('schema')!='C3_MORNING_OFFICIAL_SOURCE_V1' or proof.get('status')!='OFFICIAL_CACHE_MATCHED' or
         proof.get('requested_day')!=DAY or normalized_hash(normalized)!=proof.get('normalized_rows_sha256')):
         raise ValueError('FROZEN_MARKET_AND_CURRENT_OFFICIAL_PROOF_MISMATCH')
+    registered_state_sha=None
+    if args.registration_proof:
+        import subprocess
+        from c3_morning_registration_v1 import check_review
+        registration=json.loads(args.registration_proof.read_text())
+        registered_state_sha=subprocess.check_output(['git','-C',str(state),'rev-parse','HEAD'],text=True).strip()
+        check_review(registration,registered_state_sha,DAY,os.environ['GITHUB_RUN_ID'])
+        if (registration['source_run_id']!=ORIGINAL_SOURCE_RUN or registration['decision_payload_sha256']!=hash_value(decision) or
+            registration['market_payload_sha256']!=hash_value(market)):
+            raise ValueError('REGISTERED_SOURCE_REPLAY_LINEAGE_MISMATCH')
     old_b=[r["ticker"] for r in decision["models"]["B"]]
     if DAY=="2026-11-11" and old_b!=["028050","180640"]:
         raise ValueError("ORIGINAL_TOP2_BASELINE_CHANGED")
@@ -282,6 +293,8 @@ def main():
        "schema":"C3_ALL_TECHNICAL_ENTRY_REVIEW_V2",
        "price_asof":DAY,"checked_at_utc":datetime.now(timezone.utc).isoformat(),
        "original_source_run_id":ORIGINAL_SOURCE_RUN,
+       "registered_state_sha":registered_state_sha,
+       "registration_proof_sha256":digest(args.registration_proof) if args.registration_proof else None,
        "original_decision_source_sha256":decision["source_snapshot_hash"],
        "original_frozen_decision_payload_sha256":hash_value(decision),
        "original_source_validation_sha256":original.get('source_validation_sha256'),

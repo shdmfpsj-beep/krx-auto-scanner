@@ -52,6 +52,7 @@ jobs:
           print('Pinned engine, read-only source preflight and explicit single secret valid; production disabled on PR')
           PYCODE
   source-ready:
+    timeout-minutes: 8
     if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
     runs-on: ubuntu-latest
     permissions:
@@ -130,7 +131,9 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          ref: research/c3-ledger-integrity-audit-20261104
+          # Registered commit from this execution; branch fallback is read-only
+          # deployment replay or a held status after registration failure.
+          ref: ${{ needs.research.outputs.registered_state_sha || 'research/c3-ledger-integrity-audit-20261104' }}
           path: state
           persist-credentials: false
       - uses: actions/setup-python@v5
@@ -145,6 +148,22 @@ jobs:
         with:
           name: c3-morning-source
           path: evidence
+      - name: Verify registration commit, caller and date before analysis
+        if: needs.research.result == 'success'
+        env:
+          PYTHONPATH: scripts
+          REGISTRATION_PROOF: ${{ needs.research.outputs.registration_proof }}
+          SOURCE_DAY: ${{ needs.source-ready.outputs.source_day }}
+        run: |
+          python - <<'PY'
+          import json,os,subprocess
+          from pathlib import Path
+          from c3_morning_registration_v1 import check_review,canonical
+          proof=json.loads(os.environ['REGISTRATION_PROOF'])
+          head=subprocess.check_output(['git','-C','state','rev-parse','HEAD'],text=True).strip()
+          check_review(proof,head,os.environ['SOURCE_DAY'],os.environ['GITHUB_RUN_ID'])
+          Path('evidence/morning_registration.json').write_text(canonical(proof)+'\n')
+          PY
       - name: Reproduce frozen A/B before all-candidate entry review
         # Deployment push replays the already registered immutable day only.
         # It cannot bypass the pinned engine's approved invocation contract.
@@ -155,7 +174,10 @@ jobs:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
           C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
           SOURCE_DAY: ${{ needs.source-ready.outputs.source_day }}
-        run: python scripts/c3_candidate_entry_review_v2.py --date "$SOURCE_DAY" --engine engine --state state --source-proof evidence/morning_source.json --outdir evidence/entry
+        run: |
+          args=()
+          if [ -f evidence/morning_registration.json ]; then args+=(--registration-proof evidence/morning_registration.json); fi
+          python scripts/c3_candidate_entry_review_v2.py --date "$SOURCE_DAY" --engine engine --state state --source-proof evidence/morning_source.json --outdir evidence/entry "${args[@]}"
       - uses: actions/cache@v4
         with:
           path: .cache/c3-dart/
@@ -189,6 +211,7 @@ jobs:
           name: c3-morning-final-inputs
           path: |
             evidence/morning_source.json
+            evidence/morning_registration.json
             evidence/entry/reselection_summary.json
             evidence/company/combined_review.json
             evidence/final/*.json
