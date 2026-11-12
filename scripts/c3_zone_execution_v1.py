@@ -117,7 +117,11 @@ def simulate(plan,bars,signal_index,sessions,split=(.5,.5),validity=1,horizon=20
     capital=capital or P['planned_capital_krw'];cutoff=cutoff or sessions[-1];grid={d:i for i,d in enumerate(sessions)};g0=grid[bars[signal_index]['date']]
     end_i=max(i for i,d in enumerate(sessions) if d<=cutoff);mature=g0+3+horizon<=end_i
     if not mature and not allow_partial:return dict(status='CENSORED_COMMON_MATURITY',conservative_plan_return_pct=None)
-    if plan is None:return dict(status='NO_VALID_PLAN_CASH',conservative_plan_return_pct=0. if mature or allow_partial else None,optimistic_plan_return_pct=0.,first_filled=False,second_filled=False,ambiguous=False,pnl_krw=0.,quantity=0,actual_fill_verified=False)
+    if plan is None:
+        by={b['date']:b for b in bars};future=[by.get(d) for d in sessions[g0+1:min(end_i,g0+3+horizon)+1]]
+        good=bool(future) and all(b and b.get('tradable',True) and not b.get('action_boundary') and b.get('segment',0)==bars[signal_index].get('segment',0) for b in future)
+        missed=100*(max(b['high'] for b in future)/bars[signal_index]['close']-1) if good else None
+        return dict(status='NO_VALID_PLAN_CASH',conservative_plan_return_pct=0.,optimistic_plan_return_pct=0.,first_filled=False,second_filled=False,ambiguous=False,pnl_krw=0.,quantity=0,actual_fill_verified=False,missed_rally_mfe_pct=missed)
     if not 0<plan['stop']<plan['low']<=plan['high']:raise ValueError('INVALID_STOP_AND_ZONE_ORDER')
     a=allocation(plan,split,capital);sizes=[x['quantity'] for x in a['legs']];by={b['date']:b for b in bars};valid_until=g0+validity
     base=dict(cash=float(capital),spent=0.,gross=0.,fills=[],done=[],sizes=sizes,limits=[plan['high'],plan['low']],first_g=None,exit=None,pending_close_stop=False,

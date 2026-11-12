@@ -110,6 +110,9 @@ class QueuedLimitExecution(unittest.TestCase):
         b,s,p=fixture(5);r=simulate(p,b,0,s,allow_partial=True);self.assertEqual(r['status'],'PARTIAL_ASOF_NOT_MATURE')
     def test_cash_plan_is_not_data_failure(self):
         b,s,_=fixture();r=simulate(None,b,0,s);self.assertEqual(r['status'],'NO_VALID_PLAN_CASH');self.assertEqual(r['conservative_plan_return_pct'],0)
+    def test_cash_from_no_plan_still_records_missed_reference_rally(self):
+        b,s,_=fixture();b[3]['high']=150;r=simulate(None,b,0,s)
+        self.assertGreater(r['missed_rally_mfe_pct'],10);self.assertEqual(r['quantity'],0)
     def test_gap_stop_updates_close_drawdown(self):
         b,s,p=fixture();b[1].update(open=101,low=100,high=108,close=106);b[2].update(open=90,low=85,high=95,close=91)
         self.assertLess(simulate(p,b,0,s)['worst']['max_drawdown_close_pct'],0)

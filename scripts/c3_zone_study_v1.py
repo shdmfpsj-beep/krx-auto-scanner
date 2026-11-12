@@ -12,6 +12,8 @@ from c3_forward_ledger_v8 import read_record,hash_value
 from c3_competition_v2 import cluster_ci
 
 SPLITS={'A_SINGLE_UPPER':(1.,0.),'B_ORIGINAL_ZONE_50_50':(.5,.5),'C_ZONE_V1_50_50':(.5,.5),'H_HALF_UPPER_REST_CASH':(.5,0.)}
+RAW='D_RAW_ZONE_NO_GATE_SHADOW'
+SPLITS[RAW]=(.5,.5)
 
 
 def prefixes(allbars):
@@ -26,11 +28,12 @@ def prefixes(allbars):
 
 def metric(group,model,v,h):
     # Primary ABC comparison uses the SAME evaluable opportunities in all arms.
-    common=[e for e in group if all(e['outcomes'][m][v][h].get('conservative_plan_return_pct') is not None for m in MODELS)]
+    common=[e for e in group if all(e['outcomes'][m][v][h].get('conservative_plan_return_pct') is not None for m in MODELS) and e['outcomes'][model][v][h].get('conservative_plan_return_pct') is not None]
     pairs=[(e,e['outcomes'][model][v][h]) for e in common];xs=[(e,o) for e,o in pairs if 'worst' in o];n=len(pairs)
     mean=lambda seq:statistics.mean(seq) if seq else None
     first=[(e,o) for e,o in xs if o['first_filled']];second=[(e,o) for e,o in first if o['second_filled']];only=[(e,o) for e,o in first if not o['second_filled']]
-    return dict(opportunities=n,excluded_common_data_or_maturity=len(group)-n,first_fills=len(first),second_fills=len(second),first_only=len(only),unfilled=n-len(first),
+    valid=sum(e['plans'][model] is not None for e,_ in pairs)
+    return dict(opportunities=n,excluded_common_data_or_maturity=len(group)-n,valid_plan_count=valid,no_plan_cash_count=n-valid,valid_plan_unfilled_count=valid-len(first),first_fills=len(first),second_fills=len(second),first_only=len(only),unfilled=n-len(first),
         first_certain_count=sum(o.get('first_fill_certain_across_simulated_paths',False) for _,o in pairs),first_possible_count=sum(o.get('first_fill_possible',False) for _,o in pairs),second_certain_count=sum(o.get('second_fill_certain_across_simulated_paths',False) for _,o in pairs),second_possible_count=sum(o.get('second_fill_possible',False) for _,o in pairs),
         first_fill_rate_pct=100*len(first)/n if n else None,second_fill_rate_pct=100*len(second)/n if n else None,first_only_rate_pct=100*len(only)/n if n else None,unfilled_rate_pct=100*(n-len(first))/n if n else None,
         expectancy_plan_capital_net_pct=mean([o['conservative_plan_return_pct'] for _,o in pairs]),optimistic_bound_mean_pct=mean([o['optimistic_plan_return_pct'] for _,o in pairs]),
@@ -43,14 +46,15 @@ def metric(group,model,v,h):
         worst_intraday_path_stress_dd_pct=min([o['worst']['intraday_path_stress_drawdown_pct'] for _,o in first],default=None),
         ambiguous_count=sum(o.get('ambiguous',False) for _,o in pairs),gap_below_stop_uncertain=sum('AUCTION_BUYS_BELOW_STOP_EXECUTION_UNCERTAIN' in o['worst']['flags'] for _,o in xs),
         second_and_stop_same_bar=sum('SAME_DAY_TWO_LIMITS_AND_STOP' in o['worst']['flags'] for _,o in xs),
-        missed_unfilled_10pct_rally=sum((o.get('missed_rally_mfe_pct') or 0)>=10 for _,o in pairs),
+        missed_unfilled_10pct_rally=sum((o.get('missed_rally_mfe_pct') or 0)>=10 for e,o in pairs if e['plans'][model] is not None),
+        missed_no_plan_10pct_rally=sum((o.get('missed_rally_mfe_pct') or 0)>=10 for e,o in pairs if e['plans'][model] is None),
         descriptive_month_cluster_ci=cluster_ci([(e['date'][:7],o['conservative_plan_return_pct']) for e,o in pairs]),
         market_regime={r:dict(n=len(z:=[(e,o) for e,o in pairs if e['regime']==r]),expectancy_plan_pct=mean([o['conservative_plan_return_pct'] for _,o in z])) for r in ('UP','SIDEWAYS','DOWN')},
         cash_is_in_denominator=True,capital_constrained_portfolio_simulated=False)
 
 
 def paired_delta(group,left,right,v='1',h='20'):
-    pairs=[(e,e['outcomes'][left][v][h],e['outcomes'][right][v][h]) for e in group if all(e['outcomes'][m][v][h].get('conservative_plan_return_pct') is not None for m in MODELS)]
+    pairs=[(e,e['outcomes'][left][v][h],e['outcomes'][right][v][h]) for e in group if all(e['outcomes'][m][v][h].get('conservative_plan_return_pct') is not None for m in set(MODELS+(left,right)))]
     values=[a['conservative_plan_return_pct']-b['conservative_plan_return_pct'] for _,a,b in pairs];sd=statistics.stdev(values) if len(values)>1 else None
     required=math.ceil(((1.9599639845+.8416212336)*sd/P['power_planning_effect_plan_pct'])**2) if sd and sd>0 else None
     return dict(n=len(values),mean_plan_pct=statistics.mean(values) if values else None,median_plan_pct=statistics.median(values) if values else None,
@@ -77,7 +81,7 @@ def case_replays(allbars,cache,market,state,out):
                 if day<b['date']<=DAY:observed.append({k:b[k] for k in ('date','open','high','low','close','volume')})
             comparisons={}
             for m,split in SPLITS.items():
-                use=new if m.startswith('C_') and new and new['geometry_pass'] else None if m.startswith('C_') else p
+                use=new if m==RAW else new if m.startswith('C_') and new and new['geometry_pass'] else None if m.startswith('C_') else p
                 comparisons[m]=simulate(use,allbars[t],i,market['sessions'],split=split,cutoff=DAY,allow_partial=True)
             hold={m:simulate(p,allbars[t],i,market['sessions'],split=SPLITS[m],cutoff=DAY,allow_partial=True,exit_policy='CASE_CLOSE_STOP_NO_R1_EXIT') for m in ('A_SINGLE_UPPER','B_ORIGINAL_ZONE_50_50','H_HALF_UPPER_REST_CASH')}
             reported=dict(source='USER_REPORTED_NOT_BROKER_RECEIPT',reported_orders=[dict(limit=63500,budget_krw=2500000),dict(limit=60700,budget_krw=2500000)] if t=='028050' else [dict(limit=23500,budget_krw=2500000)],
@@ -122,10 +126,10 @@ def run(engine,state,old,out):
             if g-last.get(t,-10000)<=P['same_ticker_lockout_sessions']:suppressed+=1;continue
             last[t]=g;past=cache[t][day];f,why=features(past[-90:],r['market_return20']);original,reason=entry_plan(t,past[-90:],f,'A_SUPPORT_LIMIT',r['regime']) if f else (None,why)
             new,newwhy=zone_plan(past,t);approved_new=new if new and new['geometry_pass'] and r['liquidity_pass'] else None
-            plans={m:(approved_new if m.startswith('C_') else original) for m in MODELS};e=dict(r,fold='DEVELOPMENT' if day<=dev_end else 'REUSED_CHRONOLOGICAL_HOLDOUT',original_plan=original,new_zone=new,new_zone_rejections=newwhy,
+            plans={m:(approved_new if m.startswith('C_') else original) for m in MODELS};plans[RAW]=new;e=dict(r,fold='DEVELOPMENT' if day<=dev_end else 'REUSED_CHRONOLOGICAL_HOLDOUT',original_plan=original,new_zone=new,new_zone_rejections=newwhy,
                 plans=plans,all_three_valid=original is not None and approved_new is not None,outcomes={})
             bi=next(i for i,b in enumerate(allbars[t]) if b['date']==day);cutoff=sessions[hold_i-1] if e['fold']=='DEVELOPMENT' else DAY
-            for m in MODELS:
+            for m in MODELS+(RAW,):
                 e['outcomes'][m]={str(v):{str(h):simulate(plans[m],allbars[t],bi,sessions,SPLITS[m],v,h,cutoff=cutoff) for h in (5,10,20)} for v in (1,2,3)}
             events.append(e)
         if di%40==0:print('ZONE_SCREEN_PROGRESS',day,len(pool),len(events),flush=True)
@@ -136,6 +140,9 @@ def run(engine,state,old,out):
     for fold in folds:
         group=[e for e in events if e['fold']==fold];performance[fold]={m:{str(v):{str(h):metric(group,m,str(v),str(h)) for h in (5,10,20)} for v in (1,2,3)} for m in MODELS}
     comparisons={fold:{name:paired_delta([e for e in events if e['fold']==fold],a,b) for name,a,b in [('B_MINUS_A',MODELS[1],MODELS[0]),('C_MINUS_B',MODELS[2],MODELS[1]),('B_MINUS_HALF_UPPER',MODELS[1],MODELS[3])]} for fold in folds}
+    raw_diagnostics={fold:dict(metrics={str(v):{str(h):metric([e for e in events if e['fold']==fold],RAW,str(v),str(h)) for h in (5,10,20)} for v in (1,2,3)},
+        raw_minus_original_zone=paired_delta([e for e in events if e['fold']==fold],RAW,MODELS[1]),
+        diagnostic_only=True,candidate_gate_unchanged=True,not_preregistered_confirmatory_evidence=True) for fold in folds}
     common_plan_metrics={fold:{m:metric([e for e in events if e['fold']==fold and e['all_three_valid']],m,'1','20') for m in MODELS[:3]} for fold in folds}
     zone_rows=[r for r in daily_diag if r['zone']];price_ok=[r for r in zone_rows if r['zone']['geometry_pass']];quality=[r for r in price_ok if r['momentum_pass'] and r['liquidity_pass']]
     cases=case_replays(allbars,cache,market,state,out)
@@ -162,7 +169,7 @@ def run(engine,state,old,out):
             chronological_events=len(events),duplicate_signals_suppressed=suppressed),
         company_evidence_context_only={k:company.get(k) for k in ('asof','collected_at','requested','status_counts','original_document_pit_verified','selection_use')},
         technical_research_top2=quality[:2],financial_pit_confirmed_top2=[],final_candidate_count=None,decision='CASH',status='SELECTION_HELD_SOURCE_AND_FINANCE_UNCERTIFIED',
-        performance=performance,paired_comparisons=comparisons,all_three_valid_plan_subset=common_plan_metrics,width_distance_diagnostics=width,
+        performance=performance,paired_comparisons=comparisons,raw_zone_gate_ablation=raw_diagnostics,all_three_valid_plan_subset=common_plan_metrics,width_distance_diagnostics=width,
         original_b_selected_by_day=daily_original,failures=failures[:8],verdict='RESEARCH_MAINTAIN_NOT_PROMOTED',orders_enabled=False,telegram_requests=0,ledger_writes=0,
         limitations=['PRESERVED_HISTORY_REUSED_NOT_INDEPENDENT_UNSEEN','CURRENT_NOV11_UNIVERSE_AND_SECTOR_SURVIVORSHIP_BIAS','FINANCIAL_ORIGINAL_PIT_AND_BUSINESS_QUALITY_UNKNOWN',
         'REGULAR_ONLY_OHLCV_AND_TURNOVER_UNCERTIFIED','OHLC_BOUNDS_NOT_BROKER_FILLS_OR_QUEUE_PROOF','DAILY_EXTREMA_SEQUENCE_ASSUMPTIONS_AND_GAP_LOW_STRESS_NOT_GUARANTEED_TRUE_BOUNDS',
@@ -177,6 +184,9 @@ def run(engine,state,old,out):
         for model,vs in models.items():
             for v,hs in vs.items():
                 for h,metrics in hs.items():rows.append(dict(fold=fold,model=model,validity=v,horizon=h,**flat_metric(metrics)))
+    for fold,raw in raw_diagnostics.items():
+        for v,hs in raw['metrics'].items():
+            for h,metrics in hs.items():rows.append(dict(fold=fold,model=RAW,validity=v,horizon=h,**flat_metric(metrics)))
     with (out/'paired_metrics.csv').open('w',newline='') as f:
         w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
     print('ZONE_STUDY_SUMMARY',json.dumps(dict(counts=summary['counts'],paired=comparisons,elapsed=summary['elapsed_seconds']),ensure_ascii=False),flush=True)
