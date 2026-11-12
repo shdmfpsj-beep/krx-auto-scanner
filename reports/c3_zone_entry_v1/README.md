@@ -1,5 +1,7 @@
 # C3 Zone Entry V1 — preregistered independent paired research
 
+**FINAL: [RESULTS_KO.md](RESULTS_KO.md). Corrected actual run43174567553 / code9fa5fb9ecb7bf5473818f3c1e347c2ad6065fa64 succeeded,69 tests pass. No profitability adoption: B remains negative, lower-add benefit is inconsistent, new Zone has no qualified current candidate. Original main/records/receipts/schedules untouched.**
+
 One support zone [lower, upper], two pre-queued limits: 50% at upper and 50% at lower. These are not independent support strategies. No production, original signal/stop, ledger, Telegram, schedule or order change is authorized by this branch. PR104 provides only source loading, actual-price charting and structural helper code; its performance is not assumed successful.
 
 ## Scope and reuse
