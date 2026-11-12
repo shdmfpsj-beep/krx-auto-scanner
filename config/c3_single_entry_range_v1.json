@@ -1,9 +1,8 @@
 {
-  "model_version": "C3_MARKET_SINGLE_ENTRY_RANGE_V1",
+  "model_version": "C3_MARKET_ENTRY_RANGE_V2",
   "research_only": true,
-  "maximum_purchases_per_opportunity": 1,
-  "additional_purchases_allowed": false,
-  "range_execution": "USER_CHOOSES_ONE_PRICE_ONCE",
+  "range_execution": "USER_DISCRETION_NO_PRESCRIBED_ENTRY_COUNT",
+  "order_execution_policy": "MANUAL_ONLY_NO_AUTOMATIC_ORDER_OR_FIXED_SPLIT",
   "risk_limits_basis": "REUSED_UNVALIDATED_PR104_RESEARCH_LIMITS_NOT_LIVE_APPROVAL",
   "max_stop_risk_pct": 8.0,
   "min_net_r1_rr": 1.5,
