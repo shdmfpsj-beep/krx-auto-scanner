@@ -12,7 +12,7 @@ from c3_classic_theme import moving_average,validate_bars,notes,TRADE_COLORS
 
 def fixture():
     clock=datetime(2026,11,6,22,45,tzinfo=ZoneInfo('Asia/Seoul'))
-    r={'source_price_asof':'2026-11-06','source_run_id':'SYNTHETIC','generated_at':'2026-11-06T13:30:00Z','source_received_at':'2026-11-06T13:29:00Z','data_quality_state':'OFFICIAL_VERIFIED','source_provider':'KRX_OFFICIAL_EOD','source_quality_gate':{'status':'QUALITY_GATE_PASSED','errors':[],'markets':{'KOSPI':{'rows':900},'KOSDAQ':{'rows':1800}}},'current_scope':{'price_rows':2700,'analysis_eligible':1800},'errors':[],'orders_enabled':False,'current_action':'CASH','research_top2_registered_for_source_session':True,'research_top2':[{'ticker':'000001'},{'ticker':'000002'}]}
+    r={'source_price_asof':'2026-11-06','source_run_id':'SYNTHETIC','generated_at':'2026-11-06T13:30:00Z','source_received_at':'2026-11-06T13:29:00Z','analysis_completed_at':'2026-11-06T13:29:30Z','source_regular_only_certified':True,'data_quality_state':'OFFICIAL_VERIFIED','source_provider':'KRX_OFFICIAL_EOD','source_quality_gate':{'status':'QUALITY_GATE_PASSED','errors':[],'markets':{'KOSPI':{'rows':900},'KOSDAQ':{'rows':1800}}},'current_scope':{'price_rows':2700,'analysis_eligible':1800},'errors':[],'orders_enabled':False,'current_action':'CASH','research_top2_registered_for_source_session':True,'research_top2':[{'ticker':'000001'},{'ticker':'000002'}]}
     s={k:r[k] for k in ('source_price_asof','source_run_id','generated_at')};return r,s,clock
 
 class MemoryStore:
@@ -40,6 +40,9 @@ class FakeBot:
 class TelegramNotifyTests(unittest.TestCase):
     def setUp(self):self.latest,self.summary,self.clock=fixture()
     def test_verified_registered_new_session(self):self.assertIsNone(report_error(self.latest,self.summary,self.clock))
+    def test_later_reread_does_not_move_original_analysis_clock(self):
+        self.latest['source_received_at']='2026-11-06T13:29:45Z'
+        self.assertIsNone(report_error(self.latest,self.summary,self.clock))
     def test_yesterday_cannot_be_today(self):
         self.latest['source_price_asof']='2026-11-05';self.summary['source_price_asof']='2026-11-05'
         self.assertEqual(report_error(self.latest,self.summary,self.clock),'NO_NEW_COMPLETED_SESSION')
@@ -69,9 +72,10 @@ class TelegramNotifyTests(unittest.TestCase):
         self.latest['source_received_at']='2026-11-06T13:29:00';self.assertEqual(report_error(self.latest,self.summary,self.clock),'INVALID_REPORT_GENERATION_TIME')
     def test_unregistered_preview_not_sent_as_live(self):
         self.latest['research_top2_registered_for_source_session']=False;self.assertEqual(report_error(self.latest,self.summary,self.clock),'UNREGISTERED_RESEARCH_PREVIEW')
-    def test_one_or_duplicated_stock_does_not_fill_album(self):
-        for picks in ([{'ticker':'000001'}],[{'ticker':'000001'},{'ticker':'000001'}]):
-            self.latest['research_top2']=picks;self.assertEqual(report_error(self.latest,self.summary,self.clock),'EXACTLY_TWO_UNIQUE_CANDIDATES_REQUIRED')
+    def test_one_original_stock_is_allowed_but_duplicates_are_rejected(self):
+        self.latest['research_top2']=[{'ticker':'000001'}];self.assertIsNone(report_error(self.latest,self.summary,self.clock))
+        self.latest['research_top2']=[{'ticker':'000001'},{'ticker':'000001'}]
+        self.assertEqual(report_error(self.latest,self.summary,self.clock),'ORIGINAL_CANDIDATE_COUNT_OR_IDENTITY_INVALID')
     def test_qualified_mirror_has_separate_provenance_gate(self):
         self.latest.update(data_quality_state='RESEARCH_VALIDATED',source_provider='FINANCEDATA_KRX_CACHE')
         self.assertEqual(report_error(self.latest,self.summary,self.clock),'UNVERIFIED_ALTERNATIVE_PROOF')
@@ -114,7 +118,7 @@ class DeliveryFaultTests(unittest.TestCase):
         store=MemoryStore();store.legacy=True;bot=FakeBot();r=deliver(self.files,self.report,store,bot)
         self.assertEqual(r['status'],'DUPLICATE_BLOCKED');self.assertEqual(bot.calls,0)
     def test_duplicate_or_non_two_images_blocked(self):
-        for paths in ([self.files[0]],[self.files[0]]*2,self.files*2):
+        for paths in ([],[self.files[0]]*2,self.files*2):
             with self.assertRaises(ValueError):deliver(paths,self.report,MemoryStore(),FakeBot())
     def test_payload_has_only_two_photos_no_caption_or_text_and_no_redirect_retry(self):
         bot=Telegram('SYNTHETIC_NOT_A_REAL_TOKEN','-1001234567890')

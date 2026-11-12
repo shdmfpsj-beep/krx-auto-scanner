@@ -1,6 +1,7 @@
 """Pin report inputs to one Git revision and one KRX unadjusted price family."""
 import base64,csv,hashlib,importlib,io,json,os,re,sys,tempfile
 from pathlib import Path
+from datetime import datetime,timezone
 from urllib.parse import quote
 import requests
 
@@ -66,6 +67,50 @@ def report_pair(gh):
     latest=json.loads(gh.file(ROOT+'/latest.json',ref));summary=json.loads(gh.file(ROOT+'/mobile/summary.json',ref))
     return latest,summary,ref
 
+
+def warmup_from_owner(gh,report,ref=None):
+    """Restore the owner's authenticated preserved panel, never a new feed.
+
+    The original Actions artifact may expire. This uses its already encrypted
+    owner copy, whose plaintext archive and internal panel hashes are pinned.
+    """
+    if not report.get('research_top2'):return report
+    from c3_chart_warmup_v1 import attach_locked_warmup,PANEL_ZIP_SHA256
+    ref=ref or gh.head(RESEARCH)
+    reader=Path(os.environ.get('C3_ARCHIVE_READER_PATH','engine/scripts')).resolve()
+    if not (reader/'c3_supply_v11.py').is_file():raise ValueError('FROZEN_ARCHIVE_READER_MISSING')
+    sys.path.insert(0,str(reader));module=importlib.import_module('c3_supply_v11')
+    key=os.environ.get('KRX_AUTH_KEY','')
+    if not key:raise ValueError('PRIVATE_ARCHIVE_READER_KEY_NOT_CONNECTED')
+    path=ROOT+'/bootstrap/'+PANEL_ZIP_SHA256+'.aesgcm'
+    tree=gh.api('git/trees/'+ref+'?recursive=1')
+    if tree.get('truncated'):raise ValueError('CHART_WARMUP_TREE_INCOMPLETE')
+    found=[x for x in tree['tree'] if x['path']==path and x['type']=='blob']
+    if len(found)!=1 or not 0<found[0]['size']<=64*1024*1024:raise ValueError('OWNER_WARMUP_ARCHIVE_MISSING_OR_OVERSIZED')
+    blob=gh.api('git/blobs/'+found[0]['sha'])
+    if blob.get('encoding')!='base64':raise ValueError('OWNER_WARMUP_ENCODING_REJECTED')
+    cipher=base64.b64decode(blob['content'])
+    if len(cipher)!=found[0]['size']:raise ValueError('OWNER_WARMUP_SIZE_MISMATCH')
+    old_envelopes=os.environ.get('C3_KEY_ENVELOPES_DIR')
+    with tempfile.TemporaryDirectory(prefix='c3-display-warmup-') as tmp:
+        root=Path(tmp);envelopes=root/'key_envelopes';envelopes.mkdir()
+        listing=gh.api('contents/'+ROOT+'/key_envelopes?ref='+quote(ref,safe=''),missing_ok=True) or []
+        if len(listing)>32:raise ValueError('KEY_ENVELOPE_INVENTORY_LIMIT')
+        for item in listing:
+            if item['type']!='file' or not re.fullmatch(r'[a-zA-Z0-9_.-]{1,100}\.aesgcm',item['name']):raise ValueError('KEY_ENVELOPE_NAME_REJECTED')
+            body=gh.file(ROOT+'/key_envelopes/'+item['name'],ref)
+            if len(body)>65536:raise ValueError('KEY_ENVELOPE_SIZE_LIMIT')
+            (envelopes/item['name']).write_bytes(body)
+        encrypted=root/'panel.aesgcm';encrypted.write_bytes(cipher)
+        os.environ['C3_KEY_ENVELOPES_DIR']=str(envelopes)
+        try:
+            raw=module.open_sealed(encrypted,key)
+            archive=root/'panel.zip';archive.write_bytes(raw)
+            return attach_locked_warmup(report,archive)
+        finally:
+            if old_envelopes is None:os.environ.pop('C3_KEY_ENVELOPES_DIR',None)
+            else:os.environ['C3_KEY_ENVELOPES_DIR']=old_envelopes
+
 def frozen_live_bars(gh,report,ref):
     day=report['source_price_asof'];lane=report.get('ledger_lane')
     if lane!='lanes/krx_unadjusted_v12':raise ValueError('UNAPPROVED_IMMUTABLE_PRICE_LANE')
@@ -88,10 +133,27 @@ def frozen_live_bars(gh,report,ref):
         record=json.loads(module.open_sealed(p,key))
     payload=record['payload']
     if record['sha256']!=digest(canonical(payload)) or payload['price_asof']!=day:raise ValueError('IMMUTABLE_DECISION_HASH_OR_DATE_MISMATCH')
-    by={r['ticker']:r for r in payload['models']['B']}
+    if report.get('source_regular_only_certified') is True and payload.get('regular_only_certified') is not True:
+        raise ValueError('FROZEN_DECISION_REGULAR_SESSION_UNCERTIFIED')
+    if report.get('source_regular_only_certified') is True:
+        try:
+            stamps=[datetime.fromisoformat(str(payload[k]).replace('Z','+00:00')) for k in ('source_received_at','analysis_completed_at','known_at')]
+            if any(t.tzinfo is None for t in stamps) or not stamps[0]<=stamps[1]<=stamps[2]:raise ValueError('CLOCK')
+            if payload['analysis_completed_at']!=report.get('analysis_completed_at'):raise ValueError('CLOCK')
+        except (KeyError,TypeError,ValueError):raise ValueError('FROZEN_ORIGINAL_SOURCE_ANALYSIS_CLOCK_MISMATCH') from None
+    if report.get('source_hashes') is not None and report['source_hashes']!=payload.get('source_hashes'):
+        raise ValueError('PUBLIC_AND_FROZEN_SOURCE_HASHES_MISMATCH')
+    frozen=payload['models']['B'];public=report.get('research_top2')
+    if (not isinstance(frozen,list) or not isinstance(public,list) or not 0<=len(frozen)<=2 or
+        [(r.get('ticker'),r.get('signal_id'),r.get('rank')) for r in public]!=
+        [(r.get('ticker'),r.get('signal_id'),r.get('rank')) for r in frozen]):
+        raise ValueError('PUBLIC_AND_FROZEN_CANDIDATE_COUNT_OR_ORDER_MISMATCH')
+    by={r['ticker']:r for r in frozen}
     for r in report['research_top2']:
         old=by.get(r['ticker'])
-        if old is None or any(old.get(k)!=r.get(k) for k in ('signal_id','reference_close','entry_plans','model','rank')):raise ValueError('PUBLIC_REPORT_AND_FROZEN_DECISION_MISMATCH')
+        if old is None or any(old.get(k)!=r.get(k) for k in ('name','signal_id','reference_close','entry_plans','model','rank','source_run_id','source_price_asof','order_validity_sessions','invalidation','analysis_completed_at','registered_at')):raise ValueError('PUBLIC_REPORT_AND_FROZEN_DECISION_MISMATCH')
+        if old.get('source_run_id') is not None and str(old['source_run_id'])!=str(report.get('source_run_id')):
+            raise ValueError('FROZEN_DECISION_SOURCE_RUN_MISMATCH')
         r['chart_bars']=old['chart_bars'];r['chart_price_basis']='KRX_UNADJUSTED_AS_TRADED'
     report['input_provenance']={'research_ref':ref,'decision_payload_sha256':record['sha256'],'ultimate_origin':'KRX','price_basis':'UNADJUSTED_AS_TRADED'}
     return report

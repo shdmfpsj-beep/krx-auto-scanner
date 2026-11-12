@@ -4,9 +4,6 @@ on:
     workflows: ['C3 approved research daily caller']
     types: [completed]
     branches: [main]
-  schedule:
-    - cron: '45 13 * * 1-5' # KST weekdays 22:45, after existing research caller
-    - cron: '0 0 * * 1-5'   # KST weekdays 09:00 fallback
   workflow_dispatch:
     inputs:
       mode:
@@ -23,6 +20,9 @@ on:
       - 'scripts/c3_telegram_notify.py'
       - 'scripts/c3_telegram_inputs.py'
       - 'scripts/c3_classic_theme.py'
+      - 'scripts/c3_chart_warmup_v1.py'
+      - 'scripts/test_c3_emergency_delivery_v1.py'
+      - 'scripts/c3_morning_final_v1.py'
       - 'scripts/c3_report_context.py'
       - 'scripts/c3_report_handoff.py'
       - 'scripts/test_c3_report_handoff.py'
@@ -49,6 +49,8 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_chart_warmup_v1.py
+            scripts/test_c3_emergency_delivery_v1.py
             scripts/c3_entry_geometry_gate.py
             scripts/c3_report_context.py
             scripts/c3_report_handoff.py
@@ -61,7 +63,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
-          ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+          ref: 54e7120b01966930e176d431e85b679347210c41
           path: engine
           persist-credentials: false
           sparse-checkout: |
@@ -89,6 +91,7 @@ jobs:
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_telegram_notify.py' -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_quality.py' -v
           PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_report_handoff.py' -v
+          PYTHONPATH=scripts python -m unittest discover -s scripts -p 'test_c3_emergency_delivery_v1.py' -v
       - name: Rehearse current live input without any Telegram credentials
         if: github.event.pull_request.head.repo.full_name == github.repository
         env:
@@ -137,6 +140,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           OPENDART_API_KEY: ${{ github.event.pull_request.head.repo.full_name == github.repository && secrets.OPENDART_API_KEY || '' }}
+          KRX_AUTH_KEY: ${{ github.event.pull_request.head.repo.full_name == github.repository && secrets.KRX_AUTH_KEY || '' }}
         run: python scripts/c3_telegram_notify.py --mode preview --outdir /tmp/c3-integrated-preview
       - name: Verify real persisted duplicate protection without a Telegram token
         env:
@@ -255,9 +259,9 @@ jobs:
     permissions:
       contents: write
       actions: read
-    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+    uses: shdmfpsj-beep/krx-auto-scanner/.github/workflows/c3_daily_research_v8.yml@54e7120b01966930e176d431e85b679347210c41
     with:
-      engine_ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+      engine_ref: 54e7120b01966930e176d431e85b679347210c41
       caller_mode: approved_daily
     secrets:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
@@ -267,6 +271,7 @@ jobs:
       always() && !cancelled() &&
       github.repository == 'shdmfpsj-beep/krx-auto-scanner' &&
       github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
+      github.event_name != 'workflow_run' &&
       (github.event_name != 'workflow_run' ||
        (github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.head_branch == 'main' &&
@@ -284,6 +289,8 @@ jobs:
             scripts/c3_telegram_notify.py
             scripts/c3_telegram_inputs.py
             scripts/c3_classic_theme.py
+            scripts/c3_chart_warmup_v1.py
+            scripts/test_c3_emergency_delivery_v1.py
             scripts/c3_entry_geometry_gate.py
             scripts/c3_report_context.py
             scripts/c3_report_handoff.py
@@ -293,7 +300,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
-          ref: ab8439afc075b6e482887a8aad40f1a8d2d0fa1c
+          ref: 54e7120b01966930e176d431e85b679347210c41
           path: engine
           persist-credentials: false
           sparse-checkout: |
@@ -361,7 +368,8 @@ jobs:
           if status=='SKIPPED' and reason in {
               'REPORT_HAS_UNRESOLVED_ERRORS','SOURCE_QUALITY_GATE_FAILED',
               'INCOMPLETE_MARKET_COVERAGE','MARKET_ROW_COUNT_MISMATCH',
-              'INVALID_SOURCE_RECEIPT_TIMING','UNVERIFIED_MARKET_DATA'
+              'INVALID_SOURCE_RECEIPT_TIMING','UNVERIFIED_MARKET_DATA',
+              'ANALYSIS_COMPLETION_TIME_MISMATCH'
           }:
               print(f'::error::C3 live report blocked by unresolved data/quality issue: {reason}')
               sys.exit(1)
@@ -379,3 +387,71 @@ jobs:
           if [ "$MODE" = 'live' ] && [ -f /tmp/c3-integrated-delivery/presentation.json ]; then
             python scripts/c3_report_handoff.py publish --outdir /tmp/c3-integrated-delivery
           fi
+  morning-notify:
+    if: >-
+      github.repository == 'shdmfpsj-beep/krx-auto-scanner' &&
+      github.ref == 'refs/heads/main' && github.event_name == 'workflow_run' &&
+      (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure') &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify an exact completed-source artifact exists
+        id: artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/'+os.environ['SOURCE_RUN_ID']+'/artifacts?per_page=100'
+          req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+          with urllib.request.urlopen(req,timeout=25) as f:doc=json.load(f)
+          matches=[x for x in doc['artifacts'] if x['name']=='c3-morning-final-inputs' and not x['expired'] and x['workflow_run']['id']==int(os.environ['SOURCE_RUN_ID'])]
+          if len(matches)>1:raise ValueError('AMBIGUOUS_SOURCE_ARTIFACT')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('ready='+str(len(matches)==1).lower()+'\n')
+          print('Source artifact count:',len(matches),'No Telegram request in this check')
+          PY
+      - uses: actions/download-artifact@v4
+        if: steps.artifact.outputs.ready == 'true'
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: c3-morning-final-inputs
+          path: evidence
+      - name: Install existing image dependencies
+        if: steps.artifact.outputs.ready == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install requests pillow --disable-pip-version-check
+      - name: Verify image lineage and prior receipts before a single photo-only attempt
+        if: steps.artifact.outputs.ready == 'true'
+        env:
+          PYTHONPATH: scripts
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          C3_MORNING_SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: python scripts/c3_morning_final_v1.py --source evidence/morning_source.json --entry evidence/entry/reselection_summary.json --company evidence/company/combined_review.json --outdir morning-delivery --prepared-report evidence/final/morning_final.json --prepared-image evidence/final/C3_morning_status.png --send --publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-morning-telegram-delivery
+          path: morning-delivery/
+          retention-days: 90
+          if-no-files-found: warn
