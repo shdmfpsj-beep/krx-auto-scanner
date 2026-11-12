@@ -1,0 +1,79 @@
+{
+  "schema": "C3_ZONE_ENTRY_V1_PREREGISTERED_RESEARCH",
+  "asof": "2026-11-11",
+  "source_engine": "54e7120b01966930e176d431e85b679347210c41",
+  "structural_helpers": "7f7916328a9434dc7bc9751d0d34518f0d17163b",
+  "planned_capital_krw": 5000000,
+  "primary_split": [
+    0.5,
+    0.5
+  ],
+  "models": [
+    "A_SINGLE_UPPER",
+    "B_ORIGINAL_ZONE_50_50",
+    "C_ZONE_V1_50_50"
+  ],
+  "diagnostic_control": "H_HALF_UPPER_REST_CASH",
+  "zone_lower_atr": 0.25,
+  "zone_upper_atr": 1.0,
+  "stop_buffer_confirmation_atr": 0.5,
+  "pivot_right_bars": 2,
+  "pivot_lookback": 35,
+  "require_no_later_lower_low": true,
+  "max_entry_distance_pct": 8.0,
+  "max_entry_distance_atr": 1.0,
+  "max_total_plan_risk_pct": 8.0,
+  "min_full_fill_net_r1_rr": 1.5,
+  "first_only_net_r1_must_be_positive": true,
+  "min_turnover20_krw": 1000000000,
+  "entry_validity_sessions": [
+    1,
+    2,
+    3
+  ],
+  "forward_horizons": [
+    5,
+    10,
+    20
+  ],
+  "same_ticker_lockout_sessions": 23,
+  "holdout_last_sessions": 40,
+  "purge_sessions": 23,
+  "fees": {
+    "buy": 0.0015,
+    "sell": 0.005,
+    "slippage_each_side": 0.001
+  },
+  "quantity": "INTEGER_SHARES_FIXED_BEFORE_OPEN_FROM_LIMIT_PRICE_INCLUDING_BUY_COST",
+  "orders": "BOTH_BUY_LIMITS_PLACED_BEFORE_OPEN; NO_RETROSPECTIVE_CANCEL",
+  "primary_exit": "ALL_HELD_AT_FROZEN_R1_OR_INTRADAY_STRUCTURAL_STOP_OR_HORIZON_CLOSE",
+  "case_hold_diagnostic": "NO_R1_EXIT; CLOSE_STOP_NEXT_SESSION_OPEN; NOT_PRIMARY_NEW_RULE",
+  "daily_ordering": "ENUMERATE_TWO_CANONICAL_EXTREMA_ORDERS_PER_DAY_PLUS_EXACT_TOUCH_BRANCHES; NOT_ALL_INTRADAY_PATHS",
+  "primary_expectancy": "WORST_SIMULATED_PATH_PER_PLAN_INCLUDING_UNFILLED_CASH; REPORT_BOUNDS_AND_AMBIGUITY",
+  "gap_below_stop": "QUEUED_BUYS_CAN_FILL; FLAG_UNCERTAIN_AND_REPORT_SAME_DAY_LOW_STRESS",
+  "comparison": "SAME_TICKER_DATE_COOLDOWN_BEFORE_PLAN_FILTER; ALSO_ALL_THREE_VALID_SUBSET",
+  "power_planning_effect_plan_pct": 0.5,
+  "power_planning_alpha": 0.05,
+  "power_planning_power": 0.8,
+  "indicators_added": [],
+  "new_thresholds_profitability_validated": false,
+  "independent_unseen_validation": false,
+  "historical_financial_pit_verified": false,
+  "regular_only_certified": false,
+  "orders_enabled": false,
+  "telegram_enabled": false,
+  "promote_to_main": false,
+  "lockout_reason": "COMMON_MAX_3_ENTRY_PLUS_20_HOLDING_CLOCK_NO_ADJACENT_OVERLAP",
+  "descriptive_bins": {
+    "width_pct": [
+      1,
+      3,
+      5
+    ],
+    "upper_gap_pct": [
+      2,
+      5,
+      8
+    ]
+  }
+}
