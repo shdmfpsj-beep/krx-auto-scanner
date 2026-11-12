@@ -1,0 +1,59 @@
+{
+  "schema": "C3_DYNAMIC_ENTRY_V2_RESEARCH_PROTOCOL",
+  "asof": "2026-11-11",
+  "approved_engine": "54e7120b01966930e176d431e85b679347210c41",
+  "min_history": 80,
+  "max_entry_distance_atr": 1.0,
+  "max_entry_distance_pct": 8.0,
+  "max_stop_risk_pct": 8.0,
+  "min_net_r1_rr": 1.5,
+  "min_turnover20_krw": 1000000000,
+  "support_zone_atr": 0.2,
+  "stop_buffer_atr": 0.25,
+  "pivot_confirmation_bars": 2,
+  "resistance_cluster_atr": 0.25,
+  "bb_period": 20,
+  "bb_standard_deviations": 2,
+  "bb_filter": "PREVIOUS_WIDTH_LE_PREVIOUS_20_WIDTH_MEDIAN",
+  "adx_period": 14,
+  "adx_filter": "ADX_GE_25_AND_PLUS_DI_GT_MINUS_DI",
+  "adx_threshold": 25,
+  "entry_validity_sessions": [
+    1,
+    2,
+    3
+  ],
+  "forward_horizons": [
+    5,
+    10,
+    20
+  ],
+  "same_ticker_signal_lockout": 20,
+  "holdout_last_sessions": 40,
+  "purge_sessions": 23,
+  "selector_development_min_complete_events": 20,
+  "rank": "ORIGINAL_TURNOVER20_DESC_RS20_DESC_TICKER",
+  "within_ticker_plan_choice": "CLOSEST_ENTRY_ATR_THEN_NET_R1_RR",
+  "fees": {
+    "buy": 0.0015,
+    "sell": 0.005,
+    "slippage_each_side": 0.001
+  },
+  "same_bar_policy": "STOP_FIRST_NO_ENTRY_DAY_INTRADAY_TARGET_CREDIT",
+  "gap_below_entry_range": "CANCEL_NOT_ASSUMED_REBOUND_FILL",
+  "financial_pit_unknown": "NO_CONFIRMED_INTEGRATED_TOP2",
+  "historical_sector_membership": "CURRENT_UNIVERSE_CONDITIONED_NOT_PIT_CERTIFIED",
+  "indicators_added": [
+    "BOLLINGER_BANDWIDTH20",
+    "WILDER_ADX14"
+  ],
+  "thresholds_profitability_validated": false,
+  "promote_to_main": false,
+  "orders_enabled": false,
+  "telegram_enabled": false,
+  "existing_breakout_volume_ratio_min": 1.2,
+  "first_pullback_prior_completed_reclaims_allowed": 0,
+  "reused_preignition_score_used": false,
+  "correctness_amendment": "INCLUDE_EVERY_POST_BREAKOUT_LOW_AND_REJECT_CLOSES_BREAKING_EXISTING_V58_SUPPORT_TOLERANCE",
+  "correctness_amendment_reason": "CHART_AUDIT_REVEALED_OMITTED_FAILED_RETESTS; NOT_THRESHOLD_TUNING"
+}
