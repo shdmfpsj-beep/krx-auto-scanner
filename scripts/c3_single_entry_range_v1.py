@@ -137,3 +137,46 @@ def single_scenario(plan,choice):
     # It is not a user trade-count policy or an instruction to split orders.
     return dict(low=plan['range']['low'],high=price,stop=plan['stop'],resistance=plan['r1'],resistance2=plan['r2'],
         range_floor=plan['range']['low'],range_ceiling=plan['range']['high'],choice=choice)
+
+def evaluate_user_fills(plan, fills, planned_capital_krw):
+    """Optional research risk calculator for user-supplied hypothetical fills.
+
+    There is NO prescribed entry count or allocation. No execution occurs.
+    Use only within a validated observation range, and keep the total planned
+    capital in the denominator so multiple fills cannot hide increased risk.
+    """
+    if not isinstance(plan,dict) or not plan.get('range_valid'):
+        raise ValueError('VALID_RESEARCH_RANGE_REQUIRED')
+    if not isinstance(fills,(list,tuple)) or not fills:
+        raise ValueError('NONEMPTY_USER_FILL_LIST_REQUIRED')
+    if not isinstance(planned_capital_krw,(int,float)) or isinstance(planned_capital_krw,bool) or not math.isfinite(planned_capital_krw) or planned_capital_krw<=0:
+        raise ValueError('VALID_PLANNED_CAPITAL_REQUIRED')
+    lo,hi=plan['range']['low'],plan['range']['high']
+    stop,r1=plan['stop'],plan['r1']
+    b,s=factors();shares=0;cost_before_fees=0.0
+    for f in fills:
+        if not isinstance(f,dict):
+            raise ValueError('FILL_MUST_BE_A_PRICE_AND_QUANTITY')
+        price=f.get('price');qty=f.get('quantity')
+        if (not isinstance(price,(int,float)) or isinstance(price,bool) or
+                not math.isfinite(price) or price<lo or price>hi or
+                up(price)!=price or down(price)!=price):
+            raise ValueError('FILL_PRICE_OUTSIDE_VALID_RANGE_OR_TICK')
+        if not isinstance(qty,int) or isinstance(qty,bool) or qty<=0:
+            raise ValueError('POSITIVE_INTEGER_FILL_QUANTITY_REQUIRED')
+        shares+=qty;cost_before_fees+=price*qty
+    cost=cost_before_fees*b
+    if cost>planned_capital_krw+1e-8:
+        raise ValueError('TOTAL_FILL_COST_EXCEEDS_DECLARED_CAPITAL')
+    loss=cost-stop*s*shares
+    if loss<=0:raise ValueError('NONPOSITIVE_STRUCTURAL_RISK')
+    reward=r1*s*shares-cost if r1 is not None else None
+    return dict(status='HYPOTHETICAL_USER_FILLS_NOT_ORDERS',
+        fill_count=len(fills),total_shares=shares,average_price=cost_before_fees/shares,
+        gross_purchase_krw=cost_before_fees,modeled_purchase_cost_krw=cost,
+        unused_planned_capital_krw=planned_capital_krw-cost,
+        loss_at_structural_stop_krw=loss,
+        total_capital_at_risk_pct=100*loss/planned_capital_krw,
+        cost_adjusted_r1_rr=reward/loss if reward is not None else None,
+        orders_placed=False,actual_fills_verified=False,
+        research_risk_policy_not_live_approval=True)
