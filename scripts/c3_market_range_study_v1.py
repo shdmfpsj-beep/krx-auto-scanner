@@ -19,6 +19,8 @@ from c3_range_forward_v1 import hash_value,register,observe,append_outcome
 from c3_range_card_v1 import render,hold_card
 from c3_range_delivery_v1 import envelope,transport_test,safe_claim
 from c3_range_structure_v3 import reassess,audit_no_anchor_change
+from c3_entry_structure_v4 import review_v4
+from c3_filter_audit_v4 import exclusion_audit,rejection_cohorts
 
 DAY='2026-11-11'
 MACRO_ARTIFACT=13914336548
@@ -35,6 +37,17 @@ def restore_pr106_baseline(out):
             body=z.read(info);target=out/'baseline_pr106'/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(body)
             result[name]=json.loads(body)
     return result
+
+def restore_v3_baseline(out):
+    raw=subprocess.check_output(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/13937200195/zip'],timeout=60)
+    if hashlib.sha256(raw).hexdigest()!='747b868adfec90e096ff0d0a3337a21a988349d0d8db04fb21fbf0c54e63e160':raise ValueError('V3_BASELINE_ARCHIVE_HASH_MISMATCH')
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        name='evidence/market-range/all149_range_diagnostics.json';info=z.getinfo(name)
+        if info.file_size>20*1024*1024:raise ValueError('V3_BASELINE_OVERSIZED')
+        body=z.read(info)
+    write(out/'baseline_v3_all149.json',json.loads(body))
+    return {r['ticker']:r for r in json.loads(body)['rows']}
+
 
 def restore_macro(path):
     raw=subprocess.check_output(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(MACRO_ARTIFACT)+'/zip'],timeout=60)
@@ -71,7 +84,8 @@ def latest_probe(out,clock):
 
 def financial_review(row,cutoff):
     s=(row or {}).get('latest_statement') or {}
-    if not s or s.get('published_on','9999')>cutoff:return dict(status='UNAVAILABLE_OR_FUTURE_REPORT',observed_positive=False,confirmed=False)
+    if not s or s.get('published_on','9999')>cutoff:return dict(status='UNAVAILABLE_OR_FUTURE_REPORT',observed_positive=False,confirmed=False,
+        required_metrics_complete=False,company_observation_state='UNKNOWN_NOT_COMPANY_FAILURE')
     fields=('revenue_krw','operating_profit_krw','operating_cashflow_ytd_krw','equity_krw')
     positive=all(isinstance(s.get(k),(int,float)) and s[k]>0 for k in fields)
     balanced=isinstance(s.get('balance_identity_gap_fraction'),(int,float)) and abs(s['balance_identity_gap_fraction'])<=.01
@@ -80,9 +94,13 @@ def financial_review(row,cutoff):
     observed=positive and stable_balance
     growth=s.get('revenue_increased') is True and s.get('operating_profit_increased') is True
     confirmed=observed and row.get('financial_pit_verified') is True and row.get('original_document_pit_verified') is True
+    required=fields+('assets_krw','liabilities_krw','balance_identity_gap_fraction')
+    missing=[k for k in required if not isinstance(s.get(k),(int,float)) or isinstance(s.get(k),bool)]
     return dict(status='CONFIRMED_ORIGINAL_PIT' if confirmed else 'LATER_API_CONTEXT_NOT_ORIGINAL_PIT',observed_positive=observed,
         growth_observed=growth,confirmed=confirmed,statement=s,business_competitiveness_verified=False,
-        operational_ranking_approved=False,not_available_as_original_nov11_selection_reason=True)
+        operational_ranking_approved=False,not_available_as_original_nov11_selection_reason=True,
+        required_metrics_complete=not missing,missing_metrics=missing,
+        company_observation_state='UNKNOWN_NOT_COMPANY_FAILURE' if missing else 'OBSERVED_POSITIVE' if observed else 'OBSERVED_METRICS_FAIL')
 
 def choose_watch(rows,financial,sector):
     # Logical gates and deterministic lexicographic ordering, no invented
@@ -203,6 +221,7 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
     previous=restore_pr106_baseline(out) if fetch else {name:json.loads((out/'baseline_pr106'/name).read_text()) for name in ('report.json','all149_range_diagnostics.json','historical_single_entry_summary.json')}
     if previous['report.json']['source_hash']!=provenance['original_market_payload_sha256']:raise ValueError('PR106_SOURCE_MARKET_CHANGED')
     previous_by={r['ticker']:r for r in previous['all149_range_diagnostics.json']['rows']}
+    v3_baseline=restore_v3_baseline(out)
     probe=latest_probe(out,clock) if fetch else dict(status='OFFLINE_NO_NEW_PROVIDER_REQUEST')
     macro=restore_macro(out/'source_global_snapshot.json') if fetch else json.loads(Path('evidence/source-global/v618_global_macro_status.json').read_text())
     global_c=load_prior_macro(macro,clock)
@@ -222,15 +241,22 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
     for r in rows:
         legacy=generate_ranges(current[r['ticker']]);prior=previous_by[r['ticker']]['range_review']
         if legacy!=prior:raise ValueError('PR106_RANGE_MODEL_NOT_EXACTLY_REPRODUCED:'+r['ticker'])
-        d=reassess(current[r['ticker']],legacy);audit_no_anchor_change(legacy,d)
+        v3=reassess(current[r['ticker']],legacy);audit_no_anchor_change(legacy,v3)
+        if v3!=v3_baseline[r['ticker']]['range_review']:raise ValueError('V3_FULL_REVIEW_NOT_REPRODUCED:'+r['ticker'])
+        d=review_v4(current[r['ticker']],legacy)
         range_counts['range_generated']+=bool(legacy['plans']);range_counts['range_risk_pass']+=bool(legacy['best'])
         range_counts['practical_entry_pass']+=bool(d['best'])
         range_counts['any_confirmed_stop']+=any(p['stop_reliability']['research_eligible'] for p in d['plans'])
+        range_counts['v3_practical_pass']+=bool(v3['best'])
+        range_counts['v4_generated']+=bool(d['plans'])
+        range_counts['v4_risk_pass']+=any(p['range_valid'] for p in d['plans'])
         r.update(range_review=d,financial=finance.get(r['ticker'],{}));diags.append(r)
-    if range_counts['range_generated']!=102 or range_counts['range_risk_pass']!=30:raise ValueError('PR106_102_RANGES_30_RISK_PASS_NOT_REPRODUCED')
+    if range_counts['range_generated']!=102 or range_counts['range_risk_pass']!=30 or range_counts['v3_practical_pass']!=9:raise ValueError('PR106_102_RANGES_30_RISK_PASS_NOT_REPRODUCED')
     sensitivity={str(t):dict(risk_and_width=sum(any(p['range_valid'] and p['range']['width_atr']>=t for p in r['range_review']['plans']) for r in rows),
         risk_width_and_confirmed_stop=sum(any(p['range_valid'] and p['range']['width_atr']>=t and p['stop_reliability']['research_eligible'] for p in r['range_review']['plans']) for r in rows)) for t in (0,.1,.2,.3,.4)}
     write(out/'practicality_sensitivity.json',dict(asof=DAY,thresholds_not_optimized=True,live_minimum_adopted=False,by_width_atr=sensitivity))
+    write(out/'filter_exclusion_audit.json',exclusion_audit(rows))
+    write(out/'range_cut_audit.json',[dict(ticker=r['ticker'],name=r['name'],old_clipped=[dict(method=p['method'],structural=p['range'].get('structural_range'),low=p['range']['low'],high=p['range']['high'],width_atr=p['range']['width_atr'],too_narrow=p['practicality']['status']=='RANGE_TOO_NARROW') for p in r['range_review']['v3_review']['plans'] if p['range_valid']],new=[dict(method=p['method'],range=p['range']) for p in r['range_review']['plans']]) for r in rows])
     watch=[]
     for t in selected_ids:
         r=dict(by[t]);p=r['range_review']['best']
@@ -245,7 +271,7 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
         source_date=DAY,source_received_at=source['final_collection_at'],source_run_id=provenance['original_source_run_id'],source_hash=provenance['original_market_payload_sha256'],
         generated_at=datetime.now(timezone.utc).isoformat(),research_run_id=os.environ.get('GITHUB_RUN_ID'),research_commit=os.environ.get('GITHUB_SHA'),
         regime=regime,watch_top2=watch,entry_fit_top2=fit,final_research_top2=fit,
-        final_research_ranking_policy='RESELECT_ALL_QUALIFIED_AFTER_GEOMETRY_PRACTICALITY_AND_STOP_EVIDENCE',confirmed_company_quality_top2=[],
+        final_research_ranking_policy='CORPORATE_OBSERVATIONS_MOMENTUM_THEN_TYPED_STRUCTURE_STOP_AND_WHOLE_RANGE',confirmed_company_quality_top2=[],
         selection_rank_frozen_before_range=True,financial_context_collected_at=company['collected_at'],
         financial_original_pit_verified=False,regular_only_certified=False,current_action='CASH',buy_approved=False,
         entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',automated_order_enabled=False,telegram_requests=0,original_ledgers_modified=False,
@@ -271,8 +297,8 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
     for t in ('028050','051160'):
         row=dict(by[t]);legacy=row['range_review']['legacy_best']
         if not legacy:continue
-        plan=next(p for p in row['range_review']['plans'] if p['method']==legacy['method'] and p['support']==legacy['support'] and p['stop']==legacy['stop'])
-        row.update(display_plan=plan,is_diagnostic=True,reason_text='기존 연구 가격 불변 · 제외 사유 진단')
+        plan=row['range_review']['best'] or next(p for p in row['range_review']['v3_review']['plans'] if p['method']==legacy['method'] and p['support']==legacy['support'] and p['stop']==legacy['stop'])
+        row.update(display_plan=plan,is_diagnostic=True,case_selected=row['range_review']['best'] is not None,reason_text='기존 V3와 구조 유형별 판단 비교')
         path=out/'case_reviews'/('C3_CASE_'+DAY.replace('-','')+'_'+t+'.png')
         case_bars=current[t][-119:]
         chart_source=dict(ticker=t,source_date=DAY,original_source_run_id=report['source_run_id'],
@@ -304,6 +330,8 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
         forward.append(dict(registration=reg,observation=observe(record,allbars[r['ticker']],market['indices'][r['market']],market['sessions'],DAY)))
     write(out/'forward_tracking.json',dict(records=forward,backdated_forward_registrations=0,live_daily_deployment=False,
         code_supports_immutable_records_and_5_10_20_updates=True,reason='FROZEN_NOV11_REPLAY_NOT_NEW_FORWARD_SIGNAL'))
+    cohorts,cohort_events=rejection_cohorts(allbars,eligible,meta,market,DAY)
+    write(out/'three_rejection_cohorts.json',cohorts);write(out/'three_rejection_cohort_events.json',cohort_events)
     history=previous['historical_single_entry_summary.json'] if reuse_history else history_comparison(allbars,eligible,meta,market,out)
     if reuse_history:write(out/'historical_reference_pr106.json',dict(status='REUSED_PRIOR_RESULT_NOT_A_V3_BACKTEST',source_run_id='43191464464',
         archive_sha256='4347b7fc1483b63953a8a07f314f13e8ba5231ab0ac2e825c5ae1a398712e522',reference=history,
@@ -311,8 +339,8 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
     write(out/'execution_summary.json',dict(funnel=report['funnel'],watch=[dict(ticker=r['ticker'],name=r['name'],close=r['close'],status=r['status']) for r in watch],
         research_entry_fit=len(fit),final_research_top2=[dict(ticker=r['ticker'],name=r['name'],range=[r['display_plan']['range']['low'],r['display_plan']['range']['high']]) for r in fit],
          buy_approved=False,action='CASH',regime=regime,historical_range_events=history['range_events'],
-        png_count=len(paths),diagnostic_case_pngs=len(case_paths),all149_original_numeric_plans_unchanged=True,
-        historical_metrics_scope='REUSED_PR106_REFERENCE_NOT_V3_BACKTEST' if reuse_history else 'V3_EXPLORATORY_NOT_INDEPENDENT',
+        png_count=len(paths),diagnostic_case_pngs=len(case_paths),all149_original_numeric_plans_unchanged=True,new_typed_plans_are_separate_version=True,
+        historical_metrics_scope='REUSED_PR106_REFERENCE_NOT_V4_BACKTEST' if reuse_history else 'V3_EXPLORATORY_NOT_INDEPENDENT',
         telegram_actual_requests=0,elapsed_seconds=round(time.monotonic()-started,2)))
     print(json.dumps(dict(funnel=report['funnel'],watch=selected_ids,final_research_top2=[r['ticker'] for r in fit],png_count=len(paths),buy_approved=False),ensure_ascii=False))
 

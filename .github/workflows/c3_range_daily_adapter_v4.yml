@@ -1,0 +1,177 @@
+name: C3 V4 registered daily observation adapter (NO SEND)
+on:
+  workflow_call:
+    inputs:
+      research_code_sha:
+        type: string
+        required: true
+      registered_state_sha:
+        type: string
+        required: true
+      registration_proof:
+        type: string
+        required: true
+      official_source_proof:
+        type: string
+        required: true
+    secrets:
+      KRX_AUTH_KEY:
+        required: true
+      OPENDART_API_KEY:
+        required: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-range-v4-prospective-records
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: scripts:engine/scripts
+      GH_TOKEN: ${{ github.token }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.research_code_sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.registered_state_sha }}
+          path: state
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests pillow pandas==2.2.3 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 yfinance==0.2.66 --disable-pip-version-check
+      - run: sudo apt-get update -qq && sudo apt-get install -y fonts-nanum >/dev/null
+      - name: Validate exact same-caller handoff before private history or company collection
+        env:
+          REGISTRATION_PROOF: ${{ inputs.registration_proof }}
+          OFFICIAL_SOURCE_PROOF: ${{ inputs.official_source_proof }}
+          STATE_SHA: ${{ inputs.registered_state_sha }}
+          RESEARCH_CODE_SHA: ${{ inputs.research_code_sha }}
+        run: |
+          python - <<'PY'
+          import json,os,re,subprocess
+          from pathlib import Path
+          from datetime import datetime,timezone
+          from c3_range_daily_v4 import lineage
+          from c3_forward_ledger_v8 import read_record
+          expected=os.environ['RESEARCH_CODE_SHA']
+          if not re.fullmatch('[a-f0-9]{40}',expected) or subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()!=expected:raise ValueError('PINNED_V4_CODE_COMMIT_REQUIRED')
+          root=Path('evidence');root.mkdir(exist_ok=True)
+          proof=json.loads(os.environ['REGISTRATION_PROOF']);source=json.loads(os.environ['OFFICIAL_SOURCE_PROOF'])
+          (root/'registration.json').write_text(json.dumps(proof));(root/'source.json').write_text(json.dumps(source))
+          latest=json.loads(Path('state/reports/c3_forward_v8/latest.json').read_text());day=latest['source_price_asof'];lane=Path('state/reports/c3_forward_v8/lanes/krx_unadjusted_v12')
+          lineage(latest,read_record(lane/'markets'/(day+'.json.gz')),read_record(lane/'decisions'/(day+'.json')),source,proof,os.environ['STATE_SHA'],os.environ['GITHUB_RUN_ID'],datetime.now(timezone.utc),'forward')
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('SOURCE_DAY='+day+'\nSOURCE_RUN='+latest['source_run_id']+'\n')
+          PY
+      - name: Restore separate immutable research observations, never operational ledgers
+        run: |
+          python - <<'PY'
+          import base64,json,subprocess
+          from pathlib import Path,PurePosixPath
+          repo='repos/shdmfpsj-beep/krx-auto-scanner';branch='research/c3-range-v4-observations'
+          refs=json.loads(subprocess.check_output(['gh','api',repo+'/git/matching-refs/heads/'+branch]))
+          root=Path('research-records');root.mkdir(exist_ok=True)
+          if refs:
+              if len(refs)!=1 or refs[0]['ref']!='refs/heads/'+branch:raise ValueError('AMBIGUOUS_RESEARCH_RECORD_REF')
+              head=refs[0]['object']['sha'];tree=json.loads(subprocess.check_output(['gh','api',repo+'/git/trees/'+head+'?recursive=1']))
+              if tree.get('truncated'):raise ValueError('RESEARCH_RECORD_TREE_INCOMPLETE')
+              prefix='reports/c3_range_forward_v4/'
+              for item in tree['tree']:
+                  if item['type']!='blob' or not item['path'].startswith(prefix):continue
+                  rel=PurePosixPath(item['path'][len(prefix):])
+                  if item['mode']!='100644' or '..' in rel.parts or rel.is_absolute():raise ValueError('INVALID_RESEARCH_RECORD_PATH')
+                  blob=json.loads(subprocess.check_output(['gh','api',repo+'/git/blobs/'+item['sha']]))
+                  dest=root/str(rel);dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(base64.b64decode(blob['content']))
+          PY
+      - name: Reproduce the newly registered approved A/B source and technical pool
+        env:
+          C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+        run: python scripts/c3_candidate_entry_review_v2.py --date "$SOURCE_DAY" --source-run-id "$SOURCE_RUN" --registration-proof evidence/registration.json --engine engine --state state --source-proof evidence/source.json --outdir evidence/original
+      - name: Collect dated company observations without original PIT claims
+        env:
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+        run: python scripts/c3_company_quality_review_v1.py --candidates evidence/original/technical_candidates.json --entry evidence/original/reselection_summary.json --outdir evidence/company
+      - name: Reuse the existing free global macro collector with the actual decision cutoff
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from pathlib import Path
+          from global_macro_risk_v618 import collect
+          clock=datetime.now(ZoneInfo('Asia/Seoul'))
+          result=collect(clock.date(),clock.strftime('%H:%M'),Path('evidence/macro-cache'),True)
+          Path('evidence/macro.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Generate V4 ranges, cards and immutable 5/10/20 research observations
+        run: python scripts/c3_range_daily_v4.py --engine engine --state state --old evidence/original --source evidence/source.json --company evidence/company/company_quality.json --out evidence/daily --records research-records --registration evidence/registration.json --caller-run-id '${{ github.run_id }}' --mode forward --macro evidence/macro.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-range-v4-daily-observations
+          path: |
+            evidence/registration.json
+            evidence/source.json
+            evidence/company/*.json
+            evidence/macro.json
+            evidence/daily/
+            research-records/
+          retention-days: 90
+          if-no-files-found: error
+  preserve-research:
+    needs: observe
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: c3-range-v4-daily-observations
+          path: incoming
+      - name: Append only to the separate research-state branch
+        run: |
+          python - <<'PY'
+          import shutil,subprocess
+          from pathlib import Path
+          branch='research/c3-range-v4-observations'
+          listed=subprocess.check_output(['git','ls-remote','--heads','origin','refs/heads/'+branch],text=True).strip()
+          if listed:
+              subprocess.run(['git','fetch','origin','refs/heads/'+branch],check=True)
+              subprocess.run(['git','checkout','-B',branch,'FETCH_HEAD'],check=True)
+          else:subprocess.run(['git','checkout','-b',branch],check=True)
+          incoming=Path('incoming/research-records');root=Path('reports/c3_range_forward_v4')
+          if not incoming.is_dir():raise ValueError('FORWARD_RECORDS_ARTIFACT_REQUIRED')
+          for src in sorted(incoming.rglob('*')):
+              if src.is_symlink():raise ValueError('RESEARCH_RECORD_SYMLINK_FORBIDDEN')
+              if not src.is_file():continue
+              target=root/src.relative_to(incoming)
+              if target.exists():
+                  if target.read_bytes()!=src.read_bytes():raise ValueError('IMMUTABLE_RESEARCH_RECORD_WOULD_CHANGE')
+              else:target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(src,target)
+          subprocess.run(['git','add','--',str(root)],check=True)
+          paths=subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
+          if any(not p.startswith('reports/c3_range_forward_v4/') for p in paths):raise ValueError('NONRESEARCH_PATH_STAGED')
+          if paths:
+              subprocess.run(['git','config','user.name','github-actions[bot]'],check=True)
+              subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'],check=True)
+              subprocess.run(['git','commit','-m','research: append immutable V4 observations (NO SEND)'],check=True)
+              subprocess.run(['git','push','origin','HEAD:refs/heads/'+branch],check=True)
+          PY

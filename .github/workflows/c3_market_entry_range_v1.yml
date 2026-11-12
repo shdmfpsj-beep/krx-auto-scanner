@@ -1,7 +1,7 @@
-name: C3 Practical Range and Structural Stop V3 (NO SEND)
+name: C3 Structure Typed Range V4 (NO SEND)
 on:
   push:
-    branches: [research/c3-range-stop-practicality-v3-20261112]
+    branches: [research/c3-structure-typed-entry-v4-20261112]
     paths:
       - 'scripts/c3_*range*v1.py'
       - 'scripts/c3_market_context_v1.py'
@@ -9,6 +9,13 @@ on:
       - 'scripts/test_c3_single_entry_range_v1.py'
       - 'scripts/c3_range_structure_v3.py'
       - 'scripts/test_c3_range_structure_v3.py'
+      - 'scripts/c3_entry_structure_v4.py'
+      - 'scripts/c3_filter_audit_v4.py'
+      - 'scripts/test_c3_entry_structure_v4.py'
+      - 'scripts/c3_range_daily_v4.py'
+      - 'scripts/test_c3_range_daily_v4.py'
+      - 'scripts/c3_dynamic_study_v2.py'
+      - '.github/workflows/c3_range_daily_adapter_v4.yml'
       - 'config/c3_single_entry_range_v1.json'
       - '.github/workflows/c3_market_entry_range_v1.yml'
   pull_request:
@@ -19,6 +26,13 @@ on:
       - 'scripts/test_c3_single_entry_range_v1.py'
       - 'scripts/c3_range_structure_v3.py'
       - 'scripts/test_c3_range_structure_v3.py'
+      - 'scripts/c3_entry_structure_v4.py'
+      - 'scripts/c3_filter_audit_v4.py'
+      - 'scripts/test_c3_entry_structure_v4.py'
+      - 'scripts/c3_range_daily_v4.py'
+      - 'scripts/test_c3_range_daily_v4.py'
+      - 'scripts/c3_dynamic_study_v2.py'
+      - '.github/workflows/c3_range_daily_adapter_v4.yml'
       - 'config/c3_single_entry_range_v1.json'
       - '.github/workflows/c3_market_entry_range_v1.yml'
 permissions:
@@ -65,8 +79,9 @@ jobs:
           sudo apt-get install -y fonts-nanum >/dev/null
       - name: Causal indicators, structural plans, conservative fills and reused strategy regressions
         run: |
+          set -euo pipefail
           mkdir -p evidence/tests
-          python -m unittest test_c3_range_structure_v3 test_c3_single_entry_range_v1 test_c3_dynamic_entry_v2 test_first_pullback_v55 test_entry_strategy_v58 test_free_structural_v52 test_c3_telegram_notify test_c3_morning_registration_v1 -v 2>&1 | tee evidence/tests/regression.log
+          python -m unittest test_c3_range_daily_v4 test_c3_entry_structure_v4 test_c3_range_structure_v3 test_c3_single_entry_range_v1 test_c3_dynamic_entry_v2 test_first_pullback_v55 test_entry_strategy_v58 test_free_structural_v52 test_c3_telegram_notify test_c3_morning_registration_v1 -v 2>&1 | tee evidence/tests/regression.log
       - name: Snapshot production originals and delivery receipts (read only)
         if: github.event_name == 'push'
         env:
@@ -101,6 +116,43 @@ jobs:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
           C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
         run: python scripts/c3_market_range_study_v1.py --engine engine --state state --old evidence/original --out evidence/market-range --reuse-pr106-history
+      - name: Run generic registered-source daily adapter read-only, without backdated observations
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+        run: |
+          python scripts/c3_range_daily_v4.py --engine engine --state state --old evidence/original --source evidence/source-original/morning_source.json --company evidence/company/company_quality.json --out evidence/daily-replay --records evidence/isolated-forward-records --mode replay --macro evidence/market-range/source_global_snapshot.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import datetime,timezone
+          from c3_range_daily_v4 import lineage
+          from c3_forward_ledger_v8 import read_record
+          root=Path('state/reports/c3_forward_v8');latest=json.loads((root/'latest.json').read_text());day=latest['source_price_asof']
+          lane=root/'lanes/krx_unadjusted_v12';market=read_record(lane/'markets'/(day+'.json.gz'));decision=read_record(lane/'decisions'/(day+'.json'))
+          source=json.loads(Path('evidence/source-original/morning_source.json').read_text())
+          try:
+              lineage(latest,market,decision,source,{},'da44b0225e228353a77a57998fc31c482ce8e11a','${{ github.run_id }}',datetime.now(timezone.utc),'forward')
+          except ValueError as exc:
+              status=dict(status='HELD_NO_APPROVED_CURRENT_HANDOFF',reason=str(exc),new_forward_writes=0,actual_telegram_requests=0)
+          else:raise AssertionError('ARCHIVED_REPLAY_WAS_ALLOWED_AS_FORWARD')
+          Path('evidence/daily-replay/live_forward_hold.json').write_text(json.dumps(status,indent=2)+'\n')
+          assert not list(Path('evidence/isolated-forward-records').rglob('*.json'))
+          r=json.loads(Path('evidence/daily-replay/report.json').read_text())
+          prior=json.loads(Path('evidence/market-range/report.json').read_text())
+          assert r['source_hash']==prior['source_hash'] and r['funnel']['technical']==149 and r['funnel']['practical_entry_pass']==21
+          assert r['final_research_top2']==[] and r['buy_approved'] is False
+          PY
+      - name: Recheck the existing free broker connection, never orders or certification
+        if: github.event_name == 'push'
+        env:
+          KIWOOM_APP_KEY: ${{ secrets.KIWOOM_APP_KEY }}
+          KIWOOM_APP_SECRET: ${{ secrets.KIWOOM_APP_SECRET }}
+        run: |
+          day=$(python -c "from datetime import datetime,timezone;from c3_morning_source_v1 import prior_session;print(prior_session(datetime.now(timezone.utc))['requested_day'].replace('-',''))")
+          python scripts/c3_morning_provider_probe_v1.py --day "$day" --out evidence/daily-replay/existing_provider_probe.json
       - name: Verify production originals, registered stops and receipts remain unchanged
         if: always() && github.event_name == 'push'
         env:
@@ -109,7 +161,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: c3-practical-range-structural-stop-v3
+          name: c3-structure-typed-entry-v4
           path: |
             evidence/tests/
             evidence/integrity/
@@ -119,6 +171,7 @@ jobs:
             evidence/original/technical_candidates.json
             evidence/original/all_technical_entry_diagnostics.json
             evidence/market-range/
+            evidence/daily-replay/
             config/c3_single_entry_range_v1.json
           if-no-files-found: error
           retention-days: 90

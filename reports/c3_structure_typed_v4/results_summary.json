@@ -1,0 +1,1192 @@
+{
+  "code_sha": "7179dd06d8899a0dcccf6be4073d571b0784091a",
+  "run_id": "43212624679",
+  "artifact_id": "13941178928",
+  "artifact_zip_sha256": "a7dfa92884ee7a7d3719c63d30545159a4db297f2acbb823106f6ed73737db0f",
+  "execution": {
+    "action": "CASH",
+    "all149_original_numeric_plans_unchanged": true,
+    "buy_approved": false,
+    "diagnostic_case_pngs": 2,
+    "elapsed_seconds": 30.82,
+    "final_research_top2": [],
+    "funnel": {
+      "analysis_eligible": 1988,
+      "any_confirmed_stop": 102,
+      "continuous_history": 2416,
+      "current_review_watch_eligible": 19,
+      "entry_fit_top2": 0,
+      "full_market": 2769,
+      "observed_positive_financial": 80,
+      "original_b": 50,
+      "original_pit_confirmed": 0,
+      "positive_improving_rs": 50,
+      "practical_entry_pass": 21,
+      "provisional_watch_top2": 2,
+      "range_generated": 102,
+      "range_risk_pass": 30,
+      "technical": 149,
+      "v3_practical_pass": 9,
+      "v4_generated": 102,
+      "v4_risk_pass": 21
+    },
+    "historical_metrics_scope": "REUSED_PR106_REFERENCE_NOT_V4_BACKTEST",
+    "historical_range_events": 20,
+    "new_typed_plans_are_separate_version": true,
+    "png_count": 1,
+    "regime": {
+      "buy_approved": false,
+      "global_label": "GLOBAL_CAUTION_RESEARCH_ONLY",
+      "observed_regime": "BEAR",
+      "reason": "REGULAR_SESSION_AND_FINANCIAL_PIT_GATES_STILL_REQUIRED",
+      "risk_posture": "CASH_FIRST",
+      "sector_mapping_to_us_verified": false,
+      "verified_regime": "UNVERIFIED"
+    },
+    "research_entry_fit": 0,
+    "telegram_actual_requests": 0,
+    "watch": [
+      {
+        "close": 66400.0,
+        "name": "삼성E&A",
+        "status": "WATCH",
+        "ticker": "028050"
+      },
+      {
+        "close": 204000.0,
+        "name": "한진칼",
+        "status": "WATCH",
+        "ticker": "180640"
+      }
+    ]
+  },
+  "filter_audit": {
+    "cash_interpretation": {
+      "absence_of_marketwide_profitable_stocks_proven": false,
+      "eligible_research_candidates": 0,
+      "financial_original_pit_certified": false,
+      "official_regular_session_certified": false,
+      "over_exclusion_ruled_out": false,
+      "price_structure_review_completed": true,
+      "research_no_candidate_distinct_from_live_authentication_hold": true
+    },
+    "component_diagnostics": {
+      "current_growth_observation_is_ranking_context_not_historical_proof": true,
+      "distance_caused_narrow_fragments": 10,
+      "distance_fragment_examples": [
+        {
+          "clipped_low": 2325,
+          "high": 2345,
+          "method": "TREND_CONFIRMED_MA20",
+          "name": "SGA솔루션즈",
+          "original_width_atr": 0.33319536423841056,
+          "structural_low": 2230,
+          "ticker": "184230",
+          "width_atr": 0.057947019867549666
+        },
+        {
+          "clipped_low": 22700,
+          "high": 22800,
+          "method": "TREND_CONFIRMED_PIVOT",
+          "name": "계룡건설",
+          "original_width_atr": 0.38799076212471134,
+          "structural_low": 22200,
+          "ticker": "013580",
+          "width_atr": 0.06466512702078522
+        },
+        {
+          "clipped_low": 13560,
+          "high": 13620,
+          "method": "TREND_CONFIRMED_MA10",
+          "name": "지어소프트",
+          "original_width_atr": 0.391304347826087,
+          "structural_low": 13350,
+          "ticker": "051160",
+          "width_atr": 0.08695652173913043
+        },
+        {
+          "clipped_low": 5600,
+          "high": 5630,
+          "method": "TREND_CONFIRMED_PIVOT",
+          "name": "방림",
+          "original_width_atr": 0.38095238095238093,
+          "structural_low": 5570,
+          "ticker": "003610",
+          "width_atr": 0.19047619047619047
+        },
+        {
+          "clipped_low": 11190,
+          "high": 11290,
+          "method": "TREND_CONFIRMED_MA20",
+          "name": "윈스테크넷",
+          "original_width_atr": 0.3816604708798017,
+          "structural_low": 11070,
+          "ticker": "136540",
+          "width_atr": 0.1734820322180917
+        },
+        {
+          "clipped_low": 66300,
+          "high": 66800,
+          "method": "TREND_CONFIRMED_MA10",
+          "name": "조광피혁",
+          "original_width_atr": 0.27071823204419887,
+          "structural_low": 66100,
+          "ticker": "004700",
+          "width_atr": 0.19337016574585636
+        },
+        {
+          "clipped_low": 9410,
+          "high": 9440,
+          "method": "TREND_CONFIRMED_MA20",
+          "name": "디지털대성",
+          "original_width_atr": 0.3751522533495737,
+          "structural_low": 9330,
+          "ticker": "068930",
+          "width_atr": 0.10231425091352009
+        },
+        {
+          "clipped_low": 2620,
+          "high": 2630,
+          "method": "TREND_CONFIRMED_PIVOT",
+          "name": "상신전자",
+          "original_width_atr": 0.2692307692307692,
+          "structural_low": 2610,
+          "ticker": "263810",
+          "width_atr": 0.1346153846153846
+        },
+        {
+          "clipped_low": 4085,
+          "high": 4135,
+          "method": "TREND_CONFIRMED_PIVOT",
+          "name": "나노씨엠에스",
+          "original_width_atr": 0.386969397828233,
+          "structural_low": 3995,
+          "ticker": "247660",
+          "width_atr": 0.13820335636722605
+        },
+        {
+          "clipped_low": 5400,
+          "high": 5420,
+          "method": "TREND_CONFIRMED_MA60",
+          "name": "제일테크노스",
+          "original_width_atr": 0.3146067415730337,
+          "structural_low": 5360,
+          "ticker": "038010",
+          "width_atr": 0.1048689138576779
+        }
+      ],
+      "original_pit_confirmed": 0,
+      "rs20_nonpositive": 0,
+      "rs_accel5_nonpositive": 99,
+      "rs_both_nonpositive": 0
+    },
+    "v3": {
+      "all_pass": 0,
+      "exclusive_reason_combinations": {
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE": 1,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 1,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED": 1,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 11,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 9,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED": 6,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 3,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + TURNOVER_BELOW_EXISTING_FLOOR": 2,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + RANGE_PRACTICALITY_OR_STOP_REJECTED + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 6,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE": 6,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 5,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 4,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE + TURNOVER_BELOW_EXISTING_FLOOR": 3,
+        "COMPANY_OBSERVED_METRICS_FAIL + RANGE_PRACTICALITY_OR_STOP_REJECTED + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 1,
+        "COMPANY_OBSERVED_METRICS_FAIL + RS_NOT_POSITIVE_AND_IMPROVING": 1,
+        "COMPANY_OBSERVED_METRICS_FAIL + TURNOVER_BELOW_EXISTING_FLOOR": 1,
+        "COMPANY_UNKNOWN + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE": 2,
+        "COMPANY_UNKNOWN + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 1,
+        "COMPANY_UNKNOWN + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 2,
+        "COMPANY_UNKNOWN + NO_CONFIRMED_STRUCTURAL_STOP + RANGE_PRACTICALITY_OR_STOP_REJECTED + RS_NOT_POSITIVE_AND_IMPROVING": 1,
+        "COMPANY_UNKNOWN + NO_CONFIRMED_STRUCTURAL_STOP + RANGE_PRACTICALITY_OR_STOP_REJECTED + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 1,
+        "COMPANY_UNKNOWN + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 1,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE": 2,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 3,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED": 7,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 7,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 11,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED": 7,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 3,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + TURNOVER_BELOW_EXISTING_FLOOR": 2,
+        "NO_CONFIRMED_STRUCTURAL_STOP + RANGE_PRACTICALITY_OR_STOP_REJECTED + RS_NOT_POSITIVE_AND_IMPROVING": 2,
+        "NO_CONFIRMED_STRUCTURAL_STOP + RANGE_PRACTICALITY_OR_STOP_REJECTED + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 4,
+        "NO_CONFIRMED_STRUCTURAL_STOP + RANGE_PRACTICALITY_OR_STOP_REJECTED + TURNOVER_BELOW_EXISTING_FLOOR": 1,
+        "NO_RISK_VALID_RANGE": 8,
+        "NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 6,
+        "NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 4,
+        "NO_RISK_VALID_RANGE + TURNOVER_BELOW_EXISTING_FLOOR": 1,
+        "RANGE_PRACTICALITY_OR_STOP_REJECTED": 2,
+        "RANGE_PRACTICALITY_OR_STOP_REJECTED + RS_NOT_POSITIVE_AND_IMPROVING": 3,
+        "RS_NOT_POSITIVE_AND_IMPROVING": 4,
+        "RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 3
+      },
+      "inclusive_counts_not_additive": true,
+      "inclusive_failure_counts": {
+        "COMPANY_OBSERVED_METRICS_FAIL": 61,
+        "COMPANY_UNKNOWN": 8,
+        "NO_CONFIRMED_STRUCTURAL_STOP": 96,
+        "NO_RISK_VALID_RANGE": 119,
+        "RANGE_PRACTICALITY_OR_STOP_REJECTED": 21,
+        "RS_NOT_POSITIVE_AND_IMPROVING": 99,
+        "SUPPORT_UNCONFIRMED": 47,
+        "TURNOVER_BELOW_EXISTING_FLOOR": 79
+      },
+      "multiple_failures": 135,
+      "pairwise_overlap": {
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP": 40,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE": 52,
+        "COMPANY_OBSERVED_METRICS_FAIL + RANGE_PRACTICALITY_OR_STOP_REJECTED": 7,
+        "COMPANY_OBSERVED_METRICS_FAIL + RS_NOT_POSITIVE_AND_IMPROVING": 39,
+        "COMPANY_OBSERVED_METRICS_FAIL + SUPPORT_UNCONFIRMED": 21,
+        "COMPANY_OBSERVED_METRICS_FAIL + TURNOVER_BELOW_EXISTING_FLOOR": 40,
+        "COMPANY_UNKNOWN + NO_CONFIRMED_STRUCTURAL_STOP": 7,
+        "COMPANY_UNKNOWN + NO_RISK_VALID_RANGE": 6,
+        "COMPANY_UNKNOWN + RANGE_PRACTICALITY_OR_STOP_REJECTED": 2,
+        "COMPANY_UNKNOWN + RS_NOT_POSITIVE_AND_IMPROVING": 6,
+        "COMPANY_UNKNOWN + SUPPORT_UNCONFIRMED": 2,
+        "COMPANY_UNKNOWN + TURNOVER_BELOW_EXISTING_FLOOR": 3,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE": 81,
+        "NO_CONFIRMED_STRUCTURAL_STOP + RANGE_PRACTICALITY_OR_STOP_REJECTED": 15,
+        "NO_CONFIRMED_STRUCTURAL_STOP + RS_NOT_POSITIVE_AND_IMPROVING": 67,
+        "NO_CONFIRMED_STRUCTURAL_STOP + SUPPORT_UNCONFIRMED": 47,
+        "NO_CONFIRMED_STRUCTURAL_STOP + TURNOVER_BELOW_EXISTING_FLOOR": 62,
+        "NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 73,
+        "NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED": 47,
+        "NO_RISK_VALID_RANGE + TURNOVER_BELOW_EXISTING_FLOOR": 62,
+        "RANGE_PRACTICALITY_OR_STOP_REJECTED + RS_NOT_POSITIVE_AND_IMPROVING": 18,
+        "RANGE_PRACTICALITY_OR_STOP_REJECTED + TURNOVER_BELOW_EXISTING_FLOOR": 13,
+        "RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED": 28,
+        "RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 63,
+        "SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 26
+      },
+      "single_failure_only": {
+        "NO_RISK_VALID_RANGE": 8,
+        "RANGE_PRACTICALITY_OR_STOP_REJECTED": 2,
+        "RS_NOT_POSITIVE_AND_IMPROVING": 4
+      },
+      "total": 149
+    },
+    "v4": {
+      "all_pass": 0,
+      "exclusive_reason_combinations": {
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED": 1,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 11,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED": 6,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 3,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE": 7,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 6,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 17,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE + TURNOVER_BELOW_EXISTING_FLOOR": 5,
+        "COMPANY_OBSERVED_METRICS_FAIL + RS_NOT_POSITIVE_AND_IMPROVING": 1,
+        "COMPANY_OBSERVED_METRICS_FAIL + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 3,
+        "COMPANY_OBSERVED_METRICS_FAIL + TURNOVER_BELOW_EXISTING_FLOOR": 1,
+        "COMPANY_UNKNOWN + NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 2,
+        "COMPANY_UNKNOWN + NO_RISK_VALID_RANGE": 2,
+        "COMPANY_UNKNOWN + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 2,
+        "COMPANY_UNKNOWN + RS_NOT_POSITIVE_AND_IMPROVING": 1,
+        "COMPANY_UNKNOWN + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 1,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED": 7,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 7,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED": 7,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 3,
+        "NO_RISK_VALID_RANGE": 12,
+        "NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 10,
+        "NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 16,
+        "NO_RISK_VALID_RANGE + TURNOVER_BELOW_EXISTING_FLOOR": 4,
+        "RS_NOT_POSITIVE_AND_IMPROVING": 8,
+        "RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 6
+      },
+      "inclusive_counts_not_additive": true,
+      "inclusive_failure_counts": {
+        "COMPANY_OBSERVED_METRICS_FAIL": 61,
+        "COMPANY_UNKNOWN": 8,
+        "NO_CONFIRMED_STRUCTURAL_STOP": 47,
+        "NO_RISK_VALID_RANGE": 128,
+        "RS_NOT_POSITIVE_AND_IMPROVING": 99,
+        "SUPPORT_UNCONFIRMED": 47,
+        "TURNOVER_BELOW_EXISTING_FLOOR": 79
+      },
+      "multiple_failures": 129,
+      "pairwise_overlap": {
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_CONFIRMED_STRUCTURAL_STOP": 21,
+        "COMPANY_OBSERVED_METRICS_FAIL + NO_RISK_VALID_RANGE": 56,
+        "COMPANY_OBSERVED_METRICS_FAIL + RS_NOT_POSITIVE_AND_IMPROVING": 39,
+        "COMPANY_OBSERVED_METRICS_FAIL + SUPPORT_UNCONFIRMED": 21,
+        "COMPANY_OBSERVED_METRICS_FAIL + TURNOVER_BELOW_EXISTING_FLOOR": 40,
+        "COMPANY_UNKNOWN + NO_CONFIRMED_STRUCTURAL_STOP": 2,
+        "COMPANY_UNKNOWN + NO_RISK_VALID_RANGE": 6,
+        "COMPANY_UNKNOWN + RS_NOT_POSITIVE_AND_IMPROVING": 6,
+        "COMPANY_UNKNOWN + SUPPORT_UNCONFIRMED": 2,
+        "COMPANY_UNKNOWN + TURNOVER_BELOW_EXISTING_FLOOR": 3,
+        "NO_CONFIRMED_STRUCTURAL_STOP + NO_RISK_VALID_RANGE": 47,
+        "NO_CONFIRMED_STRUCTURAL_STOP + RS_NOT_POSITIVE_AND_IMPROVING": 28,
+        "NO_CONFIRMED_STRUCTURAL_STOP + SUPPORT_UNCONFIRMED": 47,
+        "NO_CONFIRMED_STRUCTURAL_STOP + TURNOVER_BELOW_EXISTING_FLOOR": 26,
+        "NO_RISK_VALID_RANGE + RS_NOT_POSITIVE_AND_IMPROVING": 79,
+        "NO_RISK_VALID_RANGE + SUPPORT_UNCONFIRMED": 47,
+        "NO_RISK_VALID_RANGE + TURNOVER_BELOW_EXISTING_FLOOR": 68,
+        "RS_NOT_POSITIVE_AND_IMPROVING + SUPPORT_UNCONFIRMED": 28,
+        "RS_NOT_POSITIVE_AND_IMPROVING + TURNOVER_BELOW_EXISTING_FLOOR": 63,
+        "SUPPORT_UNCONFIRMED + TURNOVER_BELOW_EXISTING_FLOOR": 26
+      },
+      "single_failure_only": {
+        "NO_RISK_VALID_RANGE": 12,
+        "RS_NOT_POSITIVE_AND_IMPROVING": 8
+      },
+      "total": 149
+    },
+    "v4_sequential_funnel": [
+      {
+        "before": 149,
+        "failed": 69,
+        "passed": 80,
+        "stage": "company"
+      },
+      {
+        "before": 80,
+        "failed": 54,
+        "passed": 26,
+        "stage": "relative_strength"
+      },
+      {
+        "before": 26,
+        "failed": 7,
+        "passed": 19,
+        "stage": "turnover"
+      },
+      {
+        "before": 19,
+        "failed": 7,
+        "passed": 12,
+        "stage": "structural_stop"
+      },
+      {
+        "before": 12,
+        "failed": 12,
+        "passed": 0,
+        "stage": "risk_and_practical_range"
+      }
+    ]
+  },
+  "historical_cohorts": {
+    "cohort_dates": [
+      "2026-08-04",
+      "2026-09-04",
+      "2026-10-12"
+    ],
+    "financial_or_future_global_inputs_used": false,
+    "groups": {
+      "RS_ACCEL_REJECTED_WITH_V4_RANGE": {
+        "10": {
+          "executable_profit_claimed": false,
+          "mature": 74,
+          "mean_selection_close_return_pct": -1.2266803169474971,
+          "rose_after_selection": 32,
+          "signals": 74
+        },
+        "20": {
+          "executable_profit_claimed": false,
+          "mature": 74,
+          "mean_selection_close_return_pct": -2.0492171430946557,
+          "rose_after_selection": 36,
+          "signals": 74
+        },
+        "5": {
+          "executable_profit_claimed": false,
+          "mature": 74,
+          "mean_selection_close_return_pct": 1.4043178636564024,
+          "rose_after_selection": 39,
+          "signals": 74
+        }
+      },
+      "V3_PRICE_REJECTED": {
+        "10": {
+          "executable_profit_claimed": false,
+          "mature": 1051,
+          "mean_selection_close_return_pct": -3.6271188481900283,
+          "rose_after_selection": 368,
+          "signals": 1051
+        },
+        "20": {
+          "executable_profit_claimed": false,
+          "mature": 1051,
+          "mean_selection_close_return_pct": -5.143734777994752,
+          "rose_after_selection": 377,
+          "signals": 1051
+        },
+        "5": {
+          "executable_profit_claimed": false,
+          "mature": 1051,
+          "mean_selection_close_return_pct": -0.11128164952459534,
+          "rose_after_selection": 500,
+          "signals": 1051
+        }
+      },
+      "V4_NEWLY_ADMITTED": {
+        "10": {
+          "executable_profit_claimed": false,
+          "mature": 134,
+          "mean_selection_close_return_pct": -1.5399083769794368,
+          "rose_after_selection": 52,
+          "signals": 134
+        },
+        "20": {
+          "executable_profit_claimed": false,
+          "mature": 134,
+          "mean_selection_close_return_pct": -1.6833362927526185,
+          "rose_after_selection": 52,
+          "signals": 134
+        },
+        "5": {
+          "executable_profit_claimed": false,
+          "mature": 134,
+          "mean_selection_close_return_pct": 0.3003559042530151,
+          "rose_after_selection": 69,
+          "signals": 134
+        }
+      },
+      "V4_PRICE_REJECTED": {
+        "10": {
+          "executable_profit_claimed": false,
+          "mature": 917,
+          "mean_selection_close_return_pct": -3.932120160231707,
+          "rose_after_selection": 316,
+          "signals": 917
+        },
+        "20": {
+          "executable_profit_claimed": false,
+          "mature": 917,
+          "mean_selection_close_return_pct": -5.649398242577572,
+          "rose_after_selection": 325,
+          "signals": 917
+        },
+        "5": {
+          "executable_profit_claimed": false,
+          "mature": 917,
+          "mean_selection_close_return_pct": -0.17143370209406078,
+          "rose_after_selection": 431,
+          "signals": 917
+        }
+      }
+    },
+    "illustrative_missed_rises": [
+      {
+        "date": "2026-08-04",
+        "name": "삼양홀딩스",
+        "selection_close_returns": {
+          "10": 2.753872633390708,
+          "20": 4.819277108433728,
+          "5": 3.9586919104991347
+        },
+        "ticker": "000070",
+        "v3_rejection_reasons": [
+          "COMPANY_UNKNOWN",
+          "NO_CONFIRMED_STRUCTURAL_STOP",
+          "NO_RISK_VALID_RANGE",
+          "RS_NOT_POSITIVE_AND_IMPROVING",
+          "SUPPORT_UNCONFIRMED",
+          "TURNOVER_BELOW_EXISTING_FLOOR"
+        ],
+        "v4_price_pass": false
+      },
+      {
+        "date": "2026-08-04",
+        "name": "전방",
+        "selection_close_returns": {
+          "10": 13.197969543147202,
+          "20": 8.798646362098129,
+          "5": 6.429780033840937
+        },
+        "ticker": "000950",
+        "v3_rejection_reasons": [
+          "COMPANY_UNKNOWN",
+          "NO_CONFIRMED_STRUCTURAL_STOP",
+          "NO_RISK_VALID_RANGE",
+          "SUPPORT_UNCONFIRMED",
+          "TURNOVER_BELOW_EXISTING_FLOOR"
+        ],
+        "v4_price_pass": false
+      },
+      {
+        "date": "2026-08-04",
+        "name": "대한방직",
+        "selection_close_returns": {
+          "10": 0.8210180623973828,
+          "20": -0.9852216748768461,
+          "5": 1.806239737274229
+        },
+        "ticker": "001070",
+        "v3_rejection_reasons": [
+          "COMPANY_UNKNOWN",
+          "NO_CONFIRMED_STRUCTURAL_STOP",
+          "RANGE_PRACTICALITY_OR_STOP_REJECTED",
+          "RS_NOT_POSITIVE_AND_IMPROVING",
+          "TURNOVER_BELOW_EXISTING_FLOOR"
+        ],
+        "v4_price_pass": true
+      },
+      {
+        "date": "2026-08-04",
+        "name": "대한제당",
+        "selection_close_returns": {
+          "10": 3.3333333333333437,
+          "20": 6.851851851851842,
+          "5": 3.1481481481481444
+        },
+        "ticker": "001790",
+        "v3_rejection_reasons": [
+          "COMPANY_UNKNOWN",
+          "NO_RISK_VALID_RANGE",
+          "RS_NOT_POSITIVE_AND_IMPROVING"
+        ],
+        "v4_price_pass": false
+      },
+      {
+        "date": "2026-08-04",
+        "name": "보락",
+        "selection_close_returns": {
+          "10": 3.092783505154628,
+          "20": 4.845360824742273,
+          "5": 4.53608247422681
+        },
+        "ticker": "002760",
+        "v3_rejection_reasons": [
+          "COMPANY_UNKNOWN",
+          "NO_RISK_VALID_RANGE",
+          "RS_NOT_POSITIVE_AND_IMPROVING",
+          "TURNOVER_BELOW_EXISTING_FLOOR"
+        ],
+        "v4_price_pass": false
+      }
+    ],
+    "paired_cash_inclusive_trade": {
+      "ALL_TECHNICAL": {
+        "v3": {
+          "lower": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 36,
+              "net_expectancy_per_selected_opportunity_pct": -0.039224627899193794,
+              "no_range_cash": 1051,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 35,
+              "unfilled": 36
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 706,
+              "fills": 5,
+              "net_expectancy_per_selected_opportunity_pct": 0.021684803786668257,
+              "no_range_cash": 676,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 4,
+              "unfilled": 25
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 36,
+              "net_expectancy_per_selected_opportunity_pct": -0.03438518756033299,
+              "no_range_cash": 1051,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 34,
+              "unfilled": 36
+            }
+          },
+          "middle": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 45,
+              "net_expectancy_per_selected_opportunity_pct": -0.0944022229893628,
+              "no_range_cash": 1051,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 43,
+              "unfilled": 27
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 706,
+              "fills": 8,
+              "net_expectancy_per_selected_opportunity_pct": -0.0028757371199319916,
+              "no_range_cash": 676,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 7,
+              "unfilled": 22
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 45,
+              "net_expectancy_per_selected_opportunity_pct": -0.0895960053530571,
+              "no_range_cash": 1051,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 42,
+              "unfilled": 27
+            }
+          },
+          "upper": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 52,
+              "net_expectancy_per_selected_opportunity_pct": -0.13912824514602862,
+              "no_range_cash": 1051,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 48,
+              "unfilled": 20
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 706,
+              "fills": 14,
+              "net_expectancy_per_selected_opportunity_pct": -0.03615118089412359,
+              "no_range_cash": 676,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 12,
+              "unfilled": 16
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 52,
+              "net_expectancy_per_selected_opportunity_pct": -0.1256513850994726,
+              "no_range_cash": 1051,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 44,
+              "unfilled": 20
+            }
+          }
+        },
+        "v4": {
+          "lower": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 62,
+              "net_expectancy_per_selected_opportunity_pct": -0.10539225931472108,
+              "no_range_cash": 917,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 57,
+              "unfilled": 124
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 706,
+              "fills": 16,
+              "net_expectancy_per_selected_opportunity_pct": -0.019429761331553403,
+              "no_range_cash": 581,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 14,
+              "unfilled": 104
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 62,
+              "net_expectancy_per_selected_opportunity_pct": -0.09008824112539786,
+              "no_range_cash": 917,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 54,
+              "unfilled": 124
+            }
+          },
+          "middle": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 70,
+              "net_expectancy_per_selected_opportunity_pct": -0.1482393496324216,
+              "no_range_cash": 917,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 63,
+              "unfilled": 116
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 706,
+              "fills": 19,
+              "net_expectancy_per_selected_opportunity_pct": -0.0313672036945855,
+              "no_range_cash": 581,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 16,
+              "unfilled": 101
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 70,
+              "net_expectancy_per_selected_opportunity_pct": -0.12742765297639785,
+              "no_range_cash": 917,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 57,
+              "unfilled": 116
+            }
+          },
+          "upper": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 80,
+              "net_expectancy_per_selected_opportunity_pct": -0.1750661280890328,
+              "no_range_cash": 917,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 69,
+              "unfilled": 106
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 706,
+              "fills": 27,
+              "net_expectancy_per_selected_opportunity_pct": -0.04721013477101422,
+              "no_range_cash": 581,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 22,
+              "unfilled": 93
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 1133,
+              "fills": 80,
+              "net_expectancy_per_selected_opportunity_pct": -0.1331787801068043,
+              "no_range_cash": 917,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 59,
+              "unfilled": 106
+            }
+          }
+        }
+      },
+      "RS_POSITIVE_IMPROVING_AND_LIQUID": {
+        "v3": {
+          "lower": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 15,
+              "net_expectancy_per_selected_opportunity_pct": -0.10948082091015042,
+              "no_range_cash": 278,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 15,
+              "unfilled": 8
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 123,
+              "fills": 2,
+              "net_expectancy_per_selected_opportunity_pct": -0.01945817857277637,
+              "no_range_cash": 117,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 2,
+              "unfilled": 4
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 15,
+              "net_expectancy_per_selected_opportunity_pct": -0.10948082091015042,
+              "no_range_cash": 278,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 15,
+              "unfilled": 8
+            }
+          },
+          "middle": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 19,
+              "net_expectancy_per_selected_opportunity_pct": -0.23025594024787185,
+              "no_range_cash": 278,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 19,
+              "unfilled": 4
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 123,
+              "fills": 3,
+              "net_expectancy_per_selected_opportunity_pct": -0.06753062337039507,
+              "no_range_cash": 117,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 3,
+              "unfilled": 3
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 19,
+              "net_expectancy_per_selected_opportunity_pct": -0.23025594024787185,
+              "no_range_cash": 278,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 19,
+              "unfilled": 4
+            }
+          },
+          "upper": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 19,
+              "net_expectancy_per_selected_opportunity_pct": -0.2715740952357082,
+              "no_range_cash": 278,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 19,
+              "unfilled": 4
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 123,
+              "fills": 3,
+              "net_expectancy_per_selected_opportunity_pct": -0.0875999166226504,
+              "no_range_cash": 117,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 3,
+              "unfilled": 3
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 19,
+              "net_expectancy_per_selected_opportunity_pct": -0.2715740952357082,
+              "no_range_cash": 278,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 19,
+              "unfilled": 4
+            }
+          }
+        },
+        "v4": {
+          "lower": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 21,
+              "net_expectancy_per_selected_opportunity_pct": -0.27970773080161204,
+              "no_range_cash": 246,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 21,
+              "unfilled": 29
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 123,
+              "fills": 3,
+              "net_expectancy_per_selected_opportunity_pct": -0.06234524185231276,
+              "no_range_cash": 98,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 3,
+              "unfilled": 21
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 21,
+              "net_expectancy_per_selected_opportunity_pct": -0.27970773080161204,
+              "no_range_cash": 246,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 21,
+              "unfilled": 29
+            }
+          },
+          "middle": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 24,
+              "net_expectancy_per_selected_opportunity_pct": -0.3491266374305755,
+              "no_range_cash": 246,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 23,
+              "unfilled": 26
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 123,
+              "fills": 3,
+              "net_expectancy_per_selected_opportunity_pct": -0.0779562067373859,
+              "no_range_cash": 98,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 3,
+              "unfilled": 21
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 24,
+              "net_expectancy_per_selected_opportunity_pct": -0.333639166660209,
+              "no_range_cash": 246,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 22,
+              "unfilled": 26
+            }
+          },
+          "upper": {
+            "10": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 26,
+              "net_expectancy_per_selected_opportunity_pct": -0.333374755798601,
+              "no_range_cash": 246,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 24,
+              "unfilled": 24
+            },
+            "20": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 123,
+              "fills": 4,
+              "net_expectancy_per_selected_opportunity_pct": 0.05927770167648371,
+              "no_range_cash": 98,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 3,
+              "unfilled": 20
+            },
+            "5": {
+              "actual_fills_confirmed": false,
+              "common_opportunities": 306,
+              "fills": 26,
+              "net_expectancy_per_selected_opportunity_pct": -0.29622397085523544,
+              "no_range_cash": 246,
+              "paired_population_includes_no_range_cash": true,
+              "stops": 22,
+              "unfilled": 24
+            }
+          }
+        }
+      }
+    },
+    "parameters_optimized": false,
+    "price_only_technical_events": 1133,
+    "reused_and_current_universe_conditioned_not_independent_validation": true,
+    "session_offsets": [
+      67,
+      45,
+      23
+    ],
+    "superiority_proven": false,
+    "trade": {
+      "v3": {
+        "lower": {
+          "10": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.5419695537778849,
+            "fills": 36,
+            "mature": 82,
+            "mean_mae_pct": -0.9808471570564328,
+            "r1_touched": 1,
+            "range_opportunities": 82,
+            "range_unreached": 36,
+            "stops": 35
+          },
+          "20": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": 0.510315715779593,
+            "fills": 5,
+            "mature": 30,
+            "mean_mae_pct": -0.309358458710145,
+            "r1_touched": 1,
+            "range_opportunities": 82,
+            "range_unreached": 25,
+            "stops": 4
+          },
+          "5": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.47510265251045464,
+            "fills": 36,
+            "mature": 82,
+            "mean_mae_pct": -0.9616459281777845,
+            "r1_touched": 1,
+            "range_opportunities": 82,
+            "range_unreached": 36,
+            "stops": 34
+          }
+        },
+        "middle": {
+          "10": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -1.3043624225237567,
+            "fills": 45,
+            "mature": 82,
+            "mean_mae_pct": -2.2205597440785163,
+            "r1_touched": 2,
+            "range_opportunities": 82,
+            "range_unreached": 27,
+            "stops": 43
+          },
+          "20": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.06767568022239953,
+            "fills": 8,
+            "mature": 30,
+            "mean_mae_pct": -1.986770718774701,
+            "r1_touched": 1,
+            "range_opportunities": 82,
+            "range_unreached": 22,
+            "stops": 7
+          },
+          "5": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -1.2379545617684597,
+            "fills": 45,
+            "mature": 82,
+            "mean_mae_pct": -2.2053042139488443,
+            "r1_touched": 2,
+            "range_opportunities": 82,
+            "range_unreached": 27,
+            "stops": 42
+          }
+        },
+        "upper": {
+          "10": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -1.9223451432981757,
+            "fills": 52,
+            "mature": 82,
+            "mean_mae_pct": -2.990148119689045,
+            "r1_touched": 3,
+            "range_opportunities": 82,
+            "range_unreached": 20,
+            "stops": 48
+          },
+          "20": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.8507577903750418,
+            "fills": 14,
+            "mature": 30,
+            "mean_mae_pct": -3.1720997910476525,
+            "r1_touched": 2,
+            "range_opportunities": 82,
+            "range_unreached": 16,
+            "stops": 12
+          },
+          "5": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -1.736134381923201,
+            "fills": 52,
+            "mature": 82,
+            "mean_mae_pct": -2.8974262788256,
+            "r1_touched": 2,
+            "range_opportunities": 82,
+            "range_unreached": 20,
+            "stops": 44
+          }
+        }
+      },
+      "v4": {
+        "lower": {
+          "10": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.5528214342758286,
+            "fills": 62,
+            "mature": 216,
+            "mean_mae_pct": -2.289231473893437,
+            "r1_touched": 5,
+            "range_opportunities": 216,
+            "range_unreached": 124,
+            "stops": 57
+          },
+          "20": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.10973929200061362,
+            "fills": 16,
+            "mature": 125,
+            "mean_mae_pct": -1.8217911495102297,
+            "r1_touched": 2,
+            "range_opportunities": 216,
+            "range_unreached": 104,
+            "stops": 14
+          },
+          "5": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.47254619071794335,
+            "fills": 62,
+            "mature": 216,
+            "mean_mae_pct": -2.262537801397259,
+            "r1_touched": 5,
+            "range_opportunities": 216,
+            "range_unreached": 124,
+            "stops": 54
+          }
+        },
+        "middle": {
+          "10": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.7775702922848782,
+            "fills": 70,
+            "mature": 216,
+            "mean_mae_pct": -2.919499854522005,
+            "r1_touched": 6,
+            "range_opportunities": 216,
+            "range_unreached": 116,
+            "stops": 63
+          },
+          "20": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.17716196646701893,
+            "fills": 19,
+            "mature": 125,
+            "mean_mae_pct": -2.3853752590503277,
+            "r1_touched": 3,
+            "range_opportunities": 216,
+            "range_unreached": 101,
+            "stops": 16
+          },
+          "5": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.668405235288235,
+            "fills": 70,
+            "mature": 216,
+            "mean_mae_pct": -2.8077696814659174,
+            "r1_touched": 5,
+            "range_opportunities": 216,
+            "range_unreached": 116,
+            "stops": 57
+          }
+        },
+        "upper": {
+          "10": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.9182866811336766,
+            "fills": 80,
+            "mature": 216,
+            "mean_mae_pct": -3.287366132963991,
+            "r1_touched": 9,
+            "range_opportunities": 216,
+            "range_unreached": 106,
+            "stops": 69
+          },
+          "20": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.2666428411866883,
+            "fills": 27,
+            "mature": 125,
+            "mean_mae_pct": -3.0073446520936336,
+            "r1_touched": 5,
+            "range_opportunities": 216,
+            "range_unreached": 93,
+            "stops": 22
+          },
+          "5": {
+            "actual_fill_confirmed": false,
+            "cash_inclusive_net_expectancy_pct": -0.6985720271343022,
+            "fills": 80,
+            "mature": 216,
+            "mean_mae_pct": -3.0899607540694216,
+            "r1_touched": 8,
+            "range_opportunities": 216,
+            "range_unreached": 106,
+            "stops": 59
+          }
+        }
+      }
+    },
+    "unpaired_range_only_means_are_not_model_superiority_evidence": true
+  }
+}

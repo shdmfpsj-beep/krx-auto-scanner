@@ -22,26 +22,28 @@ def write(path,value):
     p.write_text(json.dumps(value,ensure_ascii=False,sort_keys=True,indent=2,allow_nan=False)+'\n')
 
 
-def load_dataset(engine,state,old):
+def load_dataset(engine,state,old,asof=None):
+    asof=asof or DAY
     inputs=old/'private_inputs';panel=inputs/'panel/official_panel.csv.gz';audit=inputs/'panel/quality_audit.json'
     original=json.loads((state/'reports/c3_forward_v8/latest.json').read_text())
+    if original.get('source_price_asof')!=asof:raise ValueError('REGISTERED_LATEST_SOURCE_DAY_MISMATCH')
     lane=state/'reports/c3_forward_v8/lanes/krx_unadjusted_v12'
-    market=read_record(lane/'markets'/(DAY+'.json.gz'));decision=read_record(lane/'decisions'/(DAY+'.json'))
-    if market['asof']!=DAY or decision['source_snapshot_hash']!=hash_value(market):raise ValueError('FROZEN_ORIGINAL_DATE_OR_HASH_MISMATCH')
+    market=read_record(lane/'markets'/(asof+'.json.gz'));decision=read_record(lane/'decisions'/(asof+'.json'))
+    if market['asof']!=asof or decision['source_snapshot_hash']!=hash_value(market):raise ValueError('FROZEN_ORIGINAL_DATE_OR_HASH_MISMATCH')
     meta=json.loads(audit.read_text())
     if digest(panel)!=original['source_hashes']['panel'] or digest(audit)!=original['source_hashes']['audit']:raise ValueError('FROZEN_HISTORY_HASH_MISMATCH')
-    prices={t:dict(r,ticker=t,asof=DAY) for t,r in market['rows'].items()}
-    snapshots={r['asof']:r for r in (read_record(p) for p in sorted((lane/'markets').glob('*.json.gz'))) if r['asof']<=DAY}
+    prices={t:dict(r,ticker=t,asof=asof) for t,r in market['rows'].items()}
+    snapshots={r['asof']:r for r in (read_record(p) for p in sorted((lane/'markets').glob('*.json.gz'))) if r['asof']<=asof}
     from c3_current_candidates_v7 import fresh_snapshot
     oldprices,om=fresh_snapshot(inputs/'latest/requested-date-probe/2026-11-04')
     snapshots['2026-11-04']=dict(rows={t:dict(r,date='2026-11-04') for t,r in oldprices.items()})
     sessions=market['sessions'];grid={d:i for i,d in enumerate(sessions)}
-    oldpast,_=histories(panel,audit,prices,snapshots,sessions,DAY)
+    oldpast,_=histories(panel,audit,prices,snapshots,sessions,asof)
     raw=defaultdict(dict);count=0
     with gzip.open(panel,'rt') as f:
         for r in csv.DictReader(f):
             count+=1
-            if r['ticker'] in prices and r['date']<=DAY:raw[r['ticker']][r['date']]=r
+            if r['ticker'] in prices and r['date']<=asof:raw[r['ticker']][r['date']]=r
     for d,s in snapshots.items():
         for t,r in s['rows'].items():
             if t in prices:raw[t][d]=dict(r,date=d)
@@ -62,7 +64,7 @@ def load_dataset(engine,state,old):
             previous=b
         allbars[t]=bars
         tail=[b for b in bars if b['segment']==bars[-1]['segment'] and b['tradable']]
-        if len(tail)>=65 and tail[-1]['date']==DAY:current[t]=tail
+        if len(tail)>=65 and tail[-1]['date']==asof:current[t]=tail
     # Independent reconstruction may extend warm-up, but must preserve every
     # one of the original model's last90 observed prices exactly.
     if set(current)!=set(oldpast):raise ValueError('EXTENDED_HISTORY_UNIVERSE_CHANGED')
@@ -76,15 +78,17 @@ def load_dataset(engine,state,old):
     for r in read_csv(scope/'secondary_industries.csv'):secondary[r['ticker']].append(r)
     eligible={t for t in current if classify(prices[t],basics.get(t),kind.get(t),secondary[t])=='VERIFIED_NONBIO_COMMON_AS_REPORTED'}
     oldsummary=json.loads((old/'reselection_summary.json').read_text())
-    if (len(prices),len(current),len(eligible),oldsummary['stock_preselector_count'],oldsummary['original_b_filter_count'],oldsummary['eligible_entry_feasible_tickers'])!=(2769,2416,1988,149,50,4):raise ValueError('REQUIRED_NOV11_BASELINE_NOT_REPRODUCED')
+    expected=original['current_scope']
+    if (len(prices),len(current),len(eligible),oldsummary['stock_preselector_count'],oldsummary['original_b_filter_count'])!=(expected['price_rows'],expected['continuous_history'],expected['analysis_eligible'],expected['a_candidates'],expected['b_candidates']):raise ValueError('REGISTERED_CURRENT_SCOPE_NOT_REPRODUCED')
+    if asof=='2026-11-11' and (len(prices),len(current),len(eligible),oldsummary['stock_preselector_count'],oldsummary['original_b_filter_count'],oldsummary['eligible_entry_feasible_tickers'])!=(2769,2416,1988,149,50,4):raise ValueError('REQUIRED_NOV11_BASELINE_NOT_REPRODUCED')
     metadata={t:dict(ticker=t,name=prices[t]['name'],market=prices[t]['market'],sector=secondary[t][0]['sector']) for t in eligible}
     available=sorted({b['date'] for rows in allbars.values() for b in rows})
-    provenance=dict(asof=DAY,original_source_run_id=original['source_run_id'],original_decision_payload_sha256=hash_value(decision),original_market_payload_sha256=hash_value(market),
-        full_market=2769,continuous_history=2416,analysis_eligible=1988,original_technical=149,original_b=50,old_geometry_pass=4,
-        original_strength_and_geometry_pass=0,panel_sha256=digest(panel),panel_rows=count,panel_first=available[0],panel_last=available[-1],
+    provenance=dict(asof=asof,original_source_run_id=original['source_run_id'],original_decision_payload_sha256=hash_value(decision),original_market_payload_sha256=hash_value(market),
+        full_market=len(prices),continuous_history=len(current),analysis_eligible=len(eligible),original_technical=oldsummary['stock_preselector_count'],original_b=oldsummary['original_b_filter_count'],old_geometry_pass=oldsummary['eligible_entry_feasible_tickers'],
+        original_strength_and_geometry_pass=oldsummary.get('b_pool_research_pass_count',0),panel_sha256=digest(panel),panel_rows=count,panel_first=available[0],panel_last=available[-1],
         panel_sessions=len(available),current_source_rows={t:len(current[t]) for t in CASES if t in current},
         original_last90_suffix_unchanged=True,regular_only_certified=False,corporate_action_boundaries_respected=True,
-        sector_membership_pit_verified=False,survivorship_bias_removed=False,historical_scope='NOV11_NONBIO_UNIVERSE_CONDITIONED_RETROSPECTIVE_PRICE_ONLY',
+        sector_membership_pit_verified=False,survivorship_bias_removed=False,historical_scope='REGISTERED_NONBIO_UNIVERSE_CONDITIONED_PRICE_ONLY',
         historical_financial_ranking_used=False,original_ledgers_modified=False,orders_enabled=False,telegram_requests=0,
         exclusions=dict(coverage),old_source_sha256=original['source_validation_sha256'])
     return allbars,current,eligible,metadata,market,oldsummary,provenance
