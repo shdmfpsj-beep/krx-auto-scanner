@@ -84,7 +84,8 @@ def latest_probe(out,clock):
 
 def financial_review(row,cutoff):
     s=(row or {}).get('latest_statement') or {}
-    if not s or s.get('published_on','9999')>cutoff:return dict(status='UNAVAILABLE_OR_FUTURE_REPORT',observed_positive=False,confirmed=False)
+    if not s or s.get('published_on','9999')>cutoff:return dict(status='UNAVAILABLE_OR_FUTURE_REPORT',observed_positive=False,confirmed=False,
+        required_metrics_complete=False,company_observation_state='UNKNOWN_NOT_COMPANY_FAILURE')
     fields=('revenue_krw','operating_profit_krw','operating_cashflow_ytd_krw','equity_krw')
     positive=all(isinstance(s.get(k),(int,float)) and s[k]>0 for k in fields)
     balanced=isinstance(s.get('balance_identity_gap_fraction'),(int,float)) and abs(s['balance_identity_gap_fraction'])<=.01
@@ -93,9 +94,13 @@ def financial_review(row,cutoff):
     observed=positive and stable_balance
     growth=s.get('revenue_increased') is True and s.get('operating_profit_increased') is True
     confirmed=observed and row.get('financial_pit_verified') is True and row.get('original_document_pit_verified') is True
+    required=fields+('assets_krw','liabilities_krw','balance_identity_gap_fraction')
+    missing=[k for k in required if not isinstance(s.get(k),(int,float)) or isinstance(s.get(k),bool)]
     return dict(status='CONFIRMED_ORIGINAL_PIT' if confirmed else 'LATER_API_CONTEXT_NOT_ORIGINAL_PIT',observed_positive=observed,
         growth_observed=growth,confirmed=confirmed,statement=s,business_competitiveness_verified=False,
-        operational_ranking_approved=False,not_available_as_original_nov11_selection_reason=True)
+        operational_ranking_approved=False,not_available_as_original_nov11_selection_reason=True,
+        required_metrics_complete=not missing,missing_metrics=missing,
+        company_observation_state='UNKNOWN_NOT_COMPANY_FAILURE' if missing else 'OBSERVED_POSITIVE' if observed else 'OBSERVED_METRICS_FAIL')
 
 def choose_watch(rows,financial,sector):
     # Logical gates and deterministic lexicographic ordering, no invented

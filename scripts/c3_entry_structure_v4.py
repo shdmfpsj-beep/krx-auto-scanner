@@ -156,7 +156,7 @@ def review_v4(bars,legacy):
 
 def reasons(row,version='v4'):
     result=[];q=row.get('financial',{})
-    if not q.get('observed_positive'):result.append('COMPANY_UNKNOWN' if q.get('status') in ('UNAVAILABLE_OR_FUTURE_REPORT','HISTORICAL_PIT_UNAVAILABLE') else 'COMPANY_OBSERVED_METRICS_FAIL')
+    if not q.get('observed_positive'):result.append('COMPANY_UNKNOWN' if q.get('company_observation_state')=='UNKNOWN_NOT_COMPANY_FAILURE' or q.get('status') in ('UNAVAILABLE_OR_FUTURE_REPORT','HISTORICAL_PIT_UNAVAILABLE') else 'COMPANY_OBSERVED_METRICS_FAIL')
     if not row['momentum_pass']:result.append('RS_NOT_POSITIVE_AND_IMPROVING')
     if not row['liquidity_pass']:result.append('TURNOVER_BELOW_EXISTING_FLOOR')
     review=row['range_review'] if version=='v4' else row['range_review']['v3_review']

@@ -75,5 +75,10 @@ class FailureAccounting(unittest.TestCase):
         r=self.row('A',False,True,True);self.assertIn('RS_NOT_POSITIVE_AND_IMPROVING',reasons(r))
     def test_data_hold_and_no_candidate_are_separate(self):
         a=exclusion_audit([self.row('A',False,False,False)])['cash_interpretation'];self.assertFalse(a['absence_of_marketwide_profitable_stocks_proven']);self.assertFalse(a['over_exclusion_ruled_out'])
+    def test_missing_cashflow_is_unknown_not_proven_bad_company(self):
+        from c3_market_range_study_v1 import financial_review
+        q=dict(latest_statement=dict(published_on='2026-08-14',revenue_krw=10,operating_profit_krw=2,operating_cashflow_ytd_krw=None,equity_krw=6,assets_krw=10,liabilities_krw=4,balance_identity_gap_fraction=0))
+        f=financial_review(q,'2026-11-11');r=self.row('A',True,True,False);r['financial']=f
+        self.assertIn('COMPANY_UNKNOWN',reasons(r));self.assertNotIn('COMPANY_OBSERVED_METRICS_FAIL',reasons(r));self.assertFalse(f['required_metrics_complete'])
 
 if __name__=='__main__':unittest.main()
