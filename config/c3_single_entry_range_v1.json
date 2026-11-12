@@ -1,5 +1,5 @@
 {
-  "model_version": "C3_MARKET_ENTRY_RANGE_V2",
+  "model_version": "C3_MARKET_RANGE_STRUCTURE_V3",
   "research_only": true,
   "range_execution": "USER_DISCRETION_NO_PRESCRIBED_ENTRY_COUNT",
   "order_execution_policy": "MANUAL_ONLY_NO_AUTOMATIC_ORDER_OR_FIXED_SPLIT",
@@ -13,11 +13,23 @@
   "pivot_lookback_sessions": 20,
   "ma_support_lookback_sessions": 10,
   "resistance_confirmation_bars": 2,
-  "validity_sessions": [1, 2, 3],
-  "forward_sessions": [5, 10, 20],
+  "validity_sessions": [
+    1,
+    2,
+    3
+  ],
+  "forward_sessions": [
+    5,
+    10,
+    20
+  ],
   "default_card_validity_sessions": 1,
   "min_turnover20_krw": 1000000000,
-  "fees": {"buy": 0.0015, "sell": 0.005, "slippage_each_side": 0.001},
+  "fees": {
+    "buy": 0.0015,
+    "sell": 0.005,
+    "slippage_each_side": 0.001
+  },
   "global_rules": "REUSE_V618_WITH_STALE_INPUTS_REMOVED_NO_OPTIMIZATION",
   "news_policy": "NO_VERIFIED_SOURCE_NO_CATALYST_CLAIM",
   "financial_policy": "ORIGINAL_PIT_REQUIRED_FOR_CONFIRMED_QUALITY;LATER_API_CONTEXT_LABELLED_POST_HOC",
@@ -25,5 +37,7 @@
   "same_day_policy": "STOP_FIRST;NO_ENTRY_BAR_TARGET_CREDIT;DAILY_EXECUTION_NOT_CONFIRMED",
   "telegram_enabled": false,
   "orders_enabled": false,
-  "automatic_production_promotion": false
+  "automatic_production_promotion": false,
+  "stop_practicality_review": "RESEARCH_EVIDENCE_FILTER_NO_PRICE_OR_THRESHOLD_TUNING",
+  "narrow_range_alert": "EXISTING_SUPPORT_BAND_ATR_DIAGNOSTIC_WITH_SENSITIVITY_NOT_LIVE_MINIMUM"
 }

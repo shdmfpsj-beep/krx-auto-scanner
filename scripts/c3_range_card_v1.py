@@ -1,129 +1,125 @@
-"""High-contrast mobile cards from real OHLCV and the exact report payload."""
-import hashlib,json,math
+"""Reference-standard ivory mobile cards, using the existing true-price plot.
+
+The user photograph defines layout/colors only. Its old prices, orders and
+financial/news narrative are never copied. All content comes from report JSON.
+"""
+import hashlib,json
 from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from PIL import Image,ImageDraw,PngImagePlugin
-from c3_classic_theme import font,moving_average,audit_averages,validate_bars
+from c3_classic_theme import (font,text,won,wrap,plot,validate_bars,W,H,
+    INK,SUB,GOLD,PAPER,GREEN,BLUE,RED,PURPLE,MA_COLORS)
 
-W,H=1200,2200
-BG,PANEL,WHITE,MUTED='#090F1C','#111D30','#F2F5FA','#A6B6CE'
-TEAL,RED,GOLD,BLUE='#45E2BD','#FF6D85','#FFD16D','#6CAEFF'
-def text(d,x,y,value,size=34,color=WHITE,bold=False,anchor=None):
-    d.text((x,y),str(value),font=font(size,bold),fill=color,anchor=anchor)
-def won(v):return f'{v:,.0f}' if v is not None else '미확인'
-def wrapped(d,x,y,s,width=1080,size=32,color=MUTED):
-    line=''
-    for ch in str(s):
-        if d.textlength(line+ch,font=font(size))>width:
-            text(d,x,y,line,size,color);y+=size+13;line=ch
-        else:line+=ch
-    if line:text(d,x,y,line,size,color)
-    return y+size+13
+REFERENCE_SHA256='b28d58dae4cc5de165616aa5ece660ed69f4b758d62d688241f644e9202bfdc3'
+LABELS={'STRUCTURAL_STOP_CONFIRMED':'일봉 구조 확인','STRUCTURAL_STOP_WEAK':'구조 근거 약함',
+    'STOP_TOO_TIGHT_FOR_VOLATILITY':'정상 변동 대비 촘촘','STOP_RISK_EXCESSIVE':'손절 위험 과다','STOP_UNVERIFIED':'손절 미확인',
+    'RANGE_VALID':'연구 범위 유효','RANGE_TOO_NARROW':'범위 폭 과소','RANGE_TOO_FAR':'범위 이격 과다'}
+
 def stamp(s):
     if not s:return '미확인'
-    return datetime.fromisoformat(s.replace('Z','+00:00')).astimezone(ZoneInfo('Asia/Seoul')).strftime('%m/%d %H:%M:%S KST')
+    return datetime.fromisoformat(s.replace('Z','+00:00')).astimezone(ZoneInfo('Asia/Seoul')).strftime('%m/%d %H:%M KST')
+
+def box_notes(row,p,report):
+    q=(row.get('financial') or {}).get('statement') or {};sr=p.get('stop_reliability',{}) if p else {}
+    quants=f"RS20 {row.get('own_rs20',0):+.2f}%p · 5일 개선 {row.get('rs_accel5',0):+.2f}%p · 거래대금20일 {row.get('turnover20',0)/1e8:,.0f}억원. {row.get('sector','업종 미확인')} / 시장 {report['regime']['observed_regime']}(미인증)."
+    if q:
+        period='분기' if q.get('income_period_basis')=='SINGLE_QUARTER' else '해당기간'
+        finance=f"{q.get('fiscal_year','')}년 API({q.get('fs_div','구분 미확인')}) · {period} 매출 {q['revenue_krw']/1e8:,.0f}억 · 영업익 {q['operating_profit_krw']/1e8:,.0f}억 · 누적 영업CF {q['operating_cashflow_ytd_krw']/1e8:,.0f}억. 사후 조회, 원문 PIT 미확인."
+    else:finance='재무 원문 및 당시 이용 가능 자료 미확인. 재무 우량 기업 확정 아님.'
+    issue='확인된 뉴스·외국인·기관 수급 원본 없음. 주요 이슈와 수급 강도를 추정하지 않음.'
+    if q:issue+=f" 공시 접수 {q.get('published_on','미확인')} / 현재 API 근거."
+    risk=(f"{LABELS.get(sr.get('status'),'손절 미확인')} · 독립 지지 접촉 {sr.get('independent_contacts','미확인')}회 · 완충 {sr.get('buffer_krw',0):,.0f}원. "
+        '손절·범위를 임의 변경하지 않음. 갭 하락 시 손실 확대 가능.')
+    return [('정량·섹터',quants),('재무·실적',finance),('주요 이슈·수급',issue),('리스크·구조손절',risk)]
 
 def render(row,bars,report,path):
     validate_bars(bars,report['source_date'],row['close'])
     if len(bars)<119:raise ValueError('FULL_60_VISIBLE_MA60_REQUIRES_119_REAL_BARS')
-    av={n:moving_average(bars,n) for n in (5,20,60)};audit=audit_averages(bars,av)
-    bs=bars[-60:];p=row.get('display_plan');valid=bool(p and p['range_valid']);r=p['range'] if valid else None
-    prices=[b[k] for b in bs for k in ('low','high')]
-    if p:prices += [v for v in (p['stop'],p['r1'],p['r2']) if v is not None]
-    if r:prices += [r['low'],r['high']]
-    for values in av.values():prices.extend(v for v in values[-60:] if v is not None)
-    lo,hi=min(prices),max(prices);span=hi-lo;lo-=span*.06;hi+=span*.06
-    im=Image.new('RGB',(W,H),BG);d=ImageDraw.Draw(im)
-    text(d,55,35,'강현AI PRO  /  C3 TOP2',34,TEAL,True)
-    text(d,55,95,row['name'],66,WHITE,True);text(d,55,182,row['ticker']+'  ·  '+row['market']+'  ·  '+row['sector'],32,MUTED)
-    d.rounded_rectangle((55,245,1145,402),radius=23,fill=PANEL)
-    text(d,80,265,'기준 종가',30,MUTED);text(d,80,310,won(row['close'])+'원',52,WHITE,True)
-    text(d,650,265,'시장 관찰 / 인증',30,MUTED)
-    text(d,650,317,report['regime']['observed_regime']+' / UNVERIFIED',34,GOLD,True)
-    state='ENTRY RANGE · 연구 관찰' if valid else 'WATCH · 진입 구간 미확인'
-    text(d,55,433,state,39,TEAL if valid else GOLD,True)
-    text(d,55,494,'실제 일봉 60개  ·  MA 5 / 20 / 60',29,MUTED)
-    for n,color,x in ((5,BLUE,630),(20,GOLD,780),(60,'#C1A4FF',945)):
-        d.line((x,513,x+30,513),fill=color,width=4);text(d,x+40,494,str(n),28,color)
-    left,right,top,bottom=80,950,560,1220
-    py=lambda v:bottom-(v-lo)/(hi-lo)*(bottom-top)
-    step=(right-left)/60
-    if r:
-        d.rectangle((left,py(r['high']),right,py(r['low'])),fill='#16453D')
-        d.line((left,py(r['high']),right,py(r['high'])),fill=TEAL,width=2)
-        d.line((left,py(r['low']),right,py(r['low'])),fill=TEAL,width=2)
-    for j in range(6):
-        v=lo+(hi-lo)*j/5;y=py(v);d.line((left,y,right,y),fill='#263247',width=1)
-        text(d,970,y-17,won(v),24,MUTED)
-    for i,b in enumerate(bs):
-        x=left+(i+.5)*step;color=RED if b['close']>=b['open'] else BLUE
-        d.line((x,py(b['high']),x,py(b['low'])),fill=color,width=2)
-        y1,y2=sorted((py(b['open']),py(b['close'])))
-        d.rectangle((x-step*.27,y1,x+step*.27,max(y1+2,y2)),fill=color)
-    for n,color in ((5,BLUE),(20,GOLD),(60,'#C1A4FF')):
-        pts=[(left+(i+.5)*step,py(v)) for i,v in enumerate(av[n][-60:])]
-        d.line(pts,fill=color,width=3)
-    levels=[('종가',row['close'],WHITE)]
-    if p:levels += [('손절',p['stop'],RED),('R1',p['r1'],GOLD),('R2',p['r2'],'#C1A4FF')]
-    # All exact level prices are repeated below; adjacent plot tags are offset
-    # to avoid overlapping while their lines stay at the true coordinates.
-    occupied=[]
-    for label,value,color in sorted((v for v in levels if v[1] is not None),key=lambda v:-v[1]):
-        y=py(value)
-        for x in range(left,right,18):d.line((x,y,min(x+9,right),y),fill=color,width=2)
-        tag=y
-        if occupied:tag=max(tag,occupied[-1]+34)
-        occupied.append(tag);text(d,952,tag-14,label+' '+won(value),22,color)
-    vmax=max(b['volume'] for b in bs) or 1;vtop,vbottom=1280,1435
-    text(d,55,1245,'거래량',25,MUTED)
-    for i,b in enumerate(bs):
-        x=left+(i+.5)*step;y=vbottom-b['volume']/vmax*(vbottom-vtop)
-        d.rectangle((x-step*.27,y,x+step*.27,vbottom),fill=RED if b['close']>=b['open'] else BLUE)
-    for i in (0,20,40,59):text(d,left+(i+.5)*step,1452,bs[i]['date'][5:],23,MUTED,anchor='mt')
-    d.rounded_rectangle((55,1515,1145,1805),radius=22,fill=PANEL)
-    if valid:
-        text(d,80,1532,'매수 관찰 범위  ·  주문 방식은 사용자 판단',29,TEAL,True)
-        text(d,80,1577,won(r['low'])+' ~ '+won(r['high'])+'원',49,WHITE,True)
-        text(d,80,1645,'하단 위험 '+f"{r['endpoints']['lower']['stop_risk_pct']:.2f}%"+'  /  상단 위험 '+f"{r['endpoints']['upper']['stop_risk_pct']:.2f}%",29,MUTED)
-        text(d,80,1692,'최소 순손익비 R1 '+f"{r['min_net_r1_rr']:.2f}배"+'  ·  미도달 PASS',31,GOLD)
-        text(d,80,1745,'추격 매수 주의  ·  가격일 후 1거래일 연구',28,MUTED)
-    else:
-        text(d,80,1540,'우량성 확인 전 기술·재무 관찰 후보',33,GOLD,True)
-        wrapped(d,80,1600,'현재 구조에서 위험 조건을 충족한 연속 매수 범위가 없습니다. 신규 진입은 CASH입니다.',1020,34,WHITE)
-        text(d,80,1745,'구조손절·R1·R2 미확정  ·  범위를 임의 상향하지 않음',28,MUTED)
-    y=1834
-    if p:
-        text(d,55,y,'구조손절 '+won(p['stop'])+'   R1 '+won(p['r1'])+'   R2 '+won(p['r2']),30,WHITE);y+=48
-    y=wrapped(d,55,y,row['reason_text'],1085,29,MUTED)
-    text(d,55,1986,'가격 기준 '+report['source_date']+'  |  원본 수집 '+stamp(report['source_received_at']),24,MUTED)
-    mode='과거 원본 재검토' if report.get('mode')=='ARCHIVED_PRICE_CURRENT_CONTEXT_REVIEW' else '신규 거래일 연구 관찰'
-    text(d,55,2026,'검토·이미지 생성 '+stamp(report['generated_at'])+'  |  '+mode,24,MUTED)
-    text(d,55,2066,'정규장·재무 PIT 미인증  /  BUY 승인 없음  /  신규 매수 CASH',26,RED,True)
-    text(d,55,2120,'주문 횟수·비중은 사용자가 결정합니다. 자동 주문은 없습니다.',23,MUTED)
+    p=row.get('display_plan');r=p['range'] if p and p['range_valid'] else None
+    diagnostic=row.get('is_diagnostic') is True
+    if not r:raise ValueError('STOCK_CARD_REQUIRES_A_PROVENANCE_LINKED_RESEARCH_PLAN')
+    rank=row.get('research_rank');status='PASS' if diagnostic else '매수 관찰\nWAIT'
+    im=Image.new('RGB',(W,H),PAPER);d=ImageDraw.Draw(im)
+    d.rectangle((0,0,W,98),fill=INK);d.rectangle((0,94,W,99),fill=GOLD)
+    text(d,52,26,'강현AI PRO | C3 TOP2',46,'#F3E6CD',True)
+    text(d,1345,37,report['source_date'].replace('-','.'),31,'#EEEAE2',anchor='ra')
+    text(d,54,123,row['name'],65,INK,True)
+    label='사례 검토 · TOP 미선정' if diagnostic else 'TOP'+str(rank)
+    text(d,54,205,row['ticker']+' · '+row['sector']+' · '+label,30,SUB)
+    text(d,1345,125,won(row['close']),61,INK,True,anchor='ra')
+    previous=bars[-2]['close'];change=row['close']-previous;pct=100*change/previous
+    text(d,1345,204,f'{change:+,.0f}원 ({pct:+.2f}%)',31,RED if change>0 else BLUE,True,anchor='ra')
+    d.rectangle((48,252,1352,294),fill='#F0EBDD')
+    banner=report['source_date']+' 과거 자료 재검토 · '+('기존 연구 범위 진단 / PASS' if diagnostic else '연구 관찰 / 실제 BUY 승인 아님')
+    text(d,700,258,banner,27,GOLD,True,anchor='ma')
+    d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2)
+    text(d,74,333,'일봉 · 최근 60거래일 가격과 거래량',31,INK,True)
+    for i,n in enumerate((5,20,60)):
+        x=770+i*175;d.line((x,353,x+28,353),fill=MA_COLORS[n],width=4);text(d,x+34,338,f'{n}일선',22,SUB)
+    price_plan=dict(low=r['low'],high=r['high'],stop=p['stop'],resistance=p['r1'],resistance2=p['r2'])
+    av,geometry=plot(d,bars,row,price_plan)
+    text(d,54,1218,'기존 연구 구간 진단' if diagnostic else '매매 관찰 구간',33,INK,True)
+    cells=[('기존 범위(부적합)' if diagnostic else '매수 가능 범위',won(r['low'])+' ~\n'+won(r['high']),GREEN),
+        ('구조손절',won(p['stop']),RED),('1차 저항 R1',won(p['r1']),GOLD),('2차 저항 R2',won(p['r2']),PURPLE),('최종 상태',status,BLUE)]
+    for i,(label,value,color) in enumerate(cells):
+        x=48+i*261;d.rectangle((x,1270,x+252,1406),fill='white');d.line((x,1270,x+252,1270),fill=color,width=4)
+        text(d,x+126,1285,label,26,color,True,anchor='ma')
+        for k,line in enumerate(value.split('\n')):text(d,x+126,1330+k*34,line,30,color,True,anchor='ma')
+    text(d,54,1432,'범위·구조손절 실용성 평가',33,INK,True)
+    sr=p.get('stop_reliability',{});pr=p.get('practicality',{})
+    summary=(f"폭 {r['high']-r['low']:,.0f}원 / {r['width_atr']:.3f}ATR · 상단 위험 {r['endpoints']['upper']['stop_risk_pct']:.2f}% · 최소 순RR {r['min_net_r1_rr']:.2f}배")
+    text(d,56,1480,summary,29,INK)
+    text(d,56,1522,LABELS.get(pr.get('status'),'범위 검토')+' / '+LABELS.get(sr.get('status'),'손절 미확인')+' · 범위 미도달 PASS',28,RED if diagnostic else SUB)
+    text(d,54,1570,'선정 근거 및 가격 구조 검토',33,INK,True)
+    layout=[];notes=box_notes(row,p,report)
+    for i,(label,value) in enumerate(notes):
+        yy=1624+i*156;d.rectangle((48,yy,1352,yy+146),fill='white');d.line((48,yy,48,yy+146),fill=GOLD,width=5)
+        text(d,72,yy+23,f'{i+1:02}',22,GOLD,True)
+        for k,line in enumerate(label.split('·')):text(d,118,yy+25+k*37,line+('·' if k==0 else ''),29,INK,True)
+        lines=wrap(d,value,1002,30,3)
+        for k,line in enumerate(lines):text(d,321,yy+23+k*38,line,30,INK)
+        layout.append(dict(label=label,lines=len(lines),text_right_max=321+max(d.textlength(v,font=font(30)) for v in lines),box_right=1352,box_bottom=yy+146))
+    text(d,700,2267,'KRX 일별·보존 캐시 / 정규장 전용 미인증 / 재무 원문 PIT 미확인',23,SUB,anchor='ma')
+    text(d,700,2303,'가격 '+report['source_date']+' · 수집 '+stamp(report['source_received_at'])+' · 생성 '+stamp(report['generated_at']),21,SUB,anchor='ma')
+    text(d,700,2330,'연구용 · 실제 매수 승인 없음 · 주문 횟수·수량·체결 방식은 사용자 결정',23,RED,True,anchor='ma')
+    text(d,700,2368,'유효기간 비교 1·2·3거래일 / 이번 재현은 과거 계획, 현재 주문 지시 아님',21,SUB,anchor='ma')
     payload=dict(ticker=row['ticker'],name=row['name'],close=row['close'],price_asof=report['source_date'],
         source_run_id=report['source_run_id'],source_hash=report['source_hash'],report_hash=report['report_payload_sha256'],
-        range=[r['low'],r['high']] if r else None,stop=p['stop'] if p else None,r1=p['r1'] if p else None,r2=p['r2'] if p else None,
-        visible_bars=60,ma60_visible_points=60,source_bars=len(bars),ma_audit=audit,
-        source_received_at=report['source_received_at'],generated_at=report['generated_at'],
-        execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',buy_approved=False)
+        range=[r['low'],r['high']],stop=p['stop'],r1=p['r1'],r2=p['r2'],is_diagnostic=diagnostic,rank=rank,
+        stop_reliability=sr.get('status'),range_status=pr.get('status'),visible_bars=60,source_bars=len(bars),ma60_visible_points=len(geometry['paths']['60']),
+        ma_audit=geometry['average_audit'],source_received_at=report['source_received_at'],generated_at=report['generated_at'],
+        chart_source_sha256=row.get('chart_source_sha256'),
+        theme='USER_REFERENCE_IVORY_GREY_V3',reference_image_sha256=REFERENCE_SHA256,layout=layout,analysis_sections=[n[0] for n in notes],
+        entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',buy_approved=False)
     info=PngImagePlugin.PngInfo();info.add_text('C3_manifest',json.dumps(payload,ensure_ascii=False,sort_keys=True))
-    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);im.save(path,pnginfo=info)
+    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);im.save(path,pnginfo=info,optimize=True)
     with Image.open(path) as saved:
         if json.loads(saved.info['C3_manifest'])!=payload:raise ValueError('PNG_SOURCE_PAYLOAD_MISMATCH')
     return dict(payload,png=path.name,png_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
 
 def hold_card(report,path):
-    im=Image.new('RGB',(W,H),BG);d=ImageDraw.Draw(im)
-    text(d,65,70,'강현AI PRO · C3 TOP2',46,TEAL,True)
-    text(d,65,280,'CASH / UNVERIFIED',65,GOLD,True)
-    wrapped(d,65,460,'매수 승인 보류. 인증 미완료를 후보 없음으로 기록하지 않습니다.',1070,44,WHITE)
-    wrapped(d,65,720,'정규장 가격 인증 또는 재무 원문 PIT 검증이 완료되지 않았습니다. 과거 결과를 오늘의 신규 추천으로 전송하지 않습니다.',1070,38,MUTED)
-    text(d,65,1590,'가격 기준일 '+report['source_date'],36,WHITE)
-    text(d,65,1680,'검토 '+stamp(report['generated_at']),32,MUTED)
-    text(d,65,1840,'신규 매수 CASH · 주문 및 실제 Telegram 전송 없음',29,RED)
-    payload=dict(source_run_id=report['source_run_id'],source_hash=report['source_hash'],
-        report_hash=report['report_payload_sha256'],price_asof=report['source_date'],status='UNVERIFIED',not_no_candidate_confirmation=True)
+    im=Image.new('RGB',(W,H),PAPER);d=ImageDraw.Draw(im)
+    d.rectangle((0,0,W,98),fill=INK);d.rectangle((0,94,W,99),fill=GOLD)
+    text(d,52,26,'강현AI PRO | C3 TOP2',46,'#F3E6CD',True);text(d,1345,37,report['source_date'].replace('-','.'),31,'#EEEAE2',anchor='ra')
+    text(d,700,220,'CASH',130,GOLD,True,anchor='ma');text(d,700,410,'최종 매수 관찰 후보 없음',52,INK,True,anchor='ma')
+    text(d,700,520,'11월 11일 과거 자료 재검토 · 현재 매수 추천 아님',32,SUB,anchor='ma')
+    funnel=report['funnel'];lines=[
+        ('01 전체시장 재현',f"KRX {funnel['full_market']:,} → 분석 {funnel['analysis_eligible']:,} → 기술 {funnel['technical']}종목"),
+        ('02 범위 실용성','좁거나 먼 구간은 별도 보류. 범위를 억지로 넓히지 않음.'),
+        ('03 구조손절','현재 MA 접촉만으로 지지 강도를 확정하지 않음. 약한 구조 제외.'),
+        ('04 인증·운영','정규장·재무 PIT 미인증. BUY 승인 없음. 실제 Telegram 전송 없음.')]
+    for i,(title,body) in enumerate(lines):
+        yy=700+i*265;d.rectangle((65,yy,1335,yy+225),fill='white');d.line((65,yy,65,yy+225),fill=GOLD,width=5)
+        text(d,98,yy+30,title,36,INK,True)
+        for k,line in enumerate(wrap(d,body,1170,33,3)):text(d,98,yy+102+k*41,line,33,SUB)
+    text(d,700,1920,'데이터 인증 보류와 연구 조건 통과 0개는 서로 다른 상태입니다.',31,RED,True,anchor='ma')
+    text(d,700,2160,'가격일 '+report['source_date']+' / 수집 '+stamp(report['source_received_at']),28,SUB,anchor='ma')
+    text(d,700,2220,'생성 '+stamp(report['generated_at'])+' / KRX 일별·보존 원본',28,SUB,anchor='ma')
+    text(d,700,2300,'실제 주문 횟수·수량·가격은 사용자가 결정합니다. 자동 주문 없음.',28,SUB,anchor='ma')
+    payload=dict(source_run_id=report['source_run_id'],source_hash=report['source_hash'],report_hash=report['report_payload_sha256'],
+        price_asof=report['source_date'],status='CASH_RESEARCH_NO_PRACTICAL_ENTRY',certification_status='UNVERIFIED',theme='USER_REFERENCE_IVORY_GREY_V3',
+        reference_image_sha256=REFERENCE_SHA256,not_data_failure_relabelled_zero=True)
     info=PngImagePlugin.PngInfo();info.add_text('C3_manifest',json.dumps(payload,ensure_ascii=False,sort_keys=True))
-    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);im.save(path,pnginfo=info)
+    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);im.save(path,pnginfo=info,optimize=True)
     return dict(payload,png=path.name,png_sha256=hashlib.sha256(path.read_bytes()).hexdigest())

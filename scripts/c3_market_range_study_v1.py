@@ -18,10 +18,23 @@ from c3_market_context_v1 import load_prior_macro,fetch_indices,domestic_context
 from c3_range_forward_v1 import hash_value,register,observe,append_outcome
 from c3_range_card_v1 import render,hold_card
 from c3_range_delivery_v1 import envelope,transport_test,safe_claim
+from c3_range_structure_v3 import reassess,audit_no_anchor_change
 
 DAY='2026-11-11'
 MACRO_ARTIFACT=13914336548
 MACRO_ZIP_SHA='40200b039eaeab03a4a30f3b86e83ff310d20813e03e05490aaf2a4f1884b14c'
+
+def restore_pr106_baseline(out):
+    raw=subprocess.check_output(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/13930503168/zip'],timeout=60)
+    if hashlib.sha256(raw).hexdigest()!='4347b7fc1483b63953a8a07f314f13e8ba5231ab0ac2e825c5ae1a398712e522':raise ValueError('PR106_BASELINE_ARCHIVE_HASH_MISMATCH')
+    result={}
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        for name in ('report.json','all149_range_diagnostics.json','historical_single_entry_summary.json'):
+            info=z.getinfo('evidence/market-range/'+name)
+            if info.file_size>12*1024*1024:raise ValueError('PR106_BASELINE_FILE_OVERSIZED')
+            body=z.read(info);target=out/'baseline_pr106'/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(body)
+            result[name]=json.loads(body)
+    return result
 
 def restore_macro(path):
     raw=subprocess.check_output(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(MACRO_ARTIFACT)+'/zip'],timeout=60)
@@ -181,12 +194,15 @@ def history_comparison(allbars,eligible,meta,market,out):
     write(out/'historical_single_entry_events.json',events);write(out/'historical_single_entry_summary.json',summary)
     return summary
 
-def run(engine,state,old,out,fetch=True):
+def run(engine,state,old,out,fetch=True,reuse_history=False):
     started=time.monotonic();out.mkdir(parents=True,exist_ok=True);clock=datetime.now(timezone.utc)
     allbars,current,eligible,meta,market,baseline,provenance=load_dataset(engine,state,old)
     source=json.loads(Path('evidence/source-original/morning_source.json').read_text());company=json.loads(Path('evidence/company/company_quality.json').read_text())
     technical=json.loads((old/'technical_candidates.json').read_text())['rows']
     if len(technical)!=149:raise ValueError('BASELINE_TECHNICAL_149_NOT_REPRODUCED')
+    previous=restore_pr106_baseline(out) if fetch else {name:json.loads((out/'baseline_pr106'/name).read_text()) for name in ('report.json','all149_range_diagnostics.json','historical_single_entry_summary.json')}
+    if previous['report.json']['source_hash']!=provenance['original_market_payload_sha256']:raise ValueError('PR106_SOURCE_MARKET_CHANGED')
+    previous_by={r['ticker']:r for r in previous['all149_range_diagnostics.json']['rows']}
     probe=latest_probe(out,clock) if fetch else dict(status='OFFLINE_NO_NEW_PROVIDER_REQUEST')
     macro=restore_macro(out/'source_global_snapshot.json') if fetch else json.loads(Path('evidence/source-global/v618_global_macro_status.json').read_text())
     global_c=load_prior_macro(macro,clock)
@@ -204,8 +220,17 @@ def run(engine,state,old,out,fetch=True):
     selected_ids=[r['ticker'] for r in stock_pool[:2]] # frozen BEFORE any range
     by={r['ticker']:r for r in rows};range_counts=Counter();diags=[]
     for r in rows:
-        d=generate_ranges(current[r['ticker']]);range_counts['range_generated']+=bool(d['plans']);range_counts['range_risk_pass']+=bool(d['best'])
+        legacy=generate_ranges(current[r['ticker']]);prior=previous_by[r['ticker']]['range_review']
+        if legacy!=prior:raise ValueError('PR106_RANGE_MODEL_NOT_EXACTLY_REPRODUCED:'+r['ticker'])
+        d=reassess(current[r['ticker']],legacy);audit_no_anchor_change(legacy,d)
+        range_counts['range_generated']+=bool(legacy['plans']);range_counts['range_risk_pass']+=bool(legacy['best'])
+        range_counts['practical_entry_pass']+=bool(d['best'])
+        range_counts['any_confirmed_stop']+=any(p['stop_reliability']['research_eligible'] for p in d['plans'])
         r.update(range_review=d,financial=finance.get(r['ticker'],{}));diags.append(r)
+    if range_counts['range_generated']!=102 or range_counts['range_risk_pass']!=30:raise ValueError('PR106_102_RANGES_30_RISK_PASS_NOT_REPRODUCED')
+    sensitivity={str(t):dict(risk_and_width=sum(any(p['range_valid'] and p['range']['width_atr']>=t for p in r['range_review']['plans']) for r in rows),
+        risk_width_and_confirmed_stop=sum(any(p['range_valid'] and p['range']['width_atr']>=t and p['stop_reliability']['research_eligible'] for p in r['range_review']['plans']) for r in rows)) for t in (0,.1,.2,.3,.4)}
+    write(out/'practicality_sensitivity.json',dict(asof=DAY,thresholds_not_optimized=True,live_minimum_adopted=False,by_width_atr=sensitivity))
     watch=[]
     for t in selected_ids:
         r=dict(by[t]);p=r['range_review']['best']
@@ -215,11 +240,12 @@ def run(engine,state,old,out,fetch=True):
         if not p:r['entry_hold_reason']='CURRENT_SUPPORT_TOO_DEEP_OR_ACTIVE_RESISTANCE_UNCONFIRMED'
         watch.append(r)
     fit=choose_practical_top2(stock_pool,by)
+    for i,r in enumerate(fit,1):r['research_rank']=i
     report=dict(schema='C3_AI_MARKET_ENTRY_RANGE_REPORT_V2',model_version=PROTOCOL['model_version'],mode='ARCHIVED_PRICE_CURRENT_CONTEXT_REVIEW',
         source_date=DAY,source_received_at=source['final_collection_at'],source_run_id=provenance['original_source_run_id'],source_hash=provenance['original_market_payload_sha256'],
         generated_at=datetime.now(timezone.utc).isoformat(),research_run_id=os.environ.get('GITHUB_RUN_ID'),research_commit=os.environ.get('GITHUB_SHA'),
         regime=regime,watch_top2=watch,entry_fit_top2=fit,final_research_top2=fit,
-        final_research_ranking_policy='RESELECT_ALL_QUALIFIED_AFTER_ENTRY_GEOMETRY',confirmed_company_quality_top2=[],
+        final_research_ranking_policy='RESELECT_ALL_QUALIFIED_AFTER_GEOMETRY_PRACTICALITY_AND_STOP_EVIDENCE',confirmed_company_quality_top2=[],
         selection_rank_frozen_before_range=True,financial_context_collected_at=company['collected_at'],
         financial_original_pit_verified=False,regular_only_certified=False,current_action='CASH',buy_approved=False,
         entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',automated_order_enabled=False,telegram_requests=0,original_ledgers_modified=False,
@@ -233,21 +259,36 @@ def run(engine,state,old,out,fetch=True):
     write(out/'frozen_selection_ids.json',dict(selected_before_range=selected_ids,selected_after_range=[r['ticker'] for r in watch],same=True,
         final_research_top2=[r['ticker'] for r in fit],watch_only=[r['ticker'] for r in watch if r['ticker'] not in {v['ticker'] for v in fit}],
         final_rescreen_scope='FULL_149_TECHNICAL_CANDIDATES_NOT_FIXED_WATCH_TOP2'))
-    paths=[];manifests=[]
+    paths=[];manifests=[];case_paths=[];case_manifests=[]
     for r in fit:
         p=out/'cards'/('C3_WATCH_'+DAY.replace('-','')+'_'+r['ticker']+'.png')
         bars=current[r['ticker']][-119:]
         source_doc=dict(ticker=r['ticker'],source_date=DAY,original_source_run_id=report['source_run_id'],
             original_market_payload_sha256=report['source_hash'],panel_sha256=provenance['panel_sha256'],bars=bars)
         write(out/'chart_sources'/(r['ticker']+'.json'),source_doc)
-        manifest=render(r,bars,report,p);manifest['chart_source_sha256']=hash_value(source_doc)
+        manifest=render(dict(r,chart_source_sha256=hash_value(source_doc)),bars,report,p)
         manifests.append(manifest);paths.append(p)
+    for t in ('028050','051160'):
+        row=dict(by[t]);legacy=row['range_review']['legacy_best']
+        if not legacy:continue
+        plan=next(p for p in row['range_review']['plans'] if p['method']==legacy['method'] and p['support']==legacy['support'] and p['stop']==legacy['stop'])
+        row.update(display_plan=plan,is_diagnostic=True,reason_text='기존 연구 가격 불변 · 제외 사유 진단')
+        path=out/'case_reviews'/('C3_CASE_'+DAY.replace('-','')+'_'+t+'.png')
+        case_bars=current[t][-119:]
+        chart_source=dict(ticker=t,source_date=DAY,original_source_run_id=report['source_run_id'],
+            original_market_payload_sha256=report['source_hash'],panel_sha256=provenance['panel_sha256'],bars=case_bars)
+        write(out/'chart_sources'/(t+'.json'),chart_source)
+        case_manifests.append(render(dict(row,chart_source_sha256=hash_value(chart_source)),case_bars,report,path));case_paths.append(path)
+        write(out/'case_reviews'/(t+'_structure.json'),dict(ticker=t,name=row['name'],asof=DAY,plan=plan,
+            latest20=current[t][-20:],all_plans=row['range_review']['plans'],original_plan_numbers_unchanged=True,not_a_final_top2=True))
+    write(out/'case_review_manifest.json',dict(cards=case_manifests,final_top2=False))
     if not paths:
         p=out/'cards'/('C3_UNVERIFIED_'+DAY.replace('-','')+'.png');manifests.append(hold_card(report,p));paths.append(p)
     write(out/'card_manifest.json',dict(source_run_id=report['source_run_id'],report_hash=report['report_payload_sha256'],cards=manifests))
     packet=envelope(paths,manifests,report)
     zero_card=out/'safe_test_inputs/C3_UNVERIFIED_ZERO_CANDIDATE_TEST.png';zero_manifest=hold_card(report,zero_card)
-    tests={str(n):transport_test(paths[:n] if n else [zero_card]) for n in (0,1,2) if n<2 or len(paths)>=2}
+    test_paths=paths if len(paths)>=2 else case_paths
+    tests={str(n):transport_test(test_paths[:n] if n else [zero_card]) for n in (0,1,2) if n<2 or len(test_paths)>=2}
     claims={};claim=safe_claim(claims,packet['key'],packet);duplicate=safe_claim(claims,packet['key'],packet)
     write(out/'telegram_safe_test.json',dict(envelope=packet,zero_candidates_mean_one_hold_card=True,
         scenarios=tests,zero_scenario_card=zero_manifest,first_claim=claim,repeat=duplicate,actual_telegram_requests=0,status='LIVE_SEND_HELD_RESEARCH_NOT_APPROVED',
@@ -263,14 +304,19 @@ def run(engine,state,old,out,fetch=True):
         forward.append(dict(registration=reg,observation=observe(record,allbars[r['ticker']],market['indices'][r['market']],market['sessions'],DAY)))
     write(out/'forward_tracking.json',dict(records=forward,backdated_forward_registrations=0,live_daily_deployment=False,
         code_supports_immutable_records_and_5_10_20_updates=True,reason='FROZEN_NOV11_REPLAY_NOT_NEW_FORWARD_SIGNAL'))
-    history=history_comparison(allbars,eligible,meta,market,out)
+    history=previous['historical_single_entry_summary.json'] if reuse_history else history_comparison(allbars,eligible,meta,market,out)
+    if reuse_history:write(out/'historical_reference_pr106.json',dict(status='REUSED_PRIOR_RESULT_NOT_A_V3_BACKTEST',source_run_id='43191464464',
+        archive_sha256='4347b7fc1483b63953a8a07f314f13e8ba5231ab0ac2e825c5ae1a398712e522',reference=history,
+        new_practicality_stop_policy_profitability_claimed=False))
     write(out/'execution_summary.json',dict(funnel=report['funnel'],watch=[dict(ticker=r['ticker'],name=r['name'],close=r['close'],status=r['status']) for r in watch],
         research_entry_fit=len(fit),final_research_top2=[dict(ticker=r['ticker'],name=r['name'],range=[r['display_plan']['range']['low'],r['display_plan']['range']['high']]) for r in fit],
          buy_approved=False,action='CASH',regime=regime,historical_range_events=history['range_events'],
-        png_count=len(paths),telegram_actual_requests=0,elapsed_seconds=round(time.monotonic()-started,2)))
+        png_count=len(paths),diagnostic_case_pngs=len(case_paths),all149_original_numeric_plans_unchanged=True,
+        historical_metrics_scope='REUSED_PR106_REFERENCE_NOT_V3_BACKTEST' if reuse_history else 'V3_EXPLORATORY_NOT_INDEPENDENT',
+        telegram_actual_requests=0,elapsed_seconds=round(time.monotonic()-started,2)))
     print(json.dumps(dict(funnel=report['funnel'],watch=selected_ids,final_research_top2=[r['ticker'] for r in fit],png_count=len(paths),buy_approved=False),ensure_ascii=False))
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--engine',type=Path,required=True);p.add_argument('--state',type=Path,required=True)
-    p.add_argument('--old',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--offline',action='store_true');a=p.parse_args()
-    run(a.engine,a.state,a.old,a.out,not a.offline)
+    p.add_argument('--old',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--offline',action='store_true');p.add_argument('--reuse-pr106-history',action='store_true');a=p.parse_args()
+    run(a.engine,a.state,a.old,a.out,not a.offline,a.reuse_pr106_history)
