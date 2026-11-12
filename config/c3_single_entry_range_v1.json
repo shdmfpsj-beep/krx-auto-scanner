@@ -1,5 +1,5 @@
 {
-  "model_version": "C3_MARKET_RANGE_STRUCTURE_V3",
+  "model_version": "C3_STRUCTURE_TYPED_RANGE_V4",
   "research_only": true,
   "range_execution": "USER_DISCRETION_NO_PRESCRIBED_ENTRY_COUNT",
   "order_execution_policy": "MANUAL_ONLY_NO_AUTOMATIC_ORDER_OR_FIXED_SPLIT",
@@ -39,5 +39,13 @@
   "orders_enabled": false,
   "automatic_production_promotion": false,
   "stop_practicality_review": "RESEARCH_EVIDENCE_FILTER_NO_PRICE_OR_THRESHOLD_TUNING",
-  "narrow_range_alert": "EXISTING_SUPPORT_BAND_ATR_DIAGNOSTIC_WITH_SENSITIVITY_NOT_LIVE_MINIMUM"
+  "narrow_range_alert": "EXISTING_SUPPORT_BAND_ATR_DIAGNOSTIC_WITH_SENSITIVITY_NOT_LIVE_MINIMUM",
+  "typed_structure_policy": "FIRST_PULLBACK_OR_PIVOT_OR_BREAKOUT_RETEST_EVIDENCE_NOT_UNIFORM_TWO_CONTACTS",
+  "distance_policy": "NEAREST_EDGE_ACCESSIBILITY_NO_SLIVER_CARVING_WHOLE_ZONE_RISK_VALIDATION",
+  "noise_buffer": "MAX_EXISTING_0_25_ATR_AND_OBSERVED_20_SESSION_MEDIAN_LOWER_WICK",
+  "historical_audit_session_offsets": [
+    67,
+    45,
+    23
+  ]
 }

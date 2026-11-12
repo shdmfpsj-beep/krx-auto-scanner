@@ -14,7 +14,7 @@ from c3_classic_theme import (font,text,won,wrap,plot,validate_bars,W,H,
 REFERENCE_SHA256='b28d58dae4cc5de165616aa5ece660ed69f4b758d62d688241f644e9202bfdc3'
 LABELS={'STRUCTURAL_STOP_CONFIRMED':'일봉 구조 확인','STRUCTURAL_STOP_WEAK':'구조 근거 약함',
     'STOP_TOO_TIGHT_FOR_VOLATILITY':'정상 변동 대비 촘촘','STOP_RISK_EXCESSIVE':'손절 위험 과다','STOP_UNVERIFIED':'손절 미확인',
-    'RANGE_VALID':'연구 범위 유효','RANGE_TOO_NARROW':'범위 폭 과소','RANGE_TOO_FAR':'범위 이격 과다'}
+    'PRACTICAL_RANGE':'구조 범위 유효','NARROW_BUT_STRUCTURALLY_VALID':'좁은 구조 범위 유효','RANGE_VALID':'연구 범위 유효','RANGE_TOO_NARROW':'범위 폭 과소','RANGE_TOO_FAR':'범위 이격 과다'}
 
 def stamp(s):
     if not s:return '미확인'
@@ -31,6 +31,14 @@ def box_notes(row,p,report):
     if q:issue+=f" 공시 접수 {q.get('published_on','미확인')} / 현재 API 근거."
     risk=(f"{LABELS.get(sr.get('status'),'손절 미확인')} · 독립 지지 접촉 {sr.get('independent_contacts','미확인')}회 · 완충 {sr.get('buffer_krw',0):,.0f}원. "
         '손절·범위를 임의 변경하지 않음. 갭 하락 시 손실 확대 가능.')
+    ev=p.get('evidence',{}) if p else {}
+    structure=sr.get('structure_type')
+    if structure:
+        kind={'FIRST_PULLBACK':'첫 눌림','BREAKOUT_RETEST':'돌파 재지지','CONFIRMED_PIVOT':'확정 피벗','CONFIRMED_REPEATED_SUPPORT':'반복 지지'}.get(structure,structure)
+        risk=f"{kind} · 저점 {ev.get('low_date','미확인')} {sr.get('original_low',0):,.0f}원 / 확인 {sr.get('confirmed_on','미확인')}. ATR {p['atr14']:,.0f}원·완충 {sr['buffer_krw']:,.0f}원. 갭 손실 확대 가능."
+    else:
+        dates=sr.get('active_contact_dates') or []
+        risk=f"지지 접촉 {','.join(dates) or '미확인'} / 저점 {sr.get('original_low',0):,.0f}원. {LABELS.get(sr.get('status'),'미확인')}. ATR {p['atr14']:,.0f}원·완충 {sr.get('buffer_krw',0):,.0f}원. 갭 위험."
     return [('정량·섹터',quants),('재무·실적',finance),('주요 이슈·수급',issue),('리스크·구조손절',risk)]
 
 def render(row,bars,report,path):
@@ -39,19 +47,19 @@ def render(row,bars,report,path):
     p=row.get('display_plan');r=p['range'] if p and p['range_valid'] else None
     diagnostic=row.get('is_diagnostic') is True
     if not r:raise ValueError('STOCK_CARD_REQUIRES_A_PROVENANCE_LINKED_RESEARCH_PLAN')
-    rank=row.get('research_rank');status='PASS' if diagnostic else '매수 관찰\nWAIT'
+    rank=row.get('research_rank');status=('연구 관찰' if row.get('case_selected') else 'PASS') if diagnostic else '매수 관찰\nWAIT'
     im=Image.new('RGB',(W,H),PAPER);d=ImageDraw.Draw(im)
     d.rectangle((0,0,W,98),fill=INK);d.rectangle((0,94,W,99),fill=GOLD)
     text(d,52,26,'강현AI PRO | C3 TOP2',46,'#F3E6CD',True)
     text(d,1345,37,report['source_date'].replace('-','.'),31,'#EEEAE2',anchor='ra')
     text(d,54,123,row['name'],65,INK,True)
-    label='사례 검토 · TOP 미선정' if diagnostic else 'TOP'+str(rank)
+    label='구조 비교 사례' if diagnostic else 'TOP'+str(rank)
     text(d,54,205,row['ticker']+' · '+row['sector']+' · '+label,30,SUB)
     text(d,1345,125,won(row['close']),61,INK,True,anchor='ra')
     previous=bars[-2]['close'];change=row['close']-previous;pct=100*change/previous
     text(d,1345,204,f'{change:+,.0f}원 ({pct:+.2f}%)',31,RED if change>0 else BLUE,True,anchor='ra')
     d.rectangle((48,252,1352,294),fill='#F0EBDD')
-    banner=report['source_date']+' 과거 자료 재검토 · '+('기존 연구 범위 진단 / PASS' if diagnostic else '연구 관찰 / 실제 BUY 승인 아님')
+    banner=report['source_date']+' 과거 자료 재검토 · '+(('구조 확인 · 연구 관찰' if row.get('case_selected') else '구조 진단 / PASS') if diagnostic else '연구 관찰 / 실제 BUY 승인 아님')
     text(d,700,258,banner,27,GOLD,True,anchor='ma')
     d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2)
     text(d,74,333,'일봉 · 최근 60거래일 가격과 거래량',31,INK,True)
@@ -60,7 +68,7 @@ def render(row,bars,report,path):
     price_plan=dict(low=r['low'],high=r['high'],stop=p['stop'],resistance=p['r1'],resistance2=p['r2'])
     av,geometry=plot(d,bars,row,price_plan)
     text(d,54,1218,'기존 연구 구간 진단' if diagnostic else '매매 관찰 구간',33,INK,True)
-    cells=[('기존 범위(부적합)' if diagnostic else '매수 가능 범위',won(r['low'])+' ~\n'+won(r['high']),GREEN),
+    cells=[('기존 범위(부적합)' if diagnostic and not row.get('case_selected') else '매수 가능 범위',won(r['low'])+' ~\n'+won(r['high']),GREEN),
         ('구조손절',won(p['stop']),RED),('1차 저항 R1',won(p['r1']),GOLD),('2차 저항 R2',won(p['r2']),PURPLE),('최종 상태',status,BLUE)]
     for i,(label,value,color) in enumerate(cells):
         x=48+i*261;d.rectangle((x,1270,x+252,1406),fill='white');d.line((x,1270,x+252,1270),fill=color,width=4)
