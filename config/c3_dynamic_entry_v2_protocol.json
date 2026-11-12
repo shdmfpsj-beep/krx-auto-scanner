@@ -53,5 +53,7 @@
   "telegram_enabled": false,
   "existing_breakout_volume_ratio_min": 1.2,
   "first_pullback_prior_completed_reclaims_allowed": 0,
-  "reused_preignition_score_used": false
+  "reused_preignition_score_used": false,
+  "correctness_amendment": "INCLUDE_EVERY_POST_BREAKOUT_LOW_AND_REJECT_CLOSES_BREAKING_EXISTING_V58_SUPPORT_TOLERANCE",
+  "correctness_amendment_reason": "CHART_AUDIT_REVEALED_OMITTED_FAILED_RETESTS; NOT_THRESHOLD_TUNING"
 }

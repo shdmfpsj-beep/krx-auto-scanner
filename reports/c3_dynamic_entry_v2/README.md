@@ -33,7 +33,7 @@ No Telegram API call, credential for delivery, registration/publish function, li
 
 The Actions workflow `c3_dynamic_entry_research_v2.yml` preserves the exact protocol, original replay, all current candidate diagnostics, historical event/outcome rows, real PNGs and their source hashes, tests, and protected before/after inventories. Actual execution results will be appended after inspecting the run and artifacts.
 
-## First actual execution (fixed protocol; no parameter tuning)
+## Initial executions — INVALIDATED BY STRUCTURAL-STOP DEFECT
 
 Commit `5dc4ee51b7474df3536894c89daba7c5908e911b`, push run **43163227570**, PR-test run **43163260439** both succeeded. The push artifact **13918294316** has ZIP SHA256 `939be0d53bc611e8b87ca9de56ca22d569df45b2d90e9e7dcc38af7c939ce23c`. Regression: **72 passed, 0 failed**. The full retained source has **1,012,593 rows / 372 sessions, 2025-05-02 through 2026-11-11** (panel SHA256 `b5ab966f36eae3635d7d2e5b3e9a8bb4f1c3fdd828f1b91c273a763d13968932`). All original last-90 suffixes and 2769/2416/1988/149/50/4/0 counts reproduced.
 
@@ -42,3 +42,9 @@ November 11 produced 13 new plans, 3 geometry-passing tickers, and 1 geometry+mo
 Development signals: 2025-08-28 through 2026-08-07; outcomes stop 2026-09-10; comparison segment 2026-09-11 through 2026-11-11, with a 23-session purge. For 1-day expiry / 20-day outcome, development chose DYNAMIC_BB (33 complete opportunities, 17 fills, opportunity mean +1.3297%, filled mean +2.5812%). Its comparison segment contains only 4 complete opportunities, **zero fills**. Zero return is uninvested cash, not demonstrated profitable trading. DYNAMIC comparison: 16 complete / 2 fills / opportunity mean -0.7988%; C3_ORIGINAL: 11 complete / 2 fills / -1.3190%; ADX: 12 complete / 3 fills / -1.3612%; both filters: 1 complete / 0 fills / 0%. These different opportunity cohorts are not paired evidence of causal improvement.
 
 Verdict: **RESEARCH MAINTAIN**, no operational promotion. Subsequent reporting changes add method funnels, direct company-evidence gate statuses, source-linked MA audit values and a clearly labeled base-model watch chart. They do not change the protocol, historical selections or outcomes; verify equality against the first artifact after execution.
+
+## Mandatory correctness fix discovered in actual chart inspection
+
+The actual TFE chart exposed an omitted failed retest: legacy `breakout_retest` accepted any earlier contact, and the initial dynamic wrapper calculated the stop only from contacts closing near the breakout level. Later much lower bars were omitted. This could falsely retain invalidated support and inflate net reward/risk. **The initial performance and TFE watch plan above are invalidated implementation results, not usable evidence for adoption.**
+
+The correction inspects EVERY post-breakout completed bar through confirmation, sets the invalidation low to the full observed minimum, and rejects a breakout if any subsequent close violates the already-existing v58 support tolerance (level minus 0.25 ATR). The confirmation-day low is also included for compression. No numerical research threshold was relaxed. Three explicit regression cases protect later breakdowns, intraday undercuts and the confirmation-day low. A recorded correctness amendment changes the protocol hash transparently; all original numerical parameters are unchanged. Recompute all selections and performance after this fix. No production or registered stop is edited.

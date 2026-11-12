@@ -65,6 +65,23 @@ class IndicatorsAndStructure(unittest.TestCase):
         chosen,skipped=d.pick_unique(rows,last,100);self.assertEqual([r['ticker'] for r in chosen],['A','B']);self.assertEqual(skipped,1)
         self.assertEqual(d.pick_unique(rows,last,120)[0],[])
         self.assertEqual(len(d.pick_unique(rows,last,121)[0]),2)
+    def test_failed_later_retest_invalidates_old_contact(self):
+        b=bars(6)
+        for x in b:x.update(open=102,high=105,low=100,close=103)
+        b[3].update(low=80,close=85);b[-1].update(low=101,close=110)
+        s=d.retest_structure(b,1,100,4)
+        self.assertFalse(s['support_retained_on_closes']);self.assertEqual(s['invalidation_low'],80);self.assertEqual(s['support_break_dates'],[b[3]['date']])
+    def test_structural_stop_covers_low_even_if_close_reclaims(self):
+        b=bars(6)
+        for x in b:x.update(open=102,high=105,low=100,close=103)
+        b[3].update(low=80,close=101)
+        s=d.retest_structure(b,1,100,4)
+        self.assertTrue(s['support_retained_on_closes']);self.assertEqual(s['invalidation_low'],80)
+    def test_confirmation_day_low_cannot_be_omitted_from_stop(self):
+        b=bars(6)
+        for x in b:x.update(open=102,high=105,low=100,close=103)
+        b[-1].update(low=90,close=104)
+        self.assertEqual(d.retest_structure(b,1,100,4)['invalidation_low'],90)
 
 
 class DailyExecution(unittest.TestCase):

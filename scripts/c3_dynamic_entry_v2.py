@@ -121,6 +121,19 @@ def first_pullback_context(bars,turn,atr):
     return first_dip
 
 
+def retest_structure(bars,breakout_index,level,atr):
+    """Inspect EVERY completed post-breakout bar, including failed retests.
+
+    A bar closing below the existing v58 tolerance invalidates that breakout.
+    Its low must never be omitted to manufacture a tighter structural stop.
+    """
+    after=bars[breakout_index+1:]
+    lowbar=min(after,key=lambda b:b['low'])
+    broken=[b['date'] for b in after if b['close']<level-.25*atr]
+    return dict(invalidation_low=lowbar['low'],low_date=lowbar['date'],support_retained_on_closes=not broken,
+                support_break_dates=broken,observed_through=bars[-1]['date'])
+
+
 def plans(bars,pre=None,ticker='SYNTHETIC'):
     if len(bars)<DEFAULT['min_history']:return [],None,'INSUFFICIENT_80_BAR_CONTIGUOUS_HISTORY'
     a=atr14(bars);x=pre or indicators(bars);h=x['hma'];turn=confirmed_turn(h);piv=confirmed_pivots(bars)
@@ -139,11 +152,14 @@ def plans(bars,pre=None,ticker='SYNTHETIC'):
             if max(b['high'] for b in bars[j-20:j])!=level or bars[j]['close']<=level:continue
             touch=[k for k in range(j+1,len(bars)-1) if bars[k]['low']<=level+.2*a and bars[k]['close']>=level-.25*a]
             if not touch:continue
-            k=min(touch,key=lambda k:bars[k]['low']);v=bars[k]['low']
+            structure=retest_structure(bars,j,level,a);v=structure['invalidation_low']
             volume_ratio=bars[j]['volume']/statistics.mean(b['volume'] for b in bars[j-20:j])
-            out.append(geometry(bars,METHODS[1],level,v,bars[k]['date'],bars[-1]['date'],setup=volume_ratio>=1.2,evidence={
+            p=geometry(bars,METHODS[1],level,v,structure['low_date'],bars[-1]['date'],setup=volume_ratio>=1.2 and structure['support_retained_on_closes'],evidence={
                 'breakout_date':bars[j]['date'],'breakout_volume_ratio':volume_ratio,
-                'retest_date':bars[k]['date'],'confirmation':'LEGACY_V58_RECLAIM'}));break
+                'retest_date':structure['low_date'],'confirmation':'LEGACY_V58_RECLAIM_WITH_ALL_POST_BREAKOUT_BARS',
+                'post_breakout_structure':structure})
+            if not structure['support_retained_on_closes']:p['reasons'].append('RETEST_SUPPORT_INVALIDATED_AFTER_BREAKOUT')
+            out.append(p);break
     # Reuse v8.7 pre-breakout contraction/higher-low/dry-volume detector on t-1;
     # add today's completed breakout. Its arbitrary legacy score is NOT used.
     compact=[dict(date=b['date'],o=b['open'],h=b['high'],l=b['low'],c=b['close'],v=b['volume']) for b in bars]
@@ -152,8 +168,8 @@ def plans(bars,pre=None,ticker='SYNTHETIC'):
         recent=bars[-10:-1];low=min(b['low'] for b in recent)
         touches=[i for i,b in enumerate(recent) if b['low']<=low+.3*a]
         if touches and touches[-1]-touches[0]>=2:
-            k=len(bars)-10+min(touches,key=lambda i:recent[i]['low'])
-            out.append(geometry(bars,METHODS[2],base['resistance'],low,bars[k]['date'],bars[-1]['date'],setup=bars[-1]['volume']>=1.2*statistics.mean(b['volume'] for b in bars[-21:-1]),evidence={
+            observed=min(bars[-10:],key=lambda b:b['low'])
+            out.append(geometry(bars,METHODS[2],base['resistance'],observed['low'],observed['date'],bars[-1]['date'],setup=bars[-1]['volume']>=1.2*statistics.mean(b['volume'] for b in bars[-21:-1]),evidence={
                 'base_known_on':bars[-2]['date'],'compression_ratio':base['compression_ratio'],'volume_dryup':base['volume_dryup'],
                 'legacy_arbitrary_score_used':False,'support_touches':len(touches)}))
     return out,watch,None
