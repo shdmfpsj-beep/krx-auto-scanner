@@ -335,7 +335,7 @@ def run(engine,state,old,out,fetch=True,reuse_history=False):
         research_entry_fit=len(fit),final_research_top2=[dict(ticker=r['ticker'],name=r['name'],range=[r['display_plan']['range']['low'],r['display_plan']['range']['high']]) for r in fit],
          buy_approved=False,action='CASH',regime=regime,historical_range_events=history['range_events'],
         png_count=len(paths),diagnostic_case_pngs=len(case_paths),all149_original_numeric_plans_unchanged=True,new_typed_plans_are_separate_version=True,
-        historical_metrics_scope='REUSED_PR106_REFERENCE_NOT_V3_BACKTEST' if reuse_history else 'V3_EXPLORATORY_NOT_INDEPENDENT',
+        historical_metrics_scope='REUSED_PR106_REFERENCE_NOT_V4_BACKTEST' if reuse_history else 'V3_EXPLORATORY_NOT_INDEPENDENT',
         telegram_actual_requests=0,elapsed_seconds=round(time.monotonic()-started,2)))
     print(json.dumps(dict(funnel=report['funnel'],watch=selected_ids,final_research_top2=[r['ticker'] for r in fit],png_count=len(paths),buy_approved=False),ensure_ascii=False))
 

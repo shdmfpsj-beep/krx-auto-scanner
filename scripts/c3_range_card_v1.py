@@ -39,6 +39,12 @@ def box_notes(row,p,report):
     else:
         dates=sr.get('active_contact_dates') or []
         risk=f"지지 접촉 {','.join(dates) or '미확인'} / 저점 {sr.get('original_low',0):,.0f}원. {LABELS.get(sr.get('status'),'미확인')}. ATR {p['atr14']:,.0f}원·완충 {sr.get('buffer_krw',0):,.0f}원. 갭 위험."
+    if p:
+        anchor_label='MA'+str(ev['ma_period']) if ev.get('ma_period') else '지지'
+        lowdate=ev.get('low_date') or ev.get('touch_date') or ev.get('pivot_date') or sr.get('confirmed_on','미확인')
+        risk=(f"{anchor_label} {p['support']:,.0f}원·ATR {p['atr14']:,.0f}원 → 구조 {p['structural_low']:,.0f}~{p['structural_high']:,.0f}원. "
+            f"저점 {lowdate} {sr.get('original_low',0):,.0f}원·완충 {sr.get('buffer_krw',0):,.0f}원. "+
+            (kind if structure else LABELS.get(sr.get('status'),'미확인'))+' / 갭 위험.')
     return [('정량·섹터',quants),('재무·실적',finance),('주요 이슈·수급',issue),('리스크·구조손절',risk)]
 
 def render(row,bars,report,path):

@@ -66,7 +66,7 @@ class TypedEvidence(unittest.TestCase):
         self.assertEqual(r,review_v4(b[:-1],old))
 
 class FailureAccounting(unittest.TestCase):
-    def row(self,t,rs,liq,fin):return dict(ticker=t,momentum_pass=rs,liquidity_pass=liq,financial=dict(observed_positive=fin,status='LATER_API_CONTEXT_NOT_ORIGINAL_PIT'),range_review=dict(plans=[],best=None,v3_review=dict(plans=[],best=None)))
+    def row(self,t,rs,liq,fin):return dict(ticker=t,own_rs20=1,rs_accel5=1 if rs else -1,momentum_pass=rs,liquidity_pass=liq,financial=dict(observed_positive=fin,status='LATER_API_CONTEXT_NOT_ORIGINAL_PIT'),range_review=dict(plans=[],best=None,v3_review=dict(plans=[],best=None)))
     def test_overlapping_counts_are_not_summed_as_unique_failures(self):
         rows=[self.row('A',False,False,False),self.row('B',True,False,True)]
         a=exclusion_audit(rows);self.assertEqual(sum(a['v4']['exclusive_reason_combinations'].values()),2);self.assertEqual(a['v4']['multiple_failures'],2)

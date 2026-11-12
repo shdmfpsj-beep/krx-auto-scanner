@@ -3,7 +3,8 @@ import statistics
 from collections import Counter
 from itertools import combinations
 from c3_entry_structure_v4 import reasons,review_v4
-from c3_single_entry_range_v1 import generate_ranges,single_scenario
+from c3_single_entry_range_v1 import generate_ranges,single_scenario,PROTOCOL
+from first_pullback_v55 import up
 from c3_dynamic_entry_v2 import evaluate_trade
 from c3_selection_scope_v5 import selection_features
 from c3_selection_factors_v6 import causal_factors
@@ -31,6 +32,20 @@ def exclusion_audit(rows):
         official_regular_session_certified=False,financial_original_pit_certified=False,
         absence_of_marketwide_profitable_stocks_proven=False,over_exclusion_ruled_out=False,
         research_no_candidate_distinct_from_live_authentication_hold=True)
+    clipping=[]
+    for row in rows:
+        for p in row['range_review']['v3_review']['plans']:
+            if not p['range_valid']:continue
+            r=p['range'];floor=up(max(p['structural_low'],p['reference_close']-p['atr14']*PROTOCOL['max_distance_atr'],p['reference_close']*(1-PROTOCOL['max_distance_pct']/100)))
+            if r['low']>p['structural_low'] and r['low']==floor and r['width_atr']<PROTOCOL['support_band_atr'] and (r['high']-p['structural_low'])/p['atr14']>=PROTOCOL['support_band_atr']:
+                clipping.append(dict(ticker=row['ticker'],name=row['name'],method=p['method'],structural_low=p['structural_low'],
+                    clipped_low=r['low'],high=r['high'],width_atr=r['width_atr'],original_width_atr=(r['high']-p['structural_low'])/p['atr14']))
+    result['component_diagnostics']=dict(rs20_nonpositive=sum(r['own_rs20']<=0 for r in rows),
+        rs_accel5_nonpositive=sum(r['rs_accel5']<=0 for r in rows),
+        rs_both_nonpositive=sum(r['own_rs20']<=0 and r['rs_accel5']<=0 for r in rows),
+        original_pit_confirmed=sum(r['financial'].get('confirmed',False) for r in rows),
+        distance_caused_narrow_fragments=len({r['ticker'] for r in clipping}),distance_fragment_examples=clipping,
+        current_growth_observation_is_ranking_context_not_historical_proof=True)
     return result
 
 
@@ -78,6 +93,8 @@ def rejection_cohorts(allbars,eligible,meta,market,out_asof):
                     for h in (5,10,20)} for v in (1,2,3)} for choice in ('upper','middle','lower')} if plan else {}
             events.append(dict(ticker=t,name=meta[t]['name'],date=day,rs20=cf['own_rs20'],rs_accel5=cf['rs_accel5'],
                 turnover20=f['turnover20'],v3_price_pass=old is not None,v4_price_pass=new is not None,
+                v3_method=old['method'] if old else None,v4_method=new['method'] if new else None,
+                v4_plan_summary={k:new[k] for k in ('method','support_known_on','invalidation_low','stop','r1','r2','range')} if new else None,
                 rs_pass=row['momentum_pass'],turnover_pass=row['liquidity_pass'],selection_close_returns=returns,
                 outcomes=outcomes,paired_maturity=paired,v3_rejection_reasons=reasons(row,'v3'),v4_rejection_reasons=reasons(row,'v4'),
                 history_financial_quality='UNAVAILABLE_NOT_BACKFILLED'))
