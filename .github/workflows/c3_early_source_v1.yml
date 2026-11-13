@@ -138,7 +138,9 @@ jobs:
       - name: Capture latest completed session and bounded posting retries
         if: steps.trigger.outputs.allowed == 'true'
         id: live
-        continue-on-error: true
+        # Historical validation may also observe an unpublished live day.
+        # Routine collection must fail visibly when no post-close version exists.
+        continue-on-error: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         run: python scripts/c3_early_source_v1.py --out evidence/live-prefetch --publish
       - name: Preserve explicit live success or held status
         if: always() && steps.live.outcome != 'skipped' && steps.live.outcome != ''
