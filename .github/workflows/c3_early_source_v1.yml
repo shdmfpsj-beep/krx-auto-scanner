@@ -98,7 +98,7 @@ jobs:
         if: steps.trigger.outputs.allowed == 'true'
         run: python v4/scripts/c3_dynamic_integrity_v2.py --phase before --out evidence/integrity
       - name: Obtain fresh official Nov12 control for later verification only
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
         run: |
           python - <<'PY'
           import os
@@ -112,13 +112,13 @@ jobs:
           require_official_collection(r,'2026-11-12')
           PY
       - name: Replay three pinned file versions and published marcap Parquet
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
         run: python scripts/c3_early_source_study_v1.py --out evidence/replay --official-dir evidence/replay-official
       - name: Archive historical 23:01 version with actual current retrieval time
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
         run: python scripts/c3_early_source_v1.py --date 2026-11-12 --cutoff 2026-11-12T14:10:00Z --snapshot 712478993090174fd3366104c22f1af8d3ee275b --out evidence/historical-prefetch --publish
       - name: Exercise existing morning official comparison with the prefetch archive
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
         run: |
           python scripts/c3_morning_source_v1.py --date 2026-11-12 --outdir evidence/morning --require-data
           python - <<'PY'
@@ -129,7 +129,7 @@ jobs:
           assert r['comparison']['mismatch_count']==0 and r['regular_only_certified'] is False
           PY
       - name: Reuse existing approved and V4 analysis and PNG calculators (read-only replay)
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
         env:
           OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
           C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
