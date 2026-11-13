@@ -114,4 +114,24 @@ class Archive(unittest.TestCase):
         m=meta();m['raw_sha256']='0'*64
         with self.assertRaisesRegex(ValueError,'HASH'):self.save(m=m)
 
+class MorningRevision(unittest.TestCase):
+    def collect(self,fresh_matches):
+        from c3_source_recovery_v1 import run
+        rs=rows();stale=copy.deepcopy(rs);stale[0]['close']=106
+        proof=dict(early_archive_used=True,quality=quality(stale,'2026-11-12'))
+        with tempfile.TemporaryDirectory() as root,patch.dict(os.environ,{'GH_TOKEN':'SYNTHETIC','KRX_AUTH_KEY':'SYNTHETIC'}),\
+             patch('c3_source_recovery_v1.GitHub'),\
+             patch('c3_morning_source_v1.bounded_target',return_value=({'official_dataset_usable':True},[])),\
+             patch('c3_source_recovery_v1.official_rows',return_value=rs),\
+             patch('c3_early_source_v1.load_prefetch',return_value=(stale,proof)),\
+             patch('c3_source_recovery_v1.cache',return_value=(rs if fresh_matches else stale,{'quality':quality(rs,'2026-11-12')})),\
+             patch('c3_daily_research_v8.collect_indices',return_value={'series':{'KOSPI':{'end':'2026-11-12'},'KOSDAQ':{'end':'2026-11-12'}}}),\
+             patch('c3_morning_provider_probe_v1.probe',return_value={'status':'NOT_CONNECTED'}):
+            return run('2026-11-12',Path(root))
+    def test_revision_requires_fresh_exact_official_agreement(self):
+        r=self.collect(True);self.assertEqual(r['status'],'OFFICIAL_VERIFIED');self.assertTrue(r['approved_source_ready'])
+        self.assertEqual(r['early_archive_comparison']['status'],'MISMATCH');self.assertFalse(r['buy_approved'])
+    def test_revision_with_no_matching_fresh_source_remains_blocked(self):
+        r=self.collect(False);self.assertEqual(r['status'],'SOURCE_CONFLICT');self.assertFalse(r['approved_source_ready']);self.assertFalse(r['research_ready'])
+
 if __name__=='__main__':unittest.main()
