@@ -131,10 +131,21 @@ jobs:
       - name: Reuse existing approved and V4 analysis and PNG calculators (read-only replay)
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
         env:
-          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
           C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
         run: |
-          python scripts/c3_source_recovery_analysis_v1.py --source evidence/morning/recovery --engine engine --state state --out evidence/analysis --private private-inputs
+          # Same-date replay reuses real preserved facts through the existing
+          # hash/date/universe checker. It never backdates collection or PIT.
+          gh run download 43379047555 -R "$GITHUB_REPOSITORY" -n c3-post-close-prefetch-evidence -D private-replay-reference
+          python - <<'PY'
+          from pathlib import Path
+          from unittest.mock import patch
+          from c3_company_quality_review_v1 import reuse_evidence
+          from c3_source_recovery_analysis_v1 import run
+          path=Path('private-replay-reference/analysis/company_quality.json')
+          expected='08318760d026e81e8fcdff3081eee5457f63509172c09feff99db03c8ff62fe7'
+          with patch('c3_company_quality_review_v1.collect',side_effect=lambda candidates:reuse_evidence(path,expected,candidates)):
+              run(Path('evidence/morning/recovery'),Path('engine'),Path('state'),Path('evidence/analysis'),Path('private-inputs'))
+          PY
       - name: Capture latest completed session and bounded posting retries
         if: steps.trigger.outputs.allowed == 'true'
         id: live
