@@ -3,9 +3,25 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from c3_official_recheck_v19 import run,locked_source_day
+from c3_official_recheck_v19 import run,locked_source_day,prepare_locked_recheck
 
 class RecheckTests(unittest.TestCase):
+    def test_weekend_missing_session_is_recorded_hold_without_guessing_a_date(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/'readiness.json';p.write_text(json.dumps(dict(schema='C3_READY_AND_SOURCE_ATTESTATION_V19',expected_source_day=None)))
+            r=prepare_locked_recheck(p,Path(tmp)/'out');self.assertFalse(r['ready']);self.assertIsNone(r['day'])
+            h=json.loads((Path(tmp)/'out/c3_official_dated_recheck_v19.json').read_text());self.assertEqual(h['status'],'HOLD_NO_LOCKED_SOURCE_DAY');self.assertEqual(h['api_requests'],0);self.assertFalse(h['trading_approved'])
+    def test_optional_recheck_still_rejects_invalid_dates_and_schema(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/'readiness.json'
+            for schema,day in [('WRONG',None),('C3_READY_AND_SOURCE_ATTESTATION_V19','2026-11-14'),('C3_READY_AND_SOURCE_ATTESTATION_V19','2026-11-13-invalid')]:
+                p.write_text(json.dumps(dict(schema=schema,expected_source_day=day)))
+                with self.assertRaises(ValueError):prepare_locked_recheck(p,Path(tmp)/'out')
+    def test_monday_locked_friday_is_retained_exactly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp)/'readiness.json';p.write_text(json.dumps(dict(schema='C3_READY_AND_SOURCE_ATTESTATION_V19',expected_source_day='2026-11-13')))
+            r=prepare_locked_recheck(p,Path(tmp)/'out');self.assertTrue(r['ready']);self.assertEqual(r['day'],'2026-11-13')
+            self.assertFalse((Path(tmp)/'out/c3_official_dated_recheck_v19.json').exists())
     def test_morning_date_lock_uses_ready_source_day_not_wall_clock(self):
         with tempfile.TemporaryDirectory() as tmp:
             f=Path(tmp)/"readiness.json"

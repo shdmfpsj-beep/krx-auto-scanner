@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - fix/c3-readiness-provenance-20261107
+      - fix/c3-weekend-readiness-hold-20261114
     paths:
       - 'scripts/c3_readiness_gate_v19.py'
       - 'scripts/c3_official_recheck_v19.py'
@@ -86,18 +87,30 @@ jobs:
       - run: python -m pip install --disable-pip-version-check requests
       - name: Derive current C3 finality without treating absence as zero TOP2
         run: python scripts/c3_readiness_gate_v19.py --outdir /tmp/c3-readiness-v19
+      - name: Keep absent session lock as explicit HOLD without an API request
+        id: date-lock
+        run: |
+          python - <<'PY'
+          import os
+          from c3_official_recheck_v19 import prepare_locked_recheck
+          r=prepare_locked_recheck('/tmp/c3-readiness-v19/c3_readiness_gate_v19.json','/tmp/c3-official-v19')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('ready='+str(r['ready']).lower()+'\n')
+          if r['ready']:
+              with open(os.environ['GITHUB_ENV'],'a') as f:f.write('SOURCE_DATE_TO_RECHECK='+r['day']+'\n')
+          print('DATED_RECHECK_READY' if r['ready'] else 'HOLD_NO_LOCKED_SOURCE_DAY_NO_API_REQUEST')
+          PY
       - name: Re-query official daily KRX date-lock without borrowing other date
+        if: steps.date-lock.outputs.ready == 'true'
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
         run: |
           set -euo pipefail
           # Use the exact source day frozen by the immediately preceding readiness
           # assessment; an early morning run MUST NOT query today's unfinished session.
-          SOURCE_DATE_TO_RECHECK="$(python -c 'from c3_official_recheck_v19 import locked_source_day; print(locked_source_day("/tmp/c3-readiness-v19/c3_readiness_gate_v19.json"))')"
-          echo "SOURCE_DATE_TO_RECHECK=$SOURCE_DATE_TO_RECHECK" >> "$GITHUB_ENV"
           echo "DATED_SOURCE_RECHECK $SOURCE_DATE_TO_RECHECK NO_SESSION_ATTESTATION_EXPECTED"
           python scripts/c3_official_recheck_v19.py --date "$SOURCE_DATE_TO_RECHECK" --outdir /tmp/c3-official-v19
       - name: Refresh readiness with date-matched newest official EOD probe (still not session-certified)
+        if: steps.date-lock.outputs.ready == 'true'
         run: python scripts/c3_readiness_gate_v19.py --date "$SOURCE_DATE_TO_RECHECK" --recent-official /tmp/c3-official-v19/c3_official_dated_recheck_v19.json --outdir /tmp/c3-readiness-v19
       - uses: actions/upload-artifact@v4
         if: always()
