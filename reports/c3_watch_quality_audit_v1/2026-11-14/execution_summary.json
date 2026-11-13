@@ -1,0 +1,48 @@
+{
+  "run": {
+    "id": 43516946478,
+    "sha": "6f0fdde2499d4be2c73784ced8c123583a38a619",
+    "event": "push",
+    "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43516946478",
+    "start": "2026-11-13T22:09:40Z",
+    "end": "2026-11-13T22:12:34Z",
+    "conclusion": "success"
+  },
+  "pr": {
+    "number": 119,
+    "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/pull/119",
+    "merged": true,
+    "merged_at": "2026-11-13T22:16:16Z",
+    "sha": "7f91b1a4149a967d12705673ad99795fac03b626"
+  },
+  "jobs": [
+    {
+      "id": 132201721823,
+      "name": "regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 132202059222,
+      "name": "actual-frozen-replay",
+      "conclusion": "success"
+    }
+  ],
+  "unit_tests_passed": 85,
+  "unit_tests_failed": 0,
+  "baseline_run": "43508677372",
+  "artifact_id": "14080539516",
+  "artifact_sha256": "5cf5a362a91ead5ae3a588f1ddd56d9f037ddee4d9c117f1e69fdb6c5ce640c3",
+  "new_data_collection_claimed": false,
+  "final_main": "63c948accf23840df9ad840d9ddae60eaac6887c",
+  "additional_fix": {
+    "pr": 120,
+    "head": "0ca064535e28e17d63b051b92a331b9af34a4de7",
+    "merge": "63c948accf23840df9ad840d9ddae60eaac6887c",
+    "branch_run": "43518834177",
+    "main_run": "43519008013",
+    "tests_passed": 32,
+    "status": "HOLD_NO_LOCKED_SOURCE_DAY",
+    "api_requests": 0,
+    "artifact": "14081587638"
+  }
+}
