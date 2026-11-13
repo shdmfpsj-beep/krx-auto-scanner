@@ -14,7 +14,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from c3_early_source_v1 import clock, session_context, write
-from c3_morning_source_v1 import normalized_hash
+from c3_morning_source_v1 import normalized_hash, cache_rows, compare
 from c3_source_recovery_v1 import validate
 
 TARGET = "2026-11-13"
@@ -70,6 +70,9 @@ def check_snapshot(prefetch, market, raw, now):
         raise ValueError("NIGHT_ARCHIVE_HASH_OR_ROW_CONFLICT")
     if set(Counter(r["market"] for r in rows)) != {"KOSPI", "KOSDAQ"}:
         raise ValueError("NIGHT_BOTH_BOARDS_REQUIRED")
+    # Bind the normalized prices to the actual CSV, not just two independent hashes.
+    parsed, _ = cache_rows(raw, TARGET)
+    compare(parsed, rows, TARGET)
     if clock(prefetch["file_commit_at"]) < clock(session_context(clock(now), TARGET)["reference_close_at"]):
         raise ValueError("NIGHT_FILE_BEFORE_REFERENCE_CLOSE")
     if clock(prefetch["file_commit_at"]) > clock(prefetch["collected_at"]):
@@ -78,6 +81,44 @@ def check_snapshot(prefetch, market, raw, now):
         raise ValueError("NIGHT_FUTURE_COLLECTION")
     validate(rows, TARGET)
     return rows
+
+
+def prepare_manual(source, out, now=None):
+    """Authenticated dispatch-only replay; never masquerades as scheduled workflow_run."""
+    now = now or datetime.now(ZoneInfo("Asia/Seoul"))
+    if os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch" or os.environ.get("GITHUB_REPOSITORY") != REPOSITORY or os.environ.get("GITHUB_REF") != "refs/heads/main":
+        raise ValueError("UNTRUSTED_MANUAL_DISPATCH")
+    if os.environ.get("GITHUB_WORKFLOW") != "C3 Nov13 one-night full-market research (NO ORDER / NO SEND)":
+        raise ValueError("WRONG_MANUAL_WORKFLOW")
+    source, out = Path(source), Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    prefetch = json.loads((source / "prefetch.json").read_text())
+    market = json.loads((source / "normalized_market.json").read_text())
+    raw = (source / "original.csv").read_bytes()
+    rows = check_snapshot(prefetch, market, raw, now)
+    from c3_daily_research_v8 import collect_indices
+    indices = collect_indices(out / "indices", TARGET)
+    if set(indices.get("series", {})) != {"KOSPI", "KOSDAQ"} or any(v.get("end") != TARGET for v in indices["series"].values()):
+        raise ValueError("MANUAL_SAME_DAY_BOARD_INDICES_NOT_READY")
+    shutil.copyfile(source / "normalized_market.json", out / "normalized_market.json")
+    manifest = dict(schema="C3_NOV13_MANUAL_RESEARCH_SOURCE_V1", asof=TARGET,
+        status="POST_CLOSE_FDR_RETROSPECTIVE_RESEARCH_ONLY", research_ready=True,
+        approved_source_ready=False, indices_ready=True, regular_only_certified=False,
+        price_basis=prefetch["price_basis"], normalized_rows_sha256=prefetch["normalized_rows_sha256"],
+        data_received_at=prefetch["collected_at"], source_run_id=os.environ["GITHUB_RUN_ID"],
+        execution_mode="AUTHENTICATED_WORKFLOW_DISPATCH", executed_at=clock(now).isoformat(),
+        file_commit=prefetch["file_commit"], file_commit_at=prefetch["file_commit_at"],
+        publication_timestamp_attested=False,
+        lookahead_relative_to_target_close=True, historical_point_in_time_backtest=False,
+        rows=len(rows), markets=dict(Counter(r["market"] for r in rows)),
+        raw_sha256=prefetch["raw_sha256"], official_krx_match_verified=False,
+        buy_approved=False, orders_enabled=False, telegram_requests=0, original_signals_modified=False)
+    write(out / "collection.json", manifest)
+    write(out / "tonight_status.json", dict(asof=TARGET, status="READY_FOR_RETROSPECTIVE_RESEARCH_ONLY",
+        source_run_id=os.environ["GITHUB_RUN_ID"], rows=len(rows),
+        executed_at=clock(now).isoformat(), file_commit_at=prefetch["file_commit_at"],
+        future_data_relative_to_nov13_close=True, buy_approved=False))
+    return manifest
 
 
 def prepare(event_file, evidence, out, now=None):
@@ -139,8 +180,9 @@ def prepare(event_file, evidence, out, now=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--event", required=True)
-    parser.add_argument("--evidence", required=True)
+    parser.add_argument("--event")
+    parser.add_argument("--manual-source")
+    parser.add_argument("--evidence")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
-    print(json.dumps(prepare(args.event, args.evidence, args.out), ensure_ascii=False))
+    print(json.dumps(prepare_manual(args.manual_source, args.out) if args.manual_source else prepare(args.event, args.evidence, args.out), ensure_ascii=False))

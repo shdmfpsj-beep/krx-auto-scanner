@@ -1,6 +1,7 @@
 name: C3 Nov13 one-night full-market research (NO ORDER / NO SEND)
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: ['C3 post-close price prefetch (RESEARCH / NO SEND)']
     types: [completed]
@@ -52,6 +53,7 @@ jobs:
       PYTHONPATH: scripts:v4/scripts:engine/scripts
       GH_TOKEN: ${{ github.token }}
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
       C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
     steps:
       - uses: actions/checkout@v4
@@ -93,6 +95,15 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y fonts-nanum >/dev/null
           python -m pip install requests pillow pandas==2.2.3 pyarrow==20.0.0 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 yfinance==0.2.66 --disable-pip-version-check
+      - name: Snapshot protected originals and Telegram receipts
+        run: |
+          python - <<'PY'
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          import os
+          write('output/integrity/before.json',capture(GitHub(os.environ['GH_TOKEN'])))
+          PY
       - name: Download only the prefetch completed in the invoking run
         uses: actions/download-artifact@v4
         with:
@@ -131,16 +142,195 @@ jobs:
           write('output/final_status.json',dict(asof=r['source_date'],status=('RESEARCH_TOP2_OR_CASH_PNG_COMPLETE' if r['selection_status']=='RESEARCH_ANALYSIS_COMPLETE' else 'RESEARCH_HOLD_FINANCIAL_INCOMPLETE_WITH_PNG'),
               source_sha256=r['normalized_rows_sha256'],funnel=r['funnel'],
               watch_top2=r.get('watch_top2',[]),entry_fit_top2=r['final_research_top2'],
+              watch_card_names=[x.name for x in Path('output/analysis/watch_cards').glob('*.png')],
               selection_status=r['selection_status'],
               card_names=[x.name for x in Path('output/analysis/cards').glob('*.png')],
               publication=p,official_krx_match_verified=False,buy_approved=False,
               original_signals_modified=False,orders_enabled=False,telegram_requests=0))
           PYCODE
+      - name: Verify protected originals and Telegram receipts
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          p=Path('output/integrity/before.json')
+          if not p.exists():raise SystemExit('NO_PROTECTED_BASELINE_CAPTURED')
+          before=json.loads(p.read_text());after=capture(GitHub(os.environ['GH_TOKEN']))
+          assert before['protected']==after['protected'],'PROTECTED_ORIGINAL_OR_RECEIPT_CHANGED'
+          after['originals_and_receipts_unchanged']=True
+          write('output/integrity/after.json',after)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: c3-nov13-tonight-research-png
           path: |
+            evidence/live-prefetch/
+            output/source/normalized_market.json
+            output/source/indices/*.csv
+            output/integrity/
+            output/analysis/watch_cards/*.png
+            output/analysis/watch_card_manifest.json
+            output/analysis/watch_chart_sources/
+            output/analysis/chart_sources/
+            output/analysis/technical_candidates.json
+            output/analysis/all_technical_diagnostics.json
+            output/analysis/company_quality.json
+            output/analysis/approved_engine_calculation.json
+            output/analysis/history_provenance.json
+            output/analysis/market_environment.json
+            output/source/tonight_status.json
+            output/source/collection.json
+            output/source/indices/index_manifest.json
+            output/analysis/report.json
+            output/analysis/card_manifest.json
+            output/analysis/delivery_status.json
+            output/analysis/cards/*.png
+            output/publication.json
+            output/final_status.json
+          retention-days: 90
+          if-no-files-found: warn
+
+  manual-retrospective-research:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    permissions:
+      contents: write
+      actions: read
+    env:
+      PYTHONPATH: scripts:v4/scripts:engine/scripts
+      GH_TOKEN: ${{ github.token }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+      C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: f3ed60f3fa0b967385df734ac54003aeee34d9d1
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/
+            /reports/c3_new_session_v1/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing research dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install requests pillow pandas==2.2.3 pyarrow==20.0.0 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 yfinance==0.2.66 --disable-pip-version-check
+      - name: Snapshot protected originals and Telegram receipts
+        run: |
+          python - <<'PY'
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          import os
+          write('output/integrity/before.json',capture(GitHub(os.environ['GH_TOKEN'])))
+          PY
+      - name: Capture exact Nov13 dated source now, not Nov12 historical replay
+        run: python scripts/c3_early_source_v1.py --date 2026-11-13 --out evidence/live-prefetch --publish
+      - name: Validate exact Friday source and same-day KOSPI/KOSDAQ indices
+        run: |
+          python -m unittest test_c3_nov13_once_v1 -v
+          python scripts/c3_nov13_once_v1.py --manual-source evidence/live-prefetch --out output/source
+      - name: Scan entire Nov13 market using existing A/B and V4, render TOP2 or CASH PNG
+        run: |
+          python scripts/c3_source_recovery_analysis_v1.py --source output/source --engine engine --state state --out output/analysis --private output/private
+      - name: Validate research-only controls and preserve report outside original ledger
+        run: |
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('output/analysis/report.json').read_text())
+          source=json.loads(Path('output/source/collection.json').read_text())
+          assert r['source_date']=='2026-11-13' and r['normalized_rows_sha256']==source['normalized_rows_sha256']
+          assert r['mode']=='NEW_SOURCE_RETROSPECTIVE_RESEARCH_NOT_REGISTERED_TRADE'
+          assert r['buy_approved'] is False and r['current_action']=='CASH'
+          assert r['approved_original_registered'] is False and r['new_forward_records']==0
+          assert r['telegram_requests']==0 and source['official_krx_match_verified'] is False
+          assert list(Path('output/analysis/cards').glob('*.png')), 'RESEARCH_CARD_NOT_RENDERED'
+          PYCODE
+          python scripts/c3_new_source_publish_v1.py --source output/source --analysis output/analysis --out output/publication.json
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          from c3_early_source_v1 import write
+          r=json.loads(Path('output/analysis/report.json').read_text())
+          p=json.loads(Path('output/publication.json').read_text())
+          write('output/final_status.json',dict(asof=r['source_date'],status=('RESEARCH_TOP2_OR_CASH_PNG_COMPLETE' if r['selection_status']=='RESEARCH_ANALYSIS_COMPLETE' else 'RESEARCH_HOLD_FINANCIAL_INCOMPLETE_WITH_PNG'),
+              source_sha256=r['normalized_rows_sha256'],funnel=r['funnel'],
+              watch_top2=r.get('watch_top2',[]),entry_fit_top2=r['final_research_top2'],
+              watch_card_names=[x.name for x in Path('output/analysis/watch_cards').glob('*.png')],
+              selection_status=r['selection_status'],
+              card_names=[x.name for x in Path('output/analysis/cards').glob('*.png')],
+              publication=p,official_krx_match_verified=False,buy_approved=False,
+              original_signals_modified=False,orders_enabled=False,telegram_requests=0))
+          PYCODE
+      - name: Verify protected originals and Telegram receipts
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          p=Path('output/integrity/before.json')
+          if not p.exists():raise SystemExit('NO_PROTECTED_BASELINE_CAPTURED')
+          before=json.loads(p.read_text());after=capture(GitHub(os.environ['GH_TOKEN']))
+          assert before['protected']==after['protected'],'PROTECTED_ORIGINAL_OR_RECEIPT_CHANGED'
+          after['originals_and_receipts_unchanged']=True
+          write('output/integrity/after.json',after)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-nov13-manual-retrospective-png
+          path: |
+            evidence/live-prefetch/
+            output/source/normalized_market.json
+            output/source/indices/*.csv
+            output/integrity/
+            output/analysis/watch_cards/*.png
+            output/analysis/watch_card_manifest.json
+            output/analysis/watch_chart_sources/
+            output/analysis/chart_sources/
+            output/analysis/technical_candidates.json
+            output/analysis/all_technical_diagnostics.json
+            output/analysis/company_quality.json
+            output/analysis/approved_engine_calculation.json
+            output/analysis/history_provenance.json
+            output/analysis/market_environment.json
             output/source/tonight_status.json
             output/source/collection.json
             output/source/indices/index_manifest.json
