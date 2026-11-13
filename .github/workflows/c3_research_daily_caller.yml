@@ -305,6 +305,15 @@ jobs:
           path: .cache/c3-dart/
           key: c3-dart-corp-v1-${{ runner.os }}-${{ github.run_id }}
           restore-keys: c3-dart-corp-v1-${{ runner.os }}-
+      - name: Snapshot protected originals and Telegram receipts before research
+        run: |
+          python - <<'PY'
+          import os
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          write('evidence/integrity/before.json',capture(GitHub(os.environ['GH_TOKEN'])))
+          PY
       - name: Reuse dated global context without making it a past selection reason
         run: |
           python - <<'PY'
@@ -324,12 +333,31 @@ jobs:
         run: python scripts/c3_source_recovery_analysis_v1.py --source evidence/recovery --engine engine --state state --out evidence/research --private private-inputs --macro evidence/macro.json
       - name: Preserve encrypted research source and review, never original signals
         run: python scripts/c3_new_source_publish_v1.py --source evidence/recovery --analysis evidence/research --out evidence/publication.json
+      - name: Verify original ledgers and Telegram receipts remain unchanged
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          before=json.loads(Path('evidence/integrity/before.json').read_text())
+          after=capture(GitHub(os.environ['GH_TOKEN']))
+          assert before['protected']==after['protected'],'PROTECTED_ORIGINAL_OR_RECEIPT_CHANGED'
+          after['originals_and_receipts_unchanged']=True
+          write('evidence/integrity/after.json',after)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: c3-new-session-research
           path: |
             evidence/research/
+            evidence/recovery/collection.json
+            evidence/recovery/normalized_market.json
+            evidence/recovery/indices/
+            evidence/integrity/
             evidence/publication.json
             evidence/macro.json
           retention-days: 90
