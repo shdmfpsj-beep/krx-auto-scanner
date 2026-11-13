@@ -63,6 +63,7 @@ jobs:
           sparse-checkout: |
             /scripts/*.py
             /config/*.json
+            /.github/workflows/c3_nov13_once.yml
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
@@ -216,6 +217,7 @@ jobs:
           sparse-checkout: |
             /scripts/*.py
             /config/*.json
+            /.github/workflows/c3_nov13_once.yml
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
