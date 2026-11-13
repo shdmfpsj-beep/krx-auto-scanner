@@ -97,14 +97,31 @@ def run(day,out,control=None,attempts=1):
         status='SOURCE_UNAVAILABLE',research_ready=False,approved_source_ready=False,rows=0)
     if control:result['official_control']=collect_day(control,out/'control',key,now=clock)
     cached=[]
-    try:cached,proof=cache(day,out/'cache',GitHub(os.environ['GH_TOKEN'],'FinanceData/fdr_krx_data_cache'));result['cache']=proof
-    except Exception as exc:result['cache']=dict(status='FAILED',error_type=type(exc).__name__)
+    # Exact-day post-close prefetch is a research input, not an approval.
+    # Fresh official KRX below must still match every identity and price field.
+    try:
+        from c3_early_source_v1 import load_prefetch
+        cached,proof=load_prefetch(day,out/'cache',gh,key);result['cache']=proof
+    except Exception as exc:
+        result['early_archive']=dict(status='UNAVAILABLE_OR_REJECTED',error_type=type(exc).__name__)
+        try:cached,proof=cache(day,out/'cache',GitHub(os.environ['GH_TOKEN'],'FinanceData/fdr_krx_data_cache'));result['cache']=proof
+        except Exception as exc:result['cache']=dict(status='FAILED',error_type=type(exc).__name__)
     chosen=[]
     if manifest['official_dataset_usable']:
         chosen=official_rows(out/'official');result['quality']=validate(chosen,day)
         if cached:
             try:result['comparison']=compare(chosen,cached,day);result['status']='OFFICIAL_VERIFIED';result['approved_source_ready']=True
-            except ValueError as exc:result.update(status='SOURCE_CONFLICT',comparison={'status':'MISMATCH','reason':str(exc)});chosen=[]
+            except ValueError as exc:
+                result.update(status='SOURCE_CONFLICT',comparison={'status':'MISMATCH','reason':str(exc)});chosen=[]
+                if result['cache'].get('early_archive_used'):
+                    result['early_archive_comparison']=result['comparison']
+                    try:
+                        fresh,proof=cache(day,out/'fresh-cache',GitHub(os.environ['GH_TOKEN'],'FinanceData/fdr_krx_data_cache'))
+                        matched=compare(official_rows(out/'official'),fresh,day)
+                        result.update(cache=proof,comparison=matched,status='OFFICIAL_VERIFIED',approved_source_ready=True)
+                        chosen=official_rows(out/'official')
+                    except Exception as failure:
+                        result['fresh_cache_after_revision']=dict(status='REJECTED',error_type=type(failure).__name__)
         else:result['status']='SINGLE_SOURCE_UNVERIFIED'
     elif cached:
         chosen=cached;result['quality']=result['cache']['quality'];result['status']='SINGLE_SOURCE_UNVERIFIED'

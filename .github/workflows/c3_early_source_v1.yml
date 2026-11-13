@@ -1,0 +1,164 @@
+name: C3 post-close price prefetch (RESEARCH / NO SEND)
+on:
+  push:
+    branches: [research/c3-early-source-20261113, main]
+    paths:
+      - scripts/c3_early_source_v1.py
+      - scripts/c3_early_source_study_v1.py
+      - scripts/test_c3_early_source_v1.py
+      - scripts/c3_source_recovery_v1.py
+      - .github/workflows/c3_early_source_v1.yml
+  schedule:
+    # Nov12 dated file's first final matching commit: 23:01 KST.
+    - cron: '10 14 * * 1-5'
+    # Nov13 07:01 KST repository observation; repeat verification, no signal.
+    - cron: '10 22 * * 0-4'
+  workflow_run:
+    workflows:
+      - Free v6.4 daily date-locked source audit and forward quarantine
+      - C3 morning prior-close read-only observation (NO ORDERS)
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-post-close-price-prefetch
+  cancel-in-progress: false
+jobs:
+  capture:
+    permissions:
+      contents: write
+      actions: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: scripts:v4/scripts:engine/scripts
+      GH_TOKEN: ${{ github.token }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+            /.github/workflows/*.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: f3ed60f3fa0b967385df734ac54003aeee34d9d1
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/
+            /reports/c3_new_session_v1/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests pillow pandas==2.2.3 pyarrow==20.0.0 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Check trusted completion event
+        id: trigger
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from c3_early_source_v1 import trusted_wakeup,write
+          event=json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          allowed=os.environ['GITHUB_EVENT_NAME']!='workflow_run' or trusted_wakeup(event,os.environ['GITHUB_REPOSITORY'])
+          write('evidence/trigger.json',{'event':os.environ['GITHUB_EVENT_NAME'],'trusted':allowed,'cron':event.get('schedule'),'upstream_run_id':event.get('workflow_run',{}).get('id'),'source_sha':os.environ['GITHUB_SHA']})
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write('allowed='+str(allowed).lower()+'\n')
+          if not allowed:raise SystemExit('Untrusted upstream completion event')
+          PY
+      - name: Regress early archive, original registration, stale report and delivery gates
+        if: steps.trigger.outputs.allowed == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/tests
+          python -m unittest test_c3_early_source_v1 test_c3_source_recovery_v1 test_c3_morning_v1 test_c3_morning_registration_v1 test_c3_telegram_notify -v 2>&1 | tee evidence/tests/regression.log
+      - name: Capture original ledger and Telegram receipt hashes
+        if: steps.trigger.outputs.allowed == 'true'
+        run: python v4/scripts/c3_dynamic_integrity_v2.py --phase before --out evidence/integrity
+      - name: Obtain fresh official Nov12 control for later verification only
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from datetime import datetime,timezone
+          from c3_eod_source_v9 import collect_day
+          from c3_morning_source_v1 import require_official_collection
+          from c3_early_source_v1 import write
+          r=collect_day('2026-11-12',Path('evidence/replay-official'),os.environ['KRX_AUTH_KEY'],now=datetime.now(timezone.utc))
+          write('evidence/replay-official/manifest.json',r)
+          require_official_collection(r,'2026-11-12')
+          PY
+      - name: Replay three pinned file versions and published marcap Parquet
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: python scripts/c3_early_source_study_v1.py --out evidence/replay --official-dir evidence/replay-official
+      - name: Archive historical 23:01 version with actual current retrieval time
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: python scripts/c3_early_source_v1.py --date 2026-11-12 --cutoff 2026-11-12T14:10:00Z --snapshot 712478993090174fd3366104c22f1af8d3ee275b --out evidence/historical-prefetch --publish
+      - name: Exercise existing morning official comparison with the prefetch archive
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          python scripts/c3_morning_source_v1.py --date 2026-11-12 --outdir evidence/morning --require-data
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('evidence/morning/recovery/collection.json').read_text())
+          assert r['status']=='OFFICIAL_VERIFIED' and r['cache']['early_archive_used'] is True
+          assert r['comparison']['mismatch_count']==0 and r['regular_only_certified'] is False
+          PY
+      - name: Reuse existing approved and V4 analysis and PNG calculators (read-only replay)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+          C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y fonts-nanum >/dev/null
+          python scripts/c3_source_recovery_analysis_v1.py --source evidence/morning/recovery --engine engine --state state --out evidence/analysis --private private-inputs
+      - name: Capture latest completed session and bounded posting retries
+        if: steps.trigger.outputs.allowed == 'true'
+        id: live
+        continue-on-error: true
+        run: python scripts/c3_early_source_v1.py --out evidence/live-prefetch --publish
+      - name: Preserve explicit live success or held status
+        if: always() && steps.trigger.outputs.allowed == 'true'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from c3_early_source_v1 import write,stamp
+          p=Path('evidence/live-prefetch/prefetch.json')
+          if not p.is_file():raise SystemExit('No live source result artifact')
+          r=json.loads(p.read_text())
+          write('evidence/final-status.json',{'asof':r['asof'],'prefetch_status':r['status'],'rows':r['rows'],'completed_at':stamp(),'buy_approved':False,'telegram_requests':0,'analysis_requires_next_morning_official_comparison':True})
+          print(r['asof'],r['status'],r['rows'])
+          PY
+      - name: Verify immutable originals and delivery receipts
+        if: always() && steps.trigger.outputs.allowed == 'true'
+        run: python v4/scripts/c3_dynamic_integrity_v2.py --phase after --out evidence/integrity
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-post-close-prefetch-evidence
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
