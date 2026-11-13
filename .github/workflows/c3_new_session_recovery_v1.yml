@@ -28,6 +28,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+            /.github/workflows/*.yml
+          sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
           ref: 54e7120b01966930e176d431e85b679347210c41
