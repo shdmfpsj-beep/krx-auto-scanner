@@ -1,0 +1,168 @@
+name: C3 WATCH quality and matched entry audit (READ ONLY / NO SEND)
+on:
+  push:
+    branches: [research/c3-watch-quality-audit-20261114]
+    paths: ['scripts/c3_watch_quality_audit_v1.py','scripts/c3_entry_timing_audit_v1.py','scripts/test_c3_watch_quality_audit_v1.py','scripts/c3_watch_card_v1.py','scripts/c3_source_recovery_analysis_v1.py','.github/workflows/c3_watch_quality_audit_v1.yml','.github/workflows/c3_research_daily_caller.yml']
+  pull_request:
+    paths: ['scripts/c3_watch_quality_audit_v1.py','scripts/c3_entry_timing_audit_v1.py','scripts/test_c3_watch_quality_audit_v1.py','scripts/c3_watch_card_v1.py','scripts/c3_source_recovery_analysis_v1.py','.github/workflows/c3_watch_quality_audit_v1.yml','.github/workflows/c3_research_daily_caller.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-watch-quality-audit-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: scripts:v4/scripts:engine/scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+            /.github/workflows/*.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: f3ed60f3fa0b967385df734ac54003aeee34d9d1
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install requests pillow pandas==2.2.3 exchange-calendars==4.13.2 cryptography --disable-pip-version-check
+      - name: Meaningful rank, timing, calendar, provenance and delivery regressions
+        run: python -m unittest test_c3_watch_quality_audit_v1 test_c3_nov13_once_v1 test_c3_morning_v1 test_c3_telegram_notify -v
+  actual-frozen-replay:
+    needs: regression
+    if: github.event_name == 'push' && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/research/c3-watch-quality-audit-20261114'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: scripts:v4/scripts:engine/scripts
+      GH_TOKEN: ${{ github.token }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+            /.github/workflows/*.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: f3ed60f3fa0b967385df734ac54003aeee34d9d1
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/
+            /reports/c3_new_session_v1/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install requests pillow pandas==2.2.3 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Verify and extract immutable successful source and original research cohort
+        run: |
+          python - <<'PY'
+          import hashlib,subprocess
+          from pathlib import Path
+          from c3_bootstrap_cache_v13 import extract
+          for artifact,expected,folder in [(14078620251,'1440eba159eb0e8eeaf6e5b2352e0be0b12593e72e0c3ab55733599d7bf35cf8','baseline'),(13920100040,'52548347f116801eb22f747972f8bbffc3c765abb7affbfc459ff196d2ff9154','cohort')]:
+              body=subprocess.check_output(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/'+str(artifact)+'/zip'])
+              assert hashlib.sha256(body).hexdigest()==expected,'FROZEN_ARTIFACT_HASH_CHANGED'
+              extract(body,folder)
+          PY
+      - name: Snapshot original ledgers and delivery receipts
+        run: |
+          python - <<'PY'
+          import os
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          write('evidence/integrity/before.json',capture(GitHub(os.environ['GH_TOKEN'])))
+          PY
+      - name: Replay existing A/B V4 without fresh financial API calls or publishing
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          from unittest.mock import patch
+          from c3_source_recovery_analysis_v1 import run
+          from c3_company_quality_review_v1 import reuse_evidence
+          base=Path('baseline/output');facts=base/'analysis/company_quality.json'
+          assert hashlib.sha256(facts.read_bytes()).hexdigest()=='b20ce8c607911126cab695b40e0ecdf505cb4fc3a74c4d80092ed68ba4d2f7f4'
+          cohort=next(Path('cohort').rglob('historical_events.json'))
+          assert hashlib.sha256(cohort.read_bytes()).hexdigest()=='5be6d2fdddbd08f970620ca264a6861f19f26ebf4ab80ae678d371855ba68a85'
+          with patch('c3_company_quality_review_v1.collect',side_effect=lambda c:reuse_evidence(facts,'b20ce8c607911126cab695b40e0ecdf505cb4fc3a74c4d80092ed68ba4d2f7f4',c)):
+              r=run(base/'source',Path('engine'),Path('state'),Path('evidence/research'),Path('private-inputs'),timing_cohort=cohort)
+          old=json.loads((base/'analysis/report.json').read_text())
+          assert r['funnel']==old['funnel'] and r['source_hash']==old['source_hash']
+          assert [x['ticker'] for x in r['watch_top2']]==[x['ticker'] for x in old['watch_top2']]
+          assert [x['ticker'] for x in r['final_research_top2']]==[x['ticker'] for x in old['final_research_top2']]
+          a=json.loads((base/'analysis/all_technical_diagnostics.json').read_text())['rows']
+          b=json.loads(Path('evidence/research/all_technical_diagnostics.json').read_text())['rows']
+          assert {x['ticker']:x['range_review'] for x in a}=={x['ticker']:x['range_review'] for x in b},'ORIGINAL_157_PRICE_PLANS_CHANGED'
+          assert r['current_action']=='CASH' and not r['buy_approved'] and r['telegram_requests']==r['new_forward_records']==0
+          Path('evidence/replay_checks.json').write_text(json.dumps(dict(original_157_plans_identical=True,selection_order_identical=True,financial_api_requests=0,source_run_id=r['source_run_id'],research_run_id=r['research_run_id'],buy_approved=False)))
+          PY
+      - name: Verify protected records even after a replay failure
+        if: always()
+        run: |
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          before=json.loads(Path('evidence/integrity/before.json').read_text());after=capture(GitHub(os.environ['GH_TOKEN']))
+          assert before['protected']==after['protected'],'PROTECTED_ORIGINAL_OR_RECEIPT_CHANGED'
+          after['originals_and_receipts_unchanged']=True
+          write('evidence/integrity/after.json',after)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-watch-quality-matched-entry-audit
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error

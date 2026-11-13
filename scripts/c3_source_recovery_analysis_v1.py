@@ -89,7 +89,7 @@ def extended_history(panel,audit,prices,snapshots,sessions,day):
     return result,allbars
 
 
-def run(source,engine,state,out,private,macro=None):
+def run(source,engine,state,out,private,macro=None,timing_cohort=None):
     from c3_bootstrap_cache_v13 import restore
     from c3_forward_ledger_v8 import read_record
     from c3_daily_research_v8 import histories,choose
@@ -155,11 +155,20 @@ def run(source,engine,state,out,private,macro=None):
     pool=choose_watch(rows,finances,domestic['sectors']);by={r['ticker']:r for r in rows}
     fit=choose_practical_top2([r for r in pool if len(current[r['ticker']])>=119],by)
     for i,r in enumerate(fit,1):r['research_rank']=i
+    from c3_watch_quality_audit_v1 import audit as watch_audit,prior_reviews
+    observation=watch_audit(rows,current,pool,fit,day,prior_reviews(state,day))
+    write(out/'watch_quality_audit.json',observation)
+    for group in (rows,pool,fit):
+        for row in group:row['observation_audit']=observation['observations'][row['ticker']]
+    if timing_cohort is not None:
+        from c3_entry_timing_audit_v1 import run as timing_audit
+        timing_audit(allbars,indices,sessions,day,timing_cohort,out/'entry_timing_audit')
     completed=datetime.now(timezone.utc).isoformat()
     report=dict(schema='C3_NEW_SESSION_RESEARCH_REPORT_V1',source_date=day,source_run_id=manifest['source_run_id'],source_hash=sha(payload),
         normalized_rows_sha256=manifest['normalized_rows_sha256'],source_received_at=manifest['data_received_at'],generated_at=completed,
         research_run_id=os.environ['GITHUB_RUN_ID'],research_commit=os.environ['GITHUB_SHA'],model_version=PROTOCOL['model_version'],
         v4_code_commit=subprocess.check_output(['git','-C','v4','rev-parse','HEAD'],text=True).strip(),mode='NEW_SOURCE_RETROSPECTIVE_RESEARCH_NOT_REGISTERED_TRADE',
+        watch_quality_audit_sha256=observation['audit_payload_sha256'],
         source_status=manifest['status'],regular_only_certified=False,financial_original_pit_verified=False,
         selection_status='RESEARCH_ANALYSIS_COMPLETE' if any(r['financial'].get('required_metrics_complete') for r in rows) else 'RESEARCH_ANALYSIS_INCOMPLETE_FINANCIAL',analysis_completed=True,final_research_top2=fit,
         watch_top2=watch_rows(pool,fit),
@@ -197,4 +206,4 @@ def run(source,engine,state,out,private,macro=None):
 if __name__=='__main__':
     p=argparse.ArgumentParser()
     for key in ('source','engine','state','out','private'):p.add_argument('--'+key,type=Path,required=True)
-    p.add_argument('--macro',type=Path);a=p.parse_args();run(a.source,a.engine,a.state,a.out,a.private,a.macro)
+    p.add_argument('--macro',type=Path);p.add_argument('--timing-cohort',type=Path);a=p.parse_args();run(a.source,a.engine,a.state,a.out,a.private,a.macro,a.timing_cohort)

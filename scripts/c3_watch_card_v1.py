@@ -51,17 +51,29 @@ def render_watch(row,bars,report,path,rank):
     text(d,56,1480,summary,28,INK)
     text(d,56,1522,'2차 매수: 별도 검증 계획 없음 · 주문 횟수·수량은 사용자 결정',27,SUB)
     q=row.get('financial',{}).get('statement') or {}
+    observation=row.get('observation_audit') or {};pm=observation.get('price') or {}
     money=lambda k:f"{q[k]/1e8:,.0f}억" if isinstance(q.get(k),(int,float)) else '미확인'
-    financial=f"{q.get('fiscal_year','')}년 {q.get('fs_div','미확인')} · 매출 {money('revenue_krw')} · 영업익 {money('operating_profit_krw')} · 영업CF {money('operating_cashflow_ytd_krw')}. 공시 {q.get('published_on','미확인')}. 원문 PIT 미인증."
+    financial=f"{q.get('fiscal_year','')}년 {q.get('fs_div','미확인')} · 매출 {money('revenue_krw')} · 영업익 {money('operating_profit_krw')} · 영업CF {money('operating_cashflow_ytd_krw')}. 순이익·이자보상 미확인, 재무 우량성·원문 PIT 미인증."
     states=sorted({v.get('stop_reliability',{}).get('status','STOP_UNVERIFIED') for v in row.get('range_review',{}).get('plans',[])})
     risk=(f"저점 {p.get('evidence',{}).get('low_date','미확인')} · 손절 {p['stop']:,.0f}원 · ATR {p['atr14']:,.0f}원. " if p else '진입 적합 손절 미확정. ')+(' / '.join(LABELS.get(x,x) for x in states[:2]) or '가격 구조 미확인')+'. 갭 손실 확대 가능.'
-    notes=[('정량·섹터',f"RS20 {row['own_rs20']:+.2f}%p · 5일 개선 {row['rs_accel5']:+.2f}%p · 20일 거래대금 {row['turnover20']/1e8:,.0f}억원. {row['sector']}. 기존 순위 재사용."),
+    if pm:
+        risk=f"MA20 이격 {pm['ma20_extension_pct']:+.2f}% / {pm['ma20_extension_atr']:.2f}ATR · 5일 수익 {pm['returns_pct']['5']:+.2f}%. 갭 확대 주의. "+('진입 적합 범위 없음.' if not p else '연구 구간만 관찰.')
+    previous=observation.get('previous_watch_rank');previous_day=observation.get('previous_watch_day')
+    rank_note=(f"{previous_day[5:]} {previous}위 → 현재 {rank}위. " if previous is not None and previous_day else '직전 WATCH 순위 미확인. ')
+    rank_note+=('동일 성장·업종 그룹의 거래대금 우선 순위 유지.' if observation.get('repeated_watch') else '당일 전체 후보 새 계산. 가중 총점 없음.')
+    notes=[('정량·섹터',f"RS20 {row['own_rs20']:+.2f}%p · 5일 개선 {row['rs_accel5']:+.2f}%p · 20일 거래대금 {row['turnover20']/1e8:,.0f}억원. "+rank_note),
         ('재무·실적',financial),('주요 이슈·수급','확인된 뉴스·외국인·기관 수급 원본 미확인. 재무 접수 '+str(q.get('receipt_no','미확인'))+'. 사후 조회 자료이며 당시 확인 근거로 소급하지 않음.'),('리스크·구조손절',risk)]
+    layout=[]
     for i,(label,value) in enumerate(notes):
         y=1624+i*156;d.rectangle((48,y,1352,y+146),fill='white');d.line((48,y,48,y+146),fill=GOLD,width=5)
         text(d,72,y+23,f'{i+1:02}',22,GOLD,True)
         for k,line in enumerate(label.split('·')):text(d,118,y+25+k*37,line+('·' if k==0 else ''),29,INK,True)
-        for k,line in enumerate(wrap(d,value,1002,29,3)):text(d,321,y+23+k*38,line,29,INK)
+        lines=wrap(d,value,1002,29,3)
+        for k,line in enumerate(lines):text(d,321,y+23+k*38,line,29,INK)
+        from c3_classic_theme import font
+        right=321+max(d.textlength(line,font=font(29)) for line in lines)
+        if right>1352 or y+23+(len(lines)-1)*38+36>y+146:raise ValueError('WATCH_NOTE_TEXT_OUTSIDE_CARD_BOX')
+        layout.append(dict(label=label,lines=len(lines),text_right_max=right,box_right=1352,box_bottom=y+146))
     text(d,700,2267,'FDR 일별 · 공식 KRX 비교 미완료 · 정규장·재무 PIT 미인증',25,SUB,anchor='ma')
     text(d,700,2310,'가격 '+report['source_date']+' · 수집 '+stamp(report['source_received_at'])+' · 생성 '+stamp(report['generated_at']),23,SUB,anchor='ma')
     text(d,700,2360,'과거 날짜 사후 연구 · 현재 매수 추천·실시간 성과가 아님',25,RED,True,anchor='ma')
@@ -69,7 +81,10 @@ def render_watch(row,bars,report,path,rank):
         price_asof=report['source_date'],source_run_id=report['source_run_id'],source_hash=report['source_hash'],report_hash=report['report_payload_sha256'],
         visible_bars=60,source_bars=len(bars),ma60_visible_points=60,ma_audit=geometry['average_audit'],
         range=[r['low'],r['high']] if r else None,stop=p['stop'] if p else None,r1=p['r1'] if p else None,r2=p['r2'] if p else None,
-        chart_source_sha256=row['chart_source_sha256'],buy_approved=False,official_krx_match_verified=False)
+        chart_source_sha256=row['chart_source_sha256'],buy_approved=False,official_krx_match_verified=False,
+        quality_audit_sha256=report.get('watch_quality_audit_sha256'),price_extension=pm,previous_watch_day=previous_day,
+        previous_watch_rank=previous,repeat_reason=observation.get('repeat_reason'),layout=layout,
+        score=None,score_basis='DETERMINISTIC_LEXICOGRAPHIC_NO_WEIGHTED_TOTAL')
     info=PngImagePlugin.PngInfo();info.add_text('C3_manifest',json.dumps(manifest,ensure_ascii=False,sort_keys=True))
     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);im.save(path,pnginfo=info,optimize=True)
     with Image.open(path) as saved:
