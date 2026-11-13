@@ -35,6 +35,23 @@ def locked_source_day(readiness_path):
         raise ValueError("INVALID_EXPECTED_SOURCE_DAY")
     return day
 
+def prepare_locked_recheck(readiness_path,outdir):
+    """Keep missing session evidence as HOLD, not a guessed API date or FAIL."""
+    evidence=json.loads(Path(readiness_path).read_text(encoding='utf-8'))
+    if evidence.get('schema')!='C3_READY_AND_SOURCE_ATTESTATION_V19':
+        raise ValueError('READINESS_SCHEMA_MISMATCH')
+    if evidence.get('expected_source_day') is not None:
+        return dict(ready=True,day=locked_source_day(readiness_path))
+    result=dict(schema='C3_OFFICIAL_DATED_READ_ONLY_RECHECK_V19',requested_asof=None,
+        status='HOLD_NO_LOCKED_SOURCE_DAY',official_target_status='NOT_QUERIED_NO_LOCKED_SOURCE_DAY',
+        reason='READINESS_HAS_NO_EXPECTED_COMPLETED_SESSION',official_target_rows=0,
+        official_target_authenticated=False,independent_0900_1530_price_certified=False,
+        independent_0900_1530_volume_certified=False,independent_0900_1530_turnover_certified=False,
+        api_requests=0,trading_approved=False,orders_enabled=False,decision='CASH')
+    out=Path(outdir);out.mkdir(parents=True,exist_ok=True)
+    (out/'c3_official_dated_recheck_v19.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    return dict(ready=False,day=None,hold=result)
+
 def collect(day,outdir,auth_key):
     """Metadata-only KRX diagnostic; no unverified OHLCV enters C3 signals."""
     result=dict(asof=day,official_dataset_usable=False,
