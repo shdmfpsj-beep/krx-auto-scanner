@@ -16,8 +16,10 @@ def mean(xs):return statistics.mean(xs) if xs else None
 def execute(model,base,bars,i,sessions,horizon,cutoff):
     from c3_dynamic_entry_v2 import evaluate_trade
     from first_pullback_v55 import down
-    p=copy.deepcopy(base);day=bars[i]['date'];g=sessions.index(day)
+    day=bars[i]['date'];g=sessions.index(day)
     if g+3+horizon>=len(sessions) or sessions[g+3+horizon]>cutoff:return dict(status='CENSORED_COMMON_CLOCK',return_pct=None)
+    if base is None:return dict(status='NO_ORIGINAL_STRUCTURE_ALL_MODELS_CASH',return_pct=0.,filled=False)
+    p=copy.deepcopy(base)
     if model=='CONDITIONAL_NEXT_OPEN':
         if i+1>=len(bars) or bars[i+1]['date']!=sessions[g+1]:return dict(status='CENSORED_MISSING_NEXT_SESSION',return_pct=None)
         opening=bars[i+1]['open']
@@ -67,7 +69,7 @@ def run(allbars,indices,sessions,cutoff,cohort_path,out):
         if day not in by or day not in grid:excluded['FROZEN_SIGNAL_PRICE_UNAVAILABLE']+=1;continue
         i=by[day];p=original['plan'];b=bs[i]
         if grid[day]-last.get(t,-10000)<=20:excluded['SAME_TICKER_WITHIN_20_SESSIONS']+=1;continue
-        if b['close']!=p['reference_close'] or b['segment']!=p['segment']:
+        if p is not None and (b['close']!=p['reference_close'] or b['segment']!=p['segment']):
             excluded['FROZEN_REFERENCE_PRICE_OR_SEGMENT_CHANGED']+=1;continue
         past=[]
         for x in reversed(bs[:i+1]):
@@ -75,7 +77,7 @@ def run(allbars,indices,sessions,cutoff,cohort_path,out):
             past.append(x)
         past.reverse()
         if len(past)<65:excluded['CONTINUOUS_WARMUP_LT65']+=1;continue
-        if p.get('known_on','9999')>day:raise ValueError('FROZEN_PLAN_USES_FUTURE_CONFIRMATION')
+        if p is not None and p.get('known_on','9999')>day:raise ValueError('FROZEN_PLAN_USES_FUTURE_CONFIRMATION')
         last[t]=grid[day];metrics=price_metrics(past,day)
         results={m:{str(h):execute(m,p,bs,i,sessions,h,cutoff) for h in (5,10,20)} for m in MODELS}
         # Common complete-case comparison for every model; missing prices or
@@ -99,6 +101,7 @@ def run(allbars,indices,sessions,cutoff,cohort_path,out):
     summary={k:{m:{str(h):summarize(es,m,h) for h in (5,10,20)} for m in MODELS} for k,es in groups.items()}
     result=dict(schema='C3_MATCHED_ENTRY_TIMING_AUDIT_V1',cutoff=cutoff,original_cohort_artifact_id='13920100040',
         original_cohort_sha256=hashlib.sha256(raw).hexdigest(),original_opportunities=len(cohort),reviewed=len(events),exclusions=dict(excluded),
+        original_no_structure_cash_opportunities=sum(e['original_plan'] is None for e in events),
         chronology_split_reused_from_pr104=True,independent_holdout=False,financial_original_pit_verified=False,
         survivorship_bias_removed=False,original_universe_scope='NOV11_NONBIO_SURVIVOR_CONDITIONED',
         extension_tertiles_from_earlier_period=q,extension_tertiles_are_descriptive_not_filters=True,

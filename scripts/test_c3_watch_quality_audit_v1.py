@@ -70,6 +70,16 @@ class WatchQualityTests(unittest.TestCase):
         r=execute('CONDITIONAL_NEXT_OPEN',p,bs,i,sessions,5,sessions[-1])
         self.assertEqual(r['status'],'CENSORED_PRICE_ACTION_OR_GAP');self.assertIsNone(r['return_pct'])
         self.assertNotIn('initial_net_r1_rr',r)
+    def test_frozen_selection_without_a_plan_remains_cash_in_all_matched_models(self):
+        from c3_entry_timing_audit_v1 import run as timing_run,MODELS
+        bs=bars();sessions=[b['date'] for b in bs]
+        event=dict(ticker='000001',name='Synthetic',date=sessions[65],plan=None,fold='DEVELOPMENT',regime='UP')
+        with tempfile.TemporaryDirectory() as root:
+            cohort=Path(root)/'cohort.json';cohort.write_text(json.dumps({'C3_ORIGINAL':[event]}))
+            r=timing_run({'000001':bs},{'KOSPI':{d:100 for d in sessions}},sessions,sessions[-1],cohort,Path(root)/'out')
+            self.assertEqual(r['reviewed'],1);self.assertEqual(r['original_no_structure_cash_opportunities'],1)
+            for model in MODELS:
+                v=r['summary']['ALL'][model]['5'];self.assertEqual(v['complete'],1);self.assertEqual(v['fills'],0);self.assertEqual(v['planned_capital_net_return_pct'],0)
     def test_daily_workflow_preserves_schedule_and_records_real_source_and_protected_hashes(self):
         s=(Path(__file__).resolve().parents[1]/'.github/workflows/c3_research_daily_caller.yml').read_text()
         for cron in ('10 23 * * 0-4','20 23 * * 0-4','30 23 * * 0-4'):self.assertIn(cron,s)
