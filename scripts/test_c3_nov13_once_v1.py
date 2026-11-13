@@ -76,7 +76,7 @@ class TonightTests(unittest.TestCase):
 
     def test_manual_dispatch_rejects_untrusted_context(self):
         with TemporaryDirectory() as d:
-            with patch.dict("os.environ", {"GITHUB_EVENT_NAME":"push", "GITHUB_REPOSITORY":"shdmfpsj-beep/krx-auto-scanner", "GITHUB_REF":"refs/heads/main", "GITHUB_WORKFLOW":"C3 Nov13 manual retrospective research (NO ORDER / NO SEND)"}):
+            with patch.dict("os.environ", {"GITHUB_EVENT_NAME":"push", "GITHUB_REPOSITORY":"shdmfpsj-beep/krx-auto-scanner", "GITHUB_REF":"refs/heads/main", "GITHUB_WORKFLOW":"C3 Nov13 one-night full-market research (NO ORDER / NO SEND)"}):
                 with self.assertRaisesRegex(ValueError, "UNTRUSTED_MANUAL_DISPATCH"):
                     prepare_manual(Path(d)/"source", Path(d)/"out", NOW)
 
@@ -87,7 +87,7 @@ class TonightTests(unittest.TestCase):
             (src/"prefetch.json").write_text(json.dumps(p))
             (src/"normalized_market.json").write_text(json.dumps(m))
             (src/"original.csv").write_bytes(raw)
-            env={"GITHUB_EVENT_NAME":"workflow_dispatch","GITHUB_REPOSITORY":"shdmfpsj-beep/krx-auto-scanner","GITHUB_REF":"refs/heads/main","GITHUB_WORKFLOW":"C3 Nov13 manual retrospective research (NO ORDER / NO SEND)","GITHUB_RUN_ID":"98765"}
+            env={"GITHUB_EVENT_NAME":"workflow_dispatch","GITHUB_REPOSITORY":"shdmfpsj-beep/krx-auto-scanner","GITHUB_REF":"refs/heads/main","GITHUB_WORKFLOW":"C3 Nov13 one-night full-market research (NO ORDER / NO SEND)","GITHUB_RUN_ID":"98765"}
             with patch.dict("os.environ",env), patch("c3_nov13_once_v1.validate"), patch("c3_nov13_once_v1.session_context",return_value={"reference_close_at":"2026-11-13T06:30:00Z"}), patch("c3_daily_research_v8.collect_indices",return_value={"series":{"KOSPI":{"end":TARGET},"KOSDAQ":{"end":TARGET}}}):
                 result=prepare_manual(src,root/"out",NOW)
             self.assertEqual(result["rows"],2100)
