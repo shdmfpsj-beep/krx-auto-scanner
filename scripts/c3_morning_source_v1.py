@@ -91,7 +91,7 @@ def bounded_target(day,root,key,collect,pause=time.sleep,attempts=2):
 
 def execute(outdir,requested=None,clock=None,recover=None):
     from c3_source_recovery_v1 import run as recover_actual
-    clock=clock or datetime.now(timezone.utc);out=Path(outdir);out.mkdir(parents=True,exist_ok=True)
+    explicit_clock=clock is not None;clock=clock or datetime.now(timezone.utc);out=Path(outdir);out.mkdir(parents=True,exist_ok=True)
     result=dict(schema='C3_MORNING_OFFICIAL_SOURCE_V1',checked_at=clock.isoformat(),status='SOURCE_UNAVAILABLE',
         ready=False,research_ready=False,indices_ready=False,regular_only_certified=False,buy_approved=False,
         orders_enabled=False,decision='CASH',attempts=[],source_scope='DAILY_REGULAR_SCOPE_UNCERTIFIED',
@@ -102,13 +102,15 @@ def execute(outdir,requested=None,clock=None,recover=None):
         data=(recover or recover_actual)(day,out/'recovery',attempts=2)
         result.update(source_status=data['status'],research_ready=data['research_ready'],indices_ready=data['indices_ready'],
             source_run_id=os.environ.get('GITHUB_RUN_ID'),attempts=data.get('attempts',[]),
-            compared_rows=data.get('comparison',{}).get('compared_rows'),source_quality=data.get('quality'),
+            collected_rows=data.get('rows',0),markets=data.get('markets',{}),compared_rows=data.get('comparison',{}).get('compared_rows'),source_quality=data.get('quality'),
             normalized_rows_sha256=data.get('normalized_rows_sha256'),final_collection_at=data.get('data_received_at'),
             cache_ref=data.get('cache',{}).get('ref'),cache_sha256=data.get('cache',{}).get('raw_sha256'),
             excluded_markets=data.get('cache',{}).get('excluded'),official_raw_response_sha256=data['official'].get('raw_response_sha256'),
             response_diagnostics=data['official'].get('response_diagnostics'),internal_quality_not_session_authentication=True)
         if data['indices_ready']:
-            observed={m:[r['date'] for r in csv.DictReader((out/'recovery/indices'/(m+'_index.csv')).open())] for m in ('KOSPI','KOSDAQ')}
+            observed={}
+            for m in ('KOSPI','KOSDAQ'):
+                with (out/'recovery/indices'/(m+'_index.csv')).open() as f:observed[m]=[r['date'] for r in csv.DictReader(f)]
             if requested is None:result['observed_latest_sessions']=verify_calendar(day,observed,plan['report_day_kst'])
             elif any(day not in observed[m] for m in observed):raise ValueError('REQUESTED_DAY_NOT_OBSERVED_IN_BOTH_BOARDS')
         if data.get('approved_source_ready') and data['indices_ready']:
@@ -119,6 +121,7 @@ def execute(outdir,requested=None,clock=None,recover=None):
     except Exception as exc:
         message=str(exc)
         result['blocker']=message if isinstance(exc,ValueError) and __import__('re').fullmatch('[A-Z_0-9]{1,110}',message) else type(exc).__name__
+    if not explicit_clock:result['registration_window']='OPEN' if datetime.now(timezone.utc).astimezone(KST).hour<9 else 'CLOSED'
     (out/'morning_source.json').write_bytes(canonical(result)+b'\n')
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'],'a') as f:

@@ -27,6 +27,10 @@ def load_prices(source):
     return manifest,prices,payload
 
 
+def dated_snapshot(rows,day):
+    return dict(rows={t:dict(r,date=day) for t,r in rows.items()})
+
+
 def extended_history(panel,audit,prices,snapshots,sessions,day):
     """Same segmentation as V4; approved 90-bar suffix is checked separately."""
     events={(e['ticker'],e['date']) for e in audit['reference_rebase_candidates']};grid={d:i for i,d in enumerate(sessions)}
@@ -84,7 +88,7 @@ def run(source,engine,state,out,private,macro=None):
     if digest(panel)!=oldlatest['source_hashes']['panel'] or digest(auditfile)!=oldlatest['source_hashes']['audit']:raise ValueError('REGISTERED_BOOTSTRAP_HISTORY_HASH_MISMATCH')
     snapshots={r['asof']:r for r in (read_record(p) for p in sorted((lane/'lanes/krx_unadjusted_v12/markets').glob('*.json.gz'))) if r['asof']<=day}
     baseline,bmeta=fresh_snapshot(private/'latest/requested-date-probe/2026-11-04')
-    snapshots[bmeta['asof']]=dict(rows={t:dict(r,date=bmeta['asof']) for t,r in baseline.items()})
+    snapshots[bmeta['asof']]=dated_snapshot(baseline,bmeta['asof'])
     past,excluded=histories(panel,auditfile,prices,snapshots,sessions,day)
     current,allbars=extended_history(panel,audit,prices,snapshots,sessions,day)
     if set(current)!=set(past):raise ValueError('EXTENDED_HISTORY_UNIVERSE_MISMATCH')
@@ -128,7 +132,7 @@ def run(source,engine,state,out,private,macro=None):
         research_run_id=os.environ['GITHUB_RUN_ID'],research_commit=os.environ['GITHUB_SHA'],model_version=PROTOCOL['model_version'],
         v4_code_commit=subprocess.check_output(['git','-C','v4','rev-parse','HEAD'],text=True).strip(),mode='NEW_SOURCE_RETROSPECTIVE_RESEARCH_NOT_REGISTERED_TRADE',
         source_status=manifest['status'],regular_only_certified=False,financial_original_pit_verified=False,
-        selection_status='RESEARCH_ANALYSIS_COMPLETE',analysis_completed=True,final_research_top2=fit,
+        selection_status='RESEARCH_ANALYSIS_COMPLETE' if any(r['financial'].get('required_metrics_complete') for r in rows) else 'RESEARCH_ANALYSIS_INCOMPLETE_FINANCIAL',analysis_completed=True,final_research_top2=fit,
         watch_top2=[dict(ticker=r['ticker'],name=r['name'],close=r['close'],status='WATCH') for r in pool[:2] if r['ticker'] not in {v['ticker'] for v in fit}],
         regime=market,current_action='CASH',buy_approved=False,orders_enabled=False,automated_order_enabled=False,telegram_requests=0,
         entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',approved_original_registered=False,new_forward_records=0,

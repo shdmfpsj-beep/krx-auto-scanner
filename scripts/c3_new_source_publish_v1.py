@@ -10,6 +10,8 @@ def publish(source,analysis,gh=None):
     from c3_supply_v11 import encrypt_bytes,open_sealed
     gh=gh or GitHub(os.environ['GH_TOKEN']);report=json.loads((analysis/'report.json').read_text())
     payload=json.loads((analysis/'source_payload.json').read_text());body=canonical(payload);digest=hashlib.sha256(body).hexdigest()
+    manifest=json.loads((source/'collection.json').read_text())
+    if manifest.get('asof')!=report['source_date'] or manifest.get('normalized_rows_sha256')!=report['normalized_rows_sha256'] or str(manifest.get('source_run_id'))!=str(report['source_run_id']):raise ValueError('COLLECTION_AND_RESEARCH_PUBLICATION_MISMATCH')
     if digest!=report['source_hash'] or payload['asof']!=report['source_date']:raise ValueError('RESEARCH_PUBLICATION_SOURCE_MISMATCH')
     day=report['source_date'];review_hash=report['report_payload_sha256'];copy=dict(report);copy.pop('report_payload_sha256')
     if hashlib.sha256(canonical(copy)).hexdigest()!=review_hash:raise ValueError('RESEARCH_PUBLICATION_REPORT_HASH_MISMATCH')

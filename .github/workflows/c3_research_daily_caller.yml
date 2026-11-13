@@ -3,7 +3,9 @@ on:
   schedule:
     # UTC Sun-Thu 23:10/20/30 = KST Mon-Fri 08:10/20/30.
     # Attempts, not a provider/Actions completion guarantee.
-    - cron: '10,20,30 23 * * 0-4'
+    - cron: '10 23 * * 0-4'
+    - cron: '20 23 * * 0-4'
+    - cron: '30 23 * * 0-4'
   push:
     branches: [main]
     paths: ['config/c3_morning_deploy_request.json']
@@ -62,6 +64,9 @@ jobs:
       run_id: ${{ steps.source.outputs.run_id }}
       ready: ${{ steps.source.outputs.ready }}
       source_day: ${{ steps.source.outputs.source_day }}
+      research_ready: ${{ steps.source.outputs.research_ready }}
+      indices_ready: ${{ steps.source.outputs.indices_ready }}
+      registration_window: ${{ steps.source.outputs.registration_window }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,7 +90,7 @@ jobs:
           PYTHONPATH: scripts:engine/scripts
           GH_TOKEN: ${{ github.token }}
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
-        run: python scripts/c3_morning_source_v1.py --outdir evidence
+        run: python scripts/c3_morning_source_v1.py --outdir evidence --require-data
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -96,7 +101,7 @@ jobs:
 
   research:
     needs: source-ready
-    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.event_name != 'push' && needs.source-ready.outputs.ready == 'true'
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.event_name != 'push' && needs.source-ready.outputs.ready == 'true' && needs.source-ready.outputs.registration_window == 'OPEN'
     permissions:
       contents: write
       actions: read
@@ -109,8 +114,8 @@ jobs:
     secrets:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
   morning-review:
-    needs: [source-ready, research]
-    if: always() && !cancelled() && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.source-ready.result == 'success'
+    needs: [source-ready, research, new-session-review]
+    if: always() && !cancelled() && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.source-ready.result != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -167,7 +172,7 @@ jobs:
       - name: Reproduce frozen A/B before all-candidate entry review
         # Deployment push replays the already registered immutable day only.
         # It cannot bypass the pinned engine's approved invocation contract.
-        if: needs.research.result == 'success' || (github.event_name == 'push' && needs.source-ready.outputs.ready == 'true')
+        if: needs.research.result == 'success'
         env:
           PYTHONPATH: scripts:engine/scripts
           GH_TOKEN: ${{ github.token }}
@@ -186,7 +191,7 @@ jobs:
       - name: Join dated company facts to all technical candidates
         # Deployment push replays the already registered immutable day only.
         # It cannot bypass the pinned engine's approved invocation contract.
-        if: needs.research.result == 'success' || (github.event_name == 'push' && needs.source-ready.outputs.ready == 'true')
+        if: needs.research.result == 'success'
         env:
           PYTHONPATH: scripts
           OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
@@ -199,12 +204,18 @@ jobs:
           else
             python scripts/c3_company_quality_review_v1.py --candidates evidence/entry/technical_candidates.json --entry evidence/entry/reselection_summary.json --outdir evidence/company
           fi
+      - uses: actions/download-artifact@v4
+        if: always() && needs.new-session-review.result != 'skipped' && needs.new-session-review.result != 'cancelled'
+        continue-on-error: true
+        with:
+          name: c3-new-session-research
+          path: evidence/new-session
       - name: Record finality and image without sending before completion
         if: always() && !cancelled()
         env:
           PYTHONPATH: scripts:engine/scripts
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/c3_morning_final_v1.py --source evidence/morning_source.json --entry evidence/entry/reselection_summary.json --company evidence/company/combined_review.json --outdir evidence/final --publish
+        run: python scripts/c3_morning_final_v1.py --source evidence/morning_source.json --entry evidence/entry/reselection_summary.json --company evidence/company/combined_review.json --outdir evidence/final --publish --research evidence/new-session/research/report.json --research-publication evidence/new-session/publication.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -228,3 +239,91 @@ jobs:
             evidence/company/company_quality.json
           retention-days: 90
           if-no-files-found: warn
+
+  new-session-review:
+    needs: source-ready
+    if: always() && !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.source-ready.outputs.research_ready == 'true' && needs.source-ready.outputs.indices_ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+      actions: read
+    env:
+      PYTHONPATH: scripts:v4/scripts:engine/scripts
+      GH_TOKEN: ${{ github.token }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+            /.github/workflows/*.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: f3ed60f3fa0b967385df734ac54003aeee34d9d1
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests pillow pandas==2.2.3 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 yfinance==0.2.66 --disable-pip-version-check
+      - run: sudo apt-get update -qq && sudo apt-get install -y fonts-nanum >/dev/null
+      - uses: actions/download-artifact@v4
+        with:
+          name: c3-morning-source
+          path: evidence
+      - uses: actions/cache@v4
+        with:
+          path: .cache/c3-dart/
+          key: c3-dart-corp-v1-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: c3-dart-corp-v1-${{ runner.os }}-
+      - name: Reuse dated global context without making it a past selection reason
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from global_macro_risk_v618 import collect
+          clock=datetime.now(ZoneInfo('Asia/Seoul'))
+          try:result=collect(clock.date(),clock.strftime('%H:%M'),Path('private-macro'),True)
+          except Exception:result={}
+          if 'generated_at_kst' in result:Path('evidence/macro.json').write_text(json.dumps(result))
+          PY
+      - name: Analyze only this new source; original A/B ledgers stay read-only
+        env:
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+        run: python scripts/c3_source_recovery_analysis_v1.py --source evidence/recovery --engine engine --state state --out evidence/research --private private-inputs --macro evidence/macro.json
+      - name: Preserve encrypted research source and review, never original signals
+        run: python scripts/c3_new_source_publish_v1.py --source evidence/recovery --analysis evidence/research --out evidence/publication.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-new-session-research
+          path: |
+            evidence/research/
+            evidence/publication.json
+            evidence/macro.json
+          retention-days: 90
+          if-no-files-found: error

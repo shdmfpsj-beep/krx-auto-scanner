@@ -12,7 +12,7 @@ from c3_telegram_inputs import GitHub,ROOT,RESEARCH,canonical,digest,report_pair
 from c3_telegram_notify import ReceiptStore,Telegram,RECEIPT_BRANCH,delivery_key,deliver
 
 
-def packet(source,entry=None,company=None):
+def packet(source,entry=None,company=None,research=None,publication=None):
     day=source.get('requested_day')
     if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',str(day)):raise ValueError('MORNING_PACKET_SOURCE_DATE_REQUIRED')
     good=source.get('status')=='OFFICIAL_CACHE_MATCHED' and source.get('ready') is True
@@ -28,7 +28,7 @@ def packet(source,entry=None,company=None):
     reasons.append('EXPERIMENTAL_ENTRY_MODEL_NOT_APPROVED')
     if not company or company.get('asof')!=day:reasons.append('COMPANY_REVIEW_NOT_READY')
     else:reasons.extend(company.get('blockers',[]))
-    return dict(schema='C3_MORNING_FINAL_STATUS_V1',asof=day,generated_at=datetime.now(timezone.utc).isoformat(),
+    result=dict(schema='C3_MORNING_FINAL_STATUS_V1',asof=day,generated_at=datetime.now(timezone.utc).isoformat(),
         source_run_id=entry.get('original_source_run_id') if analysis else None,
         frozen_decision_payload_sha256=entry.get('original_frozen_decision_payload_sha256') if analysis else None,
         original_source_validation_sha256=entry.get('original_source_validation_sha256') if analysis else None,
@@ -42,6 +42,25 @@ def packet(source,entry=None,company=None):
         buy_approved=False,orders_enabled=False,blockers=sorted(set(reasons)),
         experimental_thresholds_promoted=False,original_signals_modified=False,
         delivery={'status':'NOT_ATTEMPTED','send_attempts':0})
+    result.update(display_state='SELECTION_INCOMPLETE',display_top2=[],research_analysis_completed=False,
+        research_report=None,research_report_sha256=None,research_source_commit=None,research_final_candidate_count=None,approved_original_analysis_completed=analysis)
+    if research:
+        body=dict(research);expected=body.pop('report_payload_sha256',None)
+        if (research.get('source_date')!=day or expected!=digest(canonical(body)) or
+            research.get('normalized_rows_sha256')!=source.get('normalized_rows_sha256') or
+            str(research.get('source_run_id'))!=str(source.get('source_run_id')) or
+            research.get('buy_approved') is not False or not source.get('research_ready')):
+            raise ValueError('LATEST_RESEARCH_SOURCE_OR_HASH_MISMATCH')
+        picks=research.get('final_research_top2') or []
+        if len(picks)>2:raise ValueError('LATEST_RESEARCH_TOP2_COUNT_INVALID')
+        completed=research.get('selection_status')=='RESEARCH_ANALYSIS_COMPLETE'
+        result.update(research_analysis_completed=True,research_report=copy.deepcopy(research),research_report_sha256=expected,
+            display_top2=copy.deepcopy(picks) if completed else [],research_final_candidate_count=len(picks) if completed else None,
+            display_state=('RESEARCH_ENTRY_RANGE_UNAPPROVED' if picks else 'ANALYSIS_COMPLETE_CASH') if completed else 'SELECTION_INCOMPLETE_COMPANY_DATA')
+        if publication and publication.get('source_sha256')==research['source_hash']:
+            result['research_source_commit']=publication.get('commit')
+    return result
+
 
 
 def render(report,outdir):
@@ -51,14 +70,20 @@ def render(report,outdir):
     def txt(x,y,text,size=34,color=ink,bold=False):d.text((x,y),text,font=font(size,bold),fill=color)
     d.rectangle((0,0,1200,112),fill=ink);txt(55,30,'강현AI PRO | C3 TOP2',44,'#F3E6CD',True)
     txt(70,165,report['asof']+' 기준 · 오전 검증',45,ink,True)
-    txt(70,270,'CASH',115,gold,True)
-    txt(75,440,'매수 승인 보류 · 선정 미완료',49,ink,True)
+    state=report.get('display_state','SELECTION_INCOMPLETE')
+    hero='연구 관찰' if state=='RESEARCH_ENTRY_RANGE_UNAPPROVED' else 'CASH' if state=='ANALYSIS_COMPLETE_CASH' else '선정 보류'
+    txt(70,270,hero,115 if hero=='CASH' else 85,gold,True)
+    label={'ANALYSIS_COMPLETE_CASH':'신규일 분석 완료 · 적합 후보 0개','RESEARCH_ENTRY_RANGE_UNAPPROVED':'연구 후보 · 실전 매수 승인 보류','SELECTION_INCOMPLETE_COMPANY_DATA':'기업 자료 미확인 · 선정 미완료'}.get(state,'매수 승인 보류 · 선정 미완료')
+    txt(75,440,label,44,ink,True)
     source_ok=report['source'].get('ready') is True
-    txt(75,550,'정규장 거래량·거래대금 출처 인증 미완료' if source_ok else '전일 공식자료 확보·검증 미완료',31,'#B84B48',True)
-    scope=report['scope'];rows=[('공식·캐시 대조',str(report['source'].get('compared_rows','대기'))),
+    txt(75,550,'정규장·재무 원문 인증 미완료' if source_ok else '연구 원본 확보 · 공식 검증 보류' if report['source'].get('research_ready') else '전일 자료 미확보 · 신규 선정 미완료',31,'#B84B48',True)
+    scope=report['scope']
+    if report.get('research_analysis_completed'):
+        f=report['research_report']['funnel'];scope=dict(analysis_eligible=f['analysis_eligible'],stock_preselector_count=f['technical'],reviewed_technical_tickers=f['technical'])
+    rows=[('공식·캐시 대조',str(report['source'].get('compared_rows','대기'))),
         ('분석 가능 종목',str(scope.get('analysis_eligible','대기'))),
         ('기술적 후보 / 타점 검사',str(scope.get('stock_preselector_count','대기'))+' / '+str(scope.get('reviewed_technical_tickers','대기'))),
-        ('연구용 타점 조건 통과',str(report.get('geometry_research_pass_count') if report.get('geometry_research_pass_count') is not None else '대기'))]
+        ('연구용 타점 조건 통과',str(report['research_report']['funnel']['practical_entry_pass'] if report.get('research_analysis_completed') else report.get('geometry_research_pass_count') if report.get('geometry_research_pass_count') is not None else '대기'))]
     y=680
     for label,value in rows:
         txt(80,y,label,34);txt(875,y,value,34,gold,True);d.line((75,y+63,1120,y+63),fill='#DEDAD1',width=2);y+=108
@@ -67,7 +92,7 @@ def render(report,outdir):
     txt(75,1325,'범위 미도달 PASS · 미인증 자료는 CASH 유지',31,ink,True)
     txt(75,1410,'자동 주문 없음 · 이전 거래일 추천으로 대체하지 않음',27,sub)
     metadata=PngImagePlugin.PngInfo()
-    for k in ('asof','source_run_id','frozen_decision_payload_sha256','source_sha256','entry_review_sha256','morning_run_id'):
+    for k in ('asof','source_run_id','frozen_decision_payload_sha256','source_sha256','entry_review_sha256','morning_run_id','research_report_sha256'):
         metadata.add_text(k,json.dumps(report.get(k)))
     p=out/'C3_morning_status.png';im.save(p,optimize=True,pnginfo=metadata)
     validate_image(p,report)
@@ -78,18 +103,18 @@ def render(report,outdir):
 def validate_image(path,report):
     with Image.open(path) as im:
         if im.format!='PNG' or im.size!=(1200,1580):raise ValueError('MORNING_STATUS_IMAGE_INVALID')
-        for k in ('asof','source_run_id','frozen_decision_payload_sha256','source_sha256','entry_review_sha256','morning_run_id'):
+        for k in ('asof','source_run_id','frozen_decision_payload_sha256','source_sha256','entry_review_sha256','morning_run_id','research_report_sha256'):
             if json.loads(im.info.get(k,'"MISSING"'))!=report.get(k):raise ValueError('MORNING_IMAGE_SOURCE_LINEAGE_MISMATCH')
         im.verify()
 
 
 def prepared_image(source,entry,company,report_path,image_path,outdir):
     """Send the exact completed artifact bytes, never a later re-render."""
-    report=json.loads(Path(report_path).read_text());expected=packet(source,entry,company)
+    report=json.loads(Path(report_path).read_text());expected=packet(source,entry,company,report.get('research_report'),dict(commit=report.get('research_source_commit'),source_sha256=(report.get('research_report') or {}).get('source_hash')))
     fields=('schema','asof','source_run_id','frozen_decision_payload_sha256',
         'original_source_validation_sha256','morning_run_id','source_sha256','entry_review_sha256',
         'analysis_completed','scope','geometry_research_pass_count','company_status_counts',
-        'status','final_candidate_count','final_top2','decision','buy_approved','orders_enabled','blockers')
+        'status','final_candidate_count','final_top2','decision','buy_approved','orders_enabled','blockers','display_state','display_top2','research_report_sha256','research_source_commit')
     if any(report.get(k)!=expected.get(k) for k in fields):raise ValueError('PREPARED_MORNING_REPORT_SOURCE_MISMATCH')
     body=Path(image_path).read_bytes()
     if digest(body)!=(report.get('image') or {}).get('sha256'):raise ValueError('PREPARED_MORNING_IMAGE_HASH_MISMATCH')
@@ -170,14 +195,14 @@ def protected_snapshot(gh):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--source',required=True);p.add_argument('--entry');p.add_argument('--company');p.add_argument('--outdir',required=True);p.add_argument('--send',action='store_true');p.add_argument('--publish',action='store_true')
-    p.add_argument('--prepared-report');p.add_argument('--prepared-image');a=p.parse_args()
+    p.add_argument('--research');p.add_argument('--research-publication');p.add_argument('--prepared-report');p.add_argument('--prepared-image');a=p.parse_args()
     load=lambda name:json.loads(Path(name).read_text()) if name and Path(name).exists() else None
     gh=GitHub(os.environ.get('GH_TOKEN',''))
     before,before_refs=protected_snapshot(gh)
     out=Path(a.outdir)
     if a.prepared_report:
         result,image=prepared_image(load(a.source),load(a.entry),load(a.company),a.prepared_report,a.prepared_image,out)
-    else:result=packet(load(a.source),load(a.entry),load(a.company));image=render(result,out)
+    else:result=packet(load(a.source),load(a.entry),load(a.company),load(a.research),load(a.research_publication));image=render(result,out)
     bot=Telegram(os.environ.get('TELEGRAM_BOT_TOKEN',''),os.environ.get('TELEGRAM_CHAT_ID','')) if a.send and result.get('analysis_completed') is True else None
     result['delivery']=finish_delivery(result,image,gh,a.send,bot)
     (out/'morning_final.json').write_bytes(canonical(result)+b'\n')
