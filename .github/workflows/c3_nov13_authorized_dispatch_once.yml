@@ -1,0 +1,109 @@
+name: C3 Nov13 authorized manual dispatch and official audit (ONCE / NO SEND)
+on:
+  push:
+    branches: [ops/c3-nov13-dispatch-20261114]
+    paths: [.github/workflows/c3_nov13_authorized_dispatch_once.yml]
+permissions:
+  contents: read
+concurrency:
+  group: c3-nov13-authorized-dispatch-20261114
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/ops/c3-nov13-dispatch-20261114'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Validate merged main and issue exactly one authenticated workflow_dispatch
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          expected=095adb8ca4374fdddda0131a9f4abdcfe9f3fdef
+          observed="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          test "$observed" = "$expected" || { echo 'MAIN_CHANGED_BEFORE_DISPATCH'; exit 2; }
+          date -u +%FT%TZ > out/requested_at.txt
+          gh api --method POST "repos/$GH_REPO/actions/workflows/c3_nov13_once.yml/dispatches" -f ref=main --silent
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          from datetime import datetime,timezone
+          p=Path('out/dispatch_receipt.json')
+          p.write_text(json.dumps(dict(event='workflow_dispatch',target='c3_nov13_once.yml',ref='main',main_sha='095adb8ca4374fdddda0131a9f4abdcfe9f3fdef',source_date='2026-11-13',accepted=True,accepted_at=datetime.now(timezone.utc).isoformat(),helper_run_id=os.environ['GITHUB_RUN_ID'],source_approval_bypassed=False,orders_enabled=False,telegram_requests=0),sort_keys=True)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-nov13-authenticated-dispatch-receipt
+          path: out/
+          retention-days: 90
+  official-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      PYTHONPATH: scripts:v4/scripts:engine/scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 095adb8ca4374fdddda0131a9f4abdcfe9f3fdef
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: f3ed60f3fa0b967385df734ac54003aeee34d9d1
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests pandas==2.2.3 pykrx==1.2.9 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Observe official Nov13 data once per board without promoting the manual source
+        run: |
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          from datetime import datetime,timezone
+          from c3_eod_source_v9 import collect_day
+          from c3_early_source_v1 import fdr_snapshot,write
+          from c3_morning_source_v1 import compare
+          from c3_source_recovery_v1 import official_rows
+          day='2026-11-13';root=Path('audit');root.mkdir(exist_ok=True)
+          result=dict(asof=day,official_krx_match_verified=False,regular_only_certified=False,buy_approved=False,orders_enabled=False,telegram_requests=0,manual_source_manifest_modified=False)
+          try:
+              manifest=collect_day(day,root/'official',os.environ['KRX_AUTH_KEY'],now=datetime.now(timezone.utc))
+              result['official']=manifest
+              if manifest['official_dataset_usable']:
+                  raw,rows,proof=fdr_snapshot(day);result['cache']={k:proof[k] for k in ('raw_sha256','normalized_rows_sha256','rows','markets','file_commit','file_commit_at','collected_at')}
+                  result['comparison']=compare(official_rows(root/'official'),rows,day)
+                  result['official_krx_match_verified']=True
+                  result['status']='OFFICIAL_DAILY_MATCH_OBSERVED_SEPARATELY_NOT_ORIGINAL_PIT'
+              else:result['status']='OFFICIAL_TARGET_NOT_AVAILABLE'
+          except Exception as exc:result.update(status='OFFICIAL_AUDIT_NOT_VERIFIED',error_type=type(exc).__name__)
+          result['observed_at']=datetime.now(timezone.utc).isoformat();write(root/'official_comparison.json',result)
+          print(json.dumps({k:result.get(k) for k in ('asof','status','official_krx_match_verified','observed_at')}))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-nov13-independent-official-audit
+          path: audit/
+          retention-days: 90
