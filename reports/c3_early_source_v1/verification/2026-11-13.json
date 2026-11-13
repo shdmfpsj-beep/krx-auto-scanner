@@ -1,0 +1,603 @@
+{
+  "actions_evidence": [
+    {
+      "artifact_id": 14016246943,
+      "artifact_zip_sha256": "d5d7f5a093d75cd83c53634f4f45225e9fa22bd7d83c022ccc1e2007c56584ae",
+      "conclusion": "success",
+      "event": "push",
+      "purpose": "FIRST_FULL_ACTUAL_SOURCE_ANALYSIS_PNG",
+      "run_id": 43379047555,
+      "tests": 111
+    },
+    {
+      "artifact_id": 14017102492,
+      "artifact_zip_sha256": "fc0f1c633bad23d27b69c9989dbb25619ba9872ff62863dbb066fe9df0370693",
+      "conclusion": "success",
+      "event": "push",
+      "purpose": "FINAL_COMPONENT_REPLAY",
+      "run_id": 43382516917,
+      "tests": 114
+    },
+    {
+      "artifact_id": 14016943193,
+      "artifact_zip_sha256": "90d193d92b9cbdc44c7113fa0ac28bd74632667fe90a0fbea06815183ab6b7d6",
+      "conclusion": "success",
+      "event": "push",
+      "live_prefetch_status": "PREFETCH_HELD_SOURCE_NOT_READY",
+      "purpose": "LATEST_MAIN_DEPLOYMENT",
+      "run_id": 43382896997,
+      "tests": 114
+    },
+    {
+      "artifact_id": 14017232265,
+      "artifact_zip_sha256": "ba64d0c4900b48f19d81eb39b7b5645eab5ef2092e6591270d9ef8753a2e52cf",
+      "conclusion": "failure",
+      "event": "workflow_run",
+      "purpose": "REAL_COMPLETION_WAKEUP",
+      "regression_failed": 0,
+      "run_id": 43383004379,
+      "source_failure_reason": "PRE_CLOSE_FILE_VERSION",
+      "tests": 114
+    }
+  ],
+  "actual_first_archive_collection_at": "2026-11-13T06:30:36.497825+00:00",
+  "alternative_sources": [
+    {
+      "asof": "2026-11-12",
+      "collected_at": "2026-11-13T07:01:02.057226+00:00",
+      "cutoff_at": "2026-11-12T14:10:00Z",
+      "excluded": {},
+      "file_commit": "fd71ebe60ad3a91a7af9e10639ec28e7c28fb1c3",
+      "file_commit_at": "2026-11-11T17:27:47Z",
+      "git_blob_sha": "bbd8e15ce98c8f9cc38b4f4d9210553e0dbbf2c4",
+      "independent_provider_from_krx": false,
+      "latest_date_in_version": "2026-11-10",
+      "path": "data/marcap-2026.parquet",
+      "price_basis": "UNADJUSTED_AS_PUBLISHED_NOT_CORPORATE_ACTION_CERTIFIED",
+      "provider": "FINANCEDATA_MARCAP_PUBLISHED_PARQUET",
+      "raw_bytes": 22066954,
+      "raw_schema": [
+        "Code",
+        "Name",
+        "Close",
+        "Dept",
+        "ChangeCode",
+        "Changes",
+        "ChangesRatio",
+        "Volume",
+        "Amount",
+        "Open",
+        "High",
+        "Low",
+        "Marcap",
+        "Stocks",
+        "Market",
+        "MarketId",
+        "Rank",
+        "Date"
+      ],
+      "raw_sha256": "62766c3479827835589b213e97f9acbccbff45dd2fff49f0139185ab3028e009",
+      "regular_only_certified": false,
+      "repository": "FinanceData/marcap",
+      "selected_rows": 0,
+      "source_status": "SOURCE_UNAVAILABLE_AT_CUTOFF",
+      "utility_volume_filter_used": false
+    },
+    {
+      "asof": "2026-11-12",
+      "collected_at": "2026-11-13T07:01:03.306904+00:00",
+      "cutoff_at": "2026-11-13T07:01:00.598971+00:00",
+      "excluded": {},
+      "file_commit": "d3b703628e5a73112111d8bc43439f950762f67e",
+      "file_commit_at": "2026-11-12T17:47:22Z",
+      "git_blob_sha": "527aaf5f2cc9ce3d3e644b56756217645179f3aa",
+      "independent_provider_from_krx": false,
+      "latest_date_in_version": "2026-11-11",
+      "path": "data/marcap-2026.parquet",
+      "price_basis": "UNADJUSTED_AS_PUBLISHED_NOT_CORPORATE_ACTION_CERTIFIED",
+      "provider": "FINANCEDATA_MARCAP_PUBLISHED_PARQUET",
+      "raw_bytes": 22169075,
+      "raw_schema": [
+        "Code",
+        "Name",
+        "Close",
+        "Dept",
+        "ChangeCode",
+        "Changes",
+        "ChangesRatio",
+        "Volume",
+        "Amount",
+        "Open",
+        "High",
+        "Low",
+        "Marcap",
+        "Stocks",
+        "Market",
+        "MarketId",
+        "Rank",
+        "Date"
+      ],
+      "raw_sha256": "d3e4a6a34df124ddba76fd9cb036969b74d47f33361c87887e9379cc19d7de5a",
+      "regular_only_certified": false,
+      "repository": "FinanceData/marcap",
+      "selected_rows": 0,
+      "source_status": "SOURCE_UNAVAILABLE_AT_CUTOFF",
+      "utility_volume_filter_used": false
+    }
+  ],
+  "archive_classification": "SINGLE_SOURCE_UNVERIFIED",
+  "archive_price_object": "reports/c3_early_source_v1/objects/c352af98601a06f910e160eefb0551d106a0160de759cc891a80c138b24ec675.aesgcm",
+  "archive_publication": {
+    "asof": "2026-11-12",
+    "buy_approved": false,
+    "commit": "41dcc0fc0e54edbf0efe666eb5fe6f6fcd417876",
+    "latest_advanced": false,
+    "normalized_rows_sha256": "922e237b6d50650ae30f36f946835e90cd6ac046be3736ebc4f83dd0dcf01d92",
+    "price_difference": null,
+    "raw_sha256": "3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4",
+    "recorded_at": "2026-11-13T07:01:08.093111+00:00",
+    "regular_only_certified": false,
+    "schema": "C3_EARLY_ARCHIVE_RECEIPT_V1",
+    "source_run_attempt": "1",
+    "source_run_id": "43382516917",
+    "state": "UNCHANGED",
+    "status": "ARCHIVED",
+    "telegram_requests": 0,
+    "version_path": "reports/c3_early_source_v1/versions/2026-11-12/712478993090174fd3366104c22f1af8d3ee275b-3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4.json"
+  },
+  "archive_raw_object": "reports/c3_early_source_v1/raw/3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4.aesgcm",
+  "asof": "2026-11-12",
+  "code_files_sha256": {
+    ".github/workflows/c3_early_source_v1.yml": "c66dad07222b51d3e69252a5c239b644434da91a390258a6a7f469c4c8d601a8",
+    "scripts/c3_early_source_study_v1.py": "f2b1500fbcb8be630ad8738b30dab7a72437da4e8afacff49e47ca6fec1e8452",
+    "scripts/c3_early_source_v1.py": "d009df4253a79b7f9113ed0bb764cb40b0cf37d9a88300de81c6d88aebc70c80",
+    "scripts/c3_source_recovery_v1.py": "a5a2696dbc46f8a5a6881d591d7e77babbcc306f3b30dbcd1b62533f6f65d1a5",
+    "scripts/test_c3_early_source_v1.py": "491833cdc92ad1f93fb5e98d9338e0034e28a9222f70ba0bd63fb0ce98020845"
+  },
+  "completion_wakeup": {
+    "actions_conclusion": "failure",
+    "collection_reached": true,
+    "downstream_run_id": 43383004379,
+    "failure_reason": "PRE_CLOSE_FILE_VERSION",
+    "failure_stage": "Capture latest completed session and bounded posting retries",
+    "meaning": "EVENT_PATH_WORKED_AND_REJECTED_UNFINISHED_LIVE_SOURCE_NOT_SUCCESSFUL_NOV13_COLLECTION",
+    "regression_failed": 0,
+    "regression_passed": 114,
+    "trigger": {
+      "cron": null,
+      "event": "workflow_run",
+      "source_sha": "a45f24ea1cc57bd2a3fa057b1c4ef1462ecae677",
+      "trusted": true,
+      "upstream_run_id": 43311178320
+    },
+    "upstream_run_id": 43311178320,
+    "verified": true
+  },
+  "data_preservation_branch": "research/c3-ledger-integrity-audit-20261104",
+  "development_branch": "research/c3-early-source-20261113",
+  "earliest_final_matching_file_commit_at": "2026-11-12T14:01:06Z",
+  "excluded_markets": {
+    "KONEX": 107
+  },
+  "first_matching_commit": "712478993090174fd3366104c22f1af8d3ee275b",
+  "fixed_actual_event_defect": {
+    "cause": "UNIT_FIXTURES_INHERITED_UNRELATED_HOST_WORKFLOW_RUN_CONTEXT",
+    "failed_run_id": 43382128801,
+    "failures": 3,
+    "fixed_by_pr": 113,
+    "production_source_allowlist_relaxed": false,
+    "test_process_only_environment_isolation": true
+  },
+  "fresh_official_comparison_classification": "OFFICIAL_VERIFIED",
+  "fsc": {
+    "documentation": "https://www.data.go.kr/data/15094808/openapi.do",
+    "posting": "NEXT_BUSINESS_DAY_AFTER_13_KST",
+    "requests": 0,
+    "rows": null,
+    "status": "NOT_CONNECTED_NOT_EARLY"
+  },
+  "future_commit_rejected_at_earlier_cutoff": true,
+  "historical_availability_evidence_scope": "EARLIEST_MATCHING_DATED_FILE_COMMIT_NOT_EXACT_SERVER_PUBLICATION_OR_PROVIDER_SLA",
+  "historical_file_changes": [
+    {
+      "empty_field_counts": {
+        "Amount": 2770,
+        "Close": 0,
+        "High": 2770,
+        "Low": 2770,
+        "Open": 2770,
+        "Volume": 2770
+      },
+      "file_commit": "4e2b3b4967ca27c95274ee08976466beda1c8f14",
+      "file_commit_at": "2026-11-11T22:26:55Z",
+      "raw_rows": 2877,
+      "raw_sha256": "cfa07074a33f711a45c1e4047d39a6c8da2bf0b7bb54670000ffca29d49613cc",
+      "status": "INVALID_PRICE_FIELDS",
+      "target_rows": 2770
+    },
+    {
+      "empty_field_counts": {
+        "Amount": 0,
+        "Close": 0,
+        "High": 0,
+        "Low": 0,
+        "Open": 0,
+        "Volume": 0
+      },
+      "file_commit": "e329723ac6c9ea55237f4cb6b492120d6c4b7c73",
+      "file_commit_at": "2026-11-12T05:43:14Z",
+      "official_comparison": {
+        "added_codes": [],
+        "changed_fields": {
+          "close": 2483,
+          "high": 187,
+          "low": 873,
+          "market": 0,
+          "name": 0,
+          "open": 0,
+          "turnover_krw": 2654,
+          "volume": 2654
+        },
+        "left_rows": 2770,
+        "match_rate_pct": 4.187725631768953,
+        "matched_rows": 116,
+        "removed_codes": [],
+        "right_rows": 2770
+      },
+      "raw_rows": 2877,
+      "raw_sha256": "a5458489c78ada2906224cfa6783d1682c72d2f250ddc0d4c5a579eb5d510123",
+      "target_rows": 2770
+    },
+    {
+      "empty_field_counts": {
+        "Amount": 0,
+        "Close": 0,
+        "High": 0,
+        "Low": 0,
+        "Open": 0,
+        "Volume": 0
+      },
+      "file_commit": "712478993090174fd3366104c22f1af8d3ee275b",
+      "file_commit_at": "2026-11-12T14:01:06Z",
+      "official_comparison": {
+        "added_codes": [],
+        "changed_fields": {
+          "close": 0,
+          "high": 0,
+          "low": 0,
+          "market": 0,
+          "name": 0,
+          "open": 0,
+          "turnover_krw": 0,
+          "volume": 0
+        },
+        "left_rows": 2770,
+        "match_rate_pct": 100.0,
+        "matched_rows": 2770,
+        "removed_codes": [],
+        "right_rows": 2770
+      },
+      "raw_rows": 2877,
+      "raw_sha256": "3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4",
+      "target_rows": 2770
+    }
+  ],
+  "limitations": [
+    "Nov13 completed dated file not observed as of latest actual capture; only a 14:00 KST file version was returned.",
+    "Regular-session-only scope and financial original PIT are not certified; BUY remains false.",
+    "Two new cron slots are deployed but not yet due; GitHub delay/drop and future provider publication timing are not guaranteed."
+  ],
+  "markets": {
+    "KOSDAQ": 1834,
+    "KOSPI": 936
+  },
+  "morning_analysis_link": {
+    "analysis_completed_at": "2026-11-13T07:01:55.959322+00:00",
+    "cards": {
+      "cards": [
+        {
+          "certification_status": "UNVERIFIED",
+          "not_data_failure_relabelled_zero": true,
+          "png": "C3_NEW_20261112_CASH.png",
+          "png_sha256": "4eefd642ab5d09b3a6e967bb25e9809eb6c7ea24e9f4b2c5a88f3d956bda4040",
+          "price_asof": "2026-11-12",
+          "reference_image_sha256": "b28d58dae4cc5de165616aa5ece660ed69f4b758d62d688241f644e9202bfdc3",
+          "report_hash": "b95aac1d8e7cbc4c31b34a7768817686b7216f76bfb0b5ea9b0faf3290708a57",
+          "source_hash": "d70835a6c1f329197ca32954d471b61e50bbacecec3ef531ea634b1b383f726f",
+          "source_run_id": "43382516917",
+          "status": "CASH_RESEARCH_NO_PRACTICAL_ENTRY",
+          "theme": "USER_REFERENCE_IVORY_GREY_V3"
+        }
+      ],
+      "report_hash": "b95aac1d8e7cbc4c31b34a7768817686b7216f76bfb0b5ea9b0faf3290708a57"
+    },
+    "early_archive_used": true,
+    "funnel": {
+      "analysis_eligible": 1988,
+      "company_momentum_liquidity": 17,
+      "continuous_history": 2417,
+      "final_candidates": 0,
+      "full_market": 2770,
+      "observed_positive_financial": 82,
+      "original_b": 41,
+      "practical_entry_pass": 19,
+      "structural_stop_pass": 105,
+      "technical": 146
+    },
+    "research_top2": [],
+    "selection_status": "RESEARCH_ANALYSIS_COMPLETE",
+    "source_hash": "d70835a6c1f329197ca32954d471b61e50bbacecec3ef531ea634b1b383f726f",
+    "source_run_id": "43382516917",
+    "telegram_requests": 0,
+    "telegram_status": "RESEARCH_NOT_SENT"
+  },
+  "naver": {
+    "policy": "https://policy.naver.com/policy/disclaimer.html",
+    "quote_api_requests": 0,
+    "regular_nxt_scope": "UNVERIFIED",
+    "robots": "https://finance.naver.com/robots.txt",
+    "rows": null,
+    "status": "NOT_QUERIED_TERMS_BLOCKED"
+  },
+  "normalized_market_rows": 2770,
+  "normalized_rows_sha256": "922e237b6d50650ae30f36f946835e90cd6ac046be3736ebc4f83dd0dcf01d92",
+  "nov13_live_attempt": {
+    "asof": "2026-11-13",
+    "attempts": 2,
+    "buy_approved": false,
+    "collected_at": "2026-11-13T07:05:12.847462+00:00",
+    "errors": [
+      {
+        "attempt": 1,
+        "error_type": "SourceRejected",
+        "observed_at": "2026-11-13T07:05:09.827518+00:00",
+        "reason": "PRE_CLOSE_FILE_VERSION",
+        "rejected_snapshot": {
+          "asof": "2026-11-13",
+          "collected_at": "2026-11-13T07:05:09.815374+00:00",
+          "file_commit": "3edb970cc153d065a11d44efbf7eee7fad0975d3",
+          "file_commit_at": "2026-11-13T05:00:00Z",
+          "markets": {
+            "KOSDAQ": 1834,
+            "KOSPI": 936
+          },
+          "normalized_rows_sha256": "ecc8d6bddda205b8d2045587bfd821cdc709056b75e4956afe49020c8c827595",
+          "path": "data/listing/krx/2026-11-13.csv",
+          "raw_bytes": 394564,
+          "raw_rows": 2877,
+          "raw_sha256": "0ce217ef0de5bc9140d3d85c28a32ce0a0bc3d05d358e889f9b5238ee2e1f564",
+          "rows": 2770,
+          "snapshot_commit": "3edb970cc153d065a11d44efbf7eee7fad0975d3",
+          "snapshot_commit_at": "2026-11-13T05:00:00Z"
+        }
+      },
+      {
+        "attempt": 2,
+        "error_type": "SourceRejected",
+        "observed_at": "2026-11-13T07:05:12.847068+00:00",
+        "reason": "PRE_CLOSE_FILE_VERSION",
+        "rejected_snapshot": {
+          "asof": "2026-11-13",
+          "collected_at": "2026-11-13T07:05:12.835802+00:00",
+          "file_commit": "3edb970cc153d065a11d44efbf7eee7fad0975d3",
+          "file_commit_at": "2026-11-13T05:00:00Z",
+          "markets": {
+            "KOSDAQ": 1834,
+            "KOSPI": 936
+          },
+          "normalized_rows_sha256": "ecc8d6bddda205b8d2045587bfd821cdc709056b75e4956afe49020c8c827595",
+          "path": "data/listing/krx/2026-11-13.csv",
+          "raw_bytes": 394564,
+          "raw_rows": 2877,
+          "raw_sha256": "0ce217ef0de5bc9140d3d85c28a32ce0a0bc3d05d358e889f9b5238ee2e1f564",
+          "rows": 2770,
+          "snapshot_commit": "3edb970cc153d065a11d44efbf7eee7fad0975d3",
+          "snapshot_commit_at": "2026-11-13T05:00:00Z"
+        }
+      }
+    ],
+    "regular_only_certified": false,
+    "rows": 0,
+    "schema": "C3_EARLY_SOURCE_RESULT_V1",
+    "status": "PREFETCH_HELD_SOURCE_NOT_READY",
+    "telegram_requests": 0
+  },
+  "official_comparison": {
+    "compared_rows": 2770,
+    "markets": {
+      "KOSDAQ": 1834,
+      "KOSPI": 936
+    },
+    "mismatch_count": 0,
+    "normalized_rows_sha256": "922e237b6d50650ae30f36f946835e90cd6ac046be3736ebc4f83dd0dcf01d92"
+  },
+  "official_observed_at": "2026-11-13T07:01:34.146906+00:00",
+  "official_provider_scope": "OFFICIAL_EOD_AVAILABLE_SESSION_SCOPE_UNCERTIFIED",
+  "official_raw_response_sha256": {
+    "KOSDAQ": "a1ad3baa564e2c8dc7097f086688637d274462359b68f7833b0d97d5fb8a3c3c",
+    "KOSPI": "26b50cc0786d8307c24e0d4c1d721722f2aac9b1643b369bbc8f6eb43e68b2c9"
+  },
+  "overall_status": "EARLY_COLLECTOR_DEPLOYED_NOV12_REPLAY_VERIFIED_NOV13_CLOSED_SOURCE_HELD",
+  "previous_day_coverage": {
+    "path": "data/listing/krx/2026-11-11.csv",
+    "raw_sha256": "3dc4b25f7bd1f8c2c42bdce6e916fd9838d07685ae57311e97127c6b997c4baa",
+    "ref": "712478993090174fd3366104c22f1af8d3ee275b",
+    "rows": 2769,
+    "status": "EXISTING_COVERAGE_ALARM_PASSED_NOT_LISTING_CENSUS"
+  },
+  "production_main_commit": "a45f24ea1cc57bd2a3fa057b1c4ef1462ecae677",
+  "protected_records": {
+    "counts": {
+      "delivery/c3-top2-telegram": 19,
+      "research/c3-ledger-integrity-audit-20261104": 68
+    },
+    "sha256": "8a7757b621100aa3dff9b7bcc79a0bae22bea8238b397cc371aa5aaf1d623820",
+    "total": 87,
+    "unchanged": true
+  },
+  "public_push_event_status": "NO_MATCHING_PUBLIC_PUSH_EVENT",
+  "pull_requests": [
+    {
+      "merge_commit": "626b185282c61688a61a6d8f9a53dff79437618a",
+      "merged": true,
+      "number": 112
+    },
+    {
+      "merge_commit": "a45f24ea1cc57bd2a3fa057b1c4ef1462ecae677",
+      "merged": true,
+      "number": 113
+    }
+  ],
+  "raw_csv_sha256": "3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4",
+  "reused_company_evidence": {
+    "asof": "2026-11-12",
+    "companies": 146,
+    "new_api_request_count": 0,
+    "original_collected_at": "2026-11-13T06:31:14.702703+00:00",
+    "original_document_pit_verified": false,
+    "reason": "SAME_DATE_REPLAY_USING_EXISTING_DATE_UNIVERSE_HASH_CHECKER",
+    "sha256": "08318760d026e81e8fcdff3081eee5457f63509172c09feff99db03c8ff62fe7"
+  },
+  "safety": {
+    "actual_orders": 0,
+    "actual_telegram_requests": 0,
+    "approved_engine_ref": "54e7120b01966930e176d431e85b679347210c41",
+    "buy_approved": false,
+    "financial_original_pit_verified": false,
+    "original_registration_and_delivery_code_unchanged": true,
+    "original_signal_and_stop_changes": 0,
+    "regular_only_certified": false,
+    "strategy_parameters_changed": false
+  },
+  "schedules": {
+    "actual_cron_execution_observed_for_new_slots": false,
+    "chatgpt_report_kst": "Mon-Fri 08:45, unchanged; no automation update request sent",
+    "early_evening_kst": "Mon-Fri 23:10",
+    "early_evening_utc": "10 14 * * 1-5",
+    "existing_morning_kst": [
+      "Mon-Fri 08:10",
+      "Mon-Fri 08:20",
+      "Mon-Fri 08:30"
+    ],
+    "following_morning_kst": "Tue-Sat 07:10",
+    "following_morning_utc": "10 22 * * 1-5",
+    "max_attempts_per_capture": 2,
+    "new_timers_first_due_after_deployment": true
+  },
+  "schema": "C3_POST_CLOSE_EARLY_SOURCE_COMPLETION_V1",
+  "server_publication_time_attested": false,
+  "tested_component_commit": "ead6883fa4ca024acbdb6c2ac2acec7f58365c10",
+  "three_snapshots": [
+    {
+      "eligible_post_close": false,
+      "excluded": {
+        "KONEX": 107
+      },
+      "label": "1443",
+      "normalized_rows_sha256": "34e071eee9ad376ba2c483b796a870be97d6eb6ab6c63665618fd80e0aa37030",
+      "official_comparison": {
+        "added_codes": [],
+        "changed_fields": {
+          "close": 2483,
+          "high": 187,
+          "low": 873,
+          "market": 0,
+          "name": 0,
+          "open": 0,
+          "turnover_krw": 2654,
+          "volume": 2654
+        },
+        "left_rows": 2770,
+        "match_rate_pct": 4.187725631768953,
+        "matched_rows": 116,
+        "removed_codes": [],
+        "right_rows": 2770
+      },
+      "official_comparison_performed_at": "2026-11-13T07:00:54.255746+00:00",
+      "official_reference_collected_during_replay": true,
+      "official_reference_known_at_historical_cutoff": "NOT_ATTESTED",
+      "raw_sha256": "a5458489c78ada2906224cfa6783d1682c72d2f250ddc0d4c5a579eb5d510123",
+      "rejection_reason": "SESSION_NOT_COMPLETED_AT_CUTOFF",
+      "rows": 2770,
+      "snapshot_commit": "e329723ac6c9ea55237f4cb6b492120d6c4b7c73"
+    },
+    {
+      "eligible_post_close": true,
+      "excluded": {
+        "KONEX": 107
+      },
+      "file_commit": "712478993090174fd3366104c22f1af8d3ee275b",
+      "file_commit_at": "2026-11-12T14:01:06Z",
+      "label": "2301",
+      "normalized_rows_sha256": "922e237b6d50650ae30f36f946835e90cd6ac046be3736ebc4f83dd0dcf01d92",
+      "official_comparison": {
+        "added_codes": [],
+        "changed_fields": {
+          "close": 0,
+          "high": 0,
+          "low": 0,
+          "market": 0,
+          "name": 0,
+          "open": 0,
+          "turnover_krw": 0,
+          "volume": 0
+        },
+        "left_rows": 2770,
+        "match_rate_pct": 100.0,
+        "matched_rows": 2770,
+        "removed_codes": [],
+        "right_rows": 2770
+      },
+      "official_comparison_performed_at": "2026-11-13T07:00:57.035336+00:00",
+      "official_reference_collected_during_replay": true,
+      "official_reference_known_at_historical_cutoff": "NOT_ATTESTED",
+      "raw_sha256": "3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4",
+      "rows": 2770,
+      "snapshot_commit": "712478993090174fd3366104c22f1af8d3ee275b"
+    },
+    {
+      "eligible_post_close": true,
+      "excluded": {
+        "KONEX": 107
+      },
+      "file_commit": "712478993090174fd3366104c22f1af8d3ee275b",
+      "file_commit_at": "2026-11-12T14:01:06Z",
+      "label": "0701",
+      "normalized_rows_sha256": "922e237b6d50650ae30f36f946835e90cd6ac046be3736ebc4f83dd0dcf01d92",
+      "official_comparison": {
+        "added_codes": [],
+        "changed_fields": {
+          "close": 0,
+          "high": 0,
+          "low": 0,
+          "market": 0,
+          "name": 0,
+          "open": 0,
+          "turnover_krw": 0,
+          "volume": 0
+        },
+        "left_rows": 2770,
+        "match_rate_pct": 100.0,
+        "matched_rows": 2770,
+        "removed_codes": [],
+        "right_rows": 2770
+      },
+      "official_comparison_performed_at": "2026-11-13T07:00:58.354998+00:00",
+      "official_reference_collected_during_replay": true,
+      "official_reference_known_at_historical_cutoff": "NOT_ATTESTED",
+      "raw_sha256": "3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4",
+      "rows": 2770,
+      "snapshot_commit": "0dd9dc43dd0c07aa901558976ad24c10e3e420e1"
+    }
+  ],
+  "time_gain": {
+    "file_commit_vs_0810_target_seconds": 32934,
+    "file_commit_vs_next_0701_seconds": 28807,
+    "new_2310_slot_vs_existing_0810_slot_seconds": 32400,
+    "scope": "REPLAY_AVAILABILITY_AND_SCHEDULE_DIFFERENCE_NOT_CLAIM_OF_ACTUAL_COLLECTION_ON_NOV12_NIGHT"
+  },
+  "user_action_required": null,
+  "verification_payload_sha256": "9a5811e1aec3f534b64565854c2b9e1335d048ff8878834ecce1cffd24116165",
+  "verified_at_kst": "2026-11-13T16:08:25.513857+09:00",
+  "verified_at_utc": "2026-11-13T07:08:25.513857+00:00"
+}
