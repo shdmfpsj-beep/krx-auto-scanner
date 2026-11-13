@@ -73,12 +73,23 @@ def run(out,official_dir):
     matching=[r for r in history_proof if r.get('official_comparison',{}).get('match_rate_pct')==100]
     earliest=min((r['file_commit_at'] for r in matching),default=None)
     if earliest!='2026-11-12T14:01:06Z':raise ValueError('EARLIEST_MATCHING_FILE_HISTORY_NOT_REPRODUCED')
+    push_evidence=[];push_status='NO_MATCHING_PUBLIC_PUSH_EVENT'
+    try:
+        wanted={r['file_commit'] for r in history_proof}|{r[1] for r in SNAPSHOTS}
+        for event in gh.api('events?per_page=100'):
+            p=event.get('payload') or {};head=p.get('head');commits={r.get('sha') for r in p.get('commits',[])}
+            matches=(commits|{head})&wanted
+            if event.get('type')=='PushEvent' and matches:
+                push_evidence.append(dict(event_id=event['id'],created_at=event['created_at'],ref=p.get('ref'),head=head,matched_commits=sorted(matches)))
+        if push_evidence:push_status='MATCHED_PUBLIC_SERVER_PUSH_EVENT'
+    except Exception as exc:push_status='PUBLIC_EVENT_PROBE_UNAVAILABLE_'+type(exc).__name__
     for label,ref,cutoff in SNAPSHOTS:
         raw=gh.file('data/listing/krx/'+day+'.csv',ref);rows,excluded=cache_rows(raw,day);prices[label]=rows
         (out/(label+'.csv')).write_bytes(raw)
         result=dict(label=label,snapshot_commit=ref,raw_sha256=sha(raw),rows=len(rows),excluded=excluded,
             normalized_rows_sha256=normalized_hash(rows),official_comparison=differences(rows,official),
-            official_comparison_performed_at=stamp(),official_was_available_at_historical_cutoff=False)
+            official_comparison_performed_at=stamp(),official_reference_known_at_historical_cutoff='NOT_ATTESTED',
+            official_reference_collected_during_replay=True)
         try:
             _,_,meta=fdr_snapshot(day,cutoff,ref,gh);result.update(eligible_post_close=True,file_commit=meta['file_commit'],file_commit_at=meta['file_commit_at'])
         except ValueError as exc:result.update(eligible_post_close=False,rejection_reason=str(exc))
@@ -99,6 +110,7 @@ def run(out,official_dir):
     result=dict(schema='C3_EARLY_SOURCE_REPLAY_V1',asof=day,replay_executed_at=stamp(),source_run_id=os.environ.get('GITHUB_RUN_ID'),
         official_rows=len(official),official_normalized_sha256=normalized_hash(official),snapshots=versions,additional_sources=sources,
         dated_file_commit_history=history_proof,earliest_confirmed_matching_commit_at=earliest,
+        public_push_event_status=push_status,public_push_events=push_evidence,
         timing_evidence_scope='EARLIEST_MATCHING_DATED_FILE_COMMIT_NOT_EXACT_SERVER_PUBLICATION_OR_PROVIDER_SLA',
         earlier_incorrect_version_at='2026-11-12T05:43:14Z',future_snapshot_rejected=True,
         improvement_vs_next_0701_seconds=28807,improvement_vs_0810_seconds=32934,
