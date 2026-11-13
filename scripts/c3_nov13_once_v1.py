@@ -85,7 +85,7 @@ def prepare_manual(source, out, now=None):
     now = now or datetime.now(ZoneInfo("Asia/Seoul"))
     if os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch" or os.environ.get("GITHUB_REPOSITORY") != REPOSITORY or os.environ.get("GITHUB_REF") != "refs/heads/main":
         raise ValueError("UNTRUSTED_MANUAL_DISPATCH")
-    if os.environ.get("GITHUB_WORKFLOW") != "C3 Nov13 manual retrospective research (NO ORDER / NO SEND)":
+    if os.environ.get("GITHUB_WORKFLOW") != "C3 Nov13 one-night full-market research (NO ORDER / NO SEND)":
         raise ValueError("WRONG_MANUAL_WORKFLOW")
     source, out = Path(source), Path(out)
     out.mkdir(parents=True, exist_ok=True)
