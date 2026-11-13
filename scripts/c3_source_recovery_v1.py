@@ -83,16 +83,17 @@ def public_krx_probe(day):
     return result
 
 
-def run(day,out,control=None):
+def run(day,out,control=None,attempts=1):
     from c3_eod_source_v9 import collect_day
+    from c3_morning_source_v1 import bounded_target
     from c3_daily_research_v8 import collect_indices
     from c3_morning_provider_probe_v1 import probe
     out.mkdir(parents=True,exist_ok=True);clock=datetime.now(timezone.utc)
     if day>=clock.astimezone(timezone(timedelta(hours=9))).date().isoformat():raise ValueError('COMPLETED_PRIOR_DATE_REQUIRED')
     gh=GitHub(os.environ['GH_TOKEN']);key=os.environ.get('KRX_AUTH_KEY')
-    manifest=collect_day(day,out/'official',key,now=clock)
+    manifest,receipts=bounded_target(day,out/'official',key,lambda d,p,k:collect_day(d,p,k,now=clock),attempts=attempts)
     result=dict(schema='C3_ACTUAL_SOURCE_RECOVERY_V1',asof=day,started_at=clock.isoformat(),source_run_id=os.environ.get('GITHUB_RUN_ID'),
-        official=manifest,regular_only_certified=False,financial_pit_verified=False,buy_approved=False,orders_enabled=False,telegram_requests=0,
+        official=manifest,attempts=receipts,regular_only_certified=False,financial_pit_verified=False,buy_approved=False,orders_enabled=False,telegram_requests=0,
         status='SOURCE_UNAVAILABLE',research_ready=False,approved_source_ready=False,rows=0)
     if control:result['official_control']=collect_day(control,out/'control',key,now=clock)
     cached=[]
@@ -102,7 +103,8 @@ def run(day,out,control=None):
     if manifest['official_dataset_usable']:
         chosen=official_rows(out/'official');result['quality']=validate(chosen,day)
         if cached:
-            result['comparison']=compare(chosen,cached,day);result['status']='OFFICIAL_VERIFIED';result['approved_source_ready']=True
+            try:result['comparison']=compare(chosen,cached,day);result['status']='OFFICIAL_VERIFIED';result['approved_source_ready']=True
+            except ValueError as exc:result.update(status='SOURCE_CONFLICT',comparison={'status':'MISMATCH','reason':str(exc)});chosen=[]
         else:result['status']='SINGLE_SOURCE_UNVERIFIED'
     elif cached:
         chosen=cached;result['quality']=result['cache']['quality'];result['status']='SINGLE_SOURCE_UNVERIFIED'

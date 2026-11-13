@@ -16,6 +16,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   recover:
+    permissions:
+      contents: write
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -60,6 +63,8 @@ jobs:
           python-version: '3.11'
       - run: python -m pip install requests pillow pandas==2.2.3 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 --disable-pip-version-check
       - run: sudo apt-get update -qq && sudo apt-get install -y fonts-nanum >/dev/null
+      - name: Capture protected original and receipt hashes before research publication
+        run: python v4/scripts/c3_dynamic_integrity_v2.py --phase before --out evidence/integrity
       - name: Collect actual requested day and dated free alternatives before any analysis
         env:
           SOURCE_DAY: ${{ inputs.source_date || '2026-11-12' }}
@@ -82,6 +87,13 @@ jobs:
           OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
           C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
         run: python scripts/c3_source_recovery_analysis_v1.py --source evidence/source --engine engine --state state --out evidence/analysis --private private-inputs --macro evidence/macro.json
+      - name: Register encrypted research source and current review without original signal writes
+        env:
+          C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+        run: python scripts/c3_new_source_publish_v1.py --source evidence/source --analysis evidence/analysis --out evidence/publication.json
+      - name: Verify original records and receipts after derived publication
+        if: always()
+        run: python v4/scripts/c3_dynamic_integrity_v2.py --phase after --out evidence/integrity
       - uses: actions/upload-artifact@v4
         if: always()
         with:

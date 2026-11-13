@@ -84,7 +84,7 @@ def run(source,engine,state,out,private,macro=None):
     if digest(panel)!=oldlatest['source_hashes']['panel'] or digest(auditfile)!=oldlatest['source_hashes']['audit']:raise ValueError('REGISTERED_BOOTSTRAP_HISTORY_HASH_MISMATCH')
     snapshots={r['asof']:r for r in (read_record(p) for p in sorted((lane/'lanes/krx_unadjusted_v12/markets').glob('*.json.gz'))) if r['asof']<=day}
     baseline,bmeta=fresh_snapshot(private/'latest/requested-date-probe/2026-11-04')
-    snapshots[bmeta['asof']]=dict(rows=baseline)
+    snapshots[bmeta['asof']]=dict(rows={t:dict(r,date=bmeta['asof']) for t,r in baseline.items()})
     past,excluded=histories(panel,auditfile,prices,snapshots,sessions,day)
     current,allbars=extended_history(panel,audit,prices,snapshots,sessions,day)
     if set(current)!=set(past):raise ValueError('EXTENDED_HISTORY_UNIVERSE_MISMATCH')

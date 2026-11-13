@@ -89,53 +89,45 @@ def bounded_target(day,root,key,collect,pause=time.sleep,attempts=2):
     return manifest,receipts
 
 
-def execute(outdir,requested=None,clock=None):
-    from c3_daily_research_v8 import collect_indices
-    from c3_eod_source_v9 import collect_day
-    from c3_runtime_v10 import quality
-    clock=clock or datetime.now(timezone.utc);out=Path(outdir);private=out/'private';private.mkdir(parents=True,exist_ok=True)
-    result=dict(schema='C3_MORNING_OFFICIAL_SOURCE_V1',checked_at=clock.isoformat(),
-        status='SOURCE_UNAVAILABLE',ready=False,regular_only_certified=False,
-        buy_approved=False,orders_enabled=False,decision='CASH',attempts=[],
-        source_scope='OFFICIAL_DAILY_ALL_SESSIONS_NOT_REGULAR_ONLY')
+def execute(outdir,requested=None,clock=None,recover=None):
+    from c3_source_recovery_v1 import run as recover_actual
+    clock=clock or datetime.now(timezone.utc);out=Path(outdir);out.mkdir(parents=True,exist_ok=True)
+    result=dict(schema='C3_MORNING_OFFICIAL_SOURCE_V1',checked_at=clock.isoformat(),status='SOURCE_UNAVAILABLE',
+        ready=False,research_ready=False,indices_ready=False,regular_only_certified=False,buy_approved=False,
+        orders_enabled=False,decision='CASH',attempts=[],source_scope='DAILY_REGULAR_SCOPE_UNCERTIFIED',
+        registration_window='OPEN' if clock.astimezone(KST).hour<9 else 'CLOSED')
     try:
-        plan=prior_session(clock);result.update(plan)
-        day=requested or plan['requested_day'];result['requested_day']=day
+        plan=prior_session(clock);result.update(plan);day=requested or plan['requested_day'];result['requested_day']=day
         if date.fromisoformat(day)>=clock.astimezone(KST).date():raise ValueError('MORNING_SOURCE_MUST_PRECEDE_TODAY')
-        collect_indices(private/'indices',str(clock.astimezone(KST).date()-timedelta(days=1)))
-        observed={m:[r['date'] for r in csv.DictReader((private/'indices'/(m+'_index.csv')).open())]
-                  for m in ('KOSPI','KOSDAQ')}
-        if requested is None:result['observed_latest_sessions']=verify_calendar(day,observed,plan['report_day_kst'])
-        elif any(day not in observed[m] for m in observed):raise ValueError('REQUESTED_DAY_NOT_OBSERVED_IN_BOTH_BOARDS')
-        manifest,receipts=bounded_target(day,private/'official',os.environ.get('KRX_AUTH_KEY'),collect_day)
-        result['attempts']=receipts
-        if not manifest.get('official_dataset_usable'):raise ValueError('OFFICIAL_TARGET_UNAVAILABLE_NO_FALLBACK')
-        official=[]
-        for market in ('KOSPI','KOSDAQ'):
-            with (private/'official'/(market+'_official.csv')).open(encoding='utf-8-sig') as f:official+=list(csv.DictReader(f))
-        for row in official:
-            for k in FIELDS:row[k]=float(row[k])
-        gh=GitHub(os.environ.get('GH_TOKEN',''),'FinanceData/fdr_krx_data_cache');ref=gh.head('master')
-        raw=gh.file('data/listing/krx/'+day+'.csv',ref)
-        cache,excluded=cache_rows(raw,day);agreement=compare(official,cache,day)
-        q=quality(official,cache,day)
-        if q['errors']:raise ValueError('OFFICIAL_SOURCE_INTERNAL_QUALITY_FAILED')
-        result.update(agreement,status='OFFICIAL_CACHE_MATCHED',ready=True,cache_ref=ref,
-            cache_sha256=sha(raw),excluded_markets=excluded,source_quality=q,
-            official_raw_response_sha256=manifest['raw_response_sha256'],
-            final_collection_at=manifest['retrieval_utc'],internal_quality_not_session_authentication=True)
+        data=(recover or recover_actual)(day,out/'recovery',attempts=2)
+        result.update(source_status=data['status'],research_ready=data['research_ready'],indices_ready=data['indices_ready'],
+            source_run_id=os.environ.get('GITHUB_RUN_ID'),attempts=data.get('attempts',[]),
+            compared_rows=data.get('comparison',{}).get('compared_rows'),source_quality=data.get('quality'),
+            normalized_rows_sha256=data.get('normalized_rows_sha256'),final_collection_at=data.get('data_received_at'),
+            cache_ref=data.get('cache',{}).get('ref'),cache_sha256=data.get('cache',{}).get('raw_sha256'),
+            excluded_markets=data.get('cache',{}).get('excluded'),official_raw_response_sha256=data['official'].get('raw_response_sha256'),
+            response_diagnostics=data['official'].get('response_diagnostics'),internal_quality_not_session_authentication=True)
+        if data['indices_ready']:
+            observed={m:[r['date'] for r in csv.DictReader((out/'recovery/indices'/(m+'_index.csv')).open())] for m in ('KOSPI','KOSDAQ')}
+            if requested is None:result['observed_latest_sessions']=verify_calendar(day,observed,plan['report_day_kst'])
+            elif any(day not in observed[m] for m in observed):raise ValueError('REQUESTED_DAY_NOT_OBSERVED_IN_BOTH_BOARDS')
+        if data.get('approved_source_ready') and data['indices_ready']:
+            result.update(status='OFFICIAL_CACHE_MATCHED',ready=True)
+        else:
+            result['status']='RESEARCH_SOURCE_AVAILABLE' if data['research_ready'] else 'SOURCE_UNAVAILABLE'
+            result['blocker']='OFFICIAL_OR_BENCHMARK_GATE_NOT_COMPLETE'
     except Exception as exc:
-        # Preserve failure evidence; never print transport URLs/keys or raw bodies.
-        import re
         message=str(exc)
-        result['blocker']=message if isinstance(exc,ValueError) and re.fullmatch('[A-Z_0-9]{1,110}',message) else type(exc).__name__
+        result['blocker']=message if isinstance(exc,ValueError) and __import__('re').fullmatch('[A-Z_0-9]{1,110}',message) else type(exc).__name__
     (out/'morning_source.json').write_bytes(canonical(result)+b'\n')
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'],'a') as f:
-            f.write('ready='+str(result['ready']).lower()+'\nsource_day='+str(result.get('requested_day',''))+'\nrun_id=\n')
-    print(json.dumps({k:result.get(k) for k in ('status','requested_day','compared_rows','ready','blocker')}))
+            for key,value in dict(ready=str(result['ready']).lower(),research_ready=str(result['research_ready']).lower(),indices_ready=str(result['indices_ready']).lower(),
+                source_day=result.get('requested_day',''),run_id=os.environ.get('GITHUB_RUN_ID',''),registration_window=result['registration_window']).items():f.write(key+'='+str(value)+'\n')
+    print(json.dumps({k:result.get(k) for k in ('status','requested_day','compared_rows','ready','research_ready','blocker')}))
     return result
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--outdir',required=True);p.add_argument('--date');a=p.parse_args();execute(a.outdir,a.date)
+    p=argparse.ArgumentParser();p.add_argument('--outdir',required=True);p.add_argument('--date');p.add_argument('--require-data',action='store_true');a=p.parse_args();r=execute(a.outdir,a.date)
+    if a.require_data and not r['research_ready']:raise SystemExit(2)
