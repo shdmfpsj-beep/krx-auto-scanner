@@ -1,0 +1,336 @@
+{
+  "analysis": {
+    "approved_engine_sha": "54e7120b01966930e176d431e85b679347210c41",
+    "buy_approved": false,
+    "completed_at_kst": "2026-11-13T10:26:44.588547+09:00",
+    "decision": "CASH_RESEARCH",
+    "final_top2": [],
+    "financial_original_pit_verified": false,
+    "funnel": {
+      "analysis_eligible": 1988,
+      "company_momentum_liquidity": 17,
+      "continuous_history": 2417,
+      "final_candidates": 0,
+      "full_market": 2770,
+      "observed_positive_financial": 82,
+      "original_b": 41,
+      "practical_entry_pass": 19,
+      "structural_stop_pass": 105,
+      "technical": 146
+    },
+    "new_forward_trade_records": 0,
+    "range_parameters_or_profitability_rules_changed": false,
+    "report_payload_sha256": "646c2efc1322e8f1b39dfd4b64352321e9fc50b2acd6cacd3d3f8a34e3e24b92",
+    "selection_status": "RESEARCH_ANALYSIS_COMPLETE",
+    "source_date": "2026-11-12",
+    "source_run_id": "43344240563",
+    "structural_and_range_counts_are_independent_over_all_technical_candidates": true,
+    "v4_research_sha": "f3ed60f3fa0b967385df734ac54003aeee34d9d1"
+  },
+  "artifacts": [
+    {
+      "id": 14001300519,
+      "name": "c3-morning-source",
+      "sha256": "9e904493be686221a8754d2e810e21dd2e0df1530da41cd72bee9a7b20b5bd81",
+      "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43344240563/artifacts/14001300519"
+    },
+    {
+      "id": 14001131333,
+      "name": "c3-new-session-research",
+      "sha256": "653b085c840861bad67cc2eab8b6308dafcd4bec375cd85b0f13b99cb4527b67",
+      "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43344240563/artifacts/14001131333"
+    },
+    {
+      "id": 14001391114,
+      "name": "c3-morning-final-inputs",
+      "sha256": "107cfa5e071e07a33bb87c301fd074244f79eaede7220a7512d486767a9e5a61",
+      "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43344240563/artifacts/14001391114"
+    }
+  ],
+  "automation": {
+    "chatgpt_existing_alarm_enabled": true,
+    "chatgpt_kst_time": "08:45",
+    "chatgpt_prompt_prefers_current_source_feed": true,
+    "github_kst_times": [
+      "08:10",
+      "08:20",
+      "08:30"
+    ],
+    "github_utc_crons": [
+      "10 23 * * 0-4",
+      "20 23 * * 0-4",
+      "30 23 * * 0-4"
+    ],
+    "missing_trigger_root_cause": "UNDETERMINED",
+    "new_alarm_created": false,
+    "nov13_original_scheduled_trigger_observed": false,
+    "original_engine_registration_before_research_review": true,
+    "prior_research_price_archives_are_read_only_past_dates_only": true,
+    "workflow_state": "ACTIVE"
+  },
+  "changed_files": [
+    ".github/workflows/c3_morning_integration_v1.yml",
+    ".github/workflows/c3_new_session_recovery_v1.yml",
+    ".github/workflows/c3_operations_deploy_v18.yml",
+    ".github/workflows/c3_research_daily_caller.yml",
+    "config/c3_morning_deploy_request.json",
+    "scripts/c3_morning_final_v1.py",
+    "scripts/c3_morning_source_v1.py",
+    "scripts/c3_new_source_publish_v1.py",
+    "scripts/c3_source_recovery_analysis_v1.py",
+    "scripts/c3_source_recovery_v1.py",
+    "scripts/test_c3_morning_v1.py",
+    "scripts/test_c3_source_recovery_v1.py"
+  ],
+  "collection": {
+    "api_base_url": "https://data-dbg.krx.co.kr/svc/apis/sto/",
+    "cache": {
+      "commit": "0dd9dc43dd0c07aa901558976ad24c10e3e420e1",
+      "excluded_markets": {
+        "KONEX": 107
+      },
+      "provider": "FinanceData/fdr_krx_data_cache",
+      "raw_sha256": "3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4",
+      "rows": 2770
+    },
+    "comparison": {
+      "compared_rows": 2770,
+      "fields": [
+        "ticker",
+        "name",
+        "market",
+        "asof",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "turnover_krw"
+      ],
+      "mismatch_count": 0
+    },
+    "completed_at_kst": "2026-11-13T10:21:30.127979+09:00",
+    "corporate_actions_adjusted": false,
+    "markets": {
+      "KOSDAQ": 1834,
+      "KOSPI": 936
+    },
+    "normalized_rows_sha256": "922e237b6d50650ae30f36f946835e90cd6ac046be3736ebc4f83dd0dcf01d92",
+    "official_normalized_csvs_preserved": true,
+    "official_raw_http_bodies_persisted": false,
+    "official_response_diagnostics": [
+      {
+        "asof": "2026-11-12",
+        "body_bytes": 291366,
+        "body_sha256": "26b50cc0786d8307c24e0d4c1d721722f2aac9b1643b369bbc8f6eb43e68b2c9",
+        "content_type": "application/json; charset=utf-8",
+        "credential_present": true,
+        "endpoint": "stk_bydd_trd",
+        "http_status": 200,
+        "json_top_keys": [
+          "OutBlock_1"
+        ],
+        "market": "KOSPI",
+        "method": "GET",
+        "normalized_rows": 936,
+        "outblock_rows": 936,
+        "outblock_type": "list",
+        "provider_error": {},
+        "query": {
+          "basDd": "20261112"
+        },
+        "received_at": "2026-11-13T01:21:25.162712+00:00",
+        "request_header_names": [
+          "AUTH_KEY",
+          "Accept"
+        ],
+        "started_at": "2026-11-13T01:21:19.578095+00:00",
+        "status": "NORMALIZED"
+      },
+      {
+        "asof": "2026-11-12",
+        "body_bytes": 599713,
+        "body_sha256": "a1ad3baa564e2c8dc7097f086688637d274462359b68f7833b0d97d5fb8a3c3c",
+        "content_type": "application/json; charset=utf-8",
+        "credential_present": true,
+        "endpoint": "ksq_bydd_trd",
+        "http_status": 200,
+        "json_top_keys": [
+          "OutBlock_1"
+        ],
+        "market": "KOSDAQ",
+        "method": "GET",
+        "normalized_rows": 1834,
+        "outblock_rows": 1834,
+        "outblock_type": "list",
+        "provider_error": {},
+        "query": {
+          "basDd": "20261112"
+        },
+        "received_at": "2026-11-13T01:21:29.456771+00:00",
+        "request_header_names": [
+          "AUTH_KEY",
+          "Accept"
+        ],
+        "started_at": "2026-11-13T01:21:25.169743+00:00",
+        "status": "NORMALIZED"
+      }
+    ],
+    "price_basis": "UNADJUSTED_AS_REPORTED",
+    "provider_previous_empty_response_internal_cause": "NOT_PROVEN",
+    "quality": {
+      "errors": [],
+      "full_current_listing_census_verified": false,
+      "no_trade_indicators": {
+        "KOSDAQ": 81,
+        "KOSPI": 25
+      },
+      "suspension_status_independently_confirmed": false
+    },
+    "regular_only_certified": false,
+    "rows": 2770,
+    "status": "OFFICIAL_VERIFIED"
+  },
+  "development_branch": "fix/c3-morning-image-source-id-20261113",
+  "gates": [
+    {
+      "evidence": "Official KOSPI 936 + KOSDAQ 1834 = 2770 actual Nov12 rows",
+      "gate": 1,
+      "status": "PASS"
+    },
+    {
+      "evidence": "Date, code/name, OHLCV, turnover and hashes matched official/cache; regular-only, independent listing/action census and original financial PIT remain unverified",
+      "gate": 2,
+      "status": "PARTIAL"
+    },
+    {
+      "evidence": "Actual Nov12 full-market computation: 1988 eligible, 146 technical, 41 original B",
+      "gate": 3,
+      "status": "PASS"
+    },
+    {
+      "evidence": "Research analysis complete; 17 observed financial/momentum/liquidity names, no concurrent practical entry candidate; no BUY approval",
+      "gate": 4,
+      "status": "PASS_RESEARCH_ONLY"
+    },
+    {
+      "evidence": "Deployed main push execution completed through source, research and final PNG; actual next 08:10/20/30 scheduled trigger not observed. Earlier missing trigger root cause not proven",
+      "gate": 5,
+      "status": "PARTIAL"
+    },
+    {
+      "evidence": "One exact PNG with matching day/run/report hash; Telegram safely deferred, zero sends and zero final-date claims",
+      "gate": 6,
+      "status": "PARTIAL"
+    }
+  ],
+  "historical_attempts": [
+    {
+      "result": "FIRST_OFFICIAL_NOV12_DATA_SUCCESS",
+      "run_id": 43335045988
+    },
+    {
+      "result": "FIRST_FULL_NOV12_RESEARCH_AND_SOURCE_REGISTRATION_SUCCESS",
+      "run_id": 43337134876
+    },
+    {
+      "result": "REPEAT_SOURCE_PUBLICATION_AND_163_TESTS_SUCCESS",
+      "run_id": 43340629453
+    },
+    {
+      "result": "FIRST_MAIN_FULL_SUCCESS_WITH_TOP_LEVEL_IMAGE_SOURCE_ID_ISSUE_FIXED_BY_PR110",
+      "run_id": 43341701797
+    },
+    {
+      "result": "FINAL_MAIN_DATE_RUN_AND_IMAGE_HASH_CHAIN_VERIFIED",
+      "run_id": 43344240563
+    }
+  ],
+  "image": {
+    "artifact_file_name": "final/C3_morning_status.png",
+    "bytes": 104034,
+    "count": 1,
+    "date_run_and_hash_chain_verified": true,
+    "file_name": "C3_20261112_FINAL_CASH.png",
+    "png_sha256": "bc9bfe04127dbf24d006df4eba98b461b7ee965ace0df2ea798114bfcceb729b",
+    "report_hash": "646c2efc1322e8f1b39dfd4b64352321e9fc50b2acd6cacd3d3f8a34e3e24b92",
+    "source_run_id": "43344240563",
+    "visual_review_passed": true
+  },
+  "integrity": {
+    "after_refs": {
+      "delivery/c3-top2-telegram": "2312c9d5b5504235405582f351c6600c8bd25da0",
+      "research/c3-ledger-integrity-audit-20261104": "dc1e477e90d8cd20d8aff95d28993e6fbcb0411d"
+    },
+    "before_refs": {
+      "delivery/c3-top2-telegram": "2312c9d5b5504235405582f351c6600c8bd25da0",
+      "research/c3-ledger-integrity-audit-20261104": "9e4d7d6daae4853f41e86c67673b0eabeade9589"
+    },
+    "orders_enabled": false,
+    "original_protected_blobs_unchanged": true,
+    "protected_counts": {
+      "delivery/c3-top2-telegram": 19,
+      "research/c3-ledger-integrity-audit-20261104": 68
+    },
+    "protected_sha256": "8a7757b621100aa3dff9b7bcc79a0bae22bea8238b397cc371aa5aaf1d623820",
+    "send_attempts": 0,
+    "source_lane_write_requests": 0
+  },
+  "limitations": [
+    "Regular 09:00-15:30-only certification and original-document financial PIT remain incomplete; BUY gate unchanged",
+    "Actual future scheduled clock execution cannot be established by the successful push execution",
+    "Late Nov12 research source registration is not an approved pre-open trading signal; Telegram remains deferred"
+  ],
+  "main_code_sha": "40ce64f463fd25287dbadc747a05e7e1313fc2a6",
+  "main_execution": {
+    "completed_at_kst": "2026-11-13T10:27:49+09:00",
+    "event": "push",
+    "id": 43344240563,
+    "started_at_kst": "2026-11-13T10:20:58+09:00",
+    "status": "SUCCESS",
+    "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43344240563",
+    "workflow_dispatch_used": false
+  },
+  "prs": [
+    "https://github.com/shdmfpsj-beep/krx-auto-scanner/pull/109",
+    "https://github.com/shdmfpsj-beep/krx-auto-scanner/pull/110"
+  ],
+  "registration": {
+    "approved_original_signal_registered": false,
+    "encrypted_sha256": "ee73fd0034fc719295592bb8894fd03f5b5c1cf8ff2ca8587557638dbe1dc843",
+    "final_review_commit": "b869b99c927def4cb090a496660e49dbe5b3d17b",
+    "first_source_commit": "7828f9f11f61fb00692a084f72ecfad4eb4ef12a",
+    "reason": "Actual run after 09:00; existing pre-open registration guard preserved; no retrospective trading signals",
+    "research_source_registered": true,
+    "review_path": "reports/c3_new_session_v1/reviews/2026-11-12/646c2efc1322e8f1b39dfd4b64352321e9fc50b2acd6cacd3d3f8a34e3e24b92.json",
+    "source_path": "reports/c3_new_session_v1/sources/2026-11-12/d70835a6c1f329197ca32954d471b61e50bbacecec3ef531ea634b1b383f726f.aesgcm",
+    "source_payload_sha256": "d70835a6c1f329197ca32954d471b61e50bbacecec3ef531ea634b1b383f726f"
+  },
+  "requested_day": "2026-11-12",
+  "schema": "C3_NOV12_SOURCE_RECOVERY_VERIFICATION_V1",
+  "telegram": {
+    "delivered": false,
+    "delivery_status": "DEFERRED_SOURCE_OR_REGISTRATION_NOT_READY",
+    "final_date_claim_created": false,
+    "message_ids": [],
+    "old_messages_40_41_42_resent": false,
+    "run_id": 43345105922,
+    "send_attempts": 0,
+    "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43345105922",
+    "workflow_status": "SUCCESS"
+  },
+  "tests": {
+    "all_five_final_pr_check_workflows_passed": true,
+    "final_boundary_integration": {
+      "failed": 0,
+      "passed": 41,
+      "run_id": 43343774653
+    },
+    "recovery_regression": {
+      "failed": 0,
+      "passed": 163,
+      "run_id": 43340629453
+    }
+  },
+  "verified_at_kst": "2026-11-13T10:33:38.132135+09:00"
+}
