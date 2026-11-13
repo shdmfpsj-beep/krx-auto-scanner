@@ -177,7 +177,8 @@ def prepare(event_file, evidence, out, now=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--event")\n    parser.add_argument("--manual-source")
+    parser.add_argument("--event")
+    parser.add_argument("--manual-source")
     parser.add_argument("--evidence")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
