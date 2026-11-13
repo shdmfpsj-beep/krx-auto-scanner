@@ -14,6 +14,9 @@ on:
     - cron: '20 12 * * 1-5'
     # Nov12 dated file's first final matching commit: 23:01 KST.
     - cron: '10 14 * * 1-5'
+    # Friday 00:10 KST Saturday fallback for delayed Nov13 dated-file publication.
+    # Research-only, immutable archive; never authorizes BUY or Telegram.
+    - cron: '10 15 * * 5'
     # Following morning Tue-Sat 07:10 KST, including Saturday before Nov16.
     # Nov13 07:01 KST repository observation; repeat verification, no signal.
     - cron: '10 22 * * 1-5'
