@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      PYTHONPATH: scripts:engine/scripts
+      PYTHONPATH: scripts:v4/scripts:engine/scripts
       GH_TOKEN: ${{ github.token }}
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
       KIWOOM_APP_KEY: ${{ secrets.KIWOOM_APP_KEY }}
@@ -38,14 +38,50 @@ jobs:
           ref: 54e7120b01966930e176d431e85b679347210c41
           path: engine
           persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: f3ed60f3fa0b967385df734ac54003aeee34d9d1
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: python -m pip install requests pillow pandas==2.2.3 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 --disable-pip-version-check
+      - run: sudo apt-get update -qq && sudo apt-get install -y fonts-nanum >/dev/null
       - name: Collect actual requested day and dated free alternatives before any analysis
         env:
           SOURCE_DAY: ${{ inputs.source_date || '2026-11-12' }}
         run: python scripts/c3_source_recovery_v1.py --date "$SOURCE_DAY" --control 2026-11-11 --out evidence/source
+      - name: Reuse current free global context with the actual cutoff
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from global_macro_risk_v618 import collect
+          clock=datetime.now(ZoneInfo('Asia/Seoul'))
+          try:result=collect(clock.date(),clock.strftime('%H:%M'),Path('private-macro'),True)
+          except Exception as exc:result={'status':'UNAVAILABLE','error_type':type(exc).__name__}
+          if 'generated_at_kst' in result:Path('evidence/macro.json').write_text(json.dumps(result))
+          PY
+      - name: Analyze the actual new market with the unchanged approved and V4 calculators
+        env:
+          OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+          C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+        run: python scripts/c3_source_recovery_analysis_v1.py --source evidence/source --engine engine --state state --out evidence/analysis --private private-inputs --macro evidence/macro.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
