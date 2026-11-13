@@ -1,0 +1,221 @@
+{
+  "schema": "C3_NOV13_DOWNLOADED_ARTIFACT_VERIFICATION_V1",
+  "asof": "2026-11-13",
+  "run_id": "43508677372",
+  "run_commit": "989042a066699d7df465e7dcc607e0d5f4601f8d",
+  "checks": [
+    {
+      "check": "artifact_zip_digest",
+      "status": "PASS",
+      "sha256": "1440eba159eb0e8eeaf6e5b2352e0be0b12593e72e0c3ab55733599d7bf35cf8"
+    },
+    {
+      "check": "dated_raw_source",
+      "status": "PASS",
+      "raw_sha256": "842fb7a65532cd82e2cc3023fde21e8d6fcdc5008b45db3083f2504c5ead88cc",
+      "collected_at": "2026-11-13T21:13:42.560584+00:00",
+      "file_commit": "05a17038b3cddf7a6f48105913e46fd37d96a21e",
+      "file_commit_at": "2026-11-13T12:58:19Z"
+    },
+    {
+      "check": "all_raw_normalized_fields",
+      "status": "PASS",
+      "rows": 2770,
+      "markets": {
+        "KOSPI": 936,
+        "KOSDAQ": 1834
+      },
+      "excluded": {
+        "KONEX": 107
+      },
+      "normalized_sha256": "abdc0d50b7c1275f73c3efabb588c0072538fb9ef71c70527228f1c881cccaed",
+      "full_current_listing_census_verified": false
+    },
+    {
+      "check": "report_source_canonical_link",
+      "status": "PASS",
+      "source_hash": "522d50896b7696d3ddba09dfa01df0c83a47c57f90597d39040441c0cbbf06de",
+      "report_hash": "9992794f826764f603a4ca016857d5dbf5c43ea361a703c1a654959cd0ace37e"
+    },
+    {
+      "check": "same_day_board_indices",
+      "status": "PASS",
+      "rows_each": 374,
+      "asof": "2026-11-13",
+      "official_certification": false
+    },
+    {
+      "check": "three_pngs_json_raw_ma_and_payload_match",
+      "status": "PASS",
+      "count": 3,
+      "charts": [
+        {
+          "role": "ENTRY_FIT",
+          "ticker": "119500",
+          "name": "포메탈",
+          "close": 2935.0,
+          "range": [
+            2680,
+            2740
+          ],
+          "stop": 2600,
+          "r1": 3200,
+          "r2": 3350,
+          "png": "output/analysis/cards/C3_NEW_20261113_119500.png",
+          "png_sha256": "11c0b17d068fa283775dc264a40908e67b1197e3ee4fc2f0168d4deaefc7999b",
+          "chart_source_sha256": "43fe130d1d983a4091ae9efad9cee44a4c2e6e3f1233ba711031a1f8867530ce",
+          "source_bars": 119,
+          "ma60_visible_points": 60
+        },
+        {
+          "role": "WATCH",
+          "ticker": "028050",
+          "name": "삼성E&A",
+          "close": 68800.0,
+          "range": null,
+          "stop": null,
+          "r1": null,
+          "r2": null,
+          "png": "output/analysis/watch_cards/C3_WATCH_20261113_028050.png",
+          "png_sha256": "e96670adc559785f6e1d23380764c0df261f08671f7ac1896a311688b18a175c",
+          "chart_source_sha256": "c3b2307f040310b21454cd33622d8728bf35e9f56477ffebbca48e8119e49663",
+          "source_bars": 119,
+          "ma60_visible_points": 60
+        },
+        {
+          "role": "WATCH",
+          "ticker": "180640",
+          "name": "한진칼",
+          "close": 203500.0,
+          "range": null,
+          "stop": null,
+          "r1": null,
+          "r2": null,
+          "png": "output/analysis/watch_cards/C3_WATCH_20261113_180640.png",
+          "png_sha256": "716535ef445e17588a867e6bf70e6917a89f3fa685ea8f5bee0b1275a1d909f6",
+          "chart_source_sha256": "384fea59afaec67e3dac7ac72ce0730cf0061e59b7a9e8c1366bb4ad78b86b41",
+          "source_bars": 119,
+          "ma60_visible_points": 60
+        }
+      ]
+    },
+    {
+      "check": "entry_plan_prices_and_cost_adjusted_rr",
+      "status": "PASS",
+      "ticker": "119500",
+      "range": [
+        2680,
+        2740
+      ],
+      "stop": 2600,
+      "r1": 3200,
+      "r2": 3350,
+      "upper_risk_pct": 5.109489051094891,
+      "min_net_r1_rr": 2.671502860328898,
+      "fees_are_inherited_research_assumptions": true
+    },
+    {
+      "check": "protected_originals_receipts_and_no_live_actions",
+      "status": "PASS",
+      "counts": {
+        "delivery/c3-top2-telegram": 19,
+        "research/c3-ledger-integrity-audit-20261104": 68
+      },
+      "protected_sha256": "8a7757b621100aa3dff9b7bcc79a0bae22bea8238b397cc371aa5aaf1d623820",
+      "telegram_status": "RESEARCH_NOT_SENT",
+      "duplicate_test": "DUPLICATE_BLOCKED",
+      "new_original_signals": 0,
+      "orders": 0
+    },
+    {
+      "check": "existing_history_and_prior_research_prices",
+      "status": "PASS",
+      "approved_90_suffix_equal": true,
+      "prior_research_sources": [
+        {
+          "asof": "2026-11-12",
+          "normalized_rows_sha256": "922e237b6d50650ae30f36f946835e90cd6ac046be3736ebc4f83dd0dcf01d92",
+          "original_signal_registered": false,
+          "regular_only_certified": false,
+          "rows": 2770,
+          "source_sha256": "d70835a6c1f329197ca32954d471b61e50bbacecec3ef531ea634b1b383f726f"
+        }
+      ]
+    },
+    {
+      "check": "official_failure_not_promoted",
+      "status": "PASS",
+      "official_gate": "HOLD",
+      "diagnostics": {
+        "official": [
+          {
+            "asof": "2026-11-13",
+            "market": "KOSPI",
+            "endpoint": "stk_bydd_trd",
+            "http_status": 200,
+            "outblock_rows": 0,
+            "normalized_rows": null,
+            "status": "OUTBLOCK_EMPTY",
+            "credential_present": true,
+            "provider_error": {},
+            "body_sha256": "82c0031bc13af348ac1e1304aca28f309632975110f2508534e93216791dfa90",
+            "received_at": "2026-11-13T21:13:12.944577+00:00"
+          },
+          {
+            "asof": "2026-11-13",
+            "market": "KOSDAQ",
+            "endpoint": "ksq_bydd_trd",
+            "http_status": 401,
+            "outblock_rows": null,
+            "normalized_rows": null,
+            "status": "AUTH_OR_SERVICE_APPROVAL_REJECTED",
+            "credential_present": true,
+            "provider_error": {
+              "respCode": "401",
+              "respMsg": "Unauthorized API Call"
+            },
+            "body_sha256": "a5193871d0b3d7288174d924179340dbe1650a42652b426b5304e9d426f68cfa",
+            "received_at": "2026-11-13T21:13:13.287028+00:00"
+          }
+        ],
+        "control_20261112": [
+          {
+            "asof": "2026-11-12",
+            "market": "KOSPI",
+            "endpoint": "stk_bydd_trd",
+            "http_status": 200,
+            "outblock_rows": 936,
+            "normalized_rows": 936,
+            "status": "NORMALIZED",
+            "credential_present": true,
+            "provider_error": {},
+            "body_sha256": "26b50cc0786d8307c24e0d4c1d721722f2aac9b1643b369bbc8f6eb43e68b2c9",
+            "received_at": "2026-11-13T21:13:14.422976+00:00"
+          },
+          {
+            "asof": "2026-11-12",
+            "market": "KOSDAQ",
+            "endpoint": "ksq_bydd_trd",
+            "http_status": 401,
+            "outblock_rows": null,
+            "normalized_rows": null,
+            "status": "AUTH_OR_SERVICE_APPROVAL_REJECTED",
+            "credential_present": true,
+            "provider_error": {
+              "respCode": "401",
+              "respMsg": "Unauthorized API Call"
+            },
+            "body_sha256": "a5193871d0b3d7288174d924179340dbe1650a42652b426b5304e9d426f68cfa",
+            "received_at": "2026-11-13T21:13:14.744919+00:00"
+          }
+        ]
+      }
+    }
+  ],
+  "checks_passed": 10,
+  "checks_failed": 0,
+  "research_analysis": "COMPLETE",
+  "official_krx_gate": "HOLD",
+  "actual_buy_approved": false,
+  "live_telegram_sent": false
+}
