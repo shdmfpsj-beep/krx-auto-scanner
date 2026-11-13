@@ -6,6 +6,8 @@ from unittest.mock import patch
 from tempfile import TemporaryDirectory
 from pathlib import Path
 import json
+import sys
+from types import SimpleNamespace
 
 from c3_morning_source_v1 import normalized_hash
 from c3_nov13_once_v1 import check_snapshot, check_trigger, prepare_manual, TARGET
@@ -88,7 +90,7 @@ class TonightTests(unittest.TestCase):
             (src/"normalized_market.json").write_text(json.dumps(m))
             (src/"original.csv").write_bytes(raw)
             env={"GITHUB_EVENT_NAME":"workflow_dispatch","GITHUB_REPOSITORY":"shdmfpsj-beep/krx-auto-scanner","GITHUB_REF":"refs/heads/main","GITHUB_WORKFLOW":"C3 Nov13 one-night full-market research (NO ORDER / NO SEND)","GITHUB_RUN_ID":"98765"}
-            with patch.dict("os.environ",env), patch("c3_nov13_once_v1.validate"), patch("c3_nov13_once_v1.session_context",return_value={"reference_close_at":"2026-11-13T06:30:00Z"}), patch("c3_daily_research_v8.collect_indices",return_value={"series":{"KOSPI":{"end":TARGET},"KOSDAQ":{"end":TARGET}}}):
+            with patch.dict("os.environ",env), patch("c3_nov13_once_v1.validate"), patch("c3_nov13_once_v1.session_context",return_value={"reference_close_at":"2026-11-13T06:30:00Z"}), patch.dict(sys.modules,{"c3_daily_research_v8":SimpleNamespace(collect_indices=lambda *a: {"series":{"KOSPI":{"end":TARGET},"KOSDAQ":{"end":TARGET}}})}):
                 result=prepare_manual(src,root/"out",NOW)
             self.assertEqual(result["rows"],2100)
             self.assertTrue(result["lookahead_relative_to_target_close"])
