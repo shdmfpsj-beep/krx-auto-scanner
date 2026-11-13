@@ -20,7 +20,7 @@ from c3_source_recovery_v1 import validate
 TARGET = "2026-11-13"
 REPOSITORY = "shdmfpsj-beep/krx-auto-scanner"
 UPSTREAM = "C3 post-close price prefetch (RESEARCH / NO SEND)"
-ALLOWED_CRONS = {"20 12 * * 1-5", "10 14 * * 1-5"}
+ALLOWED_CRONS = {"20 12 * * 1-5", "10 14 * * 1-5", "10 15 * * 5"}
 OPEN_AT = datetime.fromisoformat("2026-11-13T21:00:00+09:00")
 CLOSE_AT = datetime.fromisoformat("2026-11-14T08:00:00+09:00")
 
