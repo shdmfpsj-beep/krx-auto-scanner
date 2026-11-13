@@ -7,7 +7,7 @@ from unittest.mock import patch
 from c3_morning_source_v1 import normalized_hash
 from c3_nov13_once_v1 import check_snapshot, check_trigger, TARGET
 
-NOW = datetime.fromisoformat("2026-11-13T22:00:00+09:00")
+NOW = datetime.fromisoformat("2026-11-13T22:30:00+09:00")
 
 
 def event():
