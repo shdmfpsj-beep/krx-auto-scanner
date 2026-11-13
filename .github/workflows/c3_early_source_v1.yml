@@ -93,7 +93,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence/tests
-          python -m unittest test_c3_early_source_v1 test_c3_source_recovery_v1 test_c3_morning_v1 test_c3_morning_registration_v1 test_c3_telegram_notify -v 2>&1 | tee evidence/tests/regression.log
+          # Test fixtures are independent of the host workflow_run payload.
+          # The real completion event was already checked above and remains
+          # unchanged for live collection and GitHub step conditions.
+          GITHUB_EVENT_NAME=LOCAL_UNSPECIFIED GITHUB_EVENT_PATH= python -m unittest test_c3_early_source_v1 test_c3_source_recovery_v1 test_c3_morning_v1 test_c3_morning_registration_v1 test_c3_telegram_notify -v 2>&1 | tee evidence/tests/regression.log
       - name: Capture original ledger and Telegram receipt hashes
         id: integrity_start
         if: steps.trigger.outputs.allowed == 'true'
