@@ -42,7 +42,7 @@ jobs:
         run: python -m unittest test_c3_nov13_once_v1 -v
 
   one-night-research:
-    if: github.event_name == 'workflow_run' && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event.workflow_run.event == 'schedule' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_run' && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event.workflow_run.event == 'schedule' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.created_at, '2026-11-13T')
     runs-on: ubuntu-latest
     timeout-minutes: 70
     permissions:
@@ -128,7 +128,7 @@ jobs:
           from c3_early_source_v1 import write
           r=json.loads(Path('output/analysis/report.json').read_text())
           p=json.loads(Path('output/publication.json').read_text())
-          write('output/final_status.json',dict(asof=r['source_date'],status='RESEARCH_TOP2_OR_CASH_PNG_COMPLETE',
+          write('output/final_status.json',dict(asof=r['source_date'],status=('RESEARCH_TOP2_OR_CASH_PNG_COMPLETE' if r['selection_status']=='RESEARCH_ANALYSIS_COMPLETE' else 'RESEARCH_HOLD_FINANCIAL_INCOMPLETE_WITH_PNG'),
               source_sha256=r['normalized_rows_sha256'],funnel=r['funnel'],
               watch_top2=r.get('watch_top2',[]),entry_fit_top2=r['final_research_top2'],
               selection_status=r['selection_status'],
