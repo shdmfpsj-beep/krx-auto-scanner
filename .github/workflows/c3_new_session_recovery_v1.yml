@@ -57,6 +57,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             /reports/c3_forward_v8/
+            /reports/c3_new_session_v1/
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:

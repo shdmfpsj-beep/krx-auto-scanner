@@ -44,7 +44,7 @@ jobs:
       - name: Calendar, source agreement, immutable-plan and financial-date faults
         env:
           PYTHONPATH: scripts:engine/scripts
-        run: python -m unittest discover -s scripts -p 'test_c3_morning_v1.py' -v
+        run: python -m unittest test_c3_morning_v1 test_c3_source_recovery_v1 -v
       - name: Actual prior-session official/cache agreement, no fallback
         if: github.event_name != 'pull_request'
         env:

@@ -31,6 +31,33 @@ def dated_snapshot(rows,day):
     return dict(rows={t:dict(r,date=day) for t,r in rows.items()})
 
 
+def prior_research_history(state,snapshots,day):
+    """Read preserved past prices without registering past trading signals."""
+    from c3_supply_v11 import open_sealed
+    from c3_morning_source_v1 import normalized_hash
+    root=state/'reports/c3_new_session_v1';proof=[]
+    fields=('open','high','low','close','volume','turnover_krw')
+    def comparable(rows):
+        return {t:(r['name'],tuple(float(r[k]) for k in fields)) for t,r in rows.items()}
+    for path in sorted((root/'sources').glob('*/*.aesgcm')):
+        prior=path.parent.name
+        if prior>=day:continue  # Neither the current source nor a future session.
+        datetime.strptime(prior,'%Y-%m-%d')
+        payload=json.loads(open_sealed(path,os.environ.get('KRX_AUTH_KEY')))
+        if payload.get('schema')!='C3_NEW_DATED_SOURCE_V1' or payload.get('asof')!=prior or sha(payload)!=path.stem:
+            raise ValueError('PRIOR_RESEARCH_SOURCE_HASH_OR_DATE_MISMATCH')
+        rows=list(payload['rows'].values());validate(rows,prior);norm=normalized_hash(rows)
+        receipts=[json.loads(p.read_text()) for p in (root/'receipts'/prior).glob('*.json')]
+        if not any(r.get('source_sha256')==path.stem and r.get('normalized_rows_sha256')==norm for r in receipts):
+            raise ValueError('PRIOR_RESEARCH_SOURCE_RECEIPT_REQUIRED')
+        if prior in snapshots and comparable(snapshots[prior]['rows'])!=comparable(payload['rows']):
+            raise ValueError('PRIOR_RESEARCH_OR_ORIGINAL_PRICE_CONFLICT')
+        snapshots.setdefault(prior,dated_snapshot(payload['rows'],prior))
+        proof.append(dict(asof=prior,source_sha256=path.stem,normalized_rows_sha256=norm,rows=len(rows),
+            original_signal_registered=False,regular_only_certified=False))
+    return proof
+
+
 def extended_history(panel,audit,prices,snapshots,sessions,day):
     """Same segmentation as V4; approved 90-bar suffix is checked separately."""
     events={(e['ticker'],e['date']) for e in audit['reference_rebase_candidates']};grid={d:i for i,d in enumerate(sessions)}
@@ -87,6 +114,7 @@ def run(source,engine,state,out,private,macro=None):
     panel=private/'panel/official_panel.csv.gz';auditfile=private/'panel/quality_audit.json';audit=json.loads(auditfile.read_text())
     if digest(panel)!=oldlatest['source_hashes']['panel'] or digest(auditfile)!=oldlatest['source_hashes']['audit']:raise ValueError('REGISTERED_BOOTSTRAP_HISTORY_HASH_MISMATCH')
     snapshots={r['asof']:r for r in (read_record(p) for p in sorted((lane/'lanes/krx_unadjusted_v12/markets').glob('*.json.gz'))) if r['asof']<=day}
+    prior_proof=prior_research_history(state,snapshots,day)
     baseline,bmeta=fresh_snapshot(private/'latest/requested-date-probe/2026-11-04')
     snapshots[bmeta['asof']]=dated_snapshot(baseline,bmeta['asof'])
     past,excluded=histories(panel,auditfile,prices,snapshots,sessions,day)
@@ -144,7 +172,7 @@ def run(source,engine,state,out,private,macro=None):
     report['report_payload_sha256']=sha(report);write(out/'report.json',report);write(out/'all_technical_diagnostics.json',dict(asof=day,rows=rows))
     approved={m:[{k:v for k,v in r.items() if k not in ('chart_bars','registered_at','signal_id')} for r in rs] for m,rs in models.items()}
     write(out/'approved_engine_calculation.json',dict(asof=day,models=approved,counts=counts,original_registration=False,research_only=True))
-    write(out/'source_payload.json',payload);write(out/'history_provenance.json',dict(panel_sha256=digest(panel),audit_sha256=digest(auditfile),excluded=excluded,approved_90_suffix_equal=True,observed_sessions=len(sessions)))
+    write(out/'source_payload.json',payload);write(out/'history_provenance.json',dict(panel_sha256=digest(panel),audit_sha256=digest(auditfile),excluded=excluded,approved_90_suffix_equal=True,observed_sessions=len(sessions),prior_research_sources=prior_proof))
     paths=[];manifests=[]
     for row in fit:
         t=row['ticker'];chart=dict(ticker=t,source_date=day,source_hash=sha(payload),bars=current[t][-119:]);write(out/'chart_sources'/(t+'.json'),chart)

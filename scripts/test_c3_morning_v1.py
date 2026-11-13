@@ -29,6 +29,12 @@ class ApprovedEngineMorningWindowTests(unittest.TestCase):
         self.assertIn("if target != os.environ['EXPECTED_MORNING_SOURCE_DAY']:raise ValueError('SOURCE_DAY_CHANGED_AFTER_PREFLIGHT')",s)
         self.assertIn("audit=invocation(os.environ['GITHUB_REPOSITORY'],os.environ['GITHUB_REF'],os.environ['GITHUB_EVENT_NAME']",s)
         self.assertNotIn("GITHUB_EVENT_NAME']='",s)
+    def test_new_session_review_waits_for_registration_and_pins_its_state(self):
+        path=Path(__file__).resolve().parent.parent/'.github/workflows/c3_research_daily_caller.yml'
+        job=path.read_text().split('\n  new-session-review:\n',1)[1]
+        self.assertIn('needs: [source-ready, research]',job)
+        self.assertIn("needs.research.outputs.registered_state_sha ||",job)
+        self.assertIn('/reports/c3_new_session_v1/',job)
 
 
 class CalendarAndSourceTests(unittest.TestCase):

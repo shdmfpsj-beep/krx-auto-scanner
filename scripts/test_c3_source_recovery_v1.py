@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch,Mock
 from c3_morning_source_v1 import execute,normalized_hash
 from c3_source_recovery_v1 import validate,cache
-from c3_source_recovery_analysis_v1 import load_prices,dated_snapshot,extended_history
+from c3_source_recovery_analysis_v1 import load_prices,dated_snapshot,extended_history,prior_research_history
 from c3_morning_final_v1 import packet
 from c3_telegram_inputs import canonical
 
@@ -122,6 +122,34 @@ class RepeatedSourcePublication(unittest.TestCase):
         result=self.attempt();self.assertEqual(result['commit'],'new-commit');self.assertFalse(result['original_signal_registered'])
     def test_retry_rejects_changed_immutable_plaintext(self):
         with self.assertRaisesRegex(ValueError,'IMMUTABLE_NEW_SOURCE_CONFLICT'):self.attempt(corrupt=True)
+
+
+class PriorResearchPriceContinuity(unittest.TestCase):
+    def fixture(self,root):
+        rows=SourceRecovery().rows();payload=dict(schema='C3_NEW_DATED_SOURCE_V1',asof='2026-11-12',rows={r['ticker']:r for r in rows})
+        body=canonical(payload);digest=hashlib.sha256(body).hexdigest();base=Path(root)/'reports/c3_new_session_v1'
+        p=base/'sources/2026-11-12'/(digest+'.aesgcm');p.parent.mkdir(parents=True);p.write_bytes(b'sealed')
+        r=base/'receipts/2026-11-12/receipt.json';r.parent.mkdir(parents=True);r.write_text(json.dumps(dict(source_sha256=digest,normalized_rows_sha256=normalized_hash(rows))))
+        return body,p
+    def test_preserved_prior_day_prices_fill_history_without_registering_trades(self):
+        with tempfile.TemporaryDirectory() as root:
+            body,_=self.fixture(root);snapshots={}
+            with patch('c3_supply_v11.open_sealed',return_value=body):proof=prior_research_history(Path(root),snapshots,'2026-11-13')
+            self.assertEqual(snapshots['2026-11-12']['rows']['000001']['date'],'2026-11-12')
+            self.assertEqual(proof[0]['rows'],2);self.assertFalse(proof[0]['original_signal_registered'])
+    def test_current_or_future_archive_is_never_used_as_earlier_history(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.fixture(root)
+            with patch('c3_supply_v11.open_sealed') as decrypt:
+                self.assertEqual(prior_research_history(Path(root),{},'2026-11-12'),[]);decrypt.assert_not_called()
+    def test_tampered_archive_or_conflicting_registered_prices_fail_closed(self):
+        with tempfile.TemporaryDirectory() as root:
+            body,_=self.fixture(root)
+            with patch('c3_supply_v11.open_sealed',return_value=body.replace(b'105.0',b'106.0')):
+                with self.assertRaisesRegex(ValueError,'HASH_OR_DATE'):prior_research_history(Path(root),{},'2026-11-13')
+            old=json.loads(body)['rows'];old['000001']['close']=106
+            with patch('c3_supply_v11.open_sealed',return_value=body):
+                with self.assertRaisesRegex(ValueError,'PRICE_CONFLICT'):prior_research_history(Path(root),{'2026-11-12':{'rows':old}},'2026-11-13')
 
 
 if __name__=='__main__':unittest.main()

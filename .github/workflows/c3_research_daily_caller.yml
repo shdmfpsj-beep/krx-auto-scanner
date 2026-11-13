@@ -241,7 +241,7 @@ jobs:
           if-no-files-found: warn
 
   new-session-review:
-    needs: source-ready
+    needs: [source-ready, research]
     if: always() && !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.source-ready.outputs.research_ready == 'true' && needs.source-ready.outputs.indices_ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -278,11 +278,12 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
         with:
-          ref: research/c3-ledger-integrity-audit-20261104
+          ref: ${{ needs.research.outputs.registered_state_sha || 'research/c3-ledger-integrity-audit-20261104' }}
           path: state
           persist-credentials: false
           sparse-checkout: |
             /reports/c3_forward_v8/
+            /reports/c3_new_session_v1/
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
