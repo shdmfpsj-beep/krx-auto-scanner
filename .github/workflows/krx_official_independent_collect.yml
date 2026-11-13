@@ -28,41 +28,58 @@ jobs:
             /scripts/shadow_five_day_v59.py
             /scripts/test_krx_official_eod_v65.py
             /scripts/krx_official_pykrx_diff.py
+            /scripts/c3_morning_source_v1.py
+            /scripts/c3_telegram_inputs.py
+            /scripts/test_c3_source_wakeup_v1.py
+            /.github/workflows/c3_research_daily_caller.yml
           sparse-checkout-cone-mode: false
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install existing source calendar dependencies
+        run: python -m pip install requests pandas==2.2.3 exchange-calendars==4.13.2 pykrx==1.2.9 --disable-pip-version-check
+      - name: Pin one prior completed reference session for every collector step
+        run: |
+          python - <<'PYCODE'
+          import json,os
+          from datetime import datetime,timezone
+          from pathlib import Path
+          from c3_morning_source_v1 import prior_session
+          plan=prior_session(datetime.now(timezone.utc))
+          plan.update(probe_run_id=os.environ['GITHUB_RUN_ID'],event=os.environ['GITHUB_EVENT_NAME'])
+          Path('output').mkdir(exist_ok=True)
+          Path('output/source_context.json').write_text(json.dumps(plan,sort_keys=True)+'\n')
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('SOURCE_DAY='+plan['requested_day']+'\n')
+          print('Requested prior session:',plan['requested_day'],'reference calendar only; certification still required')
+          PYCODE
       - name: Offline collector tests
-        run: python -m unittest discover -s scripts -p test_krx_official_eod_v65.py
+        run: python -m unittest test_krx_official_eod_v65 test_c3_source_wakeup_v1 -v
       - name: Collect official EOD independently
         run: |
           python - <<'PY'
           import os
           from pathlib import Path
-          from datetime import datetime,timedelta
-          from zoneinfo import ZoneInfo
           from krx_official_eod_v65 import collect
-          d=datetime.now(ZoneInfo("Asia/Seoul")).date()-timedelta(days=1)
-          while d.weekday()>=5:
-              d-=timedelta(days=1)
-          s=collect(d.isoformat(),Path("output")/d.isoformat(),os.environ.get("KRX_AUTH_KEY"))
+          day=os.environ['SOURCE_DAY']
+          s=collect(day,Path("output")/day,os.environ.get("KRX_AUTH_KEY"))
           assert not s["trade_approved"] and not s["orders_enabled"] and s["decision"]=="CASH"
           print("OFFICIAL_EOD",s["asof"],s["status"],s["official_market_rows"])
           PY
       - name: Audit official market files against source hashes and date
         run: |
           python - <<'PY'
-          import csv,hashlib,json
+          import csv,hashlib,json,os
           from datetime import datetime,timedelta
           from pathlib import Path
           from zoneinfo import ZoneInfo
-          d=datetime.now(ZoneInfo("Asia/Seoul")).date()-timedelta(days=1)
-          while d.weekday()>=5:
-              d-=timedelta(days=1)
-          folder=Path("output")/d.isoformat()
+          day=os.environ['SOURCE_DAY']
+          folder=Path("output")/day
           p=json.loads((folder/"krx_v65_collect_status.json").read_text())
-          assert p["asof"]==d.isoformat()
+          assert p["asof"]==day
           assert p["trade_approved"] is False and p["orders_enabled"] is False
           assert p["independent_1530_regular_session_certified"] is False
-          summary={"asof":d.isoformat(),"official_api_status":p["status"],
+          summary={"asof":day,"official_api_status":p["status"],
                    "regular_1530_certified":False,"decision":"CASH",
                    "market_rows":{},"market_file_hash_verified":False,
                    "integrity":"NOT_VERIFIED"}
@@ -73,7 +90,7 @@ jobs:
                   assert hashlib.sha256(f.read_bytes()).hexdigest()==p["market_file_sha256"][market]
                   with f.open(encoding="utf-8-sig",newline="") as handle:
                       rows=list(csv.DictReader(handle))
-                  assert rows and all(x["asof"]==d.isoformat() and x["market"]==market for x in rows)
+                  assert rows and all(x["asof"]==day and x["market"]==market for x in rows)
                   codes={x["ticker"] for x in rows}
                   assert len(codes)==len(rows) and not codes.intersection(all_codes)
                   all_codes.update(codes)
@@ -83,28 +100,23 @@ jobs:
               summary["market_file_hash_verified"]=True
               summary["integrity"]="OFFICIAL_DAILY_FILES_VERIFIED_SESSION_UNCERTIFIED"
           (folder/"official_independent_integrity.json").write_text(
-              json.dumps(summary,ensure_ascii=False,indent=2)+"\\n")
+              json.dumps(summary,ensure_ascii=False,indent=2)+"\n")
           print("OFFICIAL_INTEGRITY",summary["integrity"],summary["market_rows"])
           PY
       - name: Compare official KRX and PyKRX daily bars without trading approval
         run: |
-          python -m pip install --disable-pip-version-check 'pykrx==1.2.9'
           python - <<'PY'
-          from datetime import datetime,timedelta
-          from zoneinfo import ZoneInfo
           from pathlib import Path
-          import subprocess,sys
-          d=datetime.now(ZoneInfo("Asia/Seoul")).date()-timedelta(days=1)
-          while d.weekday()>=5:
-              d-=timedelta(days=1)
-          folder=Path("output")/d.isoformat()
+          import subprocess,sys,os
+          day=os.environ['SOURCE_DAY']
+          folder=Path("output")/day
           import json
           manifest=json.loads((folder/"krx_v65_collect_status.json").read_text())
           if not manifest["official_dataset_usable"]:
               print("OFFICIAL_NOT_USABLE_SKIP_DIFF",manifest["status"])
           else:
               subprocess.run([sys.executable,"scripts/krx_official_pykrx_diff.py",
-                  "--date",d.isoformat(),"--official",str(folder),
+                  "--date",day,"--official",str(folder),
                   "--out",str(folder)],check=True)
           PY
       - uses: actions/upload-artifact@v4
@@ -114,3 +126,16 @@ jobs:
           path: output/
           retention-days: 30
           if-no-files-found: warn
+      - name: Reject empty or wrong-date official data after preserving failure evidence
+        if: always()
+        run: |
+          python - <<'PYCODE'
+          import json,os
+          from pathlib import Path
+          from c3_morning_source_v1 import require_official_collection
+          day=os.environ.get('SOURCE_DAY')
+          if not day:raise ValueError('SOURCE_DAY_UNRESOLVED')
+          manifest=json.loads((Path('output')/day/'krx_v65_collect_status.json').read_text())
+          require_official_collection(manifest,day)
+          print('Actual official daily rows:',manifest['official_market_rows'],'Regular-only and BUY remain uncertified')
+          PYCODE

@@ -10,6 +10,11 @@ on:
     branches: [main]
     paths: ['config/c3_morning_deploy_request.json']
   workflow_dispatch:
+  workflow_run:
+    # Existing collector completion is a recovery wake-up, not price approval.
+    workflows: ['KRX official independent daily source probe (no trading)']
+    types: [completed]
+    branches: [main]
   pull_request:
     paths: ['.github/workflows/c3_research_daily_caller.yml','scripts/c3_morning_source_v1.py','.github/workflows/c3_morning_research_adapter_v1.yml']
 permissions:
@@ -55,7 +60,7 @@ jobs:
           PYCODE
   source-ready:
     timeout-minutes: 8
-    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || ((github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out') && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,6 +72,7 @@ jobs:
       research_ready: ${{ steps.source.outputs.research_ready }}
       indices_ready: ${{ steps.source.outputs.indices_ready }}
       registration_window: ${{ steps.source.outputs.registration_window }}
+      registration_trigger_allowed: ${{ steps.source.outputs.registration_trigger_allowed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -101,7 +107,7 @@ jobs:
 
   research:
     needs: source-ready
-    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && github.event_name != 'push' && needs.source-ready.outputs.ready == 'true' && needs.source-ready.outputs.registration_window == 'OPEN'
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.source-ready.outputs.registration_trigger_allowed == 'true' && needs.source-ready.outputs.ready == 'true' && needs.source-ready.outputs.registration_window == 'OPEN'
     permissions:
       contents: write
       actions: read
@@ -115,7 +121,7 @@ jobs:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
   morning-review:
     needs: [source-ready, research, new-session-review]
-    if: always() && !cancelled() && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.source-ready.result != 'cancelled'
+    if: always() && !cancelled() && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.source-ready.result != 'cancelled' && needs.source-ready.result != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

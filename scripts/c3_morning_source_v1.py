@@ -12,9 +12,41 @@ from c3_telegram_inputs import GitHub,canonical
 
 KST=ZoneInfo('Asia/Seoul')
 FIELDS=('open','high','low','close','volume','turnover_krw')
+REPOSITORY='shdmfpsj-beep/krx-auto-scanner'
+SOURCE_WAKEUP_WORKFLOW='KRX official independent daily source probe (no trading)'
 
 
 def sha(body):return hashlib.sha256(body).hexdigest()
+
+
+def trigger_context(env=None,event=None):
+    """A trusted completed probe wakes a fresh collection, never a trade."""
+    env=os.environ if env is None else env;name=env.get('GITHUB_EVENT_NAME','LOCAL_UNSPECIFIED')
+    if event is None:
+        path=env.get('GITHUB_EVENT_PATH');event=json.loads(Path(path).read_text()) if path and Path(path).is_file() else {}
+    result=dict(event=name,cron=event.get('schedule'),observed_code_sha=env.get('GITHUB_SHA'),
+        approved_original_registration_allowed=name in ('schedule','workflow_dispatch') and
+            env.get('GITHUB_REPOSITORY')==REPOSITORY and env.get('GITHUB_REF')=='refs/heads/main')
+    if name=='workflow_run':
+        upstream=event.get('workflow_run') or {};rid=upstream.get('id')
+        if (env.get('GITHUB_REPOSITORY')!=REPOSITORY or env.get('GITHUB_REF')!='refs/heads/main' or
+            upstream.get('name')!=SOURCE_WAKEUP_WORKFLOW or upstream.get('head_branch')!='main' or
+            (upstream.get('head_repository') or {}).get('full_name')!=REPOSITORY or
+            upstream.get('status')!='completed' or upstream.get('event') not in ('schedule','push','workflow_dispatch') or
+            upstream.get('conclusion') not in ('success','failure','timed_out') or
+            isinstance(rid,bool) or not isinstance(rid,int) or rid<=0):
+            raise ValueError('UNTRUSTED_OR_INCOMPLETE_SOURCE_WAKEUP')
+        result.update(mode='COMPLETION_RESEARCH_RECOVERY',upstream_run_id=str(rid),
+            upstream_name=upstream['name'],upstream_conclusion=upstream['conclusion'],
+            upstream_created_at=upstream.get('created_at'),upstream_head_sha=upstream.get('head_sha'),
+            upstream_is_wakeup_not_source_validation=True,approved_original_registration_allowed=False)
+    return result
+
+
+def require_official_collection(manifest,day):
+    if (manifest.get('asof')!=day or manifest.get('official_dataset_usable') is not True or
+        not isinstance(manifest.get('official_market_rows'),int) or isinstance(manifest['official_market_rows'],bool) or manifest['official_market_rows']<=0):
+        raise ValueError('OFFICIAL_COLLECTION_EMPTY_OR_WRONG_DAY')
 
 
 def normalized_hash(rows):
@@ -97,6 +129,7 @@ def execute(outdir,requested=None,clock=None,recover=None):
         orders_enabled=False,decision='CASH',attempts=[],source_scope='DAILY_REGULAR_SCOPE_UNCERTIFIED',
         registration_window='OPEN' if clock.astimezone(KST).hour<9 else 'CLOSED')
     try:
+        result['trigger']=trigger_context()
         plan=prior_session(clock);result.update(plan);day=requested or plan['requested_day'];result['requested_day']=day
         if date.fromisoformat(day)>=clock.astimezone(KST).date():raise ValueError('MORNING_SOURCE_MUST_PRECEDE_TODAY')
         data=(recover or recover_actual)(day,out/'recovery',attempts=2)
@@ -126,7 +159,8 @@ def execute(outdir,requested=None,clock=None,recover=None):
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'],'a') as f:
             for key,value in dict(ready=str(result['ready']).lower(),research_ready=str(result['research_ready']).lower(),indices_ready=str(result['indices_ready']).lower(),
-                source_day=result.get('requested_day',''),run_id=os.environ.get('GITHUB_RUN_ID',''),registration_window=result['registration_window']).items():f.write(key+'='+str(value)+'\n')
+                source_day=result.get('requested_day',''),run_id=os.environ.get('GITHUB_RUN_ID',''),registration_window=result['registration_window'],
+                registration_trigger_allowed=str(result.get('trigger',{}).get('approved_original_registration_allowed',False)).lower()).items():f.write(key+'='+str(value)+'\n')
     print(json.dumps({k:result.get(k) for k in ('status','requested_day','compared_rows','ready','research_ready','blocker')}))
     return result
 
