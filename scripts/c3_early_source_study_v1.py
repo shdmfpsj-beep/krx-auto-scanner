@@ -1,5 +1,5 @@
 """Pinned publication replay; later official comparison is never backdated."""
-import argparse,hashlib,json,os
+import argparse,csv,hashlib,io,json,os
 from pathlib import Path
 from urllib.parse import quote
 import requests
@@ -57,6 +57,22 @@ def run(out,official_dir):
     from c3_source_recovery_v1 import official_rows
     out=Path(out);out.mkdir(parents=True,exist_ok=True);day='2026-11-12';official=official_rows(Path(official_dir));quality(official,day)
     gh=GitHub(os.environ['GH_TOKEN'],FDR);versions=[];prices={}
+    path='data/listing/krx/'+day+'.csv'
+    history=gh.api('commits?path='+quote(path,safe='')+'&since=2026-11-11T15%3A00%3A00Z&until=2026-11-12T22%3A10%3A00Z&per_page=100')
+    history_proof=[]
+    if len(history)>=100:raise ValueError('DATED_FILE_HISTORY_PAGINATION_REQUIRED')
+    for item in reversed(history):
+        raw=gh.file(path,item['sha']);source=list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))))
+        selected=[r for r in source if r.get('MarketId') in ('STK','KSQ')]
+        observation=dict(file_commit=item['sha'],file_commit_at=item['commit']['committer']['date'],raw_sha256=sha(raw),raw_rows=len(source),target_rows=len(selected),
+            empty_field_counts={k:sum(not r.get(k) for r in selected) for k in ('Open','High','Low','Close','Volume','Amount')})
+        try:
+            rows,_=cache_rows(raw,day);quality(rows,day);observation['official_comparison']=differences(rows,official)
+        except (ValueError,KeyError):observation['status']='INVALID_PRICE_FIELDS'
+        history_proof.append(observation)
+    matching=[r for r in history_proof if r.get('official_comparison',{}).get('match_rate_pct')==100]
+    earliest=min((r['file_commit_at'] for r in matching),default=None)
+    if earliest!='2026-11-12T14:01:06Z':raise ValueError('EARLIEST_MATCHING_FILE_HISTORY_NOT_REPRODUCED')
     for label,ref,cutoff in SNAPSHOTS:
         raw=gh.file('data/listing/krx/'+day+'.csv',ref);rows,excluded=cache_rows(raw,day);prices[label]=rows
         (out/(label+'.csv')).write_bytes(raw)
@@ -82,7 +98,7 @@ def run(out,official_dir):
         except Exception as exc:sources.append(dict(provider='FINANCEDATA_MARCAP_PUBLISHED_PARQUET',cutoff_at=cutoff,status='PROBE_FAILED',error_type=type(exc).__name__,reason=str(exc)[:180]))
     result=dict(schema='C3_EARLY_SOURCE_REPLAY_V1',asof=day,replay_executed_at=stamp(),source_run_id=os.environ.get('GITHUB_RUN_ID'),
         official_rows=len(official),official_normalized_sha256=normalized_hash(official),snapshots=versions,additional_sources=sources,
-        earliest_confirmed_matching_commit_at='2026-11-12T14:01:06Z',
+        dated_file_commit_history=history_proof,earliest_confirmed_matching_commit_at=earliest,
         timing_evidence_scope='EARLIEST_MATCHING_DATED_FILE_COMMIT_NOT_EXACT_SERVER_PUBLICATION_OR_PROVIDER_SLA',
         earlier_incorrect_version_at='2026-11-12T05:43:14Z',future_snapshot_rejected=True,
         improvement_vs_next_0701_seconds=28807,improvement_vs_0810_seconds=32934,

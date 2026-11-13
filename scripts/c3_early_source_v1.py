@@ -1,10 +1,11 @@
 """Post-close price prefetch. Research archive only; never a signal or BUY gate."""
-import argparse,base64,gzip,hashlib,json,os,re,tempfile,time
+import argparse,base64,csv,gzip,hashlib,io,json,os,re,tempfile,time
 from collections import Counter
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
+from requests import RequestException
 from c3_telegram_inputs import GitHub,RESEARCH,canonical,ServiceError
 from c3_morning_source_v1 import cache_rows,normalized_hash,FIELDS,compare
 
@@ -18,7 +19,7 @@ class SourceRejected(ValueError):
     def __init__(self,reason,meta):
         super().__init__(reason)
         self.evidence={k:meta.get(k) for k in ('asof','snapshot_commit','snapshot_commit_at','file_commit','file_commit_at',
-            'collected_at','raw_sha256','normalized_rows_sha256','rows','markets','path')}
+            'collected_at','raw_sha256','raw_bytes','raw_rows','normalized_rows_sha256','rows','markets','path')}
 
 def stamp():return datetime.now(timezone.utc).isoformat()
 def sha(raw):return hashlib.sha256(raw).hexdigest()
@@ -76,14 +77,19 @@ def fdr_snapshot(day,cutoff=None,snapshot=None,gh=None):
     changed=versions[0];snapshot=snapshot or changed['sha']
     revision=gh.api('commits/'+snapshot)
     if clock(revision['commit']['committer']['date'])>cutoff:raise ValueError('FUTURE_COMMIT_AT_REPLAY_CUTOFF')
-    raw=gh.file(path,snapshot);rows,excluded=cache_rows(raw,day)
+    raw=gh.file(path,snapshot)
+    evidence=dict(asof=day,path=path,snapshot_commit=snapshot,snapshot_commit_at=revision['commit']['committer']['date'],
+        file_commit=changed['sha'],file_commit_at=changed['commit']['committer']['date'],collected_at=stamp(),
+        raw_sha256=sha(raw),raw_bytes=len(raw),raw_rows=len(list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig'))))))
+    try:rows,excluded=cache_rows(raw,day);q=quality(rows,day)
+    except (KeyError,ValueError) as exc:raise SourceRejected('DATED_FILE_PRICE_SCHEMA_OR_QUALITY_INVALID',evidence) from exc
     meta=dict(schema='C3_EARLY_PRICE_SNAPSHOT_V1',asof=day,provider='FDR_DATED_CSV',repository=FDR,path=path,
         snapshot_commit=snapshot,snapshot_commit_at=revision['commit']['committer']['date'],
         file_commit=changed['sha'],file_commit_at=changed['commit']['committer']['date'],
         availability_evidence='GIT_COMMIT_TIMESTAMP_NOT_SERVER_PUBLICATION_ATTESTATION',
         cutoff_at=cutoff.isoformat(),collected_at=stamp(),raw_sha256=sha(raw),raw_bytes=len(raw),
         normalized_rows_sha256=normalized_hash(rows),rows=len(rows),markets=dict(Counter(r['market'] for r in rows)),
-        excluded=excluded,quality=quality(rows,day),source_status='SINGLE_SOURCE_UNVERIFIED',
+        excluded=excluded,quality=q,raw_rows=evidence['raw_rows'],source_status='SINGLE_SOURCE_UNVERIFIED',
         price_basis='UNADJUSTED_AS_REPORTED_FDR',corporate_actions_adjusted=False,
         price_date_assertion='DATED_FILE_NOT_OFFICIAL_DAY_ATTESTATION',regular_only_certified=False,
         financial_pit_verified=False,buy_approved=False,orders_enabled=False,telegram_requests=0)
@@ -201,8 +207,9 @@ def capture(out,day=None,cutoff=None,snapshot=None,persist=False,attempts=2):
             result=dict(meta,status='PREFETCHED_RESEARCH_ONLY',attempts=n+1,prior_errors=errors)
             if persist:result['publication']=publish(raw,rows,meta)
             write(out/'prefetch.json',result);return result
-        except (ValueError,ServiceError) as exc:
-            error=dict(attempt=n+1,error_type=type(exc).__name__,reason=str(exc)[:150],observed_at=stamp())
+        except (ValueError,ServiceError,RequestException) as exc:
+            reason=type(exc).__name__ if isinstance(exc,RequestException) else str(exc)[:150]
+            error=dict(attempt=n+1,error_type=type(exc).__name__,reason=reason,observed_at=stamp())
             if isinstance(exc,SourceRejected):error['rejected_snapshot']=exc.evidence
             errors.append(error)
             if n+1<attempts:time.sleep(2)

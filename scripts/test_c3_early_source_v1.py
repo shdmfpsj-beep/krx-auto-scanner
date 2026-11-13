@@ -6,7 +6,7 @@ from unittest.mock import patch
 from c3_telegram_inputs import canonical
 from c3_morning_source_v1 import cache_rows,normalized_hash
 from c3_early_source_v1 import (PREFIX,quality,eligibility,session_context,publish,load_prefetch,
-    differences,sha,fdr_snapshot,trusted_wakeup,WAKEUPS)
+    differences,sha,fdr_snapshot,trusted_wakeup,WAKEUPS,SourceRejected,capture)
 
 def rows():
     return [dict(ticker=t,name='SYNTHETIC',market=m,asof='2026-11-12',open=100.,high=110.,low=90.,close=105.,volume=100.,turnover_krw=10000.) for t,m in [('000001','KOSPI'),('000002','KOSDAQ')]]
@@ -74,6 +74,20 @@ class Eligibility(unittest.TestCase):
         self.assertTrue(trusted_wakeup({'workflow_run':r},r['head_repository']['full_name']))
         for field,value in [('head_branch','foreign'),('event','pull_request'),('status','in_progress'),('name','unknown')]:
             self.assertFalse(trusted_wakeup({'workflow_run':dict(r,**{field:value})},r['head_repository']['full_name']))
+    def test_invalid_dated_file_retains_raw_hash_and_count_without_becoming_ready(self):
+        class Incomplete:
+            def api(self,path):
+                commit={'sha':'a'*40,'commit':{'committer':{'date':'2026-11-12T14:01:06Z'}}}
+                return [commit] if path.startswith('commits?') else commit
+            def file(self,path,ref):return raw_csv(rows()).replace(b'100.0',b'',1)
+        with self.assertRaises(SourceRejected) as caught:fdr_snapshot('2026-11-12','2026-11-13T00:00:00Z',gh=Incomplete())
+        self.assertEqual(caught.exception.evidence['raw_rows'],2);self.assertEqual(len(caught.exception.evidence['raw_sha256']),64)
+    def test_network_failure_has_bounded_retries_and_explicit_held_artifact(self):
+        from requests import Timeout
+        with tempfile.TemporaryDirectory() as root,patch('c3_early_source_v1.session_context',context),\
+             patch('c3_early_source_v1.fdr_snapshot',side_effect=Timeout('SYNTHETIC')) as get,patch('c3_early_source_v1.time.sleep'):
+            r=capture(Path(root),day='2026-11-12');self.assertEqual(get.call_count,2);self.assertEqual(r['status'],'PREFETCH_HELD_SOURCE_NOT_READY')
+            self.assertEqual(r['rows'],0);self.assertTrue(Path(root,'prefetch.json').is_file())
 
 @unittest.skipUnless(importlib.util.find_spec('exchange_calendars'),'reference calendar dependency installed in Actions')
 class Calendar(unittest.TestCase):
