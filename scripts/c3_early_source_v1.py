@@ -51,6 +51,7 @@ def session_context(now,day=None):
     close=cal.session_close(session).to_pydatetime()
     if close>now:raise ValueError('SESSION_NOT_COMPLETED_AT_CUTOFF')
     return dict(day=session.strftime('%Y-%m-%d'),reference_close_at=close.isoformat(),
+        previous_day=cal.previous_session(session).strftime('%Y-%m-%d'),
         reference_calendar='XKRX',calendar_version=xc.__version__,calendar_is_official_attestation=False)
 
 def quality(rows,day):
@@ -58,6 +59,12 @@ def quality(rows,day):
     result=validate(rows,day)
     if set(Counter(r['market'] for r in rows))!={'KOSPI','KOSDAQ'}:raise ValueError('BOTH_BOARDS_REQUIRED')
     if any(not re.fullmatch(r'[0-9A-Z]{6}',r['ticker']) or not r['name'] for r in rows):raise ValueError('SOURCE_IDENTITY_INVALID')
+    return result
+
+def coverage(rows,baseline,day):
+    from c3_runtime_v10 import quality as assess
+    result=assess(rows,baseline,day)
+    if result['errors']:raise ValueError('SUSPICIOUS_EARLY_UNIVERSE_LOSS')
     return result
 
 def eligibility(meta,cutoff):
@@ -95,6 +102,18 @@ def fdr_snapshot(day,cutoff=None,snapshot=None,gh=None):
         financial_pit_verified=False,buy_approved=False,orders_enabled=False,telegram_requests=0)
     try:meta.update(eligibility(meta,cutoff))
     except ValueError as exc:raise SourceRejected(str(exc),meta) from exc
+    prior_path='data/listing/krx/'+meta['previous_day']+'.csv'
+    try:
+        previous=gh.file(prior_path,snapshot,missing_ok=True)
+        if previous is None:raise ValueError('PREVIOUS_DATED_FILE_MISSING')
+        baseline,_=cache_rows(previous,meta['previous_day']);quality(baseline,meta['previous_day'])
+    except (ValueError,ServiceError,RequestException) as exc:
+        meta['previous_day_coverage']=dict(status='BASELINE_UNAVAILABLE',error_type=type(exc).__name__,path=prior_path)
+    else:
+        try:meta['quality']=coverage(rows,baseline,day)
+        except ValueError as exc:raise SourceRejected(str(exc),meta) from exc
+        meta['previous_day_coverage']=dict(status='EXISTING_COVERAGE_ALARM_PASSED_NOT_LISTING_CENSUS',
+            path=prior_path,rows=len(baseline),raw_sha256=sha(previous),ref=snapshot)
     return raw,rows,meta
 
 def differences(left,right):

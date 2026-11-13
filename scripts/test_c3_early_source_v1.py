@@ -6,7 +6,7 @@ from unittest.mock import patch
 from c3_telegram_inputs import canonical
 from c3_morning_source_v1 import cache_rows,normalized_hash
 from c3_early_source_v1 import (PREFIX,quality,eligibility,session_context,publish,load_prefetch,
-    differences,sha,fdr_snapshot,trusted_wakeup,WAKEUPS,SourceRejected,capture)
+    differences,sha,fdr_snapshot,trusted_wakeup,WAKEUPS,SourceRejected,capture,coverage)
 
 def rows():
     return [dict(ticker=t,name='SYNTHETIC',market=m,asof='2026-11-12',open=100.,high=110.,low=90.,close=105.,volume=100.,turnover_krw=10000.) for t,m in [('000001','KOSPI'),('000002','KOSDAQ')]]
@@ -69,6 +69,12 @@ class Eligibility(unittest.TestCase):
             with self.assertRaises(ValueError):quality(r,'2026-11-12')
     def test_changed_price_and_code_coverage_are_counted(self):
         rs=rows();rs[0]['close']=106;d=differences(rows(),rs);self.assertEqual(d['matched_rows'],1);self.assertEqual(d['changed_fields']['close'],1)
+    def test_existing_coverage_alarm_detects_missing_codes_without_fixed_market_count(self):
+        baseline=[dict(rows()[0],ticker=str(i).zfill(6)) for i in range(1,21)]+[dict(rows()[1],ticker='900000')]
+        reduced=[baseline[0],baseline[-1]]
+        with self.assertRaisesRegex(ValueError,'UNIVERSE_LOSS'):coverage(reduced,baseline,'2026-11-12')
+        result=coverage(baseline+[dict(rows()[1],ticker='999999')],baseline,'2026-11-12')
+        self.assertEqual(result['markets']['KOSDAQ']['newly_observed'],['999999']);self.assertFalse(result['full_current_listing_census_verified'])
     def test_only_known_completed_main_events_can_wake_capture(self):
         r=dict(name=WAKEUPS[0],head_branch='main',head_repository={'full_name':'shdmfpsj-beep/krx-auto-scanner'},status='completed',event='schedule',conclusion='failure')
         self.assertTrue(trusted_wakeup({'workflow_run':r},r['head_repository']['full_name']))
