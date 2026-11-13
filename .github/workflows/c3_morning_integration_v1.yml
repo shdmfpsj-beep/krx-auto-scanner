@@ -20,6 +20,7 @@ jobs:
           sparse-checkout: |
             /scripts/*.py
             /config/*.json
+            /.github/workflows/c3_research_daily_caller.yml
             /.github/workflows/c3_morning_research_adapter_v1.yml
           sparse-checkout-cone-mode: false
       - uses: actions/checkout@v4
