@@ -29,6 +29,12 @@ class ApprovedEngineMorningWindowTests(unittest.TestCase):
         self.assertIn("if target != os.environ['EXPECTED_MORNING_SOURCE_DAY']:raise ValueError('SOURCE_DAY_CHANGED_AFTER_PREFLIGHT')",s)
         self.assertIn("audit=invocation(os.environ['GITHUB_REPOSITORY'],os.environ['GITHUB_REF'],os.environ['GITHUB_EVENT_NAME']",s)
         self.assertNotIn("GITHUB_EVENT_NAME']='",s)
+    def test_new_session_review_waits_for_registration_and_pins_its_state(self):
+        path=Path(__file__).resolve().parent.parent/'.github/workflows/c3_research_daily_caller.yml'
+        job=path.read_text().split('\n  new-session-review:\n',1)[1]
+        self.assertIn('needs: [source-ready, research]',job)
+        self.assertIn("needs.research.outputs.registered_state_sha ||",job)
+        self.assertIn('/reports/c3_new_session_v1/',job)
 
 
 class CalendarAndSourceTests(unittest.TestCase):
@@ -121,6 +127,22 @@ class FinancialAndGeometryTests(unittest.TestCase):
 
 
 class MorningStatusTests(unittest.TestCase):
+    def test_research_only_png_retains_current_source_identity_without_approved_registration(self):
+        source=dict(requested_day='2026-11-12',status='OFFICIAL_CACHE_MATCHED',ready=True,research_ready=True,
+            source_run_id='123456',normalized_rows_sha256='a'*64)
+        research=dict(source_date='2026-11-12',source_run_id='123456',source_hash='b'*64,
+            normalized_rows_sha256='a'*64,buy_approved=False,selection_status='RESEARCH_ANALYSIS_COMPLETE',
+            final_research_top2=[],funnel={'analysis_eligible':3,'technical':2,'practical_entry_pass':0})
+        research['report_payload_sha256']=digest(canonical(research));r=packet(source,research=research)
+        self.assertEqual(r['source_run_id'],'123456');self.assertIsNone(r['approved_original_source_run_id'])
+        self.assertFalse(r['analysis_completed']);self.assertFalse(r['buy_approved'])
+        gh=Mock()
+        with tempfile.TemporaryDirectory() as root:
+            path=render(r,root);validate_image(path,r)
+            from PIL import Image
+            with Image.open(path) as im:self.assertEqual(json.loads(im.info['source_run_id']),'123456')
+            self.assertEqual(finish_delivery(r,path,gh)['status'],'DEFERRED_SOURCE_OR_REGISTRATION_NOT_READY')
+        gh.assert_not_called()
     def fixture(self):
         s=dict(schema='C3_MORNING_OFFICIAL_SOURCE_V1',requested_day='2026-11-11',status='OFFICIAL_CACHE_MATCHED',ready=True,regular_only_certified=False,compared_rows=2769)
         e=dict(price_asof='2026-11-11',full_market_price_rows=2769,source_proof_sha256=digest(canonical(s)+b'\n'),original_frozen_decision_payload_sha256='a'*64,original_source_validation_sha256='b'*64,original_source_run_id='SYNTHETIC',reviewed_technical_tickers=149,analysis_eligible=1988,stock_preselector_count=149,original_b_filter_count=50,eligible_entry_feasible_tickers=0)
