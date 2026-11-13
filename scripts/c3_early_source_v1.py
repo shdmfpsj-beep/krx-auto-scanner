@@ -14,6 +14,12 @@ KST=ZoneInfo('Asia/Seoul')
 WAKEUPS=('Free v6.4 daily date-locked source audit and forward quarantine',
          'C3 morning prior-close read-only observation (NO ORDERS)')
 
+class SourceRejected(ValueError):
+    def __init__(self,reason,meta):
+        super().__init__(reason)
+        self.evidence={k:meta.get(k) for k in ('asof','snapshot_commit','snapshot_commit_at','file_commit','file_commit_at',
+            'collected_at','raw_sha256','normalized_rows_sha256','rows','markets','path')}
+
 def stamp():return datetime.now(timezone.utc).isoformat()
 def sha(raw):return hashlib.sha256(raw).hexdigest()
 def clock(value):
@@ -81,7 +87,9 @@ def fdr_snapshot(day,cutoff=None,snapshot=None,gh=None):
         price_basis='UNADJUSTED_AS_REPORTED_FDR',corporate_actions_adjusted=False,
         price_date_assertion='DATED_FILE_NOT_OFFICIAL_DAY_ATTESTATION',regular_only_certified=False,
         financial_pit_verified=False,buy_approved=False,orders_enabled=False,telegram_requests=0)
-    meta.update(eligibility(meta,cutoff));return raw,rows,meta
+    try:meta.update(eligibility(meta,cutoff))
+    except ValueError as exc:raise SourceRejected(str(exc),meta) from exc
+    return raw,rows,meta
 
 def differences(left,right):
     a={r['ticker']:r for r in left};b={r['ticker']:r for r in right};changed={}
@@ -187,14 +195,16 @@ def capture(out,day=None,cutoff=None,snapshot=None,persist=False,attempts=2):
     now=clock(cutoff or stamp());context=session_context(now,day);day=context['day'];errors=[]
     for n in range(attempts):
         try:
-            raw,rows,meta=fdr_snapshot(day,now,snapshot)
+            raw,rows,meta=fdr_snapshot(day,now if cutoff else clock(stamp()),snapshot)
             out=Path(out);out.mkdir(parents=True,exist_ok=True);(out/'original.csv').write_bytes(raw)
             write(out/'normalized_market.json',dict(asof=day,rows=rows,normalized_rows_sha256=normalized_hash(rows)))
             result=dict(meta,status='PREFETCHED_RESEARCH_ONLY',attempts=n+1,prior_errors=errors)
             if persist:result['publication']=publish(raw,rows,meta)
             write(out/'prefetch.json',result);return result
         except (ValueError,ServiceError) as exc:
-            errors.append(dict(attempt=n+1,error_type=type(exc).__name__,reason=str(exc)[:150]))
+            error=dict(attempt=n+1,error_type=type(exc).__name__,reason=str(exc)[:150],observed_at=stamp())
+            if isinstance(exc,SourceRejected):error['rejected_snapshot']=exc.evidence
+            errors.append(error)
             if n+1<attempts:time.sleep(2)
     result=dict(schema='C3_EARLY_SOURCE_RESULT_V1',asof=day,status='PREFETCH_HELD_SOURCE_NOT_READY',rows=0,
         attempts=attempts,errors=errors,collected_at=stamp(),regular_only_certified=False,buy_approved=False,telegram_requests=0)
