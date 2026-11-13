@@ -54,7 +54,8 @@ def packet(source,entry=None,company=None,research=None,publication=None):
         picks=research.get('final_research_top2') or []
         if len(picks)>2:raise ValueError('LATEST_RESEARCH_TOP2_COUNT_INVALID')
         completed=research.get('selection_status')=='RESEARCH_ANALYSIS_COMPLETE'
-        result.update(research_analysis_completed=True,research_report=copy.deepcopy(research),research_report_sha256=expected,
+        result.update(approved_original_source_run_id=result['source_run_id'],source_run_id=research['source_run_id'],
+            research_analysis_completed=True,research_report=copy.deepcopy(research),research_report_sha256=expected,
             display_top2=copy.deepcopy(picks) if completed else [],research_final_candidate_count=len(picks) if completed else None,
             display_state=('RESEARCH_ENTRY_RANGE_UNAPPROVED' if picks else 'ANALYSIS_COMPLETE_CASH') if completed else 'SELECTION_INCOMPLETE_COMPANY_DATA')
         if publication and publication.get('source_sha256')==research['source_hash']:
@@ -114,7 +115,7 @@ def prepared_image(source,entry,company,report_path,image_path,outdir):
     fields=('schema','asof','source_run_id','frozen_decision_payload_sha256',
         'original_source_validation_sha256','morning_run_id','source_sha256','entry_review_sha256',
         'analysis_completed','scope','geometry_research_pass_count','company_status_counts',
-        'status','final_candidate_count','final_top2','decision','buy_approved','orders_enabled','blockers','display_state','display_top2','research_report_sha256','research_source_commit')
+        'status','final_candidate_count','final_top2','decision','buy_approved','orders_enabled','blockers','display_state','display_top2','research_report_sha256','research_source_commit','approved_original_source_run_id')
     if any(report.get(k)!=expected.get(k) for k in fields):raise ValueError('PREPARED_MORNING_REPORT_SOURCE_MISMATCH')
     body=Path(image_path).read_bytes()
     if digest(body)!=(report.get('image') or {}).get('sha256'):raise ValueError('PREPARED_MORNING_IMAGE_HASH_MISMATCH')
