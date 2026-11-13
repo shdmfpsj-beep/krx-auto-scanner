@@ -57,6 +57,14 @@ class WatchQualityTests(unittest.TestCase):
         bs=bars();sessions=[b['date'] for b in bs];i=40;p=dict(low=130,high=135,stop=100,resistance=300,resistance2=350,reference_close=bs[i]['close'])
         for b in bs[i+1:]:b.update(open=240,low=230,high=250,close=240)
         r=execute('MA20_LIMIT',p,bs,i,sessions,5,sessions[-1]);self.assertEqual(r['status'],'PASS_UNFILLED');self.assertEqual(r['return_pct'],0)
+    def test_entry_followed_by_action_boundary_stays_censored_not_a_successful_trade(self):
+        from c3_entry_timing_audit_v1 import execute
+        bs=bars();sessions=[b['date'] for b in bs];i=40
+        p=dict(low=130,high=135,stop=100,resistance=300,resistance2=350,reference_close=bs[i]['close'])
+        bs[i+3]['action_boundary']=True
+        r=execute('CONDITIONAL_NEXT_OPEN',p,bs,i,sessions,5,sessions[-1])
+        self.assertEqual(r['status'],'CENSORED_PRICE_ACTION_OR_GAP');self.assertIsNone(r['return_pct'])
+        self.assertNotIn('initial_net_r1_rr',r)
     def test_daily_workflow_preserves_schedule_and_records_real_source_and_protected_hashes(self):
         s=(Path(__file__).resolve().parents[1]/'.github/workflows/c3_research_daily_caller.yml').read_text()
         for cron in ('10 23 * * 0-4','20 23 * * 0-4','30 23 * * 0-4'):self.assertIn(cron,s)

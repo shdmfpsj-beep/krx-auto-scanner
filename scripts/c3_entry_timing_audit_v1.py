@@ -32,9 +32,9 @@ def execute(model,base,bars,i,sessions,horizon,cutoff):
         p.update(low=level,high=level)
     elif model!='ORIGINAL_LIMIT':raise ValueError('UNKNOWN_MATCHED_ENTRY_MODEL')
     result=evaluate_trade(p,bars,i,sessions,validity=1,horizon=horizon,cutoff=cutoff)
-    if result.get('filled') and model=='CONDITIONAL_NEXT_OPEN' and result['entry_price']!=bars[i+1]['open']:
+    if result.get('filled') and result.get('return_pct') is not None and model=='CONDITIONAL_NEXT_OPEN' and result['entry_price']!=bars[i+1]['open']:
         raise ValueError('NEXT_OPEN_EXECUTION_ADAPTER_NOT_AT_OPEN')
-    if result.get('filled'):
+    if result.get('filled') and result.get('return_pct') is not None:
         f=__import__('c3_dynamic_entry_v2').DEFAULT['fees'];e=result['entry_price'];b=(1+f['buy'])*(1+f['slippage_each_side']);s=(1-f['sell'])*(1-f['slippage_each_side'])
         risk=e*b-p['stop']*s
         result['initial_net_r1_rr']=(p['resistance']*s-e*b)/risk if p.get('resistance') is not None and risk>0 else None
