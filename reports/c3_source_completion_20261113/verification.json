@@ -1,0 +1,292 @@
+{
+  "analysis": {
+    "buy_approved": false,
+    "completed_at_kst": "2026-11-13T13:26:21.614467+09:00",
+    "decision": "CASH_RESEARCH",
+    "final_top2": [],
+    "financial_original_pit_verified": false,
+    "funnel": {
+      "analysis_eligible": 1988,
+      "company_momentum_liquidity": 17,
+      "continuous_history": 2417,
+      "final_candidates": 0,
+      "full_market": 2770,
+      "observed_positive_financial": 82,
+      "original_b": 41,
+      "practical_entry_pass": 19,
+      "structural_stop_pass": 105,
+      "technical": 146
+    },
+    "models_and_thresholds_changed": false,
+    "report_payload_sha256": "21dfd718520cc1a75e0375e65f7348b3d5be71074dc6124b988916f9f2c07873",
+    "selection_status": "RESEARCH_ANALYSIS_COMPLETE",
+    "source_payload_sha256": "d70835a6c1f329197ca32954d471b61e50bbacecec3ef531ea634b1b383f726f",
+    "watch_is_not_final_top2": true
+  },
+  "artifacts": [
+    {
+      "id": 14009667998,
+      "name": "official-krx-independent-eod",
+      "sha256": "4b9887d9cb7767ee237b12daeba5e89b2c2b70f250358ad8546ffeb81a9059e9"
+    },
+    {
+      "id": 14010225630,
+      "name": "c3-morning-source",
+      "sha256": "d9ece15c19961f0a970ed1f472b52825e55a875846168a7968a769cdb9e38e53"
+    },
+    {
+      "id": 14010256306,
+      "name": "c3-new-session-research",
+      "sha256": "2ab9cf3ee711a9a2bada66ceecd735d0ed8fefd92bdb03bbc620517772d447df"
+    },
+    {
+      "id": 14010570464,
+      "name": "c3-morning-final-inputs",
+      "sha256": "3d6abc99e7e7545625e378cc525c64cb2773c27d20542206384a34d3c08c6a3f"
+    }
+  ],
+  "automatic_chain": [
+    {
+      "event": "push",
+      "role": "OFFICIAL_SOURCE_PROBE",
+      "run_id": 43364822345,
+      "status": "SUCCESS",
+      "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43364822345"
+    },
+    {
+      "event": "workflow_run",
+      "role": "NEW_DAY_COLLECTION_RESEARCH_AND_PNG",
+      "run_id": 43364910559,
+      "status": "SUCCESS",
+      "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43364910559"
+    },
+    {
+      "event": "workflow_run",
+      "role": "TELEGRAM_GATE_VERIFICATION",
+      "run_id": 43365626182,
+      "status": "SUCCESS",
+      "url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43365626182"
+    }
+  ],
+  "branch": "fix/c3-completion-fallback-20261113",
+  "changed_files": [
+    ".github/workflows/c3_research_daily_caller.yml",
+    ".github/workflows/krx_official_independent_collect.yml",
+    ".github/workflows/c3_morning_integration_v1.yml",
+    "scripts/c3_morning_source_v1.py",
+    "scripts/test_c3_source_wakeup_v1.py"
+  ],
+  "collection": {
+    "cache_commit": "0dd9dc43dd0c07aa901558976ad24c10e3e420e1",
+    "cache_sha256": "3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4",
+    "compared_rows": 2770,
+    "excluded_markets": {
+      "KONEX": 107
+    },
+    "markets": {
+      "KOSDAQ": 1834,
+      "KOSPI": 936
+    },
+    "mismatch_count": 0,
+    "normalized_rows_sha256": "922e237b6d50650ae30f36f946835e90cd6ac046be3736ebc4f83dd0dcf01d92",
+    "received_at_kst": "2026-11-13T13:21:14.116603+09:00",
+    "regular_only_certified": false,
+    "response_diagnostics": [
+      {
+        "asof": "2026-11-12",
+        "body_bytes": 291366,
+        "body_sha256": "26b50cc0786d8307c24e0d4c1d721722f2aac9b1643b369bbc8f6eb43e68b2c9",
+        "content_type": "application/json; charset=utf-8",
+        "credential_present": true,
+        "endpoint": "stk_bydd_trd",
+        "http_status": 200,
+        "json_top_keys": [
+          "OutBlock_1"
+        ],
+        "market": "KOSPI",
+        "method": "GET",
+        "normalized_rows": 936,
+        "outblock_rows": 936,
+        "outblock_type": "list",
+        "provider_error": {},
+        "query": {
+          "basDd": "20261112"
+        },
+        "received_at": "2026-11-13T04:21:10.648511+00:00",
+        "request_header_names": [
+          "AUTH_KEY",
+          "Accept"
+        ],
+        "started_at": "2026-11-13T04:21:06.650185+00:00",
+        "status": "NORMALIZED"
+      },
+      {
+        "asof": "2026-11-12",
+        "body_bytes": 599713,
+        "body_sha256": "a1ad3baa564e2c8dc7097f086688637d274462359b68f7833b0d97d5fb8a3c3c",
+        "content_type": "application/json; charset=utf-8",
+        "credential_present": true,
+        "endpoint": "ksq_bydd_trd",
+        "http_status": 200,
+        "json_top_keys": [
+          "OutBlock_1"
+        ],
+        "market": "KOSDAQ",
+        "method": "GET",
+        "normalized_rows": 1834,
+        "outblock_rows": 1834,
+        "outblock_type": "list",
+        "provider_error": {},
+        "query": {
+          "basDd": "20261112"
+        },
+        "received_at": "2026-11-13T04:21:13.412211+00:00",
+        "request_header_names": [
+          "AUTH_KEY",
+          "Accept"
+        ],
+        "started_at": "2026-11-13T04:21:10.657464+00:00",
+        "status": "NORMALIZED"
+      }
+    ],
+    "rows": 2770,
+    "status": "OFFICIAL_CACHE_MATCHED"
+  },
+  "gates": [
+    {
+      "gate": 1,
+      "reason": "Actual Nov12 official 2770 rows",
+      "status": "PASS"
+    },
+    {
+      "gate": 2,
+      "reason": "Daily fields/date/hash matched; regular-only, original financial PIT and independent listing/action census remain unverified",
+      "status": "PARTIAL"
+    },
+    {
+      "gate": 3,
+      "reason": "Actual Nov12 market screened, 1988 eligible and 146 technical",
+      "status": "PASS"
+    },
+    {
+      "gate": 4,
+      "reason": "Complete research result: no simultaneous qualified entry, CASH; no BUY approval",
+      "status": "PASS_RESEARCH_ONLY"
+    },
+    {
+      "gate": 5,
+      "reason": "Actual source completion automatically invoked caller and delivery gate; 08:45 punctuality and primary cron execution are not proven",
+      "status": "PASS_EVENT_CHAIN"
+    },
+    {
+      "gate": 6,
+      "reason": "PNG exact source/run/hash verified; real Telegram safely deferred, no DELIVERED receipt",
+      "status": "PARTIAL"
+    }
+  ],
+  "image": {
+    "count": 1,
+    "filename": "C3_20261112_AUTOMATED_CASH.png",
+    "metadata_date_run_hash_checked": true,
+    "sha256": "983571d03ad005decf8543693153593cede9d455e554feac4913c891bee1baa8",
+    "source_run_id": "43364910559",
+    "visual_review_passed": true
+  },
+  "integrity": {
+    "after_refs": {
+      "delivery/c3-top2-telegram": "2312c9d5b5504235405582f351c6600c8bd25da0",
+      "research/c3-ledger-integrity-audit-20261104": "ab19cae8a96958e541165402fdd74a54cb49fdc4"
+    },
+    "before_refs": {
+      "delivery/c3-top2-telegram": "2312c9d5b5504235405582f351c6600c8bd25da0",
+      "research/c3-ledger-integrity-audit-20261104": "fbd556d982a4489b549e55dccabfca022ec095bb"
+    },
+    "orders_enabled": false,
+    "original_protected_blobs_unchanged": true,
+    "protected_counts": {
+      "delivery/c3-top2-telegram": 19,
+      "research/c3-ledger-integrity-audit-20261104": 68
+    },
+    "protected_sha256": "8a7757b621100aa3dff9b7bcc79a0bae22bea8238b397cc371aa5aaf1d623820",
+    "send_attempts": 0,
+    "source_lane_write_requests": 0
+  },
+  "main_code_sha": "3956cb3a9e1969d6d98f459be5ba5da9e3d8ee46",
+  "missing_primary_cron_root_cause": "NOT_PROVEN",
+  "observed_schedule_delays": [
+    {
+      "created_kst": "2026-11-13T11:53:05+09:00",
+      "planned_kst": "2026-11-13T07:45:00+09:00",
+      "run_id": 43355200517
+    },
+    {
+      "created_kst": "2026-11-13T12:35:42+09:00",
+      "planned_kst": "2026-11-13T08:45:00+09:00",
+      "run_id": 43360009759
+    }
+  ],
+  "pr": "https://github.com/shdmfpsj-beep/krx-auto-scanner/pull/111",
+  "previous_evidence_commit": "db8ccee358952a195cf3cfd6f8572f33892542e7",
+  "registration": {
+    "actual_telegram_requests": 0,
+    "branch": "research/c3-ledger-integrity-audit-20261104",
+    "commit": "c1c054b9b27006101f5a472ca5a0bb266ce286ad",
+    "encrypted_sha256": "ee73fd0034fc719295592bb8894fd03f5b5c1cf8ff2ca8587557638dbe1dc843",
+    "original_signal_registered": false,
+    "review_record_path": "reports/c3_new_session_v1/reviews/2026-11-12/21dfd718520cc1a75e0375e65f7348b3d5be71074dc6124b988916f9f2c07873.json",
+    "source_record_path": "reports/c3_new_session_v1/sources/2026-11-12/d70835a6c1f329197ca32954d471b61e50bbacecec3ef531ea634b1b383f726f.aesgcm",
+    "source_sha256": "d70835a6c1f329197ca32954d471b61e50bbacecec3ef531ea634b1b383f726f",
+    "status": "RESEARCH_SOURCE_AND_REVIEW_REGISTERED"
+  },
+  "requested_day": "2026-11-12",
+  "schedules": {
+    "changed": false,
+    "chatgpt_kst": "08:45",
+    "existing_chatgpt_alarm_enabled": true,
+    "existing_collector_kst": "08:45",
+    "new_alarm_created": false,
+    "primary_kst": [
+      "08:10",
+      "08:20",
+      "08:30"
+    ]
+  },
+  "schema": "C3_SOURCE_COMPLETION_VERIFICATION_V1",
+  "telegram": {
+    "delivered": false,
+    "delivery": {
+      "final_date_claim_created": false,
+      "send_attempts": 0,
+      "status": "DEFERRED_SOURCE_OR_REGISTRATION_NOT_READY"
+    },
+    "message_ids": [],
+    "real_orders": 0
+  },
+  "tests": {
+    "actual_collector": {
+      "failed": 0,
+      "passed": 20,
+      "run_id": 43364822345
+    },
+    "pr_check_workflows_passed": 4,
+    "pr_integration": {
+      "failed": 0,
+      "passed": 47,
+      "run_id": 43364392243
+    }
+  },
+  "trigger": {
+    "approved_original_registration_allowed": false,
+    "cron": null,
+    "event": "workflow_run",
+    "mode": "COMPLETION_RESEARCH_RECOVERY",
+    "observed_code_sha": "3956cb3a9e1969d6d98f459be5ba5da9e3d8ee46",
+    "upstream_conclusion": "success",
+    "upstream_created_at": "2026-11-13T04:20:02Z",
+    "upstream_head_sha": "3956cb3a9e1969d6d98f459be5ba5da9e3d8ee46",
+    "upstream_is_wakeup_not_source_validation": true,
+    "upstream_name": "KRX official independent daily source probe (no trading)",
+    "upstream_run_id": "43364822345"
+  },
+  "verified_at_kst": "2026-11-13T14:04:48.074783+09:00"
+}
