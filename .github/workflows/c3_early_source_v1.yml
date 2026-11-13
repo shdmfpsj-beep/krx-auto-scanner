@@ -9,6 +9,9 @@ on:
       - scripts/c3_source_recovery_v1.py
       - .github/workflows/c3_early_source_v1.yml
   schedule:
+    # 11/11 file commit 21:10 KST matched next-morning 07:26 across all 2,769 rows.
+    # Opportunistic early research capture; unavailable/unfinished files remain HELD.
+    - cron: '20 12 * * 1-5'
     # Nov12 dated file's first final matching commit: 23:01 KST.
     - cron: '10 14 * * 1-5'
     # Following morning Tue-Sat 07:10 KST, including Saturday before Nov16.
