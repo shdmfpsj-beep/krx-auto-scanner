@@ -11,6 +11,24 @@ def watch_rows(pool,entry_fit):
         sector=r.get('sector'),financial_observed_positive=r.get('financial',{}).get('observed_positive'),
         financial_original_pit_verified=False,buy_approved=False) for i,r in enumerate(pool[:2],1)]
 
+def annotate_entry_card(path,manifest,row):
+    """Add missing distance/second-plan facts in the existing status-note line."""
+    from PIL import Image,ImageDraw,PngImagePlugin
+    from c3_classic_theme import PAPER,SUB,text,font
+    path=Path(path);p=row['display_plan'];upper=p['range']['endpoints']['upper']
+    with Image.open(path) as old:
+        payload=json.loads(old.info['C3_manifest'])
+        if payload!={k:v for k,v in manifest.items() if k not in ('png','png_sha256')}:raise ValueError('ENTRY_CARD_ANNOTATION_SOURCE_MISMATCH')
+        im=old.convert('RGB')
+    d=ImageDraw.Draw(im);note=f"상단 거리 {upper['distance_pct']:.2f}% / {upper['distance_atr']:.2f}ATR · 2차 계획 미검증 · 범위 미도달 PASS"
+    if d.textlength(note,font=font(25))>1296:raise ValueError('ENTRY_DISTANCE_NOTE_TOO_WIDE')
+    d.rectangle((48,1518,1352,1560),fill=PAPER);text(d,56,1522,note,25,SUB)
+    payload.update(distance_to_upper_pct=upper['distance_pct'],distance_to_upper_atr=upper['distance_atr'],
+        second_entry_status='UNVERIFIED_NOT_PROVIDED',entry_state='ENTRY_FIT_RESEARCH_WAIT')
+    info=PngImagePlugin.PngInfo();info.add_text('C3_manifest',json.dumps(payload,ensure_ascii=False,sort_keys=True))
+    im.save(path,pnginfo=info,optimize=True)
+    return dict(payload,png=path.name,png_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+
 def render_watch(row,bars,report,path,rank):
     from PIL import Image,ImageDraw,PngImagePlugin
     from c3_classic_theme import W,H,INK,SUB,GOLD,PAPER,GREEN,RED,BLUE,PURPLE,MA_COLORS,text,won,plot,validate_bars,wrap

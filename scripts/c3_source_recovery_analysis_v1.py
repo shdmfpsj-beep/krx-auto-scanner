@@ -103,7 +103,7 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
     from c3_company_quality_review_v1 import collect
     from c3_range_card_v1 import render,hold_card
     from c3_range_delivery_v1 import envelope,safe_claim
-    from c3_watch_card_v1 import watch_rows,render_watch
+    from c3_watch_card_v1 import watch_rows,render_watch,annotate_entry_card
     manifest,prices,payload=load_prices(source);day=manifest['asof'];out.mkdir(parents=True,exist_ok=True)
     if manifest.get('indices_ready') is not True:raise ValueError('NEW_DAY_BENCHMARKS_REQUIRED')
     indices={}
@@ -186,7 +186,9 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
     paths=[];manifests=[]
     for row in fit:
         t=row['ticker'];chart=dict(ticker=t,source_date=day,source_hash=sha(payload),bars=current[t][-119:]);write(out/'chart_sources'/(t+'.json'),chart)
-        path=out/'cards'/('C3_NEW_'+day.replace('-','')+'_'+t+'.png');manifests.append(render(dict(row,chart_source_sha256=sha(chart)),current[t][-119:],report,path));paths.append(path)
+        path=out/'cards'/('C3_NEW_'+day.replace('-','')+'_'+t+'.png')
+        card=render(dict(row,chart_source_sha256=sha(chart)),current[t][-119:],report,path)
+        manifests.append(annotate_entry_card(path,card,row));paths.append(path)
     if not paths:
         p=out/'cards'/('C3_NEW_'+day.replace('-','')+'_CASH.png');manifests.append(hold_card(report,p));paths.append(p)
     write(out/'card_manifest.json',dict(cards=manifests,report_hash=report['report_payload_sha256']))
