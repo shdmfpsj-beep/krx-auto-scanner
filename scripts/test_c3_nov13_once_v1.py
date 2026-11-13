@@ -3,9 +3,12 @@ import hashlib
 import unittest
 from datetime import datetime
 from unittest.mock import patch
+from tempfile import TemporaryDirectory
+from pathlib import Path
+import json
 
 from c3_morning_source_v1 import normalized_hash
-from c3_nov13_once_v1 import check_snapshot, check_trigger, TARGET
+from c3_nov13_once_v1 import check_snapshot, check_trigger, prepare_manual, TARGET
 
 NOW = datetime.fromisoformat("2026-11-13T22:30:00+09:00")
 
@@ -70,6 +73,27 @@ class TonightTests(unittest.TestCase):
         e = event(); e["workflow_run"]["head_repository"]["full_name"] = "attacker/repo"
         with self.assertRaisesRegex(ValueError, "UNTRUSTED_NIGHT_SOURCE_COMPLETION"):
             check_trigger(e, receipt(), NOW)
+
+    def test_manual_dispatch_rejects_untrusted_context(self):
+        with TemporaryDirectory() as d:
+            with patch.dict("os.environ", {"GITHUB_EVENT_NAME":"push", "GITHUB_REPOSITORY":"shdmfpsj-beep/krx-auto-scanner", "GITHUB_REF":"refs/heads/main", "GITHUB_WORKFLOW":"C3 Nov13 manual retrospective research (NO ORDER / NO SEND)"}):
+                with self.assertRaisesRegex(ValueError, "UNTRUSTED_MANUAL_DISPATCH"):
+                    prepare_manual(Path(d)/"source", Path(d)/"out", NOW)
+
+    def test_manual_dispatch_validates_snapshot_and_records_lookahead(self):
+        with TemporaryDirectory() as d:
+            root=Path(d);src=root/"source";src.mkdir()
+            p,m,raw=dataset();p["price_basis"]="UNADJUSTED_AS_REPORTED_FDR";p["file_commit"]="a"*40
+            (src/"prefetch.json").write_text(json.dumps(p))
+            (src/"normalized_market.json").write_text(json.dumps(m))
+            (src/"original.csv").write_bytes(raw)
+            env={"GITHUB_EVENT_NAME":"workflow_dispatch","GITHUB_REPOSITORY":"shdmfpsj-beep/krx-auto-scanner","GITHUB_REF":"refs/heads/main","GITHUB_WORKFLOW":"C3 Nov13 manual retrospective research (NO ORDER / NO SEND)","GITHUB_RUN_ID":"98765"}
+            with patch.dict("os.environ",env), patch("c3_nov13_once_v1.validate"), patch("c3_nov13_once_v1.session_context",return_value={"reference_close_at":"2026-11-13T06:30:00Z"}), patch("c3_daily_research_v8.collect_indices",return_value={"series":{"KOSPI":{"end":TARGET},"KOSDAQ":{"end":TARGET}}}):
+                result=prepare_manual(src,root/"out",NOW)
+            self.assertEqual(result["rows"],2100)
+            self.assertTrue(result["lookahead_relative_to_target_close"])
+            self.assertFalse(result["official_krx_match_verified"])
+            self.assertFalse(result["buy_approved"])
 
     @patch("c3_nov13_once_v1.validate")
     @patch("c3_nov13_once_v1.session_context")
