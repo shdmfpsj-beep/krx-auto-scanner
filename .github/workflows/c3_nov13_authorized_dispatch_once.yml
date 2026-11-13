@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          expected=095adb8ca4374fdddda0131a9f4abdcfe9f3fdef
+          expected=989042a066699d7df465e7dcc607e0d5f4601f8d
           observed="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
           test "$observed" = "$expected" || { echo 'MAIN_CHANGED_BEFORE_DISPATCH'; exit 2; }
           date -u +%FT%TZ > out/requested_at.txt
@@ -34,7 +34,7 @@ jobs:
           from pathlib import Path
           from datetime import datetime,timezone
           p=Path('out/dispatch_receipt.json')
-          p.write_text(json.dumps(dict(event='workflow_dispatch',target='c3_nov13_once.yml',ref='main',main_sha='095adb8ca4374fdddda0131a9f4abdcfe9f3fdef',source_date='2026-11-13',accepted=True,accepted_at=datetime.now(timezone.utc).isoformat(),helper_run_id=os.environ['GITHUB_RUN_ID'],source_approval_bypassed=False,orders_enabled=False,telegram_requests=0),sort_keys=True)+'\n')
+          p.write_text(json.dumps(dict(event='workflow_dispatch',target='c3_nov13_once.yml',ref='main',main_sha='989042a066699d7df465e7dcc607e0d5f4601f8d',source_date='2026-11-13',accepted=True,accepted_at=datetime.now(timezone.utc).isoformat(),helper_run_id=os.environ['GITHUB_RUN_ID'],source_approval_bypassed=False,orders_enabled=False,telegram_requests=0),sort_keys=True)+'\n')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 095adb8ca4374fdddda0131a9f4abdcfe9f3fdef
+          ref: 989042a066699d7df465e7dcc607e0d5f4601f8d
           persist-credentials: false
           sparse-checkout: |
             /scripts/*.py
@@ -96,7 +96,9 @@ jobs:
                   result['comparison']=compare(official_rows(root/'official'),rows,day)
                   result['official_krx_match_verified']=True
                   result['status']='OFFICIAL_DAILY_MATCH_OBSERVED_SEPARATELY_NOT_ORIGINAL_PIT'
-              else:result['status']='OFFICIAL_TARGET_NOT_AVAILABLE'
+              else:
+                  result['status']='OFFICIAL_TARGET_NOT_AVAILABLE'
+                  result['control_20261112']=collect_day('2026-11-12',root/'control-20261112',os.environ['KRX_AUTH_KEY'],now=datetime.now(timezone.utc))
           except Exception as exc:result.update(status='OFFICIAL_AUDIT_NOT_VERIFIED',error_type=type(exc).__name__)
           result['observed_at']=datetime.now(timezone.utc).isoformat();write(root/'official_comparison.json',result)
           print(json.dumps({k:result.get(k) for k in ('asof','status','official_krx_match_verified','observed_at')}))
