@@ -80,11 +80,16 @@ def audit(rows,current,pool,fit,day,prior=()):
         reasons.update(why+entry_reasons)
         prior_rank=previous_rank.get(t);rank=pool_rank.get(t)
         repeat=bool(prior_rank is not None and rank is not None and rank<=2)
+        peer=pool[rank] if rank is not None and rank<len(pool) else None
+        key=sort_key(by_pool[t]) if t in by_pool else None
+        peer_key=sort_key(peer) if peer else None
+        deciding=next((SORT_FIELDS[i] for i in range(6) if key[i]!=peer_key[i]),None) if peer else None
         o=dict(ticker=t,name=row['name'],price=price_metrics(current[t],day),financial=finance_metrics(row),
             score=None,score_basis='DETERMINISTIC_LEXICOGRAPHIC_NO_WEIGHTED_TOTAL',quality_pool_rank=rank,
             previous_watch_day=previous['source_date'] if previous else None,previous_watch_rank=prior_rank,
             watch_rank_change=prior_rank-rank if prior_rank is not None and rank is not None and rank<=2 else None,
-            repeated_watch=repeat,repeat_reason='SAME_GROWTH_SECTOR_BUCKET_THEN_TURNOVER_PRIORITY' if repeat else 'CURRENT_DAY_RECOMPUTED_RANK',
+            repeated_watch=repeat,deciding_sort_field=deciding,
+            repeat_reason=('CURRENT_DAY_'+deciding.upper()+'_PRIORITY_WITHOUT_RETENTION_BONUS') if repeat and deciding else 'CURRENT_DAY_RECOMPUTED_RANK',
             rank_inputs=dict(original_pit_confirmed=q.get('confirmed',False),growth_observed=q.get('growth_observed',False),
                 sector_proxy_positive=by_pool[t]['sector_proxy_positive'] if t in by_pool else None,
                 turnover20=row['turnover20'],own_rs20=row['own_rs20']),

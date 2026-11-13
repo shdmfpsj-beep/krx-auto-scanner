@@ -37,6 +37,11 @@ class WatchQualityTests(unittest.TestCase):
     def test_unknown_financials_are_unknown_not_a_certified_bad_company(self):
         x=row('000001');x['financial']=dict(confirmed=False,observed_positive=False,required_metrics_complete=False)
         r=audit([x],{x['ticker']:bars()},[],[],'2026-11-13');self.assertEqual(r['observations'][x['ticker']]['watch_fail_reasons'],['FINANCIAL_UNKNOWN'])
+    def test_repeat_explanation_uses_the_actual_first_sort_difference_not_always_turnover(self):
+        a,b=row('000001',10),row('000002',1000);b['financial']['growth_observed']=False
+        prior=dict(source_date='2026-11-12',generated_at='2026-11-13T00:00:00Z',source_run_id='OLD',report_payload_sha256='old',watch_top2=[dict(ticker=a['ticker'],name=a['name'],rank=1,close=180.)])
+        r=audit([a,b],{x['ticker']:bars() for x in [a,b]},[a,b],[],'2026-11-13',[prior]);o=r['observations']['000001']
+        self.assertEqual(o['deciding_sort_field'],'growth_observed');self.assertIn('GROWTH_OBSERVED',o['repeat_reason'])
     def test_prior_review_hash_is_required_and_same_day_is_not_yesterday(self):
         with tempfile.TemporaryDirectory() as root:
             p=Path(root)/'reports/c3_new_session_v1/reviews/2026-11-12/a.json';p.parent.mkdir(parents=True)

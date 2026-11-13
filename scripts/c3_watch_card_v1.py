@@ -53,14 +53,17 @@ def render_watch(row,bars,report,path,rank):
     q=row.get('financial',{}).get('statement') or {}
     observation=row.get('observation_audit') or {};pm=observation.get('price') or {}
     money=lambda k:f"{q[k]/1e8:,.0f}억" if isinstance(q.get(k),(int,float)) else '미확인'
-    financial=f"{q.get('fiscal_year','')}년 {q.get('fs_div','미확인')} · 매출 {money('revenue_krw')} · 영업익 {money('operating_profit_krw')} · 영업CF {money('operating_cashflow_ytd_krw')}. 순이익·이자보상 미확인, 재무 우량성·원문 PIT 미인증."
+    period={'11011':'연간','11012':'2분기','11013':'1분기','11014':'3분기'}.get(q.get('report_code'),'기간 미확인')
+    financial=f"{q.get('fiscal_year','')}년 {period} {q.get('fs_div','미확인')} · 매출 {money('revenue_krw')} · 영업익 {money('operating_profit_krw')} · 누적 영업CF {money('operating_cashflow_ytd_krw')}. 순이익·이자보상 미확인, 재무 우량성·원문 PIT 미인증."
     states=sorted({v.get('stop_reliability',{}).get('status','STOP_UNVERIFIED') for v in row.get('range_review',{}).get('plans',[])})
     risk=(f"저점 {p.get('evidence',{}).get('low_date','미확인')} · 손절 {p['stop']:,.0f}원 · ATR {p['atr14']:,.0f}원. " if p else '진입 적합 손절 미확정. ')+(' / '.join(LABELS.get(x,x) for x in states[:2]) or '가격 구조 미확인')+'. 갭 손실 확대 가능.'
     if pm:
-        risk=f"MA20 이격 {pm['ma20_extension_pct']:+.2f}% / {pm['ma20_extension_atr']:.2f}ATR · 5일 수익 {pm['returns_pct']['5']:+.2f}%. 갭 확대 주의. "+('진입 적합 범위 없음.' if not p else '연구 구간만 관찰.')
+        atr_label=f"{pm['ma20_extension_atr']:.2f}ATR" if pm.get('ma20_extension_atr') is not None else 'ATR 거리 미확인'
+        risk=f"MA20 이격 {pm['ma20_extension_pct']:+.2f}% / {atr_label} · 5일 수익 {pm['returns_pct']['5']:+.2f}%. 갭 확대 주의. "+('진입 적합 범위 없음.' if not p else f"저점 {p.get('evidence',{}).get('low_date','미확인')}·손절 {p['stop']:,.0f}원.")
     previous=observation.get('previous_watch_rank');previous_day=observation.get('previous_watch_day')
     rank_note=(f"{previous_day[5:]} {previous}위 → 현재 {rank}위. " if previous is not None and previous_day else '직전 WATCH 순위 미확인. ')
-    rank_note+=('동일 성장·업종 그룹의 거래대금 우선 순위 유지.' if observation.get('repeated_watch') else '당일 전체 후보 새 계산. 가중 총점 없음.')
+    priority_labels={'turnover20':'같은 관측 그룹에서 거래대금 우선.','growth_observed':'실적 증가 관측 여부가 먼저 정렬.','sector_proxy_positive':'업종 상대강도 관측이 먼저 정렬.','own_rs20':'앞선 조건 동률에서 종목 RS로 정렬.','original_pit_confirmed':'원문 PIT 확인 여부가 먼저 정렬.','ticker':'앞선 조건 동률에서 종목코드로 정렬.'}
+    rank_note+=priority_labels.get(observation.get('deciding_sort_field'),'당일 전체 후보 새 계산. 가중 총점 없음.')
     notes=[('정량·섹터',f"RS20 {row['own_rs20']:+.2f}%p · 5일 개선 {row['rs_accel5']:+.2f}%p · 20일 거래대금 {row['turnover20']/1e8:,.0f}억원. "+rank_note),
         ('재무·실적',financial),('주요 이슈·수급','확인된 뉴스·외국인·기관 수급 원본 미확인. 재무 접수 '+str(q.get('receipt_no','미확인'))+'. 사후 조회 자료이며 당시 확인 근거로 소급하지 않음.'),('리스크·구조손절',risk)]
     layout=[]
