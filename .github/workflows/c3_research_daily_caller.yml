@@ -95,7 +95,7 @@ jobs:
         if: always()
         with:
           name: c3-morning-source
-          path: evidence/morning_source.json
+          path: evidence/
           retention-days: 90
           if-no-files-found: error
 

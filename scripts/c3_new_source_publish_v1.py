@@ -1,5 +1,5 @@
 """Append encrypted new-source evidence and dated research reviews only."""
-import argparse,base64,hashlib,json,os,time
+import argparse,base64,hashlib,json,os,tempfile,time
 from pathlib import Path
 from c3_telegram_inputs import GitHub,RESEARCH,canonical,ServiceError
 
@@ -22,8 +22,12 @@ def publish(source,analysis,gh=None):
         known={r['path']:r['sha'] for r in tree['tree'] if r['type']=='blob'};entries=[]
         if path in known:
             encrypted=base64.b64decode(gh.api('git/blobs/'+known[path])['content'])
-            if hashlib.sha256(open_sealed(encrypted,os.environ.get('KRX_AUTH_KEY'))).hexdigest()!=digest:
-                raise ValueError('IMMUTABLE_NEW_SOURCE_CONFLICT')
+            # The existing decryptor accepts a path and also handles retired keys.
+            # Verify the immutable plaintext without creating another source blob.
+            with tempfile.TemporaryDirectory(prefix='c3-source-check-') as scratch:
+                sealed=Path(scratch)/'source.aesgcm';sealed.write_bytes(encrypted)
+                if hashlib.sha256(open_sealed(sealed,os.environ.get('KRX_AUTH_KEY'))).hexdigest()!=digest:
+                    raise ValueError('IMMUTABLE_NEW_SOURCE_CONFLICT')
         else:
             encrypted=encrypt_bytes(body,os.environ.get('KRX_AUTH_KEY'))
             blob=gh.api('git/blobs',method='POST',payload={'content':base64.b64encode(encrypted).decode(),'encoding':'base64'})

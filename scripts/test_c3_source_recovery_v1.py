@@ -2,7 +2,7 @@
 import copy,csv,gzip,hashlib,io,json,os,tempfile,unittest
 from datetime import datetime,timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch,Mock
 from c3_morning_source_v1 import execute,normalized_hash
 from c3_source_recovery_v1 import validate,cache
 from c3_source_recovery_analysis_v1 import load_prices,dated_snapshot,extended_history
@@ -89,6 +89,39 @@ class NewReportBoundaries(unittest.TestCase):
             base=dict(rows[-2]);base.pop('date');snap={days[-2]:dated_snapshot({'000001':base},days[-2])}
             price=dict(rows[-1],asof=days[-1]);past,_=histories(panel,a,{'000001':price},snap,days,days[-1]);extended,_=extended_history(panel,audit,{'000001':price},snap,days,days[-1])
             self.assertEqual([r['date'] for r in past['000001']],[r['date'] for r in extended['000001']]);self.assertEqual(len(past['000001']),72)
+
+
+class RepeatedSourcePublication(unittest.TestCase):
+    def attempt(self,corrupt=False):
+        from c3_new_source_publish_v1 import publish,PREFIX
+        payload={'asof':'2026-11-12','rows':[{'ticker':'000001','close':105}]}
+        body=canonical(payload);digest=hashlib.sha256(body).hexdigest()
+        report=dict(source_date='2026-11-12',source_run_id='123',research_run_id='124',
+            normalized_rows_sha256='a'*64,source_hash=digest,source_status='OFFICIAL_VERIFIED')
+        report['report_payload_sha256']=hashlib.sha256(canonical(report)).hexdigest()
+        existing=PREFIX+'sources/2026-11-12/'+digest+'.aesgcm'
+        gh=Mock();gh.head.return_value='old-head'
+        def api(path,method=None,payload=None):
+            if path=='git/commits/old-head':return {'tree':{'sha':'old-tree'}}
+            if path=='git/trees/old-head?recursive=1':return {'tree':[{'path':existing,'sha':'sealed-blob','type':'blob'}]}
+            if path=='git/blobs/sealed-blob':return {'content':__import__('base64').b64encode(b'EXISTING_SEALED_BYTES').decode()}
+            if path=='git/trees':return {'sha':'new-tree'}
+            if path=='git/commits':return {'sha':'new-commit'}
+            if path.startswith('git/refs/heads/'):return {}
+            raise AssertionError('Unexpected publication API '+path)
+        gh.api.side_effect=api
+        def decrypt(path,key):
+            self.assertEqual(Path(path).read_bytes(),b'EXISTING_SEALED_BYTES')
+            return b'changed-source' if corrupt else body
+        with tempfile.TemporaryDirectory() as root,patch('c3_supply_v11.open_sealed',side_effect=decrypt),patch('c3_supply_v11.encrypt_bytes',side_effect=AssertionError('Existing source must not be re-encrypted')):
+            p=Path(root);source=p/'source';source.mkdir();analysis=p/'analysis';analysis.mkdir()
+            (source/'collection.json').write_text(json.dumps(dict(asof='2026-11-12',source_run_id='123',normalized_rows_sha256='a'*64)))
+            (analysis/'report.json').write_text(json.dumps(report));(analysis/'source_payload.json').write_bytes(body)
+            return publish(source,analysis,gh)
+    def test_retry_reuses_and_decrypts_existing_source_with_path_api(self):
+        result=self.attempt();self.assertEqual(result['commit'],'new-commit');self.assertFalse(result['original_signal_registered'])
+    def test_retry_rejects_changed_immutable_plaintext(self):
+        with self.assertRaisesRegex(ValueError,'IMMUTABLE_NEW_SOURCE_CONFLICT'):self.attempt(corrupt=True)
 
 
 if __name__=='__main__':unittest.main()
