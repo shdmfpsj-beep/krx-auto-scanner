@@ -103,6 +103,7 @@ def run(source,engine,state,out,private,macro=None):
     from c3_company_quality_review_v1 import collect
     from c3_range_card_v1 import render,hold_card
     from c3_range_delivery_v1 import envelope,safe_claim
+    from c3_watch_card_v1 import watch_rows,render_watch
     manifest,prices,payload=load_prices(source);day=manifest['asof'];out.mkdir(parents=True,exist_ok=True)
     if manifest.get('indices_ready') is not True:raise ValueError('NEW_DAY_BENCHMARKS_REQUIRED')
     indices={}
@@ -161,7 +162,7 @@ def run(source,engine,state,out,private,macro=None):
         v4_code_commit=subprocess.check_output(['git','-C','v4','rev-parse','HEAD'],text=True).strip(),mode='NEW_SOURCE_RETROSPECTIVE_RESEARCH_NOT_REGISTERED_TRADE',
         source_status=manifest['status'],regular_only_certified=False,financial_original_pit_verified=False,
         selection_status='RESEARCH_ANALYSIS_COMPLETE' if any(r['financial'].get('required_metrics_complete') for r in rows) else 'RESEARCH_ANALYSIS_INCOMPLETE_FINANCIAL',analysis_completed=True,final_research_top2=fit,
-        watch_top2=[dict(ticker=r['ticker'],name=r['name'],close=r['close'],status='WATCH') for r in pool[:2] if r['ticker'] not in {v['ticker'] for v in fit}],
+        watch_top2=watch_rows(pool,fit),
         regime=market,current_action='CASH',buy_approved=False,orders_enabled=False,automated_order_enabled=False,telegram_requests=0,
         entry_execution_policy='USER_DISCRETION_NO_PRESCRIBED_COUNT',approved_original_registered=False,new_forward_records=0,
         original_history_source_date=oldlatest['source_price_asof'],funnel=dict(full_market=len(prices),analysis_eligible=len(eligible),continuous_history=len(past),technical=len(rows),
@@ -180,6 +181,13 @@ def run(source,engine,state,out,private,macro=None):
     if not paths:
         p=out/'cards'/('C3_NEW_'+day.replace('-','')+'_CASH.png');manifests.append(hold_card(report,p));paths.append(p)
     write(out/'card_manifest.json',dict(cards=manifests,report_hash=report['report_payload_sha256']))
+    watch_manifests=[]
+    for rank,row in enumerate(pool[:2],1):
+        t=row['ticker'];chart=dict(ticker=t,source_date=day,source_hash=sha(payload),bars=current[t][-119:])
+        write(out/'watch_chart_sources'/(t+'.json'),chart)
+        path=out/'watch_cards'/('C3_WATCH_'+day.replace('-','')+'_'+t+'.png')
+        watch_manifests.append(render_watch(dict(row,chart_source_sha256=sha(chart)),current[t][-119:],report,path,rank))
+    write(out/'watch_card_manifest.json',dict(cards=watch_manifests,report_hash=report['report_payload_sha256']))
     packet=envelope(paths,manifests,report);claims={};safe_claim(claims,packet['key'],packet)
     write(out/'delivery_status.json',dict(status='RESEARCH_NOT_SENT',actual_telegram_requests=0,repeat=safe_claim(claims,packet['key'],packet),packet=packet))
     print(json.dumps(dict(asof=day,funnel=report['funnel'],final_candidates=[r['ticker'] for r in fit],png_count=len(paths),buy_approved=False),ensure_ascii=False))

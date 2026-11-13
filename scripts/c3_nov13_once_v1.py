@@ -14,7 +14,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from c3_early_source_v1 import clock, session_context, write
-from c3_morning_source_v1 import normalized_hash
+from c3_morning_source_v1 import normalized_hash, cache_rows, compare
 from c3_source_recovery_v1 import validate
 
 TARGET = "2026-11-13"
@@ -70,6 +70,9 @@ def check_snapshot(prefetch, market, raw, now):
         raise ValueError("NIGHT_ARCHIVE_HASH_OR_ROW_CONFLICT")
     if set(Counter(r["market"] for r in rows)) != {"KOSPI", "KOSDAQ"}:
         raise ValueError("NIGHT_BOTH_BOARDS_REQUIRED")
+    # Bind the normalized prices to the actual CSV, not just two independent hashes.
+    parsed, _ = cache_rows(raw, TARGET)
+    compare(parsed, rows, TARGET)
     if clock(prefetch["file_commit_at"]) < clock(session_context(clock(now), TARGET)["reference_close_at"]):
         raise ValueError("NIGHT_FILE_BEFORE_REFERENCE_CLOSE")
     if clock(prefetch["file_commit_at"]) > clock(prefetch["collected_at"]):

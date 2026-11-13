@@ -7,6 +7,8 @@ from tempfile import TemporaryDirectory
 from pathlib import Path
 import json
 import sys
+import csv
+import io
 from types import SimpleNamespace
 
 from c3_morning_source_v1 import normalized_hash
@@ -39,7 +41,10 @@ def dataset():
          "close": 101., "volume": 1000., "turnover_krw": 101000.}
         for n in range(2100)
     ]
-    raw = b"public-source-fdr-sample"
+    stream=io.StringIO();writer=csv.DictWriter(stream,fieldnames=['Code','Name','MarketId','Open','High','Low','Close','Volume','Amount']);writer.writeheader()
+    for r in rows:
+        writer.writerow(dict(Code=r['ticker'],Name=r['name'],MarketId='STK' if r['market']=='KOSPI' else 'KSQ',Open=r['open'],High=r['high'],Low=r['low'],Close=r['close'],Volume=r['volume'],Amount=r['turnover_krw']))
+    raw = stream.getvalue().encode()
     digest = normalized_hash(rows)
     p = {"status": "PREFETCHED_RESEARCH_ONLY", "asof": TARGET,
          "provider": "FDR_DATED_CSV", "regular_only_certified": False,
@@ -52,6 +57,19 @@ def dataset():
 
 
 class TonightTests(unittest.TestCase):
+    def test_watch_output_retains_quality_rank_even_when_a_name_is_also_entry_fit(self):
+        from c3_watch_card_v1 import watch_rows
+        pool=[dict(ticker='000001',name='FIRST',close=100),dict(ticker='000002',name='SECOND',close=200)]
+        result=watch_rows(pool,[pool[0]])
+        self.assertEqual([r['ticker'] for r in result],['000001','000002'])
+        self.assertEqual([r['rank'] for r in result],[1,2]);self.assertTrue(result[0]['entry_fit_selected'])
+        self.assertIsNone(result[0]['score']);self.assertFalse(result[0]['buy_approved'])
+    def test_both_real_research_jobs_receive_existing_readonly_financial_key(self):
+        text=(Path(__file__).resolve().parents[1]/'.github/workflows/c3_nov13_once.yml').read_text()
+        for name in ('one-night-research','manual-retrospective-research'):
+            block=text.split('\n  '+name+':',1)[1].split('\n  manual-retrospective-research:',1)[0]
+            self.assertIn('OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}',block)
+
     def test_trusted_2120_and_2310(self):
         self.assertEqual(check_trigger(event(), receipt(), NOW), 123456)
         r = receipt(); r["cron"] = "10 14 * * 1-5"
@@ -126,6 +144,11 @@ class TonightTests(unittest.TestCase):
         p["file_commit_at"] = "2026-11-13T06:00:00Z"
         with self.assertRaisesRegex(ValueError, "NIGHT_FILE_BEFORE_REFERENCE_CLOSE"):
             check_snapshot(p, m, raw, NOW)
+
+    @patch('c3_nov13_once_v1.session_context',return_value={'reference_close_at':'2026-11-13T06:30:00Z'})
+    def test_csv_and_normalized_prices_must_agree_even_if_separate_hashes_are_rewritten(self, context):
+        p,m,raw=dataset();raw=raw.replace(b'101.0',b'102.0',1);p['raw_sha256']=hashlib.sha256(raw).hexdigest()
+        with self.assertRaisesRegex(ValueError,'FIELD_MISMATCH'):check_snapshot(p,m,raw,NOW)
 
 
 if __name__ == "__main__":
