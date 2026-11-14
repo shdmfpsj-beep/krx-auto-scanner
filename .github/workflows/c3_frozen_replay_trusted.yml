@@ -33,7 +33,7 @@ jobs:
           def gh(*args):
               return subprocess.check_output(['gh','api',*args],stderr=subprocess.DEVNULL)
           def blob_sha(raw):
-              return hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\\0'+raw).hexdigest()
+              return hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
           result={'schema':'C3_FROZEN_PREFLIGHT_V1','approved_commit':pinned,'secret_access':False,'replay_executed':False,'orders':0,'telegram_sends':0,'checks':[]}
           try:
               for path,expected in files.items():
