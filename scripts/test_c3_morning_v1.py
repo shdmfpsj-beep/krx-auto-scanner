@@ -219,6 +219,17 @@ class QualityGateSnapshotTests(unittest.TestCase):
         self.assertFalse(result['entry_quality_eligible'])
         self.assertFalse(result['original_document_pit_verified'])
 
+
+    def test_quality_strong_is_only_descriptive_not_approved(self):
+        from c3_company_quality_review_v1 import quality_gate_snapshot
+        facts=dict(revenue_krw=100,operating_profit_krw=10,assets_krw=200,
+                   liabilities_krw=40,equity_krw=160,operating_cashflow_ytd_krw=7,
+                   revenue_increased=True,operating_profit_increased=True)
+        result=quality_gate_snapshot(dict(ticker='000001',
+            status='DATED_MATCHING_RECEIPT_SNAPSHOT_NOT_PIT_VERIFIED',
+            latest_statement=facts))
+        self.assertFalse(result['entry_quality_eligible'])
+
     def test_inconsistent_balance_sheet_is_unverified(self):
         from c3_company_quality_review_v1 import quality_gate_snapshot
         facts=dict(revenue_krw=100,operating_profit_krw=10,assets_krw=200,
