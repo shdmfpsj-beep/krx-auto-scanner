@@ -152,6 +152,18 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
         t=r['ticker'];r.update(momentum_pass=r['own_rs20']>0 and r['rs_accel5']>0,liquidity_pass=r['turnover20']>=PROTOCOL['min_turnover20_krw'],
             financial=finances.get(t,financial_review({},day)),range_review=review_v4(current[t],generate_ranges(current[t])))
         rows.append(r)
+    # Descriptive quality evidence is not PIT certification or trade approval.
+    from c3_company_quality_review_v1 import quality_gate_snapshot
+    quality_by={c['ticker']:quality_gate_snapshot(c) for c in company['companies']}
+    for row in rows:
+        row['quality_gate']=quality_by[row['ticker']]
+    write(out/'quality_gate_research.json',dict(
+        schema='C3_DESCRIPTIVE_QUALITY_GATE_V1',asof=day,
+        source='DATED_OPENDART_API_SNAPSHOT_NOT_ORIGINAL_PIT',
+        quality_counts=dict(Counter(q['status'] for q in quality_by.values())),
+        companies=quality_by,official_price_certified=False,
+        original_document_pit_verified=False,buy_approved=False,
+        current_action='CASH',selection_modified=False))
     pool=choose_watch(rows,finances,domestic['sectors']);by={r['ticker']:r for r in rows}
     legacy_fit=choose_practical_top2([r for r in pool if len(current[r['ticker']])>=119],by)
     from c3_entry_window_v1 import evaluate as entry_windows,select_entry_fit,report_order
