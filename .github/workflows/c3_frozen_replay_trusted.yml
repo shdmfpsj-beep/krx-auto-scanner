@@ -1,6 +1,9 @@
 name: C3 frozen replay trusted preflight (NO SECRETS / NO ORDERS)
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/c3_frozen_replay_trusted.yml']
 permissions:
   contents: read
   actions: read
@@ -9,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verify-frozen-inputs:
-    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || github.event_name == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
