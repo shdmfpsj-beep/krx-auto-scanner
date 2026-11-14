@@ -200,18 +200,18 @@ class QualityGateSnapshotTests(unittest.TestCase):
         from c3_company_quality_review_v1 import quality_gate_snapshot
         facts=dict(revenue_krw=100,operating_profit_krw=5,assets_krw=200,
                    liabilities_krw=40,equity_krw=160,operating_cashflow_ytd_krw=3,
-                   revenue_increased=False,operating_profit_increased=False)
+                   previous_comparable_revenue_krw=120,previous_comparable_operating_profit_krw=8)
         result=quality_gate_snapshot(dict(ticker='119500',
             status='DATED_MATCHING_RECEIPT_SNAPSHOT_NOT_PIT_VERIFIED',
             latest_statement=facts))
-        self.assertEqual(result['status'],'QUALITY_TURNAROUND_REVIEW')
+        self.assertEqual(result['status'],'QUALITY_DECLINING_REVIEW')
         self.assertFalse(result['entry_quality_eligible'])
 
     def test_growth_snapshot_still_not_buy_or_pit_certified(self):
         from c3_company_quality_review_v1 import quality_gate_snapshot
         facts=dict(revenue_krw=100,operating_profit_krw=10,assets_krw=200,
                    liabilities_krw=40,equity_krw=160,operating_cashflow_ytd_krw=7,
-                   revenue_increased=True,operating_profit_increased=True)
+                   previous_comparable_revenue_krw=80,previous_comparable_operating_profit_krw=5)
         result=quality_gate_snapshot(dict(ticker='000001',
             status='DATED_MATCHING_RECEIPT_SNAPSHOT_NOT_PIT_VERIFIED',
             latest_statement=facts))
@@ -224,11 +224,21 @@ class QualityGateSnapshotTests(unittest.TestCase):
         from c3_company_quality_review_v1 import quality_gate_snapshot
         facts=dict(revenue_krw=100,operating_profit_krw=10,assets_krw=200,
                    liabilities_krw=40,equity_krw=160,operating_cashflow_ytd_krw=7,
-                   revenue_increased=True,operating_profit_increased=True)
+                   previous_comparable_revenue_krw=80,previous_comparable_operating_profit_krw=5)
         result=quality_gate_snapshot(dict(ticker='000001',
             status='DATED_MATCHING_RECEIPT_SNAPSHOT_NOT_PIT_VERIFIED',
             latest_statement=facts))
         self.assertFalse(result['entry_quality_eligible'])
+
+    def test_no_comparable_period_does_not_claim_growth(self):
+        from c3_company_quality_review_v1 import quality_gate_snapshot
+        facts=dict(revenue_krw=100,operating_profit_krw=10,assets_krw=200,
+                   liabilities_krw=40,equity_krw=160,operating_cashflow_ytd_krw=7)
+        result=quality_gate_snapshot(dict(ticker='000001',
+            status='DATED_MATCHING_RECEIPT_SNAPSHOT_NOT_PIT_VERIFIED',
+            latest_statement=facts))
+        self.assertEqual(result['status'],'QUALITY_UNVERIFIED')
+        self.assertIn('COMPARABLE_PERIOD_VALUES_MISSING',result['reason_codes'])
 
     def test_inconsistent_balance_sheet_is_unverified(self):
         from c3_company_quality_review_v1 import quality_gate_snapshot
