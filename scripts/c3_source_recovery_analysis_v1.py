@@ -11,6 +11,13 @@ from c3_telegram_inputs import canonical,GitHub,RESEARCH
 from c3_source_recovery_v1 import write,validate
 
 
+def quality_first_sort_key(row,windows):
+    """Research-only priority: READY, NEAR, then all non-actionable states."""
+    rank={'ENTRY_READY':0,'NEAR_ENTRY':1}
+    return (rank.get(windows[row['ticker']]['status'],2),
+            -row['turnover20'],-row['rs20'],row['ticker'])
+
+
 def sha(value):return hashlib.sha256(canonical(value)).hexdigest()
 
 
@@ -177,10 +184,7 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
     # to the approved operational selector or original forward ledger.
     quality_pool=[r for r in rows if quality_by[r['ticker']]['status']=='QUALITY_STRONG'
                   and r.get('momentum_pass') and r.get('liquidity_pass')]
-    quality_pool.sort(key=lambda r:(
-        0 if windows['rows'][r['ticker']]['status']=='ENTRY_READY' else
-        1 if windows['rows'][r['ticker']]['status']=='NEAR_ENTRY' else 2,
-        -r['turnover20'],-r['rs20'],r['ticker']))
+    quality_pool.sort(key=lambda r:quality_first_sort_key(r,windows['rows']))
     quality_preview=select_entry_fit(quality_pool,by,windows['rows'])
     write(out/'quality_first_entry_preview.json',dict(
         schema='C3_QUALITY_FIRST_ENTRY_PREVIEW_V1',asof=day,
