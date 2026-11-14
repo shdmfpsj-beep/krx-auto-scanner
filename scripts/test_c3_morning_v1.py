@@ -186,3 +186,44 @@ class MorningStatusTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class QualityGateSnapshotTests(unittest.TestCase):
+    def test_missing_evidence_never_becomes_company_failure(self):
+        from c3_company_quality_review_v1 import quality_gate_snapshot
+        result=quality_gate_snapshot({'ticker':'119500','status':'NO_CORPORATION_MAPPING'})
+        self.assertEqual(result['status'],'QUALITY_UNVERIFIED')
+        self.assertFalse(result['entry_quality_eligible'])
+        self.assertFalse(result['buy_approved'])
+
+    def test_positive_but_declining_company_is_not_strong(self):
+        from c3_company_quality_review_v1 import quality_gate_snapshot
+        facts=dict(revenue_krw=100,operating_profit_krw=5,assets_krw=200,
+                   liabilities_krw=40,equity_krw=160,operating_cashflow_ytd_krw=3,
+                   revenue_increased=False,operating_profit_increased=False)
+        result=quality_gate_snapshot(dict(ticker='119500',
+            status='DATED_MATCHING_RECEIPT_SNAPSHOT_NOT_PIT_VERIFIED',
+            latest_statement=facts))
+        self.assertEqual(result['status'],'QUALITY_TURNAROUND_REVIEW')
+        self.assertFalse(result['entry_quality_eligible'])
+
+    def test_growth_snapshot_still_not_buy_or_pit_certified(self):
+        from c3_company_quality_review_v1 import quality_gate_snapshot
+        facts=dict(revenue_krw=100,operating_profit_krw=10,assets_krw=200,
+                   liabilities_krw=40,equity_krw=160,operating_cashflow_ytd_krw=7,
+                   revenue_increased=True,operating_profit_increased=True)
+        result=quality_gate_snapshot(dict(ticker='000001',
+            status='DATED_MATCHING_RECEIPT_SNAPSHOT_NOT_PIT_VERIFIED',
+            latest_statement=facts))
+        self.assertEqual(result['status'],'QUALITY_STRONG')
+        self.assertFalse(result['entry_quality_eligible'])
+        self.assertFalse(result['original_document_pit_verified'])
+
+    def test_inconsistent_balance_sheet_is_unverified(self):
+        from c3_company_quality_review_v1 import quality_gate_snapshot
+        facts=dict(revenue_krw=100,operating_profit_krw=10,assets_krw=200,
+                   liabilities_krw=40,equity_krw=100,operating_cashflow_ytd_krw=7)
+        result=quality_gate_snapshot(dict(ticker='000001',
+            status='DATED_MATCHING_RECEIPT_SNAPSHOT_NOT_PIT_VERIFIED',
+            latest_statement=facts))
+        self.assertEqual(result['status'],'QUALITY_UNVERIFIED')
