@@ -1,0 +1,239 @@
+{
+  "fresh": {
+    "asof": "2026-11-13",
+    "attempts": 1,
+    "availability_evidence": "GIT_COMMIT_TIMESTAMP_NOT_SERVER_PUBLICATION_ATTESTATION",
+    "buy_approved": false,
+    "calendar_is_official_attestation": false,
+    "calendar_version": "4.13.2",
+    "collected_at": "2026-11-14T02:59:00.936793+00:00",
+    "corporate_actions_adjusted": false,
+    "cutoff_at": "2026-11-14T02:58:59.780081+00:00",
+    "day": "2026-11-13",
+    "excluded": {
+      "KONEX": 107
+    },
+    "file_commit": "05a17038b3cddf7a6f48105913e46fd37d96a21e",
+    "file_commit_at": "2026-11-13T12:58:19Z",
+    "financial_pit_verified": false,
+    "markets": {
+      "KOSDAQ": 1834,
+      "KOSPI": 936
+    },
+    "normalized_rows_sha256": "abdc0d50b7c1275f73c3efabb588c0072538fb9ef71c70527228f1c881cccaed",
+    "orders_enabled": false,
+    "path": "data/listing/krx/2026-11-13.csv",
+    "previous_day": "2026-11-12",
+    "previous_day_coverage": {
+      "path": "data/listing/krx/2026-11-12.csv",
+      "raw_sha256": "3c79534c53efd3a2b4fa49d997d0f9cb35c232d315812681bae044e4245b01a4",
+      "ref": "05a17038b3cddf7a6f48105913e46fd37d96a21e",
+      "rows": 2770,
+      "status": "EXISTING_COVERAGE_ALARM_PASSED_NOT_LISTING_CENSUS"
+    },
+    "price_basis": "UNADJUSTED_AS_REPORTED_FDR",
+    "price_date_assertion": "DATED_FILE_NOT_OFFICIAL_DAY_ATTESTATION",
+    "prior_errors": [],
+    "provider": "FDR_DATED_CSV",
+    "quality": {
+      "asof": "2026-11-13",
+      "coverage_alarm_floor": 0.95,
+      "errors": [],
+      "full_current_listing_census_verified": false,
+      "markets": {
+        "KOSDAQ": {
+          "baseline_rows": 1834,
+          "halt_like": 83,
+          "invalid_ohlc": [],
+          "listing_or_delisting_cause_confirmed": false,
+          "newly_observed": [],
+          "no_longer_observed": [],
+          "retained_baseline_fraction": 1.0,
+          "rows": 1834
+        },
+        "KOSPI": {
+          "baseline_rows": 936,
+          "halt_like": 24,
+          "invalid_ohlc": [],
+          "listing_or_delisting_cause_confirmed": false,
+          "newly_observed": [],
+          "no_longer_observed": [],
+          "retained_baseline_fraction": 1.0,
+          "rows": 936
+        }
+      },
+      "status": "QUALITY_GATE_PASSED"
+    },
+    "raw_bytes": 396044,
+    "raw_rows": 2877,
+    "raw_sha256": "842fb7a65532cd82e2cc3023fde21e8d6fcdc5008b45db3083f2504c5ead88cc",
+    "reference_calendar": "XKRX",
+    "reference_close_at": "2026-11-13T06:30:00+00:00",
+    "regular_only_certified": false,
+    "repository": "FinanceData/fdr_krx_data_cache",
+    "rows": 2770,
+    "schema": "C3_EARLY_PRICE_SNAPSHOT_V1",
+    "snapshot_commit": "05a17038b3cddf7a6f48105913e46fd37d96a21e",
+    "snapshot_commit_at": "2026-11-13T12:58:19Z",
+    "source_status": "SINGLE_SOURCE_UNVERIFIED",
+    "status": "PREFETCHED_RESEARCH_ONLY",
+    "telegram_requests": 0
+  },
+  "source_collection": {
+    "asof": "2026-11-13",
+    "attempts": [
+      {
+        "asof": "2026-11-13",
+        "official_market_rows": 0,
+        "raw_response_sha256": {
+          "KOSDAQ": "a5193871d0b3d7288174d924179340dbe1650a42652b426b5304e9d426f68cfa",
+          "KOSPI": "b7bf95c830d62120b2f9a4190a6eff51efaefeac8ccf020c9e6cd663da7ecd05"
+        },
+        "response_diagnostics": [
+          {
+            "asof": "2026-11-13",
+            "body_bytes": 291040,
+            "body_sha256": "b7bf95c830d62120b2f9a4190a6eff51efaefeac8ccf020c9e6cd663da7ecd05",
+            "content_type": "application/json; charset=utf-8",
+            "credential_present": true,
+            "endpoint": "stk_bydd_trd",
+            "http_status": 200,
+            "json_top_keys": [
+              "OutBlock_1"
+            ],
+            "market": "KOSPI",
+            "method": "GET",
+            "normalized_rows": 936,
+            "outblock_rows": 936,
+            "outblock_type": "list",
+            "provider_error": {},
+            "query": {
+              "basDd": "20261113"
+            },
+            "received_at": "2026-11-14T02:59:05.001520+00:00",
+            "request_header_names": [
+              "AUTH_KEY",
+              "Accept"
+            ],
+            "started_at": "2026-11-14T02:59:02.751742+00:00",
+            "status": "NORMALIZED"
+          },
+          {
+            "asof": "2026-11-13",
+            "body_bytes": 52,
+            "body_sha256": "a5193871d0b3d7288174d924179340dbe1650a42652b426b5304e9d426f68cfa",
+            "content_type": null,
+            "credential_present": true,
+            "endpoint": "ksq_bydd_trd",
+            "http_status": 401,
+            "json_top_keys": [
+              "respCode",
+              "respMsg"
+            ],
+            "market": "KOSDAQ",
+            "method": "GET",
+            "outblock_rows": null,
+            "outblock_type": "NoneType",
+            "provider_error": {
+              "respCode": "401",
+              "respMsg": "Unauthorized API Call"
+            },
+            "query": {
+              "basDd": "20261113"
+            },
+            "received_at": "2026-11-14T02:59:05.271597+00:00",
+            "request_header_names": [
+              "AUTH_KEY",
+              "Accept"
+            ],
+            "started_at": "2026-11-14T02:59:05.006255+00:00",
+            "status": "AUTH_OR_SERVICE_APPROVAL_REJECTED"
+          }
+        ],
+        "retrieval_utc": "2026-11-14T02:59:05.271597+00:00",
+        "status": "OFFICIAL_MARKETS_NOT_COMPLETE"
+      },
+      {
+        "asof": "2026-11-13",
+        "official_market_rows": 0,
+        "raw_response_sha256": {
+          "KOSDAQ": "a5193871d0b3d7288174d924179340dbe1650a42652b426b5304e9d426f68cfa",
+          "KOSPI": "b7bf95c830d62120b2f9a4190a6eff51efaefeac8ccf020c9e6cd663da7ecd05"
+        },
+        "response_diagnostics": [
+          {
+            "asof": "2026-11-13",
+            "body_bytes": 291040,
+            "body_sha256": "b7bf95c830d62120b2f9a4190a6eff51efaefeac8ccf020c9e6cd663da7ecd05",
+            "content_type": "application/json; charset=utf-8",
+            "credential_present": true,
+            "endpoint": "stk_bydd_trd",
+            "http_status": 200,
+            "json_top_keys": [
+              "OutBlock_1"
+            ],
+            "market": "KOSPI",
+            "method": "GET",
+            "normalized_rows": 936,
+            "outblock_rows": 936,
+            "outblock_type": "list",
+            "provider_error": {},
+            "query": {
+              "basDd": "20261113"
+            },
+            "received_at": "2026-11-14T02:59:08.934907+00:00",
+            "request_header_names": [
+              "AUTH_KEY",
+              "Accept"
+            ],
+            "started_at": "2026-11-14T02:59:07.272092+00:00",
+            "status": "NORMALIZED"
+          },
+          {
+            "asof": "2026-11-13",
+            "body_bytes": 52,
+            "body_sha256": "a5193871d0b3d7288174d924179340dbe1650a42652b426b5304e9d426f68cfa",
+            "content_type": null,
+            "credential_present": true,
+            "endpoint": "ksq_bydd_trd",
+            "http_status": 401,
+            "json_top_keys": [
+              "respCode",
+              "respMsg"
+            ],
+            "market": "KOSDAQ",
+            "method": "GET",
+            "outblock_rows": null,
+            "outblock_type": "NoneType",
+            "provider_error": {
+              "respCode": "401",
+              "respMsg": "Unauthorized API Call"
+            },
+            "query": {
+              "basDd": "20261113"
+            },
+            "received_at": "2026-11-14T02:59:09.178467+00:00",
+            "request_header_names": [
+              "AUTH_KEY",
+              "Accept"
+            ],
+            "started_at": "2026-11-14T02:59:08.939109+00:00",
+            "status": "AUTH_OR_SERVICE_APPROVAL_REJECTED"
+          }
+        ],
+        "retrieval_utc": "2026-11-14T02:59:09.178467+00:00",
+        "status": "OFFICIAL_MARKETS_NOT_COMPLETE"
+      }
+    ],
+    "data_received_at": "2026-11-14T02:59:12.849589+00:00",
+    "markets": {
+      "KOSDAQ": 1834,
+      "KOSPI": 936
+    },
+    "normalized_rows_sha256": "abdc0d50b7c1275f73c3efabb588c0072538fb9ef71c70527228f1c881cccaed",
+    "regular_only_certified": false,
+    "rows": 2770,
+    "source_run_id": "43549107415",
+    "status": "SINGLE_SOURCE_UNVERIFIED"
+  }
+}

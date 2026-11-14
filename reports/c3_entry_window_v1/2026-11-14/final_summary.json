@@ -1,0 +1,133 @@
+{
+  "actions_run": 43549107415,
+  "actions_url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43549107415",
+  "artifact_id": 14094703551,
+  "artifact_name": "c3-entry-window-current-full-market",
+  "artifact_url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/43549107415/artifacts/14094703551",
+  "artifact_zip_sha256": "69ef2afd48e763a4acba9998ad32482e44c0c7edee5de0208a0a8ff62e6bea2f",
+  "branch": "research/c3-entry-window-20261114",
+  "buy_approved": false,
+  "completed_at": "2026-11-14T03:07:52.629590+00:00",
+  "counts": {
+    "DATA_HOLD": 9,
+    "ENTRY_READY": 1,
+    "INVALID_SETUP": 32,
+    "MISSED_ENTRY": 2,
+    "NEAR_ENTRY": 17,
+    "OVEREXTENDED": 45,
+    "WAIT_PULLBACK": 51
+  },
+  "current_action": "CASH",
+  "funnel": {
+    "analysis_eligible": 1989,
+    "company_momentum_liquidity": 18,
+    "continuous_history": 2418,
+    "final_candidates": 1,
+    "full_market": 2770,
+    "observed_positive_financial": 90,
+    "original_b": 47,
+    "practical_entry_pass": 18,
+    "structural_stop_pass": 123,
+    "technical": 157
+  },
+  "head": "440529bcaf670083b4d272b52eb2053bdb4658e9",
+  "library_images": [
+    {
+      "library_file_id": "libfile_ba89f96036c08191a2eca44214091762",
+      "ticker": "119500"
+    },
+    {
+      "library_file_id": "libfile_6231894d45008191b2bc9402327997a2",
+      "ticker": "028050"
+    },
+    {
+      "library_file_id": "libfile_0b886fd7666c81919f4a440cdf7faf10",
+      "ticker": "180640"
+    }
+  ],
+  "main": "95876275b440585fdb78d55b55add1f6927e6a9b",
+  "next_scheduled_run_observed": false,
+  "orders": 0,
+  "original_registration_performed": false,
+  "performance_research_executed": false,
+  "pr": 121,
+  "primary_section": "ENTRY_FIT",
+  "primary_tickers": [
+    "119500"
+  ],
+  "schedules_changed": false,
+  "schema": "C3_ENTRY_WINDOW_COMPLETION_PROOF_V1",
+  "selection_status": "RESEARCH_ANALYSIS_COMPLETE",
+  "source_date": "2026-11-13",
+  "stage_gates": [
+    {
+      "evidence": "2,770/1,989/157 재현, 기존 157개 가격 계획·재무 판정 전수 동일",
+      "stage": "기존 성공 기능 보존",
+      "status": "PASS"
+    },
+    {
+      "evidence": "매일 신규 계산, 기존 후보 유지 보너스 없음, 동일 품질 그룹 거래대금 우선",
+      "stage": "삼성E&A 반복 선정 원인 규명",
+      "status": "PASS"
+    },
+    {
+      "evidence": "같은 정렬 원리. 현재 매수 범위와 먼 가격은 WATCH 강도 순위와 별개",
+      "stage": "한진칼 반복 선정 원인 규명",
+      "status": "PASS"
+    },
+    {
+      "evidence": "삼성E&A·원익홀딩스 MISSED_ENTRY; 만료 연장·동일 지지 가격 변경 차단 테스트",
+      "stage": "매수 기회 종료 자동 판정",
+      "status": "PASS"
+    },
+    {
+      "evidence": "한진칼 OVEREXTENDED; MA20 단독 판단 없이 가까운 유효 지지 부재 확인",
+      "stage": "과열 종목 신규 진입 차단",
+      "status": "PASS"
+    },
+    {
+      "evidence": "157개 전수 상태 평가; 품질·모멘텀·유동성 18개 전체에서 독립 선별",
+      "stage": "신규 후보 전체시장 경쟁",
+      "status": "PASS"
+    },
+    {
+      "evidence": "확정 피벗 11/09, 범위 2,680~2,740, 손절 2,600, R1 3,200/R2 3,350 원본 동일",
+      "stage": "포메탈 진입 구조 검증",
+      "status": "PASS"
+    },
+    {
+      "evidence": "기존 기능 판정 동일·누락/부실 분리 확인. 종합 재무 인증0, 원문 PIT0, 순이익·이자보상157개 미확인",
+      "stage": "재무 품질 필터",
+      "status": "HOLD"
+    },
+    {
+      "evidence": "포메탈1개 NEAR_ENTRY, 2위 강제 충원 없음. BUY 승인과 별도",
+      "stage": "ENTRY_FIT TOP2 선정",
+      "status": "PASS"
+    },
+    {
+      "evidence": "ENTRY_FIT 우선·WATCH 분리. 실제 PNG3장, 가격·메타데이터·119봉/MA60 대조",
+      "stage": "PNG 보고서 개선",
+      "status": "PASS"
+    },
+    {
+      "evidence": "Actions43549107415 수집→분석→PNG→Artifact 성공. 다음 정기 실행은 아직 미관측",
+      "stage": "자동화 실행 검증",
+      "status": "PASS"
+    },
+    {
+      "evidence": "KOSPI200/936행, KOSDAQ401 Unauthorized API Call. 전시장 대조·정규장 전용 인증 미완료",
+      "stage": "공식 KRX 가격 인증",
+      "status": "HOLD"
+    },
+    {
+      "evidence": "보호87개 해시동일, 주문0, Telegram0, 기존 일정 동일",
+      "stage": "원장·주문·Telegram 보호",
+      "status": "PASS"
+    }
+  ],
+  "telegram_requests": 0,
+  "tests_failed": 0,
+  "tests_passed": 93,
+  "tests_skipped": 0
+}
