@@ -178,13 +178,17 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
     quality_pool=[r for r in rows if quality_by[r['ticker']]['status']=='QUALITY_STRONG'
                   and r.get('momentum_pass') and r.get('liquidity_pass')]
     quality_pool.sort(key=lambda r:(
-        0 if windows['rows'][r['ticker']]['status']=='ENTRY_READY' else 1,
+        0 if windows['rows'][r['ticker']]['status']=='ENTRY_READY' else
+        1 if windows['rows'][r['ticker']]['status']=='NEAR_ENTRY' else 2,
         -r['turnover20'],-r['rs20'],r['ticker']))
     quality_preview=select_entry_fit(quality_pool,by,windows['rows'])
     write(out/'quality_first_entry_preview.json',dict(
         schema='C3_QUALITY_FIRST_ENTRY_PREVIEW_V1',asof=day,
         scope='ALL_TECHNICAL_NOT_WATCH_ONLY',
         quality_strong_research_pool=len(quality_pool),
+        entry_status_counts=dict(Counter(windows['rows'][r['ticker']]['status'] for r in quality_pool)),
+        classification_policy='ENTRY_READY_THEN_NEAR_ENTRY_OTHER_STATES_EXCLUDED',
+        source_approval_required=True,financial_pit_approval_required=True,
         selected=[dict(ticker=r['ticker'],name=r['name'],entry_status=r['status'],
                        quality_status=r['quality_gate']['status']) for r in quality_preview],
         approved_top2_unchanged=True,financial_pit_verified=False,
