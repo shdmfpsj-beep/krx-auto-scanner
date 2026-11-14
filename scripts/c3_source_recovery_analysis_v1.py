@@ -11,6 +11,13 @@ from c3_telegram_inputs import canonical,GitHub,RESEARCH
 from c3_source_recovery_v1 import write,validate
 
 
+def quality_first_sort_key(row,windows):
+    """Research-only priority: READY, NEAR, then all non-actionable states."""
+    rank={'ENTRY_READY':0,'NEAR_ENTRY':1}
+    return (rank.get(windows[row['ticker']]['status'],2),
+            -row['turnover20'],-row['rs20'],row['ticker'])
+
+
 def sha(value):return hashlib.sha256(canonical(value)).hexdigest()
 
 
@@ -152,6 +159,18 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
         t=r['ticker'];r.update(momentum_pass=r['own_rs20']>0 and r['rs_accel5']>0,liquidity_pass=r['turnover20']>=PROTOCOL['min_turnover20_krw'],
             financial=finances.get(t,financial_review({},day)),range_review=review_v4(current[t],generate_ranges(current[t])))
         rows.append(r)
+    # Descriptive quality evidence is not PIT certification or trade approval.
+    from c3_company_quality_review_v1 import quality_gate_snapshot
+    quality_by={c['ticker']:quality_gate_snapshot(c) for c in company['companies']}
+    for row in rows:
+        row['quality_gate']=quality_by[row['ticker']]
+    write(out/'quality_gate_research.json',dict(
+        schema='C3_DESCRIPTIVE_QUALITY_GATE_V1',asof=day,
+        source='DATED_OPENDART_API_SNAPSHOT_NOT_ORIGINAL_PIT',
+        quality_counts=dict(Counter(q['status'] for q in quality_by.values())),
+        companies=quality_by,official_price_certified=False,
+        original_document_pit_verified=False,buy_approved=False,
+        current_action='CASH',selection_modified=False))
     pool=choose_watch(rows,finances,domestic['sectors']);by={r['ticker']:r for r in rows}
     legacy_fit=choose_practical_top2([r for r in pool if len(current[r['ticker']])>=119],by)
     from c3_entry_window_v1 import evaluate as entry_windows,select_entry_fit,report_order
@@ -161,6 +180,24 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
         for row in group:
             row['entry_window']=windows['rows'][row['ticker']]
             row['history_rows']=len(current[row['ticker']])
+    # Independent all-technical quality-first research preview, never promoted
+    # to the approved operational selector or original forward ledger.
+    quality_pool=[r for r in rows if quality_by[r['ticker']]['status']=='QUALITY_STRONG'
+                  and r.get('momentum_pass') and r.get('liquidity_pass')]
+    quality_pool.sort(key=lambda r:quality_first_sort_key(r,windows['rows']))
+    quality_preview=select_entry_fit(quality_pool,by,windows['rows'])
+    write(out/'quality_first_entry_preview.json',dict(
+        schema='C3_QUALITY_FIRST_ENTRY_PREVIEW_V1',asof=day,
+        scope='ALL_TECHNICAL_NOT_WATCH_ONLY',
+        quality_strong_research_pool=len(quality_pool),
+        entry_status_counts=dict(Counter(windows['rows'][r['ticker']]['status'] for r in quality_pool)),
+        classification_policy='ENTRY_READY_THEN_NEAR_ENTRY_OTHER_STATES_EXCLUDED',
+        source_approval_required=True,financial_pit_approval_required=True,
+        selected=[dict(ticker=r['ticker'],name=r['name'],entry_status=r['status'],
+                       quality_status=r['quality_gate']['status']) for r in quality_preview],
+        approved_top2_unchanged=True,financial_pit_verified=False,
+        official_price_certified=False,buy_approved=False,
+        current_action='CASH',telegram_requests=0,orders_enabled=False))
     fit=select_entry_fit(pool,by,windows['rows'])
     for i,r in enumerate(fit,1):r['research_rank']=i
     from c3_watch_quality_audit_v1 import audit as watch_audit,prior_reviews

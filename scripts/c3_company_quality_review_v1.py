@@ -189,3 +189,60 @@ if __name__=='__main__':
     combined=join_quality(json.loads(Path(a.entry).read_text()),result)
     (out/'combined_review.json').write_text(json.dumps(combined,ensure_ascii=False,indent=2,allow_nan=False)+'\n')
     print(json.dumps(dict(company_reviewed=len(result['companies']),statuses=result.get('status_counts'),decision='CASH')))
+
+
+def quality_gate_snapshot(company):
+    """Conservative descriptive quality gate; never approves orders or PIT.
+
+    Current API snapshots may describe quality, but cannot certify that the
+    statement was available at the historical close. Missing evidence is
+    UNKNOWN, not evidence of a financially weak company.
+    """
+    facts=company.get('latest_statement') or {}
+    needed=('revenue_krw','operating_profit_krw','assets_krw',
+            'liabilities_krw','equity_krw','operating_cashflow_ytd_krw')
+    result=dict(ticker=company.get('ticker'),status='QUALITY_UNVERIFIED',
+                entry_quality_eligible=False,buy_approved=False,
+                original_document_pit_verified=False,
+                evidence_status=company.get('status'),
+                reason_codes=[],metrics={})
+    if company.get('status')!='DATED_MATCHING_RECEIPT_SNAPSHOT_NOT_PIT_VERIFIED':
+        result['reason_codes'].append('DATED_MATCHING_STATEMENT_NOT_AVAILABLE')
+        return result
+    if any(not isinstance(facts.get(k),(int,float)) or isinstance(facts.get(k),bool)
+           for k in needed):
+        result['reason_codes'].append('REQUIRED_FINANCIAL_METRIC_MISSING')
+        return result
+    revenue,profit,assets,debt,equity,cash=(facts[k] for k in needed)
+    if assets<=0 or equity<=0 or debt<0 or abs(assets-debt-equity)/assets>0.02:
+        result['reason_codes'].append('BALANCE_SHEET_IDENTITY_OR_EQUITY_INVALID')
+        return result
+    result['metrics']=dict(operating_margin=profit/revenue if revenue>0 else None,
+                           debt_to_equity=debt/equity,
+                           operating_cashflow_ytd_krw=cash,
+                           revenue_increased=facts.get('revenue_increased'),
+                           operating_profit_increased=facts.get('operating_profit_increased'))
+    previous_revenue=facts.get('previous_comparable_revenue_krw')
+    previous_profit=facts.get('previous_comparable_operating_profit_krw')
+    comparable=all(isinstance(v,(int,float)) and not isinstance(v,bool)
+                   for v in (previous_revenue,previous_profit))
+    result['metrics']['comparable_values_verified']=comparable
+    if revenue<=0 or profit<=0 or cash<=0:
+        result['status']='QUALITY_WEAK'
+        result['reason_codes'].append('NONPOSITIVE_REVENUE_PROFIT_OR_CASHFLOW')
+    elif not comparable:
+        result['reason_codes'].append('COMPARABLE_PERIOD_VALUES_MISSING')
+    elif previous_revenue<0:
+        result['reason_codes'].append('COMPARABLE_REVENUE_INVALID')
+    elif revenue>previous_revenue and profit>previous_profit:
+        # Growth is observed, but no trend reversal is established from one pair.
+        result['status']='QUALITY_STRONG'
+        result['reason_codes'].append('COMPARABLE_REVENUE_AND_PROFIT_IMPROVED')
+    elif revenue<previous_revenue or profit<previous_profit:
+        result['status']='QUALITY_DECLINING_REVIEW'
+        result['reason_codes'].append('COMPARABLE_REVENUE_OR_PROFIT_DECLINED')
+    else:
+        result['status']='QUALITY_STABLE_REVIEW'
+        result['reason_codes'].append('NO_CONFIRMED_GROWTH_OR_DECLINE')
+    # Historical PIT and official-price certification remain separate blockers.
+    return result
