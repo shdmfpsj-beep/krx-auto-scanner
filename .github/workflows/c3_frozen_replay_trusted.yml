@@ -1,0 +1,64 @@
+name: C3 frozen replay trusted preflight (NO SECRETS / NO ORDERS)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-frozen-replay-trusted-preflight
+  cancel-in-progress: false
+jobs:
+  verify-frozen-inputs:
+    if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Verify pinned source files and immutable artifact archives without executing research code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,os,subprocess
+          from pathlib import Path
+          repo='shdmfpsj-beep/krx-auto-scanner'
+          pinned='70062c05c29b4d57da246e9d434fcf8f80464aa2'
+          files={
+            '.github/workflows/c3_watch_quality_audit_v1.yml':'7194ac8369f2c402cbc50d6660d8d3aa659cbe04',
+            'scripts/c3_source_recovery_analysis_v1.py':'4f5360c7199ea36ab6701cfd4aea4c4e0f8d238b',
+          }
+          archives={
+            '14078620251':'1440eba159eb0e8eeaf6e5b2352e0be0b12593e72e0c3ab55733599d7bf35cf8',
+            '13920100040':'52548347f116801eb22f747972f8bbffc3c765abb7affbfc459ff196d2ff9154',
+          }
+          def gh(*args):
+              return subprocess.check_output(['gh','api',*args],stderr=subprocess.DEVNULL)
+          def blob_sha(raw):
+              return hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\\0'+raw).hexdigest()
+          result={'schema':'C3_FROZEN_PREFLIGHT_V1','approved_commit':pinned,'secret_access':False,'replay_executed':False,'orders':0,'telegram_sends':0,'checks':[]}
+          try:
+              for path,expected in files.items():
+                  raw=gh('-H','Accept: application/vnd.github.raw+json',f'repos/{repo}/contents/{path}?ref={pinned}')
+                  actual=blob_sha(raw)
+                  assert actual==expected,f'PINNED_FILE_MISMATCH: {path}'
+                  result['checks'].append({'type':'git_blob','path':path,'sha':actual,'status':'PASS'})
+              for artifact,expected in archives.items():
+                  raw=gh(f'repos/{repo}/actions/artifacts/{artifact}/zip')
+                  actual=hashlib.sha256(raw).hexdigest()
+                  assert actual==expected,f'FROZEN_ARTIFACT_MISMATCH: {artifact}'
+                  result['checks'].append({'type':'artifact_zip','artifact_id':artifact,'sha256':actual,'status':'PASS'})
+              result['preflight']='PASS'
+          except Exception as e:
+              result['preflight']='FAIL'
+              result['error']=str(e)
+          Path('evidence').mkdir(exist_ok=True)
+          Path('evidence/c3_frozen_preflight.json').write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\\n')
+          if result['preflight']!='PASS':raise SystemExit('C3_FROZEN_PREFLIGHT_FAILED')
+          PY
+      - name: Upload nonsecret preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-frozen-replay-trusted-preflight
+          path: evidence/c3_frozen_preflight.json
+          if-no-files-found: warn
+          retention-days: 30
