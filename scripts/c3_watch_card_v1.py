@@ -9,12 +9,13 @@ def watch_rows(pool,entry_fit):
         entry_fit_selected=r['ticker'] in fitted,score=None,score_basis='EXISTING_LEXICOGRAPHIC_RANK_NO_WEIGHTED_SCORE',
         own_rs20=r.get('own_rs20'),rs_accel5=r.get('rs_accel5'),turnover20=r.get('turnover20'),
         sector=r.get('sector'),financial_observed_positive=r.get('financial',{}).get('observed_positive'),
-        financial_original_pit_verified=False,buy_approved=False) for i,r in enumerate(pool[:2],1)]
+        financial_original_pit_verified=False,buy_approved=False,entry_window=r.get('entry_window'),
+        entry_window_status=(r.get('entry_window') or {}).get('status'),report_role='SECONDARY_WATCH_NOT_CURRENT_ENTRY') for i,r in enumerate(pool[:2],1)]
 
 def annotate_entry_card(path,manifest,row):
     """Add missing distance/second-plan facts in the existing status-note line."""
     from PIL import Image,ImageDraw,PngImagePlugin
-    from c3_classic_theme import PAPER,SUB,text,font
+    from c3_classic_theme import PAPER,SUB,BLUE,INK,text,font
     path=Path(path);p=row['display_plan'];upper=p['range']['endpoints']['upper']
     with Image.open(path) as old:
         payload=json.loads(old.info['C3_manifest'])
@@ -23,8 +24,20 @@ def annotate_entry_card(path,manifest,row):
     d=ImageDraw.Draw(im);note=f"상단 거리 {upper['distance_pct']:.2f}% / {upper['distance_atr']:.2f}ATR · 2차 계획 미검증 · 범위 미도달 PASS"
     if d.textlength(note,font=font(25))>1296:raise ValueError('ENTRY_DISTANCE_NOTE_TOO_WIDE')
     d.rectangle((48,1518,1352,1560),fill=PAPER);text(d,56,1522,note,25,SUB)
+    w=row.get('entry_window') or {}
+    if w:
+        if not w.get('research_fit_eligible') or w.get('status') not in ('ENTRY_READY','NEAR_ENTRY'):
+            raise ValueError('ENTRY_CARD_REQUIRES_CURRENT_ELIGIBLE_WINDOW')
+        d.rectangle((48,1204,1352,1260),fill=PAPER)
+        text(d,54,1218,'ENTRY_FIT TOP'+str(row['research_rank'])+' · 현재 진입 관찰',32,INK,True)
+        d.rectangle((1092,1274,1344,1406),fill='white')
+        text(d,1218,1285,'연구 진입 상태',24,BLUE,True,anchor='ma')
+        text(d,1218,1330,w['status'],24,BLUE,True,anchor='ma')
+        text(d,1218,1364,'매수 승인 보류',25,BLUE,True,anchor='ma')
     payload.update(distance_to_upper_pct=upper['distance_pct'],distance_to_upper_atr=upper['distance_atr'],
-        second_entry_status='UNVERIFIED_NOT_PROVIDED',entry_state='ENTRY_FIT_RESEARCH_WAIT')
+        second_entry_status='UNVERIFIED_NOT_PROVIDED',entry_state='ENTRY_FIT_RESEARCH_WAIT',
+        entry_window_status=w.get('status'),approval_status='DATA_HOLD',valid_until_session=w.get('valid_until_session'),
+        setup_key=w.get('setup_key'),report_role='PRIMARY_ENTRY_FIT')
     info=PngImagePlugin.PngInfo();info.add_text('C3_manifest',json.dumps(payload,ensure_ascii=False,sort_keys=True))
     im.save(path,pnginfo=info,optimize=True)
     return dict(payload,png=path.name,png_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
@@ -36,7 +49,8 @@ def render_watch(row,bars,report,path,rank):
     validate_bars(bars,report['source_date'],row['close'])
     if len(bars)<119:raise ValueError('WATCH_FULL_60_VISIBLE_MA60_REQUIRES_119_REAL_BARS')
     best=row.get('range_review',{}).get('best')
-    p=best if best and best.get('range_valid') and best.get('stop_reliability',{}).get('research_eligible') else None
+    window=row.get('entry_window') or {};window_status=window.get('status','WATCH')
+    p=best if best and best.get('range_valid') and best.get('stop_reliability',{}).get('research_eligible') and window.get('research_fit_eligible',True) else None
     r=p['range'] if p else None
     plan=dict(low=r['low'],high=r['high'],stop=p['stop'],resistance=p['r1'],resistance2=p['r2']) if p else None
     fitted=row['ticker'] in {x['ticker'] for x in report['final_research_top2']}
@@ -49,7 +63,7 @@ def render_watch(row,bars,report,path,rank):
     change=row['close']-bars[-2]['close'];pct=100*change/bars[-2]['close']
     text(d,1345,204,f'{change:+,.0f}원 ({pct:+.2f}%)',31,RED if change>0 else BLUE,True,anchor='ra')
     d.rectangle((48,252,1352,294),fill='#F0EBDD')
-    text(d,700,258,'사후 연구 WATCH · 종목 관찰과 진입 적합성은 별도 · BUY 승인 없음',26,GOLD,True,anchor='ma')
+    text(d,700,258,'별도 WATCH · '+window_status+' · 신규 진입 승인 없음',26,GOLD,True,anchor='ma')
     d.rounded_rectangle((48,316,1352,1192),radius=12,fill='white',outline='#DEDAD1',width=2)
     text(d,74,333,'실제 일봉 60거래일 · 거래량',31,INK,True)
     for i,n in enumerate((5,20,60)):
@@ -59,13 +73,13 @@ def render_watch(row,bars,report,path,rank):
     text(d,54,1218,'연구용 관찰 가격 · 주문 승인이 아님',33,INK,True)
     cells=[('매수 관찰 범위',won(r['low'])+' ~\n'+won(r['high']) if r else '미확정',GREEN),
         ('구조손절',won(p['stop']) if p else '미확정',RED),('1차 저항 R1',won(p['r1']) if p else '미확정',GOLD),
-        ('2차 저항 R2',won(p['r2']) if p else '미확정',PURPLE),('최종 상태','ENTRY 연구' if fitted else 'WATCH\n진입 보류',BLUE)]
+        ('2차 저항 R2',won(p['r2']) if p else '미확정',PURPLE),('최종 상태',window_status+'\n진입 보류' if not fitted else window_status,BLUE)]
     for i,(label,value,color) in enumerate(cells):
         x=48+i*261;d.rectangle((x,1270,x+252,1406),fill='white');d.line((x,1270,x+252,1270),fill=color,width=4)
         text(d,x+126,1285,label,26,color,True,anchor='ma')
-        for k,line in enumerate(value.split('\n')):text(d,x+126,1330+k*34,line,29,color,True,anchor='ma')
+        for k,line in enumerate(value.split('\n')):text(d,x+126,1330+k*34,line,24 if i==4 else 29,color,True,anchor='ma')
     text(d,54,1432,'기존 정렬 순위 '+str(rank)+' · 임의 가중 점수 없음',32,INK,True)
-    summary=f"상단 위험 {r['endpoints']['upper']['stop_risk_pct']:.2f}% · 최소 순RR {r['min_net_r1_rr']:.2f}배" if p else '진입 적합 범위·손절 미확정. 좋은 종목과 지금 살 가격을 구분.'
+    summary=f"상단 위험 {r['endpoints']['upper']['stop_risk_pct']:.2f}% · 최소 순RR {r['min_net_r1_rr']:.2f}배" if p else ('이전 매수 기회 종료 · 새 지지 구조와 유효 구간 확인 전 제외' if window_status=='MISSED_ENTRY' else '현재 유효 지지에서 이격 과다 · 추격 없이 새 구조 대기' if window_status=='OVEREXTENDED' else '진입 적합 범위·손절 미확정. 좋은 종목과 지금 살 가격을 구분.')
     text(d,56,1480,summary,28,INK)
     text(d,56,1522,'2차 매수: 별도 검증 계획 없음 · 주문 횟수·수량은 사용자 결정',27,SUB)
     q=row.get('financial',{}).get('statement') or {}
@@ -78,6 +92,9 @@ def render_watch(row,bars,report,path,rank):
     if pm:
         atr_label=f"{pm['ma20_extension_atr']:.2f}ATR" if pm.get('ma20_extension_atr') is not None else 'ATR 거리 미확인'
         risk=f"MA20 이격 {pm['ma20_extension_pct']:+.2f}% / {atr_label} · 5일 수익 {pm['returns_pct']['5']:+.2f}%. 갭 확대 주의. "+('진입 적합 범위 없음.' if not p else f"저점 {p.get('evidence',{}).get('low_date','미확인')}·손절 {p['stop']:,.0f}원.")
+    old=window.get('old_entry_window')
+    if old and not p:
+        risk=f"과거 {old['source_date']} 구간 {old['low']:,.0f}~{old['high']:,.0f}원 · 유효 {old['valid_until_session']}까지. "+('R1 선도달, 신규 진입 제외.' if 'ORIGINAL_R1_ALREADY_REACHED_WITHOUT_NEW_VALID_SUPPORT' in window.get('reason_codes',[]) else '기존 기회 종료·새 지지 확인 전 추격 금지.')
     previous=observation.get('previous_watch_rank');previous_day=observation.get('previous_watch_day')
     rank_note=(f"{previous_day[5:]} {previous}위 → 현재 {rank}위. " if previous is not None and previous_day else '직전 WATCH 순위 미확인. ')
     priority_labels={'turnover20':'같은 관측 그룹에서 거래대금 우선.','growth_observed':'실적 증가 관측 여부가 먼저 정렬.','sector_proxy_positive':'업종 상대강도 관측이 먼저 정렬.','own_rs20':'앞선 조건 동률에서 종목 RS로 정렬.','original_pit_confirmed':'원문 PIT 확인 여부가 먼저 정렬.','ticker':'앞선 조건 동률에서 종목코드로 정렬.'}
@@ -106,6 +123,8 @@ def render_watch(row,bars,report,path,rank):
         quality_audit_sha256=report.get('watch_quality_audit_sha256'),price_extension=pm,previous_watch_day=previous_day,
         previous_watch_rank=previous,repeat_reason=observation.get('repeat_reason'),layout=layout,
         score=None,score_basis='DETERMINISTIC_LEXICOGRAPHIC_NO_WEIGHTED_TOTAL')
+    manifest.update(entry_window_status=window_status,approval_status='DATA_HOLD',entry_window=window,
+        report_role='SECONDARY_WATCH_NOT_CURRENT_ENTRY')
     info=PngImagePlugin.PngInfo();info.add_text('C3_manifest',json.dumps(manifest,ensure_ascii=False,sort_keys=True))
     path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);im.save(path,pnginfo=info,optimize=True)
     with Image.open(path) as saved:

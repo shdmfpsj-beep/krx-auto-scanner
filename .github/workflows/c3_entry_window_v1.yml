@@ -1,0 +1,186 @@
+name: C3 current entry-window full-market validation (NO ORDER / NO SEND)
+on:
+  push:
+    branches: [research/c3-entry-window-20261114]
+    paths: ['scripts/c3_entry_window_v1.py','scripts/test_c3_entry_window_v1.py','scripts/c3_source_recovery_analysis_v1.py','scripts/c3_watch_card_v1.py','.github/workflows/c3_entry_window_v1.yml']
+  pull_request:
+    paths: ['scripts/c3_entry_window_v1.py','scripts/test_c3_entry_window_v1.py','scripts/c3_source_recovery_analysis_v1.py','scripts/c3_watch_card_v1.py','.github/workflows/c3_entry_window_v1.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-entry-window-validation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  functional-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: scripts:v4/scripts:engine/scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+            /.github/workflows/*.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: f3ed60f3fa0b967385df734ac54003aeee34d9d1
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install requests pillow pandas==2.2.3 exchange-calendars==4.13.2 cryptography --disable-pip-version-check
+      - name: Functional state, date, source, immutable-registration and delivery tests only
+        run: python -m unittest test_c3_entry_window_v1 test_c3_nov13_once_v1 test_c3_morning_v1 test_c3_telegram_notify -v
+  current-full-market:
+    needs: functional-tests
+    if: github.event_name == 'push' && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/research/c3-entry-window-20261114'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: scripts:v4/scripts:engine/scripts
+      GH_TOKEN: ${{ github.token }}
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+      C3_KEY_ENVELOPES_DIR: ${{ github.workspace }}/state/reports/c3_forward_v8/key_envelopes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+            /.github/workflows/*.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: f3ed60f3fa0b967385df734ac54003aeee34d9d1
+          path: v4
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/*.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: research/c3-ledger-integrity-audit-20261104
+          path: state
+          persist-credentials: false
+          sparse-checkout: |
+            /reports/c3_forward_v8/
+            /reports/c3_new_session_v1/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install requests pillow pandas==2.2.3 pykrx==1.2.9 'cryptography>=43,<47' exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Snapshot protected original ledgers and Telegram receipts
+        run: |
+          python - <<'PY'
+          import os
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          write('evidence/integrity/before.json',capture(GitHub(os.environ['GH_TOKEN'])))
+          PY
+      - name: Fresh dated FDR prefetch for the latest completed session, without publishing
+        run: python scripts/c3_early_source_v1.py --out evidence/fresh-prefetch
+      - name: Exercise existing bounded official/cache source collection, never prior-day substitution
+        run: python scripts/c3_morning_source_v1.py --outdir evidence/source --require-data
+      - name: Validate actual source agreement and load the successful baseline for functional comparison
+        run: |
+          python - <<'PY'
+          import json,hashlib,subprocess
+          from pathlib import Path
+          from c3_bootstrap_cache_v13 import extract
+          p=json.loads(Path('evidence/fresh-prefetch/prefetch.json').read_text());c=json.loads(Path('evidence/source/recovery/collection.json').read_text())
+          assert p['asof']==c['asof']=='2026-11-13','LATEST_COMPLETED_SESSION_CHANGED_FROM_NOV13_BASELINE'
+          assert p['normalized_rows_sha256']==c['normalized_rows_sha256'],'LATEST_FDR_AND_RECOVERY_SOURCE_CONFLICT'
+          body=subprocess.check_output(['gh','api','repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/14078620251/zip'])
+          assert hashlib.sha256(body).hexdigest()=='1440eba159eb0e8eeaf6e5b2352e0be0b12593e72e0c3ab55733599d7bf35cf8'
+          extract(body,'baseline')
+          PY
+      - name: Evaluate every current technical candidate and render ENTRY_FIT first, no return research
+        run: |
+          python - <<'PY'
+          import json,hashlib,csv
+          from pathlib import Path
+          from unittest.mock import patch
+          from c3_source_recovery_analysis_v1 import run
+          from c3_company_quality_review_v1 import collect,reuse_evidence
+          base=Path('baseline/output');facts=base/'analysis/company_quality.json'
+          expected='b20ce8c607911126cab695b40e0ecdf505cb4fc3a74c4d80092ed68ba4d2f7f4'
+          assert hashlib.sha256(facts.read_bytes()).hexdigest()==expected
+          reused=[]
+          def company(candidates):
+              old=json.loads(facts.read_text())
+              if candidates['asof']==old['asof'] and {(x['ticker'],x['name']) for x in candidates['rows']}=={(x['ticker'],x['name']) for x in old['companies']}:
+                  reused.append(True);return reuse_evidence(facts,expected,candidates)
+              reused.append(False);return collect(candidates)
+          with patch('c3_company_quality_review_v1.collect',side_effect=company):
+              r=run(Path('evidence/source/recovery'),Path('engine'),Path('state'),Path('evidence/analysis'),Path('private-inputs'))
+          old=json.loads((base/'analysis/report.json').read_text());collection=json.loads(Path('evidence/source/recovery/collection.json').read_text())
+          def indices(root):
+              return {m:{x['date']:float(x['close']) for x in csv.DictReader((root/'indices'/(m+'_index.csv')).open())} for m in ('KOSPI','KOSDAQ')}
+          unchanged=r['normalized_rows_sha256']==old['normalized_rows_sha256'] and indices(Path('evidence/source/recovery'))==indices(base/'source')
+          a=json.loads((base/'analysis/all_technical_diagnostics.json').read_text())['rows'];b=json.loads(Path('evidence/analysis/all_technical_diagnostics.json').read_text())['rows']
+          if unchanged:
+              assert r['funnel']['full_market']==2770 and r['funnel']['analysis_eligible']==1989 and r['funnel']['technical']==157
+              assert {x['ticker']:x['range_review'] for x in a}=={x['ticker']:x['range_review'] for x in b},'EXISTING_PRICE_PLANS_CHANGED'
+              assert {x['ticker']:x['financial'] for x in a}=={x['ticker']:x['financial'] for x in b},'EXISTING_FINANCIAL_CRITERIA_CHANGED'
+          assert r['source_run_id']==r['research_run_id'] and r['buy_approved'] is False and r['primary_section']=='ENTRY_FIT'
+          assert not Path('evidence/analysis/entry_timing_audit').exists()
+          assert r['telegram_requests']==r['new_forward_records']==0 and r['current_action']=='CASH'
+          order=json.loads(Path('evidence/analysis/report_order.json').read_text())
+          assert order['primary_section']=='ENTRY_FIT' and order['ordered_images'][0]['role'] in ('ENTRY_FIT','PRIMARY_STATUS')
+          assert list(Path('evidence/analysis/cards').glob('*.png'))
+          Path('evidence/functional_integration.json').write_text(json.dumps(dict(fresh_source_collected=True,baseline_inputs_unchanged=unchanged,baseline_price_plans_unchanged=unchanged,financial_snapshot_reused=all(reused),source_run_id=r['source_run_id'],research_run_id=r['research_run_id'],entry_count=len(r['final_research_top2']),performance_research_executed=False,orders=0,telegram_requests=0)))
+          PY
+      - name: Verify originals and receipts are unchanged, including on failure
+        if: always()
+        run: |
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          from c3_dynamic_integrity_v2 import capture
+          from c3_telegram_inputs import GitHub
+          from c3_early_source_v1 import write
+          before=json.loads(Path('evidence/integrity/before.json').read_text());after=capture(GitHub(os.environ['GH_TOKEN']))
+          assert before['protected']==after['protected'],'PROTECTED_ORIGINAL_OR_RECEIPT_CHANGED'
+          after['originals_and_receipts_unchanged']=True;write('evidence/integrity/after.json',after)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-entry-window-current-full-market
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error

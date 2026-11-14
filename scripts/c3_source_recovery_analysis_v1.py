@@ -153,7 +153,15 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
             financial=finances.get(t,financial_review({},day)),range_review=review_v4(current[t],generate_ranges(current[t])))
         rows.append(r)
     pool=choose_watch(rows,finances,domestic['sectors']);by={r['ticker']:r for r in rows}
-    fit=choose_practical_top2([r for r in pool if len(current[r['ticker']])>=119],by)
+    legacy_fit=choose_practical_top2([r for r in pool if len(current[r['ticker']])>=119],by)
+    from c3_entry_window_v1 import evaluate as entry_windows,select_entry_fit,report_order
+    windows=entry_windows(rows,current,day,sessions,state,PROTOCOL,datetime.now(timezone.utc).isoformat())
+    write(out/'entry_window_evaluations.json',windows)
+    for group in (rows,pool):
+        for row in group:
+            row['entry_window']=windows['rows'][row['ticker']]
+            row['history_rows']=len(current[row['ticker']])
+    fit=select_entry_fit(pool,by,windows['rows'])
     for i,r in enumerate(fit,1):r['research_rank']=i
     from c3_watch_quality_audit_v1 import audit as watch_audit,prior_reviews
     observation=watch_audit(rows,current,pool,fit,day,prior_reviews(state,day))
@@ -169,6 +177,12 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
         research_run_id=os.environ['GITHUB_RUN_ID'],research_commit=os.environ['GITHUB_SHA'],model_version=PROTOCOL['model_version'],
         v4_code_commit=subprocess.check_output(['git','-C','v4','rev-parse','HEAD'],text=True).strip(),mode='NEW_SOURCE_RETROSPECTIVE_RESEARCH_NOT_REGISTERED_TRADE',
         watch_quality_audit_sha256=observation['audit_payload_sha256'],
+        primary_section='ENTRY_FIT',entry_window_layer='C3_ENTRY_WINDOW_V1',
+        entry_window_evaluations={t:w for t,w in windows['rows'].items() if w.get('setup_key') or t in {r['ticker'] for r in pool}},
+        entry_window_counts=windows['counts'],entry_window_document_sha256=sha(windows),
+        entry_window_full_scope='ALL_TECHNICAL_CANDIDATES_IN_ENTRY_WINDOW_EVALUATIONS_ARTIFACT',
+        geometry_only_legacy_fit_tickers=[r['ticker'] for r in legacy_fit],
+        entry_fit_top2=fit,approval_status='DATA_HOLD',current_entry_window_source='COMPLETED_DAILY_CLOSE_NOT_INTRADAY_QUOTE',
         source_status=manifest['status'],regular_only_certified=False,financial_original_pit_verified=False,
         selection_status='RESEARCH_ANALYSIS_COMPLETE' if any(r['financial'].get('required_metrics_complete') for r in rows) else 'RESEARCH_ANALYSIS_INCOMPLETE_FINANCIAL',analysis_completed=True,final_research_top2=fit,
         watch_top2=watch_rows(pool,fit),
@@ -190,7 +204,11 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
         card=render(dict(row,chart_source_sha256=sha(chart)),current[t][-119:],report,path)
         manifests.append(annotate_entry_card(path,card,row));paths.append(path)
     if not paths:
-        p=out/'cards'/('C3_NEW_'+day.replace('-','')+'_CASH.png');manifests.append(hold_card(report,p));paths.append(p)
+        if report['selection_status']!='RESEARCH_ANALYSIS_COMPLETE':
+            from c3_entry_window_v1 import data_hold_card
+            p=out/'cards'/('C3_NEW_'+day.replace('-','')+'_DATA_HOLD.png');manifests.append(data_hold_card(report,p));paths.append(p)
+        else:
+            p=out/'cards'/('C3_NEW_'+day.replace('-','')+'_CASH.png');manifests.append(hold_card(report,p));paths.append(p)
     write(out/'card_manifest.json',dict(cards=manifests,report_hash=report['report_payload_sha256']))
     watch_manifests=[]
     for rank,row in enumerate(pool[:2],1):
@@ -199,6 +217,7 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
         path=out/'watch_cards'/('C3_WATCH_'+day.replace('-','')+'_'+t+'.png')
         watch_manifests.append(render_watch(dict(row,chart_source_sha256=sha(chart)),current[t][-119:],report,path,rank))
     write(out/'watch_card_manifest.json',dict(cards=watch_manifests,report_hash=report['report_payload_sha256']))
+    write(out/'report_order.json',report_order(manifests,watch_manifests,report))
     packet=envelope(paths,manifests,report);claims={};safe_claim(claims,packet['key'],packet)
     write(out/'delivery_status.json',dict(status='RESEARCH_NOT_SENT',actual_telegram_requests=0,repeat=safe_claim(claims,packet['key'],packet),packet=packet))
     print(json.dumps(dict(asof=day,funnel=report['funnel'],final_candidates=[r['ticker'] for r in fit],png_count=len(paths),buy_approved=False),ensure_ascii=False))
