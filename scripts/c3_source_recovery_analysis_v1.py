@@ -173,6 +173,23 @@ def run(source,engine,state,out,private,macro=None,timing_cohort=None):
         for row in group:
             row['entry_window']=windows['rows'][row['ticker']]
             row['history_rows']=len(current[row['ticker']])
+    # Independent all-technical quality-first research preview, never promoted
+    # to the approved operational selector or original forward ledger.
+    quality_pool=[r for r in rows if quality_by[r['ticker']]['status']=='QUALITY_STRONG'
+                  and r.get('momentum_pass') and r.get('liquidity_pass')]
+    quality_pool.sort(key=lambda r:(
+        0 if windows['rows'][r['ticker']]['status']=='ENTRY_READY' else 1,
+        -r['turnover20'],-r['rs20'],r['ticker']))
+    quality_preview=select_entry_fit(quality_pool,by,windows['rows'])
+    write(out/'quality_first_entry_preview.json',dict(
+        schema='C3_QUALITY_FIRST_ENTRY_PREVIEW_V1',asof=day,
+        scope='ALL_TECHNICAL_NOT_WATCH_ONLY',
+        quality_strong_research_pool=len(quality_pool),
+        selected=[dict(ticker=r['ticker'],name=r['name'],entry_status=r['status'],
+                       quality_status=r['quality_gate']['status']) for r in quality_preview],
+        approved_top2_unchanged=True,financial_pit_verified=False,
+        official_price_certified=False,buy_approved=False,
+        current_action='CASH',telegram_requests=0,orders_enabled=False))
     fit=select_entry_fit(pool,by,windows['rows'])
     for i,r in enumerate(fit,1):r['research_rank']=i
     from c3_watch_quality_audit_v1 import audit as watch_audit,prior_reviews
