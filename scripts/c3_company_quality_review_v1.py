@@ -222,16 +222,27 @@ def quality_gate_snapshot(company):
                            operating_cashflow_ytd_krw=cash,
                            revenue_increased=facts.get('revenue_increased'),
                            operating_profit_increased=facts.get('operating_profit_increased'))
+    previous_revenue=facts.get('previous_comparable_revenue_krw')
+    previous_profit=facts.get('previous_comparable_operating_profit_krw')
+    comparable=all(isinstance(v,(int,float)) and not isinstance(v,bool)
+                   for v in (previous_revenue,previous_profit))
+    result['metrics']['comparable_values_verified']=comparable
     if revenue<=0 or profit<=0 or cash<=0:
         result['status']='QUALITY_WEAK'
         result['reason_codes'].append('NONPOSITIVE_REVENUE_PROFIT_OR_CASHFLOW')
-    elif facts.get('revenue_increased') is True and facts.get('operating_profit_increased') is True:
+    elif not comparable:
+        result['reason_codes'].append('COMPARABLE_PERIOD_VALUES_MISSING')
+    elif previous_revenue<0:
+        result['reason_codes'].append('COMPARABLE_REVENUE_INVALID')
+    elif revenue>previous_revenue and profit>previous_profit:
+        # Growth is observed, but no trend reversal is established from one pair.
         result['status']='QUALITY_STRONG'
-        result['reason_codes'].append('POSITIVE_CORE_AND_COMPARABLE_GROWTH')
-    elif facts.get('revenue_increased') is False or facts.get('operating_profit_increased') is False:
-        result['status']='QUALITY_TURNAROUND_REVIEW'
-        result['reason_codes'].append('POSITIVE_CORE_BUT_COMPARABLE_DECLINE_REQUIRES_REVIEW')
+        result['reason_codes'].append('COMPARABLE_REVENUE_AND_PROFIT_IMPROVED')
+    elif revenue<previous_revenue or profit<previous_profit:
+        result['status']='QUALITY_DECLINING_REVIEW'
+        result['reason_codes'].append('COMPARABLE_REVENUE_OR_PROFIT_DECLINED')
     else:
-        result['reason_codes'].append('COMPARABLE_GROWTH_NOT_VERIFIED')
+        result['status']='QUALITY_STABLE_REVIEW'
+        result['reason_codes'].append('NO_CONFIRMED_GROWTH_OR_DECLINE')
     # Historical PIT and official-price certification remain separate blockers.
     return result
