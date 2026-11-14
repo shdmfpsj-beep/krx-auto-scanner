@@ -188,6 +188,22 @@ class MorningStatusTests(unittest.TestCase):
 if __name__=='__main__':unittest.main()
 
 
+class QualityFirstEntryPriorityTests(unittest.TestCase):
+    def test_ready_outranks_near_even_when_turnover_lower(self):
+        from c3_source_recovery_analysis_v1 import quality_first_sort_key
+        rows=[dict(ticker='B',turnover20=999,rs20=0.8),
+              dict(ticker='A',turnover20=10,rs20=0.1)]
+        windows={'A':{'status':'ENTRY_READY'},'B':{'status':'NEAR_ENTRY'}}
+        self.assertEqual([r['ticker'] for r in sorted(rows,key=lambda r:quality_first_sort_key(r,windows))],['A','B'])
+
+    def test_missed_and_overextended_never_outrank_near(self):
+        from c3_source_recovery_analysis_v1 import quality_first_sort_key
+        rows=[dict(ticker=t,turnover20=1000,rs20=1.0) for t in ('M','O')]
+        rows.append(dict(ticker='N',turnover20=1,rs20=0))
+        windows={'M':{'status':'MISSED_ENTRY'},'O':{'status':'OVEREXTENDED'},'N':{'status':'NEAR_ENTRY'}}
+        self.assertEqual(sorted(rows,key=lambda r:quality_first_sort_key(r,windows))[0]['ticker'],'N')
+
+
 class QualityGateSnapshotTests(unittest.TestCase):
     def test_missing_evidence_never_becomes_company_failure(self):
         from c3_company_quality_review_v1 import quality_gate_snapshot
