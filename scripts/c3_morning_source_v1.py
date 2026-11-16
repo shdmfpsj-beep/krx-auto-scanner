@@ -167,6 +167,10 @@ def execute(outdir,requested=None,clock=None,recover=None):
     # A successful source job is not equivalent to an authorized registration.
     trigger_allowed=result.get('trigger',{}).get('approved_original_registration_allowed') is True
     result['registration_gate_blocker']=registration_gate_blocker(trigger_allowed,result['registration_window'],result['ready'])
+    # A closed gate is not an error in source validation; it is an explicit
+    # approval hold. Preserve separate evidence for the independent adapter.
+    result['registration_policy']='FAIL_CLOSED_0900_KST_V1'
+    result['registration_requires_independent_adapter_check']=True
     print(json.dumps({'registration_gate_blocker':result['registration_gate_blocker'],
         'registration_window':result['registration_window'],
         'registration_trigger_allowed':trigger_allowed,
