@@ -29,11 +29,31 @@ def classify(r,day):
     if w['status'] in ('ENTRY_READY','NEAR_ENTRY') and w.get('research_fit_eligible'):
         out.update(status='V4_ENTRY_RESEARCH_REVIEW',reason='EXISTING_V4_GEOMETRY_ONLY')
     return out
+def geometry(row, result):
+    """Use already computed V4 plan; never manufacture a new stop or reprice expired support."""
+    if result['status']!='CHART_FIRST_WATCH':return result
+    window=row['entry_window'];best=(row.get('range_review') or {}).get('best')
+    if not best or not best.get('range_valid') or not best.get('stop_reliability',{}).get('research_eligible'):
+        result['geometry_reason']='V4_VALID_PLAN_MISSING';return result
+    if window.get('status') not in ('ENTRY_READY','NEAR_ENTRY'):
+        result['geometry_reason']='WINDOW_NOT_ACTIVE_NEW_PIVOT_REQUIRED';return result
+    if not window.get('setup_key') or window.get('reason_codes') and 'SAME_SUPPORT_REPRICING_IS_NOT_A_NEW_ENTRY' in window['reason_codes']:
+        result['geometry_reason']='SUPPORT_NOT_NEW_OR_NOT_CONFIRMED';return result
+    r=best.get('range') or {};lo=r.get('low');hi=r.get('high');stop=best.get('stop');target=best.get('r1')
+    if not all(num(x) for x in (lo,hi,stop,target)) or not 0<stop<lo<=hi<target:
+        result['geometry_reason']='V4_RISK_STRUCTURE_INVALID';return result
+    if not num(best.get('min_net_r1_rr')) or best['min_net_r1_rr']<1.5:
+        result['geometry_reason']='V4_RR_BELOW_RESEARCH_THRESHOLD';return result
+    result.update(status='GEOMETRY_RESEARCH_READY',entry_range=[lo,hi],stop=stop,target=target,
+                  rr=best['min_net_r1_rr'],geometry_reason='EXISTING_V4_VALIDATED_GEOMETRY',
+                  buy_approved=False)
+    return result
+
 def evaluate(doc):
-    day=doc['asof'];rows=[classify(r,day) for r in doc['rows']]
-    watch=sorted((r for r in rows if r['status'] in ('CHART_FIRST_WATCH','V4_ENTRY_RESEARCH_REVIEW')),key=lambda r:(-r['combined_score'],r['ticker']))
+    day=doc['asof'];rows=[geometry(r,classify(r,day)) for r in doc['rows']]
+    watch=sorted((r for r in rows if r['status'] in ('CHART_FIRST_WATCH','V4_ENTRY_RESEARCH_REVIEW','GEOMETRY_RESEARCH_READY')),key=lambda r:(-r['combined_score'],r['ticker']))
     return dict(schema='C3_CHART_FIRST_TURNAROUND_SHADOW_V1',asof=day,technical_universe=len(rows),
-        chart_first_watch_count=len(watch),ranked_watch=watch,all_diagnostics=rows,
+        chart_first_watch_count=len(watch),geometry_research_ready=sum(r['status']=='GEOMETRY_RESEARCH_READY' for r in rows),ranked_watch=watch,all_diagnostics=rows,
         financial_safety_scope='BALANCE_SHEET_ONLY_NOT_AUDIT_OR_LISTING_CERTIFIED',
         earnings_scope='OBSERVED_DISCLOSURES_NOT_FORECAST',buy_approved=False,orders_enabled=False,telegram_requests=0)
 if __name__=='__main__':
