@@ -169,6 +169,19 @@ def execute(outdir,requested=None,clock=None,recover=None):
     result['registration_gate_blocker']=registration_gate_blocker(trigger_allowed,result['registration_window'],result['ready'])
     # A closed gate is not an error in source validation; it is an explicit
     # approval hold. Preserve separate evidence for the independent adapter.
+    # Emit real observed time, never treat a schedule label as trusted proof of
+    # when GitHub actually queued the run. This telemetry cannot grant access.
+    observed_utc=datetime.now(timezone.utc)
+    result['registration_timing_observation']={
+        'observed_utc':observed_utc.isoformat(),
+        'observed_kst':observed_utc.astimezone(KST).isoformat(),
+        'requested_schedule_label':result.get('trigger',{}).get('cron'),
+        'schedule_label_is_attested_start_time':False,
+        'github_run_id':os.environ.get('GITHUB_RUN_ID'),
+        'github_run_attempt':os.environ.get('GITHUB_RUN_ATTEMPT'),
+        'window_ends_at_kst':'09:00',
+    }
+    print(json.dumps({'registration_timing_observation':result['registration_timing_observation']}))
     result['registration_policy']='FAIL_CLOSED_0900_KST_V1'
     result['registration_requires_independent_adapter_check']=True
     print(json.dumps({'registration_gate_blocker':result['registration_gate_blocker'],
