@@ -39,6 +39,8 @@ jobs:
             /scripts/c3_morning_source_v1.py
             /scripts/test_c3_registration_gate_diagnostics_v1.py
             /scripts/test_c3_dispatch_isolation_v1.py
+            /scripts/test_c3_registration_seal_isolation_v1.py
+            /scripts/c3_morning_registration_v1.py
             /scripts/c3_telegram_inputs.py
           sparse-checkout-cone-mode: false
       - name: Check the pinned caller without running production collection
@@ -68,7 +70,7 @@ jobs:
         env:
           PYTHONPATH: scripts
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python -m unittest -v scripts/test_c3_registration_gate_diagnostics_v1.py scripts/test_c3_dispatch_isolation_v1.py
+        run: python -m unittest -v scripts/test_c3_registration_gate_diagnostics_v1.py scripts/test_c3_dispatch_isolation_v1.py scripts/test_c3_registration_seal_isolation_v1.py
   source-ready:
     timeout-minutes: 8
     if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || ((github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out') && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository))
