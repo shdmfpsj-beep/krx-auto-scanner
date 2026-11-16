@@ -21,9 +21,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  # Recovery wakeups cannot register original signals. Isolate their queue so
-  # they cannot hold up the approved morning schedule/dispatch queue.
-  group: ${{ github.event_name == 'workflow_run' && 'c3-source-recovery-wakeup' || 'c3-approved-daily-caller' }}
+  group: c3-approved-daily-caller
   cancel-in-progress: false
 jobs:
   review-manifest:
