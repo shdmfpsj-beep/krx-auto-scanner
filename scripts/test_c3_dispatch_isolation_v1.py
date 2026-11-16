@@ -62,6 +62,8 @@ class DispatchIsolationTests(unittest.TestCase):
         self.assertEqual(eligible('schedule','CLOSED',True),'MORNING_REGISTRATION_WINDOW_CLOSED')
     def test_no_side_effect_paths(self):
         # Contract test module uses only in-memory mocks and read-only imports.
-        self.assertNotIn('urllib.request.urlopen',Path(__file__).read_text())
-        self.assertNotIn('requests.post(',Path(__file__).read_text())
+        import ast
+        tree=ast.parse(Path(__file__).read_text())
+        calls=[node.func for node in ast.walk(tree) if isinstance(node,ast.Call)]
+        self.assertFalse(any(isinstance(fn,ast.Attribute) and fn.attr in ('urlopen','post') for fn in calls))
 if __name__=='__main__':unittest.main()
