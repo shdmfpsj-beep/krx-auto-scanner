@@ -107,6 +107,18 @@ jobs:
       - name: Scan complete market using existing A/B and V4, render TOP2 or CASH PNG
         run: |
           python scripts/c3_source_recovery_analysis_v1.py --source output/source --engine engine --state state --out output/analysis --private output/private
+      - name: Chart-first turnaround and V4 entry geometry shadow analysis
+        run: |
+          python -m unittest discover -s scripts -p test_c3_chart_first_turnaround_v1.py -v
+          python scripts/c3_chart_first_turnaround_v1.py --input output/analysis/all_technical_diagnostics.json --output output/analysis/chart_first_turnaround_shadow.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('output/analysis/chart_first_turnaround_shadow.json').read_text())
+          r=json.loads(Path('output/analysis/report.json').read_text())
+          assert p['asof']==r['source_date']
+          assert p['buy_approved'] is False and p['telegram_requests']==0
+          PY
       - name: Validate research-only controls and preserve report outside original ledger
         run: |
           python - <<'PYCODE'
@@ -168,6 +180,7 @@ jobs:
             output/analysis/chart_sources/
             output/analysis/technical_candidates.json
             output/analysis/all_technical_diagnostics.json
+            output/analysis/chart_first_turnaround_shadow.json
             output/analysis/company_quality.json
             output/analysis/approved_engine_calculation.json
             output/analysis/history_provenance.json
