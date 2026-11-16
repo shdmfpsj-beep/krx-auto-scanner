@@ -107,7 +107,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
         run: python scripts/c3_morning_source_v1.py --outdir evidence --require-data
-      # Telemetry must not delay the time-critical source validation step.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-morning-source
+          path: evidence/
+          retention-days: 90
+          if-no-files-found: error
+
+  # Diagnostics run separately: never block source-ready outputs or research registration.
+  actions-timing-observation:
+    needs: source-ready
+    if: always() && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      actions: read
+    steps:
       - name: Record authenticated Actions queue timing (read only)
         continue-on-error: true
         env:
@@ -141,13 +158,6 @@ jobs:
               print(json.dumps({'schema':'C3_ACTIONS_QUEUE_TIMING_V1','status':'UNAVAILABLE',
                   'error_type':type(exc).__name__,'registration_authority_granted':False}))
           PY
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: c3-morning-source
-          path: evidence/
-          retention-days: 90
-          if-no-files-found: error
 
   research:
     needs: source-ready
