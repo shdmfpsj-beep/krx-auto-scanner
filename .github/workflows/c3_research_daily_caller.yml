@@ -1,11 +1,12 @@
 name: C3 approved research daily caller
 on:
   schedule:
-    # UTC Sun-Thu 23:10/20/30 = KST Mon-Fri 08:10/20/30.
-    # Attempts, not a provider/Actions completion guarantee.
+    # UTC Sun-Thu 22:50,23:10,23:20 = KST Mon-Fri 07:50,08:10,08:20.
+    # Move the last 08:30 attempt earlier; do NOT add a fourth queued run.
+    # Still subject to GitHub scheduling delays and strict 09:00 KST gate.
+    - cron: '50 22 * * 0-4'
     - cron: '10 23 * * 0-4'
     - cron: '20 23 * * 0-4'
-    - cron: '30 23 * * 0-4'
   push:
     branches: [main]
     paths: ['config/c3_morning_deploy_request.json']
