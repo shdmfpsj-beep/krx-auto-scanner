@@ -93,6 +93,7 @@ jobs:
               raise ValueError('NOV16_SAME_DAY_BOARD_INDICES_NOT_READY')
           write(src/'normalized_market.json',dict(asof=day,rows=rows,normalized_rows_sha256=normalized_hash(rows)))
           manifest=dict(schema='C3_NOV16_RESEARCH_SOURCE_V1',asof=day,
+              status='POST_CLOSE_FDR_RETROSPECTIVE_RESEARCH_ONLY',
               research_ready=True,approved_source_ready=False,indices_ready=True,
               regular_only_certified=False,price_basis=meta['price_basis'],
               normalized_rows_sha256=normalized_hash(rows),data_received_at=meta['received_at'],
