@@ -14,6 +14,10 @@ on:
     - cron: '20 12 * * 1-5'
     # Nov12 dated file's first final matching commit: 23:01 KST.
     - cron: '10 14 * * 1-5'
+    # GitHub schedule is best-effort; retry after 23:10 KST without changing collection logic.
+    # Archive publication is content-addressed and idempotent; retries cannot authorize BUY or SEND.
+    - cron: '27 14 * * 1-5'  # 23:27 KST
+    - cron: '43 14 * * 1-5'  # 23:43 KST
     # Friday 15:10 UTC / Saturday 00:10 KST fallback for delayed Nov13 dated-file publication.
     # Research-only, immutable archive; never authorizes BUY or Telegram.
     - cron: '10 15 * * 5'
