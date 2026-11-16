@@ -11,7 +11,9 @@ def classify(r):
  if not all(finite(x) for x in (r20,r5,ext,ma60ext)):return out
  out.update(return20_pct=round(r20,2),return5_pct=round(r5,2),ma20_extension_atr=round(ext,2),ma60_extension_pct=round(ma60ext,2))
  if c<=m['20'] or c<=m['60'] or r['own_rs20']<=0 or r['rs_accel5']<=0:stage='NOT_UPTREND'
+ elif r20>35 and ma60ext<=25 and ext<=1.8:stage='EARLY_BURST_WAIT'
  elif r20>35 or ma60ext>35 or ext>2.2:stage='EXTENDED_OR_LATE'
+ elif r5>25 and ma60ext<=25:stage='EARLY_BURST_WAIT'
  elif 0<r20<=25 and ma60ext<=25 and ext<=1.8:stage='EARLY_TREND_CANDIDATE'
  else:stage='TREND_IN_PROGRESS'
  out['stage']=stage
