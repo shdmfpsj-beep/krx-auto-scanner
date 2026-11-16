@@ -43,6 +43,14 @@ def trigger_context(env=None,event=None):
     return result
 
 
+def registration_gate_blocker(allowed,window,ready):
+    """Explain the existing fail-closed gate; never grant registration."""
+    if allowed is not True:return 'TRIGGER_NOT_APPROVED_FOR_ORIGINAL_REGISTRATION'
+    if window!='OPEN':return 'MORNING_REGISTRATION_WINDOW_CLOSED'
+    if ready is not True:return 'OFFICIAL_SOURCE_NOT_READY'
+    return None
+
+
 def require_official_collection(manifest,day):
     if (manifest.get('asof')!=day or manifest.get('official_dataset_usable') is not True or
         not isinstance(manifest.get('official_market_rows'),int) or isinstance(manifest['official_market_rows'],bool) or manifest['official_market_rows']<=0):
@@ -155,6 +163,32 @@ def execute(outdir,requested=None,clock=None,recover=None):
         message=str(exc)
         result['blocker']=message if isinstance(exc,ValueError) and __import__('re').fullmatch('[A-Z_0-9]{1,110}',message) else type(exc).__name__
     if not explicit_clock:result['registration_window']='OPEN' if datetime.now(timezone.utc).astimezone(KST).hour<9 else 'CLOSED'
+    # Diagnostics only: never relax the original registration or approval gates.
+    # A successful source job is not equivalent to an authorized registration.
+    trigger_allowed=result.get('trigger',{}).get('approved_original_registration_allowed') is True
+    result['registration_gate_blocker']=registration_gate_blocker(trigger_allowed,result['registration_window'],result['ready'])
+    # A closed gate is not an error in source validation; it is an explicit
+    # approval hold. Preserve separate evidence for the independent adapter.
+    # Emit real observed time, never treat a schedule label as trusted proof of
+    # when GitHub actually queued the run. This telemetry cannot grant access.
+    observed_utc=datetime.now(timezone.utc)
+    result['registration_timing_observation']={
+        'observed_utc':observed_utc.isoformat(),
+        'observed_kst':observed_utc.astimezone(KST).isoformat(),
+        'requested_schedule_label':result.get('trigger',{}).get('cron'),
+        'schedule_label_is_attested_start_time':False,
+        'github_run_id':os.environ.get('GITHUB_RUN_ID'),
+        'github_run_attempt':os.environ.get('GITHUB_RUN_ATTEMPT'),
+        'window_ends_at_kst':'09:00',
+    }
+    print(json.dumps({'registration_timing_observation':result['registration_timing_observation']}))
+    result['registration_policy']='FAIL_CLOSED_0900_KST_V1'
+    result['registration_requires_independent_adapter_check']=True
+    print(json.dumps({'registration_gate_blocker':result['registration_gate_blocker'],
+        'registration_window':result['registration_window'],
+        'registration_trigger_allowed':trigger_allowed,
+        'ready':result['ready'],'source_day':result.get('requested_day'),
+        'run_id':os.environ.get('GITHUB_RUN_ID')}))
     (out/'morning_source.json').write_bytes(canonical(result)+b'\n')
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'],'a') as f:

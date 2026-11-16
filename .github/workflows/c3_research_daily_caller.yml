@@ -21,7 +21,9 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: c3-approved-daily-caller
+  # PR checks are read-only and must not queue ahead of production runs.
+  # Keep schedule/dispatch/workflow_run under the SAME writer-safe lock.
+  group: ${{ github.event_name == 'pull_request' && 'c3-pr-review-manifest' || 'c3-approved-daily-caller' }}
   cancel-in-progress: false
 jobs:
   review-manifest:
@@ -34,6 +36,12 @@ jobs:
           sparse-checkout: |
             /.github/workflows/c3_research_daily_caller.yml
             /.github/workflows/c3_morning_research_adapter_v1.yml
+            /scripts/c3_morning_source_v1.py
+            /scripts/test_c3_registration_gate_diagnostics_v1.py
+            /scripts/test_c3_dispatch_isolation_v1.py
+            /scripts/test_c3_registration_seal_isolation_v1.py
+            /scripts/c3_morning_registration_v1.py
+            /scripts/c3_telegram_inputs.py
           sparse-checkout-cone-mode: false
       - name: Check the pinned caller without running production collection
         run: |
@@ -58,6 +66,11 @@ jobs:
           assert 'ref: '+pin in pre and 'scripts/c3_morning_source_v1.py' in pre and 'persist-credentials: false' in pre
           print('Pinned engine, read-only source preflight and explicit single secret valid; production disabled on PR')
           PYCODE
+      - name: Run fail-closed registration diagnostics unit tests (PR only)
+        env:
+          PYTHONPATH: scripts
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python -m unittest -v scripts/test_c3_registration_gate_diagnostics_v1.py scripts/test_c3_dispatch_isolation_v1.py scripts/test_c3_registration_seal_isolation_v1.py
   source-ready:
     timeout-minutes: 8
     if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || ((github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out') && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository))
@@ -104,6 +117,76 @@ jobs:
           path: evidence/
           retention-days: 90
           if-no-files-found: error
+
+  # Diagnostics run separately: never block source-ready outputs or research registration.
+  actions-timing-observation:
+    needs: source-ready
+    if: always() && github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Record authenticated Actions queue timing (read only)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import datetime,json,os,urllib.request
+          now=datetime.datetime.now(datetime.timezone.utc)
+          url=f"https://api.github.com/repos/{os.environ['GH_REPOSITORY']}/actions/runs/{os.environ['GH_RUN_ID']}"
+          req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'})
+          try:
+              with urllib.request.urlopen(req,timeout=10) as response:
+                  payload=json.load(response)
+              def parse(value):
+                  return datetime.datetime.fromisoformat(value.replace('Z','+00:00')) if value else None
+              created=parse(payload.get('created_at'))
+              started=parse(payload.get('run_started_at'))
+              result={'schema':'C3_ACTIONS_QUEUE_TIMING_V1','run_id':payload.get('id'),
+                      'event':payload.get('event'),'created_at':payload.get('created_at'),
+                      'run_started_at':payload.get('run_started_at'),
+                      'observed_utc':now.isoformat(),
+                      'created_to_run_start_seconds':(started-created).total_seconds() if created and started else None,
+                      'run_start_to_observation_seconds':(now-started).total_seconds() if started else None,
+                      'schedule_cron':os.environ.get('GITHUB_EVENT_SCHEDULE'),
+                      'concurrency_wait_seconds':None,
+                      'registration_authority_granted':False}
+              print(json.dumps(result,sort_keys=True))
+              # Historical runs are diagnostic only; never feed registration gates.
+              for historical_id in (43782321128,43793770708,43796268970):
+                  historical_url=f"https://api.github.com/repos/{os.environ['GH_REPOSITORY']}/actions/runs/{historical_id}"
+                  try:
+                      historical_req=urllib.request.Request(historical_url,headers={
+                          'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                          'Accept':'application/vnd.github+json',
+                          'X-GitHub-Api-Version':'2022-11-28'})
+                      with urllib.request.urlopen(historical_req,timeout=5) as response:
+                          historical=json.load(response)
+                      hc=parse(historical.get('created_at'))
+                      hs=parse(historical.get('run_started_at'))
+                      print(json.dumps({'schema':'C3_HISTORICAL_RUN_TIMING_V1',
+                          'run_id':historical_id,'event':historical.get('event'),
+                          'head_branch':historical.get('head_branch'),
+                          'run_attempt':historical.get('run_attempt'),
+                          'created_at':historical.get('created_at'),
+                          'run_started_at':historical.get('run_started_at'),
+                          'created_to_run_start_seconds':(hs-hc).total_seconds() if hc and hs else None,
+                          'concurrency_wait_seconds':None,
+                          'registration_authority_granted':False},sort_keys=True))
+                  except Exception as historical_error:
+                      print(json.dumps({'schema':'C3_HISTORICAL_RUN_TIMING_V1',
+                          'run_id':historical_id,'status':'UNAVAILABLE',
+                          'error_type':type(historical_error).__name__,
+                          'registration_authority_granted':False},sort_keys=True))
+          except Exception as exc:
+              print(json.dumps({'schema':'C3_ACTIONS_QUEUE_TIMING_V1','status':'UNAVAILABLE',
+                  'error_type':type(exc).__name__,'registration_authority_granted':False}))
+          PY
 
   research:
     needs: source-ready
