@@ -154,6 +154,32 @@ jobs:
                       'concurrency_wait_seconds':None,
                       'registration_authority_granted':False}
               print(json.dumps(result,sort_keys=True))
+              # Historical runs are diagnostic only; never feed registration gates.
+              for historical_id in (43782321128,43793770708,43796268970):
+                  historical_url=f"https://api.github.com/repos/{os.environ['GH_REPOSITORY']}/actions/runs/{historical_id}"
+                  try:
+                      historical_req=urllib.request.Request(historical_url,headers={
+                          'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                          'Accept':'application/vnd.github+json',
+                          'X-GitHub-Api-Version':'2022-11-28'})
+                      with urllib.request.urlopen(historical_req,timeout=5) as response:
+                          historical=json.load(response)
+                      hc=parse(historical.get('created_at'))
+                      hs=parse(historical.get('run_started_at'))
+                      print(json.dumps({'schema':'C3_HISTORICAL_RUN_TIMING_V1',
+                          'run_id':historical_id,'event':historical.get('event'),
+                          'head_branch':historical.get('head_branch'),
+                          'run_attempt':historical.get('run_attempt'),
+                          'created_at':historical.get('created_at'),
+                          'run_started_at':historical.get('run_started_at'),
+                          'created_to_run_start_seconds':(hs-hc).total_seconds() if hc and hs else None,
+                          'concurrency_wait_seconds':None,
+                          'registration_authority_granted':False},sort_keys=True))
+                  except Exception as historical_error:
+                      print(json.dumps({'schema':'C3_HISTORICAL_RUN_TIMING_V1',
+                          'run_id':historical_id,'status':'UNAVAILABLE',
+                          'error_type':type(historical_error).__name__,
+                          'registration_authority_granted':False},sort_keys=True))
           except Exception as exc:
               print(json.dumps({'schema':'C3_ACTIONS_QUEUE_TIMING_V1','status':'UNAVAILABLE',
                   'error_type':type(exc).__name__,'registration_authority_granted':False}))
