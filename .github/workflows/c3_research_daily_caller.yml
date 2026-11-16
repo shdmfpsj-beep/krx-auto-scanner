@@ -34,6 +34,9 @@ jobs:
           sparse-checkout: |
             /.github/workflows/c3_research_daily_caller.yml
             /.github/workflows/c3_morning_research_adapter_v1.yml
+            /scripts/c3_morning_source_v1.py
+            /scripts/test_c3_registration_gate_diagnostics_v1.py
+            /scripts/c3_telegram_inputs.py
           sparse-checkout-cone-mode: false
       - name: Check the pinned caller without running production collection
         run: |
@@ -58,6 +61,11 @@ jobs:
           assert 'ref: '+pin in pre and 'scripts/c3_morning_source_v1.py' in pre and 'persist-credentials: false' in pre
           print('Pinned engine, read-only source preflight and explicit single secret valid; production disabled on PR')
           PYCODE
+      - name: Run fail-closed registration diagnostics unit tests (PR only)
+        env:
+          PYTHONPATH: scripts
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python -m unittest -v scripts/test_c3_registration_gate_diagnostics_v1.py
   source-ready:
     timeout-minutes: 8
     if: github.repository == 'shdmfpsj-beep/krx-auto-scanner' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || ((github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out') && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository))
