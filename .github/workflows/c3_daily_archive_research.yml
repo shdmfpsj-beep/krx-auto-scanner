@@ -112,6 +112,7 @@ jobs:
           python -m unittest discover -s scripts -p test_c3_chart_first_turnaround_v1.py -v
           python scripts/c3_chart_first_turnaround_v1.py --input output/analysis/all_technical_diagnostics.json --output output/analysis/chart_first_turnaround_shadow.json
           python scripts/c3_compare_chart_first_v1.py --input output/analysis/all_technical_diagnostics.json --output output/analysis/chart_first_comparison.json
+          python scripts/c3_early_stage_v1.py --input output/analysis/all_technical_diagnostics.json --output output/analysis/early_stage_shadow.json
           python - <<'PY'
           import json
           from pathlib import Path
@@ -183,6 +184,7 @@ jobs:
             output/analysis/all_technical_diagnostics.json
             output/analysis/chart_first_turnaround_shadow.json
             output/analysis/chart_first_comparison.json
+            output/analysis/early_stage_shadow.json
             output/analysis/company_quality.json
             output/analysis/approved_engine_calculation.json
             output/analysis/history_provenance.json
