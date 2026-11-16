@@ -43,6 +43,14 @@ def trigger_context(env=None,event=None):
     return result
 
 
+def registration_gate_blocker(allowed,window,ready):
+    """Explain the existing fail-closed gate; never grant registration."""
+    if allowed is not True:return 'TRIGGER_NOT_APPROVED_FOR_ORIGINAL_REGISTRATION'
+    if window!='OPEN':return 'MORNING_REGISTRATION_WINDOW_CLOSED'
+    if ready is not True:return 'OFFICIAL_SOURCE_NOT_READY'
+    return None
+
+
 def require_official_collection(manifest,day):
     if (manifest.get('asof')!=day or manifest.get('official_dataset_usable') is not True or
         not isinstance(manifest.get('official_market_rows'),int) or isinstance(manifest['official_market_rows'],bool) or manifest['official_market_rows']<=0):
@@ -158,14 +166,7 @@ def execute(outdir,requested=None,clock=None,recover=None):
     # Diagnostics only: never relax the original registration or approval gates.
     # A successful source job is not equivalent to an authorized registration.
     trigger_allowed=result.get('trigger',{}).get('approved_original_registration_allowed') is True
-    if not trigger_allowed:
-        result['registration_gate_blocker']='TRIGGER_NOT_APPROVED_FOR_ORIGINAL_REGISTRATION'
-    elif result['registration_window']!='OPEN':
-        result['registration_gate_blocker']='MORNING_REGISTRATION_WINDOW_CLOSED'
-    elif result['ready'] is not True:
-        result['registration_gate_blocker']='OFFICIAL_SOURCE_NOT_READY'
-    else:
-        result['registration_gate_blocker']=None
+    result['registration_gate_blocker']=registration_gate_blocker(trigger_allowed,result['registration_window'],result['ready'])
     print(json.dumps({'registration_gate_blocker':result['registration_gate_blocker'],
         'registration_window':result['registration_window'],
         'registration_trigger_allowed':trigger_allowed,
