@@ -31,6 +31,28 @@ class RegistrationGateDiagnosticsTest(unittest.TestCase):
                                  GITHUB_REF='refs/heads/other'),event={})
         self.assertFalse(ctx['approved_original_registration_allowed'])
 
+    def test_wrong_repository_cannot_register(self):
+        env={'GITHUB_REPOSITORY':'untrusted/fork',
+             'GITHUB_REF':'refs/heads/main','GITHUB_EVENT_NAME':'schedule'}
+        self.assertFalse(trigger_context(env,event={})['approved_original_registration_allowed'])
+
+    def test_workflow_run_cannot_register_even_if_valid_wakeup(self):
+        env={'GITHUB_REPOSITORY':'shdmfpsj-beep/krx-auto-scanner',
+             'GITHUB_REF':'refs/heads/main','GITHUB_EVENT_NAME':'workflow_run'}
+        event={'workflow_run':{'id':12345,
+            'name':'KRX official independent daily source probe (no trading)',
+            'head_branch':'main','head_repository':{'full_name':env['GITHUB_REPOSITORY']},
+            'status':'completed','event':'schedule','conclusion':'success'}}
+        self.assertFalse(trigger_context(env,event=event)['approved_original_registration_allowed'])
+
+    def test_unknown_window_is_not_open(self):
+        self.assertEqual(registration_gate_blocker(True,'UNKNOWN',True),
+                         'MORNING_REGISTRATION_WINDOW_CLOSED')
+
+    def test_missing_ready_is_not_approved(self):
+        self.assertEqual(registration_gate_blocker(True,'OPEN',None),
+                         'OFFICIAL_SOURCE_NOT_READY')
+
 
 if __name__=='__main__':
     unittest.main()
