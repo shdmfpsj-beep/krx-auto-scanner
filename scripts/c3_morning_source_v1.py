@@ -155,6 +155,22 @@ def execute(outdir,requested=None,clock=None,recover=None):
         message=str(exc)
         result['blocker']=message if isinstance(exc,ValueError) and __import__('re').fullmatch('[A-Z_0-9]{1,110}',message) else type(exc).__name__
     if not explicit_clock:result['registration_window']='OPEN' if datetime.now(timezone.utc).astimezone(KST).hour<9 else 'CLOSED'
+    # Diagnostics only: never relax the original registration or approval gates.
+    # A successful source job is not equivalent to an authorized registration.
+    trigger_allowed=result.get('trigger',{}).get('approved_original_registration_allowed') is True
+    if not trigger_allowed:
+        result['registration_gate_blocker']='TRIGGER_NOT_APPROVED_FOR_ORIGINAL_REGISTRATION'
+    elif result['registration_window']!='OPEN':
+        result['registration_gate_blocker']='MORNING_REGISTRATION_WINDOW_CLOSED'
+    elif result['ready'] is not True:
+        result['registration_gate_blocker']='OFFICIAL_SOURCE_NOT_READY'
+    else:
+        result['registration_gate_blocker']=None
+    print(json.dumps({'registration_gate_blocker':result['registration_gate_blocker'],
+        'registration_window':result['registration_window'],
+        'registration_trigger_allowed':trigger_allowed,
+        'ready':result['ready'],'source_day':result.get('requested_day'),
+        'run_id':os.environ.get('GITHUB_RUN_ID')}))
     (out/'morning_source.json').write_bytes(canonical(result)+b'\n')
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'],'a') as f:
