@@ -21,7 +21,9 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: c3-approved-daily-caller
+  # PR checks are read-only and must not queue ahead of production runs.
+  # Keep schedule/dispatch/workflow_run under the SAME writer-safe lock.
+  group: ${{ github.event_name == 'pull_request' && 'c3-pr-review-manifest' || 'c3-approved-daily-caller' }}
   cancel-in-progress: false
 jobs:
   review-manifest:
