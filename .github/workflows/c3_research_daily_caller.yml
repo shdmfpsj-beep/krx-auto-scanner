@@ -84,6 +84,30 @@ jobs:
       registration_window: ${{ steps.source.outputs.registration_window }}
       registration_trigger_allowed: ${{ steps.source.outputs.registration_trigger_allowed }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/*.py
+            /config/c3_morning_deploy_request.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 54e7120b01966930e176d431e85b679347210c41
+          path: engine
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install requests pandas==2.2.3 exchange-calendars==4.13.2 cryptography --disable-pip-version-check
+      - name: Verify prior-session official KRX and cache before the existing engine
+        id: source
+        env:
+          PYTHONPATH: scripts:engine/scripts
+          GH_TOKEN: ${{ github.token }}
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python scripts/c3_morning_source_v1.py --outdir evidence --require-data
+      # Telemetry must not delay the time-critical source validation step.
       - name: Record authenticated Actions queue timing (read only)
         continue-on-error: true
         env:
@@ -117,29 +141,6 @@ jobs:
               print(json.dumps({'schema':'C3_ACTIONS_QUEUE_TIMING_V1','status':'UNAVAILABLE',
                   'error_type':type(exc).__name__,'registration_authority_granted':False}))
           PY
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            /scripts/*.py
-            /config/c3_morning_deploy_request.json
-          sparse-checkout-cone-mode: false
-      - uses: actions/checkout@v4
-        with:
-          ref: 54e7120b01966930e176d431e85b679347210c41
-          path: engine
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: python -m pip install requests pandas==2.2.3 exchange-calendars==4.13.2 cryptography --disable-pip-version-check
-      - name: Verify prior-session official KRX and cache before the existing engine
-        id: source
-        env:
-          PYTHONPATH: scripts:engine/scripts
-          GH_TOKEN: ${{ github.token }}
-          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
-        run: python scripts/c3_morning_source_v1.py --outdir evidence --require-data
       - uses: actions/upload-artifact@v4
         if: always()
         with:
