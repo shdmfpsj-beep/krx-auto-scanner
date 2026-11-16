@@ -31,7 +31,7 @@ def classify(r,day):
     return out
 def geometry(row, result):
     """Use already computed V4 plan; never manufacture a new stop or reprice expired support."""
-    if result['status']!='CHART_FIRST_WATCH':return result
+    if result['status'] not in ('CHART_FIRST_WATCH','V4_ENTRY_RESEARCH_REVIEW'):return result
     window=row['entry_window'];best=(row.get('range_review') or {}).get('best')
     if not best or not best.get('range_valid') or not best.get('stop_reliability',{}).get('research_eligible'):
         result['geometry_reason']='V4_VALID_PLAN_MISSING';return result
