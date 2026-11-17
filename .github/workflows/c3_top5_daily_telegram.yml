@@ -139,19 +139,29 @@ jobs:
               # Confirmed swing-pivot and ATR14 risk-first reference; no fixed 0.5% stop.
               tr=[max(a[j][1]-a[j][2],abs(a[j][1]-a[j-1][0]),abs(a[j][2]-a[j-1][0])) for j in range(1,len(a))]
               atr14=statistics.mean(tr[-14:])
+              # Use only confirmed pivot supports near the current MA20.
+              # A distant historical low is not a useful entry support.
               piv=[a[j][2] for j in range(max(2,len(a)-25),len(a)-2)
-                if a[j][2]<ma20 and all(a[j][2]<a[k][2] for k in (j-2,j-1,j+1,j+2))]
-              support=max(piv) if piv else None
+                if all(a[j][2]<a[k][2] for k in (j-2,j-1,j+1,j+2))]
+              nearby=[p for p in piv if ma20-1.5*atr14<=p<=ma20+.5*atr14]
+              support=max(nearby) if nearby else None
+              # Entry is a narrow ATR zone around tested support, not MA20 +/- 1-2%.
+              # No valid support -> no invented entry/stop.
+              entry_lo=round(max(support,ma20-.5*atr14)) if support is not None else None
+              entry_hi=round(min(ma20+.25*atr14,entry_lo+.6*atr14)) if entry_lo is not None else None
               stop=round(support-.5*atr14) if support is not None else None
-              entry_lo=round(ma20*.99);entry_hi=round(ma20*1.02)
-              r1=round(high) if high>entry_hi else None
+              high=max(x[1] for x in a[-20:])
+              # Prior resistance must be above entry; use only completed sessions.
+              r1=round(high) if entry_hi is not None and high>entry_hi else None
               r2=round(max(x[1] for x in a[-60:]))
-              if r2<=max(high,entry_hi):r2=None
+              if r2<=max(high,entry_hi or high):r2=None
               rr_entry=(r1-entry_hi)/(entry_hi-stop) if r1 and stop is not None and entry_hi>stop else None
-              risk_at_entry=(entry_hi-stop)/entry_hi if stop is not None else None
-              geometry_ok=(stop is not None and stop<entry_lo-.5*atr14
+              risk_at_entry=(entry_hi-stop)/entry_hi if stop is not None and entry_hi else None
+              geometry_ok=(entry_lo is not None and entry_hi is not None and entry_lo<entry_hi
+                and stop is not None and stop<entry_lo
                 and risk_at_entry is not None and .015<=risk_at_entry<=.05
-                and rr_entry is not None and rr_entry>=2.0)
+                and rr_entry is not None and rr_entry>=2.0
+                and entry_hi>=last-1.5*atr14 and entry_lo<=last+.5*atr14)
               if not geometry_ok:
                 stop=None
                 rr_entry=None
@@ -159,6 +169,8 @@ jobs:
                 'close':round(last),'ma20':round(ma20),'low10':round(low),'high20':round(high),
                 'rvol':round(rvol,2),'rs20pp':round(rs*100,2),'stop_distance_pct':round(risk*100,2),
                 'entry_watch_low':entry_lo,'entry_watch_high':entry_hi,
+                'entry_method':'CONFIRMED_PIVOT_ATR_ZONE_V1',
+                'entry_risk_pct':round(risk_at_entry*100,2) if risk_at_entry is not None else None,
                 'structural_stop_ref':stop,'r1_ref':r1,'r2_ref':r2,
                 'atr14':round(atr14,2),'pivot_support':round(support) if support is not None else None,
                 'geometry_validated':bool(geometry_ok),
