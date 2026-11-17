@@ -1,0 +1,78 @@
+name: C3 KRX Open API fresh-source audit (research only)
+on:
+  push:
+    branches: [research/c3-kiwoom-fresh-algorithm-20261117]
+    paths:
+      - 'scripts/c3_krx_fresh_v1.py'
+      - 'scripts/test_c3_krx_fresh_v1.py'
+      - '.github/workflows/c3_krx_fresh_source_v1.yml'
+  workflow_dispatch:
+    inputs:
+      end_date:
+        description: 'Completed KRX session YYYY-MM-DD (default 2026-11-16)'
+        required: false
+        default: '2026-11-16'
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: c3-krx-fresh-research
+  cancel-in-progress: false
+jobs:
+  collect-and-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      PYTHONPATH: scripts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_krx_fresh_v1.py
+            scripts/test_c3_krx_fresh_v1.py
+            scripts/krx_official_eod_v65.py
+            scripts/forward_ledger_v63.py
+            scripts/source_consensus_v64.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Offline research tests
+        run: python -m unittest discover -s scripts -p test_c3_krx_fresh_v1.py -v
+      - name: Check official key without disclosure
+        shell: bash
+        run: |
+          if [[ -z "${KRX_AUTH_KEY:-}" ]]; then
+            echo "::error::KRX_AUTH_KEY GitHub secret is missing"
+            exit 1
+          fi
+      - name: Fetch KRX official dated daily bars only
+        shell: bash
+        env:
+          END_DATE: ${{ inputs.end_date || '2026-11-16' }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os,re
+          from datetime import date,timedelta
+          value=os.environ['END_DATE']
+          if not re.fullmatch(r'20\d{2}-\d{2}-\d{2}',value):raise SystemExit('INVALID_END_DATE')
+          end=date.fromisoformat(value)
+          if end>=date.today():raise SystemExit('END_DATE_MUST_BE_PAST')
+          start=end-timedelta(days=159)
+          with open('c3_krx_dates.txt','w') as f:f.write(start.isoformat()+'\n'+end.isoformat())
+          PY
+          START="$(sed -n '1p' c3_krx_dates.txt)"
+          END="$(sed -n '2p' c3_krx_dates.txt)"
+          python scripts/c3_krx_fresh_v1.py --start "$START" --end "$END" --max-days 160 --out evidence/c3_krx_fresh
+      - name: Upload evidence even when source is incomplete
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-krx-fresh-source-audit
+          path: |
+            evidence/c3_krx_fresh/report.json
+            evidence/c3_krx_fresh/raw/
+          if-no-files-found: warn
+          retention-days: 30
