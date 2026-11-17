@@ -1,4 +1,4 @@
-name: C3 TOP5 daily one-photo Telegram (user trades)
+name: C3 TOP5 classic per-stock Telegram (user trades)
 on:
   workflow_dispatch:
   schedule:
@@ -7,7 +7,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: c3-top5-daily-one-photo
+  group: c3-top5-daily-classic-per-stock
   cancel-in-progress: false
 jobs:
   top5:
@@ -24,7 +24,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y fonts-nanum >/dev/null
           python3 -m pip install pillow --disable-pip-version-check
-      - name: Collect current official KRX sessions, select up to five and send one image
+      - name: Collect KRX sessions and render one classic image per stock
         shell: bash
         run: |
           python3 - <<'PY'
@@ -128,73 +128,104 @@ jobs:
             fontpath='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
             boldpath='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
             def font(size,bold=False):return ImageFont.truetype(boldpath if bold else fontpath,size)
-            # Compact five-panel classic white/gold report: actual OHLC candles, MA5/20/60,
-            # volume, entry observation band and 10-day low reference.
-            from PIL import Image
+            # One full-height classic C3 card per selected symbol, never a five-panel sheet.
             INK=(42,43,44);SUB=(108,112,115);GOLD=(172,136,72)
-            GREEN=(41,119,86);BLUE=(54,124,175);RED=(184,75,72)
-            im=Image.new('RGB',(1400,2440),(250,249,245));draw=ImageDraw.Draw(im)
-            draw.rectangle((0,0,1400,164),fill=(255,255,255))
-            draw.rectangle((0,0,14,164),fill=GOLD)
-            draw.text((58,28),'강현AI PRO  |  C3 TOP5',font=font(49,True),fill=INK)
-            draw.text((60,103),'KRX '+days[-1]+'  ·  기술적 관심종목  ·  직접 매매 / 자동주문 없음',font=font(24),fill=SUB)
-            draw.line((55,166,1345,166),fill=GOLD,width=3)
-            for i in range(5):
-              y=195+i*425
-              draw.rounded_rectangle((42,y,1358,y+405),radius=18,fill=(255,255,255),outline=(223,216,202),width=2)
-              if i>=len(selected):
-                draw.text((82,y+155),str(i+1)+'  조건 충족 종목 없음',font=font(34,True),fill=SUB)
-                continue
-              x=selected[i];bars=x['chart_bars']
-              draw.text((76,y+20),str(i+1)+'  '+x['name']+'  ('+x['code']+')',font=font(32,True),fill=INK)
-              draw.text((76,y+68),x['market']+'  ·  '+str(x['score'])+'점  ·  RVOL '+str(x['rvol'])+
-                '  ·  RS '+str(x['rs20pp'])+'%p',font=font(21),fill=SUB)
-              px0,px1=83,849;py0,py1=y+123,y+301
-              prices=[v['high'] for v in bars]+[v['low'] for v in bars]
-              for n in (5,20,60):
-                closes=[v['close'] for v in bars]
-                prices.extend(statistics.mean(closes[k-n+1:k+1]) for k in range(n-1,len(closes)))
-              prices.extend([x['entry_watch_low'],x['entry_watch_high'],x['low10']])
-              pmin=min(prices)*.985;pmax=max(prices)*1.015
-              def py(v):return int(py1-(v-pmin)/(pmax-pmin)*(py1-py0))
-              def px(k):return int(px0+9+(px1-px0-18)*k/59)
-              draw.rectangle((px0,py(x['entry_watch_high']),px1,py(x['entry_watch_low'])),
-                fill=(237,245,240))
-              for j in range(5):
-                yy=py0+(py1-py0)*j//4
-                draw.line((px0,yy,px1,yy),fill=(231,232,230),width=1)
+            GREEN=(41,119,86);BLUE=(54,124,175);RED=(184,75,72);PURPLE=(133,104,160)
+            images=[]
+            for rank,x in enumerate(selected,1):
+              bars=x['chart_bars'];closes=[v['close'] for v in bars]
+              im=Image.new('RGB',(1400,2400),(250,249,245));draw=ImageDraw.Draw(im)
+              draw.rectangle((0,0,1400,98),fill=INK);draw.rectangle((0,94,1400,100),fill=GOLD)
+              draw.text((50,22),'강현AI PRO | C3 TOP5',font=font(46,True),fill=(243,230,205))
+              draw.text((1100,32),days[-1][:4]+'.'+days[-1][4:6]+'.'+days[-1][6:],font=font(29),fill=(238,234,226))
+              draw.text((54,128),x['name'],font=font(63,True),fill=INK)
+              draw.text((54,207),x['code']+' · '+x['market']+' · WATCH TOP'+str(rank),font=font(30),fill=SUB)
+              draw.text((1330,125),format(x['close'],',')+'원',font=font(59,True),fill=INK,anchor='ra')
+              change=x['close']-bars[-2]['close'];pct=change/bars[-2]['close']*100
+              draw.text((1330,205),f'{change:+,.0f}원 ({pct:+.2f}%)',font=font(30),fill=RED if change>0 else BLUE,anchor='ra')
+              draw.rectangle((48,256,1352,302),fill=(240,235,221))
+              draw.text((700,264),'별도 WATCH · 재무 미검증 · 신규 진입 승인 없음',font=font(26,True),fill=GOLD,anchor='ma')
+              draw.rounded_rectangle((48,319,1352,1193),radius=13,fill='white',outline=(222,218,209),width=2)
+              draw.text((75,339),'실제 일봉 60거래일 · 거래량',font=font(31,True),fill=INK)
+              for i,(n,col) in enumerate(((5,(64,91,129)),(20,GOLD),(60,(115,139,128)))):
+                xx=790+i*172;draw.line((xx,355,xx+28,355),fill=col,width=4)
+                draw.text((xx+35,339),str(n)+'일선',font=font(22),fill=SUB)
+              left,right,top,bottom=155,1100,395,1018
+              vals=[v[k] for v in bars for k in ('high','low')]+[x['entry_watch_low'],x['entry_watch_high'],x['low10']]
+              for n in (5,20,60):vals.extend(statistics.mean(closes[j-n+1:j+1]) for j in range(n-1,60))
+              low=min(vals)*.96;high=max(vals)*1.04
+              py=lambda v:int(bottom-(v-low)/(high-low)*(bottom-top))
+              px=lambda k:int(left+(right-left-28)*k/59)
+              for j in range(6):
+                value=low+(high-low)*j/5;yy=py(value)
+                draw.line((left,yy,right,yy),fill=(231,229,223),width=1)
+                draw.text((left-18,yy),format(value,',.0f'),font=font(23),fill=SUB,anchor='rm')
+              draw.rectangle((left,py(x['entry_watch_high']),right,py(x['entry_watch_low'])),fill=(238,246,239))
               for k,v in enumerate(bars):
-                xx=px(k);up=v['close']>=v['open'];color=RED if up else BLUE
-                draw.line((xx,py(v['high']),xx,py(v['low'])),fill=color,width=2)
-                top=min(py(v['open']),py(v['close']));bottom=max(py(v['open']),py(v['close']))
-                draw.rectangle((xx-4,top,xx+4,max(top+2,bottom)),fill=color)
-              closes=[v['close'] for v in bars]
-              for n,color in ((5,(64,91,129)),(20,GOLD),(60,(115,139,128))):
-                pts=[(px(k),py(statistics.mean(closes[k-n+1:k+1]))) for k in range(n-1,60)]
-                if len(pts)>1:draw.line(pts,fill=color,width=3,joint='curve')
-              draw.line((px0,py(x['low10']),px1,py(x['low10'])),fill=RED,width=2)
+                xx=px(k);color=RED if v['close']>=v['open'] else BLUE
+                draw.line((xx,py(v['high']),xx,py(v['low'])),fill=color,width=3)
+                a,b=sorted((py(v['open']),py(v['close'])))
+                draw.rectangle((xx-5,a,xx+5,max(a+2,b)),fill=color)
+              for n,col in ((5,(64,91,129)),(20,GOLD),(60,(115,139,128))):
+                pts=[(px(j),py(statistics.mean(closes[j-n+1:j+1]))) for j in range(n-1,60)]
+                if len(pts)>1:draw.line(pts,fill=col,width=4)
+              draw.line((right,py(x['close']),right+20,py(x['close'])),fill=INK,width=2)
+              draw.rounded_rectangle((right+20,py(x['close'])-23,1345,py(x['close'])+23),radius=4,fill=INK)
+              draw.text((1330,py(x['close'])),'종가 '+format(x['close'],','),font=font(26,True),fill='white',anchor='rm')
               vmax=max(v['volume'] for v in bars)
               for k,v in enumerate(bars):
-                xx=px(k);base=y+366
-                height=int(v['volume']/vmax*48)
-                draw.rectangle((xx-4,base-height,xx+4,base),fill=(182,191,202))
-              draw.text((92,y+372),'60거래일 봉  |  MA5 파랑 · MA20 금색 · MA60 녹색 · 거래량 회색',font=font(17),fill=SUB)
-              tx=890
-              draw.text((tx,y+125),'종가  '+format(x['close'],',')+'원',font=font(29,True),fill=INK)
-              draw.text((tx,y+182),'관심구간',font=font(22),fill=SUB)
-              draw.text((tx,y+214),format(x['entry_watch_low'],',')+'~'+format(x['entry_watch_high'],',')+'원',font=font(26,True),fill=GREEN)
-              draw.text((tx,y+271),'10일 저가 참고',font=font(21),fill=SUB)
-              draw.text((tx,y+303),format(x['low10'],',')+'원',font=font(26,True),fill=RED)
-              draw.text((tx,y+353),'기술 후보 · 재무 미검증',font=font(18),fill=SUB)
-            draw.line((58,2333,1340,2333),fill=GOLD,width=2)
-            draw.text((61,2350),'자료: KRX Open API · 비수정 일봉 · 정규장 15:30 및 기업행위 미인증',font=font(22),fill=SUB)
-            draw.text((61,2390),'관심구간은 MA20 기준 관찰 영역, 손절 참고선은 10일 저가입니다. 매수 지시가 아닙니다.',font=font(19),fill=SUB)
-            image=root/'c3_top5_one_photo.png';im.save(image)
-            receipt['image_sha256']=hashlib.sha256(image.read_bytes()).hexdigest()
+                xx=px(k);h=int(v['volume']/vmax*80);color=RED if v['close']>=v['open'] else BLUE
+                draw.rectangle((xx-5,1130-h,xx+5,1130),fill=color)
+                if k%12==0 or k==59:
+                  draw.text((xx,1146),v['date'][4:6]+'/'+v['date'][6:],font=font(23),fill=SUB,anchor='ma')
+              draw.text((155,1033),'거래량',font=font(24),fill=SUB)
+              draw.text((1100,1033),'최대 '+format(vmax/1e6,'.2f')+'백만주',font=font(24),fill=SUB,anchor='ra')
+              draw.text((53,1220),'연구용 관찰 가격 · 주문 승인이 아님',font=font(32,True),fill=INK)
+              cells=[('매수 관찰 범위',format(x['entry_watch_low'],',')+'~'+format(x['entry_watch_high'],','),GREEN),
+                ('2차 매수','미확정',BLUE),('구조손절','미확정',RED),
+                ('1차 저항 R1','미확정',GOLD),('2차 저항 R2','미확정',PURPLE)]
+              for j,(label,value,color) in enumerate(cells):
+                xx=48+j*261;draw.rectangle((xx,1270,xx+252,1404),fill='white')
+                draw.line((xx,1270,xx+252,1270),fill=color,width=4)
+                draw.text((xx+126,1288),label,font=font(25,True),fill=color,anchor='ma')
+                draw.text((xx+126,1340),value,font=font(23,True),fill=color,anchor='ma')
+              draw.text((53,1430),'기존 정렬 순위 '+str(rank)+' · 임의 가중 점수 '+str(x['score'])+'점',font=font(31,True),fill=INK)
+              draw.text((55,1490),'RS20 '+format(x['rs20pp'],'+.2f')+'%p · RVOL '+str(x['rvol'])+' · 10일 저가 '+format(x['low10'],',')+'원',font=font(29),fill=INK)
+              draw.text((53,1570),'선정 후 기업 자료 및 위험 검토',font=font(33,True),fill=INK)
+              notes=[('정량·섹터','KRX 가격·거래량 기반 연구 후보. 업종·재료 원본 미확인.'),
+                ('재무·실적','OpenDART 당일 PIT 재무 미연결. 실적·재무 건전성 판단 보류.'),
+                ('주요 이슈·수급','뉴스·외국인·기관 수급 검증 미완료. 추정하지 않음.'),
+                ('리스크·구조손절','10일 저가 '+format(x['low10'],',')+'원은 참고선. 검증된 구조손절·저항·진입 승인 없음.')]
+              for j,(label,value) in enumerate(notes):
+                yy=1635+j*165;draw.rectangle((48,yy,1352,yy+155),fill='white')
+                draw.line((48,yy,48,yy+155),fill=GOLD,width=5)
+                draw.text((72,yy+28),f'{j+1:02}',font=font(23,True),fill=GOLD)
+                draw.text((120,yy+25),label,font=font(27,True),fill=INK)
+                # Width-aware two-line wrap; no text outside the note box.
+                words=value.split();lines=[];line=''
+                for word in words:
+                  test=(line+' '+word).strip()
+                  if draw.textlength(test,font=font(27))>920 and line:
+                    lines.append(line);line=word
+                  else:line=test
+                if line:lines.append(line)
+                if len(lines)>3:raise ValueError('CARD_NOTE_OVERFLOW_'+x['code'])
+                for k,line in enumerate(lines):draw.text((365,yy+22+k*39),line,font=font(27),fill=INK)
+              draw.text((700,2324),'KRX 공식 일봉 · 비수정 · 정규장 종가 및 기업행위 미인증',font=font(22),fill=SUB,anchor='ma')
+              draw.text((700,2363),'연구용 WATCH · 현재 매수 추천/실시간 성과 아님',font=font(23,True),fill=RED,anchor='ma')
+              path=root/(str(rank).zfill(2)+'_'+x['code']+'_c3_classic.png')
+              im.save(path,optimize=True);images.append(path)
+            receipt['image_sha256']=[hashlib.sha256(p.read_bytes()).hexdigest() for p in images]
+            receipt['image_files']=[p.name for p in images]
+            receipt['image_count']=len(images)
+            if not images:
+              receipt['status']='CASH_NO_CANDIDATES_NO_SEND'
             # Never send stale same-day duplicates from reruns: workflow concurrency prevents overlap,
             # but manual reruns may duplicate. A separate persisted receipt gate is required.
             # Until that gate exists, scheduled dispatch only; manual runs are preview-only.
-            if os.environ.get('GITHUB_EVENT_NAME')!='schedule':
+            if not images:
+              receipt['status']='CASH_NO_CANDIDATES_NO_SEND'
+            elif os.environ.get('GITHUB_EVENT_NAME')!='schedule':
               receipt['status']='PREVIEW_ONLY_MANUAL_RUN'
             else:
               token=os.environ.get('TELEGRAM_BOT_TOKEN','');chat=os.environ.get('TELEGRAM_CHAT_ID','')
@@ -232,12 +263,14 @@ jobs:
                 if filename:head+='; filename="'+filename+'"'
                 head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
                 return head.encode()+value+b'\r\n'
-              payload=part('chat_id',chat.encode())+part('caption',('C3 TOP5 '+days[-1]+' | 관심종목, 매매는 본인 판단').encode())+part('photo',image.read_bytes(),'c3_top5.png','image/png')+('--'+boundary+'--\r\n').encode()
-              req=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',data=payload,
-                headers={'Content-Type':'multipart/form-data; boundary='+boundary},method='POST')
-              with urllib.request.urlopen(req,timeout=30) as resp:response=json.load(resp)
-              if not response.get('ok'):raise ValueError('TELEGRAM_NOT_OK')
-              receipt['telegram_photos_sent']=1
+              # One separate image per selected stock; no automatic retries.
+              for idx,image in enumerate(images,1):
+                payload=part('chat_id',chat.encode())+part('caption',('C3 TOP5 '+days[-1]+' | '+selected[idx-1]['name']+' | '+str(idx)+'/'+str(len(images))+' · WATCH').encode())+part('photo',image.read_bytes(),image.name,'image/png')+('--'+boundary+'--\\r\\n').encode()
+                req=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',data=payload,
+                  headers={'Content-Type':'multipart/form-data; boundary='+boundary},method='POST')
+                with urllib.request.urlopen(req,timeout=30) as resp:response=json.load(resp)
+                if not response.get('ok'):raise ValueError('TELEGRAM_NOT_OK_AT_'+str(idx))
+                receipt['telegram_photos_sent']=idx
               receipt['status']='DELIVERED'
             print('TOP5_RECEIPT',json.dumps({'status':receipt['status'],'asof':receipt['asof'],
               'passing_symbols':len(pool),'selected':selected,'photos_sent':receipt['telegram_photos_sent']},ensure_ascii=False))
@@ -251,11 +284,11 @@ jobs:
           PY
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
-      - name: Upload single image and audit receipt
+      - name: Upload individual classic images and audit receipt
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: c3-top5-daily-one-photo
+          name: c3-top5-daily-classic-per-stock
           path: output/c3_top5/
           retention-days: 30
           if-no-files-found: warn
