@@ -350,11 +350,28 @@ jobs:
             receipt['image_sha256']=[hashlib.sha256(p.read_bytes()).hexdigest() for p in images]
             receipt['image_files']=[p.name for p in images]
             receipt['image_count']=len(images)
+            # Fail closed before any scheduled delivery if cards are missing,
+            # unreadable, duplicated, or inconsistent with qualified candidates.
+            if len(images)!=len(selected):raise ValueError('IMAGE_SELECTION_COUNT_MISMATCH')
+            if len(set(p.name for p in images))!=len(images):
+              raise ValueError('DUPLICATE_IMAGE_FILENAME')
+            for idx,p in enumerate(images):
+              if not p.is_file() or p.stat().st_size<10000:
+                raise ValueError('IMAGE_MISSING_OR_TOO_SMALL_'+str(idx+1))
+              with Image.open(p) as verify:
+                verify.verify()
+              with Image.open(p) as verify:
+                if verify.size!=(1400,2400) or verify.format!='PNG':
+                  raise ValueError('IMAGE_FORMAT_OR_SIZE_INVALID_'+str(idx+1))
+            receipt['delivery_preflight']='PASSED' if images else 'NO_CANDIDATES'
+            print('C3_DELIVERY_PREFLIGHT',json.dumps({
+              'asof':days[-1],'selected':len(selected),'images':len(images),
+              'status':receipt['delivery_preflight']},ensure_ascii=False))
             if not images:
               receipt['status']='CASH_NO_CANDIDATES_NO_SEND'
             # Never send stale same-day duplicates from reruns: workflow concurrency prevents overlap,
             # but manual reruns may duplicate. A separate persisted receipt gate is required.
-            # Until that gate exists, scheduled dispatch only; manual runs are preview-only.
+            # Persisted date reservation is enforced for scheduled dispatch; manual runs remain preview-only.
             if not images:
               receipt['status']='CASH_NO_CANDIDATES_NO_SEND'
             elif os.environ.get('GITHUB_EVENT_NAME')!='schedule':
