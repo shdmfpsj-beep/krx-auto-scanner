@@ -82,16 +82,15 @@ jobs:
             if not os.environ.get('KRX_AUTH_KEY'):raise ValueError('KRX_KEY_MISSING')
             now=datetime.datetime.now(ZoneInfo('Asia/Seoul'))
             target=now.date()
-            # On weekends manual execution targets last Friday; weekdays must use same-day data.
-            while target.weekday()>4:target-=datetime.timedelta(days=1)
-            if now.hour<21 and target==now.date():
-              if os.environ.get('GITHUB_EVENT_NAME')=='workflow_dispatch':
-                # Manual preview before nightly cutoff uses prior completed trading day.
-                target-=datetime.timedelta(days=1)
-                while target.weekday()>4:target-=datetime.timedelta(days=1)
-                receipt['preview_source_policy']='PRIOR_COMPLETED_WEEKDAY'
-              else:
-                raise ValueError('BEFORE_DAILY_DATA_WINDOW')
+            # A delayed scheduled run can start the next morning. Always use the
+            # last completed weekday, not the wall-clock calendar date.
+            # KRX availability is checked below; holidays fail closed as incomplete.
+            if now.hour<21:
+              target-=datetime.timedelta(days=1)
+            while target.weekday()>4:
+              target-=datetime.timedelta(days=1)
+            if os.environ.get('GITHUB_EVENT_NAME')=='workflow_dispatch':
+              receipt['preview_source_policy']='NO_SEND_MANUAL_PREVIEW'
             days=[];data=collections.defaultdict(dict);names={}
             for offset in range(105):
               d=target-datetime.timedelta(days=offset)
