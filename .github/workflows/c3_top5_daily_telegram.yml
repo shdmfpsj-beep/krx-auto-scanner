@@ -5,7 +5,7 @@ on:
     # KST 23:30 Monday-Friday; GitHub scheduling can be delayed.
     - cron: '30 14 * * 1-5'
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: c3-top5-daily-one-photo
   cancel-in-progress: false
@@ -17,6 +17,7 @@ jobs:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Install image renderer and Korean font
         run: |
@@ -36,7 +37,8 @@ jobs:
             'user_executes_trades':True,'telegram_photos_sent':0,'candidates':[],
             'limitations':['Official KRX daily bars are not independently 15:30 regular-only certified',
             'Corporate-action adjustments and PIT financial quality not verified',
-            'Entry references are not orders or investment recommendations']}
+            'Entry references are not orders or investment recommendations',
+            'A reserved send date is never retried automatically after an uncertain Telegram outcome']}
           def fetch(day,endpoint):
             u='https://data-dbg.krx.co.kr/svc/apis/sto/'+endpoint+'?'+urllib.parse.urlencode({'basDd':day})
             req=urllib.request.Request(u,headers={'AUTH_KEY':os.environ['KRX_AUTH_KEY'],'Accept':'application/json'})
@@ -152,6 +154,32 @@ jobs:
             else:
               token=os.environ.get('TELEGRAM_BOT_TOKEN','');chat=os.environ.get('TELEGRAM_CHAT_ID','')
               if not token or not chat:raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
+              # Reserve the date BEFORE Telegram. A failed/uncertain send is not retried automatically.
+              # GitHub Contents create-only PUT is atomic for a new path; reruns fail closed.
+              import base64
+              repo=os.environ['GITHUB_REPOSITORY']
+              marker_path='receipts/c3_top5_daily/'+days[-1]+'.json'
+              marker={'schema':'C3_TOP5_SEND_RESERVATION_V1','asof':days[-1],
+                'run_id':os.environ['GITHUB_RUN_ID'],'image_sha256':receipt['image_sha256'],
+                'status':'RESERVED_BEFORE_SEND','selected_count':len(selected)}
+              api='https://api.github.com/repos/'+repo+'/contents/'+marker_path
+              body=json.dumps({'message':'Reserve C3 TOP5 one-photo delivery '+days[-1],
+                'content':base64.b64encode(json.dumps(marker,ensure_ascii=False).encode()).decode(),
+                'branch':'main'}).encode()
+              request=urllib.request.Request(api,data=body,method='PUT',headers={
+                'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',
+                'Content-Type':'application/json'})
+              try:
+                with urllib.request.urlopen(request,timeout=20) as res:
+                  if res.status!=201:raise ValueError('RESERVATION_NOT_CREATED')
+              except urllib.error.HTTPError as ex:
+                if ex.code in (409,422):
+                  receipt['status']='DUPLICATE_OR_RESERVATION_CONFLICT_BLOCKED'
+                  receipt['duplicate_guard']='PERSISTED_CREATE_ONLY'
+                  print('TOP5_DUPLICATE_BLOCKED',days[-1],ex.code)
+                raise ValueError('DELIVERY_RESERVATION_BLOCKED_'+str(ex.code))
+              receipt['delivery_reservation']=marker_path
               import uuid
               boundary='----C3'+uuid.uuid4().hex
               def part(name,value,filename=None,ctype='text/plain'):
