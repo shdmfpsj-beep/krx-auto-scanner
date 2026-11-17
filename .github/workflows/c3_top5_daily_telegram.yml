@@ -57,7 +57,14 @@ jobs:
             target=now.date()
             # On weekends manual execution targets last Friday; weekdays must use same-day data.
             while target.weekday()>4:target-=datetime.timedelta(days=1)
-            if now.hour<21 and target==now.date():raise ValueError('BEFORE_DAILY_DATA_WINDOW')
+            if now.hour<21 and target==now.date():
+              if os.environ.get('GITHUB_EVENT_NAME')=='workflow_dispatch':
+                # Manual preview before nightly cutoff uses prior completed trading day.
+                target-=datetime.timedelta(days=1)
+                while target.weekday()>4:target-=datetime.timedelta(days=1)
+                receipt['preview_source_policy']='PRIOR_COMPLETED_WEEKDAY'
+              else:
+                raise ValueError('BEFORE_DAILY_DATA_WINDOW')
             days=[];data=collections.defaultdict(dict);names={}
             for offset in range(105):
               d=target-datetime.timedelta(days=offset)
