@@ -157,11 +157,16 @@ jobs:
               if r2<=max(high,entry_hi or high):r2=None
               rr_entry=(r1-entry_hi)/(entry_hi-stop) if r1 and stop is not None and entry_hi>stop else None
               risk_at_entry=(entry_hi-stop)/entry_hi if stop is not None and entry_hi else None
+              # Guard against non-executable watch bands and stale resistance levels.
+              # Latest close must be above stop, entry zone must lie within today's
+              # 60-bar range and contain no inverted prices.
               geometry_ok=(entry_lo is not None and entry_hi is not None and entry_lo<entry_hi
-                and stop is not None and stop<entry_lo
+                and stop is not None and stop<entry_lo and stop<last
                 and risk_at_entry is not None and .015<=risk_at_entry<=.05
                 and rr_entry is not None and rr_entry>=2.0
-                and entry_hi>=last-1.5*atr14 and entry_lo<=last+.5*atr14)
+                and entry_hi>=last-1.5*atr14 and entry_lo<=last+.5*atr14
+                and entry_hi<=last+atr14
+                and r1 is not None and r1>max(entry_hi,last))
               # Independent rejection reasons; preserve raw metrics for audits.
               reasons=[]
               if support is None:reasons.append('NO_NEARBY_CONFIRMED_SUPPORT')
@@ -170,7 +175,10 @@ jobs:
               if risk_at_entry is None:reasons.append('RISK_NOT_COMPUTABLE')
               elif risk_at_entry<.015:reasons.append('RISK_BELOW_1_5PCT')
               elif risk_at_entry>.05:reasons.append('RISK_ABOVE_5PCT')
-              if r1 is None:reasons.append('NO_R1_ABOVE_ENTRY')
+              if r1 is None or (entry_hi is not None and r1<=max(entry_hi,last)):
+                reasons.append('NO_VALID_R1_ABOVE_CLOSE_AND_ENTRY')
+              if stop is not None and stop>=last:reasons.append('STOP_NOT_BELOW_CLOSE')
+              if entry_hi is not None and entry_hi>last+atr14:reasons.append('ENTRY_TOO_HIGH_VS_CLOSE')
               if rr_entry is None:reasons.append('RR_NOT_COMPUTABLE')
               elif rr_entry<2.0:reasons.append('RR_BELOW_2')
               if entry_lo is not None and entry_hi is not None and not (
