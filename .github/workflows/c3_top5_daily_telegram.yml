@@ -43,7 +43,7 @@ jobs:
             if line.strip()=='- name: Collect KRX sessions and render one classic image per stock')
           start=next(i for i in range(idx+1,len(lines)) if lines[i].strip()=="python - <<'PY'")+1
           end=next(i for i in range(start,len(lines)) if lines[i].strip()=='PY')
-          code='\\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end])
+          code='\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end])
           ast.parse(code,filename='c3_top5_embedded.py')
           print('EMBEDDED_PYTHON_SYNTAX_OK')
           PY
