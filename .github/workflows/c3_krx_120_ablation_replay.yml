@@ -1,0 +1,152 @@
+name: C3 filter ablation and walk-forward replay (research only)
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: c3-krx-official-120-session-history
+          run-id: 44007670342
+          github-token: ${{ github.token }}
+          path: input/history
+      - uses: actions/download-artifact@v4
+        with:
+          name: c3-krx-120-audit-report
+          run-id: 44014994967
+          github-token: ${{ github.token }}
+          path: input/audit
+      - name: Walk-forward replay with only prior observations at each selection date
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import csv,gzip,json,hashlib,io,math,statistics,collections
+          from pathlib import Path
+          out=Path('output/c3_ablation');out.mkdir(parents=True,exist_ok=True)
+          receipt={'schema':'C3_ABLATION_REPLAY_V1','status':'HOLD',
+            'source_run_id':44007670342,'decision':'CASH','buy_approved':False,
+            'orders_enabled':False,'telegram_requests':0,'limitations':[
+            'Historical 120-session sample only; no out-of-sample future validation',
+            'Daily bars cannot establish intraday fill ordering or slippage',
+            'No corporate-action-adjusted price or 15:30 regular-session certification',
+            'No point-in-time financial data or transaction costs',
+            'Candidate scores are technical proxies, not expected returns']}
+          try:
+            source=Path('input/history')
+            audit=json.loads(Path('input/audit/audit_report.json').read_text())
+            manifest=json.loads((source/'manifest.json').read_text())
+            raw=(source/'official_120_sessions.csv.gz').read_bytes()
+            if audit.get('status')!='RESEARCH_TRIAGE_PASS_NOT_TRADE_CERTIFIED':raise ValueError('AUDIT_GATE')
+            if manifest.get('matched_sessions')!=120 or hashlib.sha256(raw).hexdigest()!=manifest.get('csv_gz_sha256'):
+              raise ValueError('SOURCE_GATE')
+            dates=sorted(x['date'] for x in manifest['dates'])
+            if len(dates)!=120 or len(set(dates))!=120:raise ValueError('DATE_GATE')
+            def n(v):
+              try:
+                z=float(str(v).replace(',','').strip())
+                return z if math.isfinite(z) else None
+              except:return None
+            data=collections.defaultdict(dict);names={}
+            with gzip.open(io.BytesIO(raw),'rt',encoding='utf-8',newline='') as f:
+              for r in csv.DictReader(f):
+                m=r['market'];code=r['ISU_CD'].strip();d=r['session']
+                if m not in ('KOSPI','KOSDAQ') or d not in dates:raise ValueError('STRUCTURE')
+                o,h,l,c=[n(r[k]) for k in ('TDD_OPNPRC','TDD_HGPRC','TDD_LWPRC','TDD_CLSPRC')]
+                v=n(r['ACC_TRDVOL']);val=n(r['ACC_TRDVAL'])
+                if None in (o,h,l,c,v,val) or min(o,h,l,c)<=0 or v<=0 or val<=0 or l>min(o,c) or h<max(o,c):continue
+                k=(m,code)
+                if d in data[k]:raise ValueError('DUPLICATE')
+                data[k][d]=(c,h,l,v,val);names[k]=r.get('ISU_NM','')
+            strategies={
+              'baseline':{'ma20_max':0.08,'rr_min':1.5,'rvol_min':0.4,'stop_max':0.08},
+              'wider_ma20':{'ma20_max':0.12,'rr_min':1.5,'rvol_min':0.4,'stop_max':0.08},
+              'lower_rr':{'ma20_max':0.08,'rr_min':1.0,'rvol_min':0.4,'stop_max':0.08},
+              'higher_rvol':{'ma20_max':0.08,'rr_min':1.5,'rvol_min':1.0,'stop_max':0.08},
+              'wider_stop':{'ma20_max':0.08,'rr_min':1.5,'rvol_min':0.4,'stop_max':0.10}}
+            results={k:[] for k in strategies};failure=collections.Counter()
+            # Selection at t in [60,99] leaves 20 future sessions; no future values used in ranking.
+            for t in range(60,100):
+              today=dates[t];past=dates[t-59:t+1]
+              universe={}
+              bench=collections.defaultdict(list)
+              for key,ds in data.items():
+                if not all(d in ds for d in past):continue
+                a=[ds[d] for d in past];close=[x[0] for x in a]
+                r20=close[-1]/close[-21]-1
+                bench[key[0]].append(r20)
+                universe[key]=a
+              median={m:statistics.median(x) for m,x in bench.items() if len(x)>=100}
+              picks={k:[] for k in strategies}
+              for key,a in universe.items():
+                m,code=key
+                if m not in median:continue
+                close=[x[0] for x in a];c=close[-1]
+                ma5=statistics.mean(close[-5:]);ma20=statistics.mean(close[-20:]);ma60=statistics.mean(close)
+                r20=c/close[-21]-1;rs=r20-median[m]
+                avgvalue=statistics.mean(x[4] for x in a[-20:])
+                rvol=a[-1][3]/statistics.mean(x[3] for x in a[-21:-1])
+                dist=c/ma20-1
+                stop=min(x[2] for x in a[-10:]);risk=1-stop/c
+                high=max(x[1] for x in a[-20:]);rr=((high-c)/c)/risk if risk>0 else 0
+                if avgvalue<1e9:failure['liquidity']+=1;continue
+                if not (ma5>=ma20>=ma60 and c>=ma20):failure['trend']+=1;continue
+                if not (0.02<=r20<=0.35 and rs>0):failure['momentum_rs']+=1;continue
+                if dist<-.01:failure['ma20_lower']+=1;continue
+                if risk<.01:failure['stop_lower']+=1;continue
+                if rvol>4:failure['rvol_upper']+=1;continue
+                score=40+min(rs*100,15)+min(r20*50,12)+max(0,12-abs(dist-.025)*150)+max(0,10-(risk-.02)*100)+min(max(rvol-.4,0)*3,6)
+                for name,params in strategies.items():
+                  if dist>params['ma20_max'] or risk>params['stop_max'] or rvol<params['rvol_min'] or rr<params['rr_min']:continue
+                  picks[name].append((score,key,c,stop))
+              for name,arr in picks.items():
+                arr.sort(key=lambda x:(-x[0],x[1]))
+                for score,key,c,stop in arr[:2]:
+                  ds=data[key]
+                  future=[ds.get(d) for d in dates[t+1:t+21]]
+                  if any(x is None for x in future):
+                    failure['future_missing_excluded']+=1;continue
+                  returns={str(h):round((future[h-1][0]/c-1)*100,3) for h in (5,10,20)}
+                  mfe=max(x[1] for x in future)/c-1
+                  mae=min(x[2] for x in future)/c-1
+                  # Stop touch is diagnostic only; no inferred fill price or within-bar sequencing.
+                  stop_touch=any(x[2]<=stop for x in future)
+                  results[name].append({'date':today,'market':key[0],'code':key[1],'name':names[key],
+                    'score':round(score,2),'selection_close':c,'stop_reference':stop,
+                    'returns_pct':returns,'mfe_pct':round(mfe*100,3),'mae_pct':round(mae*100,3),
+                    'stop_touched_within_20d':stop_touch})
+            def summarize(rows):
+              if not rows:return {'signals':0,'distinct_selection_dates':0,'no_evaluable_signals':True}
+              return {'signals':len(rows),'distinct_selection_dates':len(set(x['date'] for x in rows)),
+                'positive_rate_pct':{str(h):round(100*sum(x['returns_pct'][str(h)]>0 for x in rows)/len(rows),2) for h in (5,10,20)},
+                'mean_return_pct':{str(h):round(statistics.mean(x['returns_pct'][str(h)] for x in rows),3) for h in (5,10,20)},
+                'median_mfe_pct':round(statistics.median(x['mfe_pct'] for x in rows),3),
+                'median_mae_pct':round(statistics.median(x['mae_pct'] for x in rows),3),
+                'stop_touch_rate_pct':round(100*sum(x['stop_touched_within_20d'] for x in rows)/len(rows),2)}
+            report={k:summarize(v) for k,v in results.items()}
+            receipt.update({'status':'RESEARCH_REPLAY_COMPLETE_NOT_TRADE_CERTIFIED',
+              'selection_dates_evaluated':40,'asof':dates[-1],
+              'strategy_definitions':strategies,'summary':report,'filter_failure_counts':dict(failure),
+              'evaluation_note':'Each date ranks on past 60 bars; future 5/10/20 daily closes used only after selection. Signals overlap and are not independent. No 20-day deduplication.'})
+            (out/'signal_rows.json').write_text(json.dumps(results,ensure_ascii=False)+'\n')
+            print('REPLAY_RECEIPT',json.dumps({'status':receipt['status'],'summary':report,'filter_failure_counts':dict(failure)},ensure_ascii=False))
+          except Exception as e:
+            receipt['status']='HOLD_REPLAY_ERROR'
+            receipt['error']=type(e).__name__+': '+str(e)[:240]
+            print('REPLAY_ERROR',receipt['error'])
+          finally:
+            (out/'replay_receipt.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n')
+          if receipt['status']!='RESEARCH_REPLAY_COMPLETE_NOT_TRADE_CERTIFIED':raise SystemExit(1)
+          PY
+      - name: Upload research replay report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-120-filter-ablation-replay
+          path: output/c3_ablation/
+          retention-days: 30
+          if-no-files-found: warn
