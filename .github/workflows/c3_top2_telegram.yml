@@ -1,35 +1,13 @@
-name: C3 TOP2 Telegram notification
+name: C3 legacy TOP2 Telegram (manual only; replaced by TOP5)
 on:
-  workflow_run:
-    workflows: ['C3 approved research daily caller']
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       mode:
-        description: 'live: new registered TOP2; past_example: one approved historical album; preview: no delivery'
+        description: 'Legacy manual preview only; no automatic TOP2 delivery'
         type: choice
-        default: live
-        options: [live, past_example, preview]
-  push:
-    branches: [main]
-    paths: ['config/c3_telegram_example_request.json']
-  pull_request:
-    paths:
-      - '.github/workflows/c3_top2_telegram.yml'
-      - 'scripts/c3_telegram_notify.py'
-      - 'scripts/c3_telegram_inputs.py'
-      - 'scripts/c3_classic_theme.py'
-      - 'scripts/c3_chart_warmup_v1.py'
-      - 'scripts/test_c3_emergency_delivery_v1.py'
-      - 'scripts/c3_morning_final_v1.py'
-      - 'scripts/c3_report_context.py'
-      - 'scripts/c3_report_handoff.py'
-      - 'scripts/test_c3_report_handoff.py'
-      - 'scripts/test_c3_report_quality.py'
-      - 'config/c3_company_context_verified.json'
-      - 'scripts/test_c3_telegram_notify.py'
-      - 'config/c3_telegram_example_request.json'
+        default: preview
+        options: [preview]
+
 permissions:
   contents: read
   actions: read
