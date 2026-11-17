@@ -111,20 +111,32 @@ jobs:
               if not (val>=1e9 and ma5>=ma20>=ma60 and last>=ma20 and .02<=r20<=.35 and rs>0):continue
               if not (-.01<=dist<=.08 and .01<=risk<=.08 and .4<=rvol<=4 and rr>=1.5):continue
               score=round(40+min(rs*100,15)+min(r20*50,12)+max(0,12-abs(dist-.025)*150)+max(0,10-(risk-.02)*100)+min(max(rvol-.4,0)*3,6),2)
-              # Structural reference: confirmed swing low over recent 10 sessions; below support with 0.5% buffer.
-              # It is a research reference, NOT a validated stop order.
-              stop=round(low*.995)
+              # Confirmed swing-pivot and ATR14 risk-first reference; no fixed 0.5% stop.
+              tr=[max(a[j][1]-a[j][2],abs(a[j][1]-a[j-1][0]),abs(a[j][2]-a[j-1][0])) for j in range(1,len(a))]
+              atr14=statistics.mean(tr[-14:])
+              piv=[a[j][2] for j in range(max(2,len(a)-25),len(a)-2)
+                if a[j][2]<ma20 and all(a[j][2]<a[k][2] for k in (j-2,j-1,j+1,j+2))]
+              support=max(piv) if piv else None
+              stop=round(support-.5*atr14) if support is not None else None
               entry_lo=round(ma20*.99);entry_hi=round(ma20*1.02)
-              risk_at_entry=(entry_hi-stop)/entry_hi if entry_hi>stop else None
               r1=round(high) if high>entry_hi else None
               r2=round(max(x[1] for x in a[-60:]))
               if r2<=max(high,entry_hi):r2=None
-              rr_entry=(r1-entry_hi)/(entry_hi-stop) if r1 and risk_at_entry and risk_at_entry>0 else None
+              rr_entry=(r1-entry_hi)/(entry_hi-stop) if r1 and stop is not None and entry_hi>stop else None
+              risk_at_entry=(entry_hi-stop)/entry_hi if stop is not None else None
+              geometry_ok=(stop is not None and stop<entry_lo-.5*atr14
+                and risk_at_entry is not None and .015<=risk_at_entry<=.05
+                and rr_entry is not None and rr_entry>=2.0)
+              if not geometry_ok:
+                stop=None
+                rr_entry=None
               pool.append({'market':key[0],'code':key[1],'name':names[key],'score':score,
                 'close':round(last),'ma20':round(ma20),'low10':round(low),'high20':round(high),
                 'rvol':round(rvol,2),'rs20pp':round(rs*100,2),'stop_distance_pct':round(risk*100,2),
                 'entry_watch_low':entry_lo,'entry_watch_high':entry_hi,
                 'structural_stop_ref':stop,'r1_ref':r1,'r2_ref':r2,
+                'atr14':round(atr14,2),'pivot_support':round(support) if support is not None else None,
+                'geometry_validated':bool(geometry_ok),
                 'rr_entry_ref':round(rr_entry,2) if rr_entry is not None else None,
                 'turnover20_krw':round(val),'ma5':round(ma5),'ma60':round(ma60),
                 'return20_pct':round(r20*100,2),'ma20_distance_pct':round(dist*100,2),
@@ -164,7 +176,7 @@ jobs:
                 xx=790+i*172;draw.line((xx,355,xx+28,355),fill=col,width=4)
                 draw.text((xx+35,339),str(n)+'일선',font=font(22),fill=SUB)
               left,right,top,bottom=155,1100,395,1018
-              vals=[v[k] for v in bars for k in ('high','low')]+[x['entry_watch_low'],x['entry_watch_high'],x['low10'],x['structural_stop_ref']]
+              vals=[v[k] for v in bars for k in ('high','low')]+[x['entry_watch_low'],x['entry_watch_high'],x['low10']]+([x['structural_stop_ref']] if x['structural_stop_ref'] is not None else [])
               for n in (5,20,60):vals.extend(statistics.mean(closes[j-n+1:j+1]) for j in range(n-1,60))
               low=min(vals)*.96;high=max(vals)*1.04
               py=lambda v:int(bottom-(v-low)/(high-low)*(bottom-top))
@@ -190,8 +202,9 @@ jobs:
                 pts=[(px(j),py(statistics.mean(closes[j-n+1:j+1]))) for j in range(n-1,60)]
                 if len(pts)>1:draw.line(pts,fill=col,width=4)
               # Dashed structural stop reference, clearly distinct from the entry rectangle.
-              stop_y=py(x['structural_stop_ref'])
-              for xx in range(left,right,20):draw.line((xx,stop_y,min(xx+10,right),stop_y),fill=RED,width=2)
+              if x['structural_stop_ref'] is not None:
+                stop_y=py(x['structural_stop_ref'])
+                for xx in range(left,right,20):draw.line((xx,stop_y,min(xx+10,right),stop_y),fill=RED,width=2)
               draw.line((right,py(x['close']),right+20,py(x['close'])),fill=INK,width=2)
               draw.rounded_rectangle((right+20,py(x['close'])-23,1345,py(x['close'])+23),radius=4,fill=INK)
               draw.text((1330,py(x['close'])),'종가 '+format(x['close'],','),font=font(26,True),fill='white',anchor='rm')
@@ -203,9 +216,9 @@ jobs:
                   draw.text((xx,1146),v['date'][4:6]+'/'+v['date'][6:],font=font(23),fill=SUB,anchor='ma')
               draw.text((155,1033),'거래량',font=font(24),fill=SUB)
               draw.text((1100,1033),'최대 '+format(vmax/1e6,'.2f')+'백만주',font=font(24),fill=SUB,anchor='ra')
-              draw.text((53,1220),'연구용 관찰 가격 · 주문 승인이 아님',font=font(32,True),fill=INK)
+              draw.text((53,1220),'연구용 관찰 가격 · '+('구조위험 PASS' if not x['geometry_validated'] else '구조손절 참고')+' · 주문 승인 아님',font=font(32,True),fill=INK)
               cells=[('매수 관찰 범위',format(x['entry_watch_low'],',')+'~'+format(x['entry_watch_high'],','),GREEN),
-                ('2차 매수','미확정',BLUE),('손절 참고',format(x['structural_stop_ref'],','),RED),
+                ('2차 매수','미확정',BLUE),('손절 참고',format(x['structural_stop_ref'],',') if x['structural_stop_ref'] is not None else 'PASS',RED),
                 ('1차 저항 R1',format(x['r1_ref'],',') if x['r1_ref'] else '미확정',GOLD),('2차 저항 R2',format(x['r2_ref'],',') if x['r2_ref'] else '미확정',PURPLE)]
               for j,(label,value,color) in enumerate(cells):
                 xx=48+j*261;draw.rectangle((xx,1270,xx+252,1404),fill='white')
@@ -219,7 +232,7 @@ jobs:
               notes=[('정량·섹터','20일 상승 '+format(x['return20_pct'],'+.2f')+'%, RS20 '+format(x['rs20pp'],'+.2f')+'%p, RVOL '+str(x['rvol'])+'. 거래대금 '+format(x['turnover20_krw']/1e8,',.1f')+'억원. 업종 미검증.'),
                 ('재무·실적','OpenDART PIT 실적 미연결. 매출, 영업이익, 현금흐름, 부채 건전성 판단 보류.'),
                 ('주요 이슈·수급','MA5 '+format(x['ma5'],',')+'원 / MA20 '+format(x['ma20'],',')+'원 / MA60 '+format(x['ma60'],',')+'원. 뉴스·기관·외국인 수급 미검증.'),
-                ('리스크·구조손절','10일 저가 '+format(x['low10'],',')+'원 아래 0.5% 참고 '+format(x['structural_stop_ref'],',')+'원. R1 '+(format(x['r1_ref'],',') if x['r1_ref'] else '미확정')+'원, 실전 손절·저항 미승인.')]
+                ('리스크·구조손절',('피벗지지 '+format(x['pivot_support'],',')+'원, ATR14 '+format(x['atr14'],',.1f')+'원, 손절 참고 '+format(x['structural_stop_ref'],',')+'원. 실전 미승인.' if x['geometry_validated'] else '지지구조·ATR·최대위험 5%·R1 손익비 2배 검증 실패: PASS. 손절 미확정.')))]
               for j,(label,value) in enumerate(notes):
                 yy=1635+j*165;draw.rectangle((48,yy,1352,yy+155),fill='white')
                 draw.line((48,yy,48,yy+155),fill=GOLD,width=5)
