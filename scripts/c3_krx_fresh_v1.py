@@ -64,7 +64,11 @@ def main():
             candidates.append(candidate)
     latest=end.isoformat()
     top=sorted((x for x in candidates if x["eligible"] and x["asof"]==latest),key=lambda x:x["score"],reverse=True)[:2]
-    report=dict(schema="C3_KRX_FRESH_V1",source="KRX_OPEN_API_ONLY",days_requested=(end-start).days+1,source_receipts=receipts,universe=len(by),analyzed=len(candidates),top2_research_only=top,candidates=candidates,stage_gate="HOLD_REGULAR_ONLY_UNCERTIFIED",cash=True,orders_enabled=False,telegram_requests=0)
+    latest_market_rows=sum(1 for rows in by.values() if rows and rows[-1]["asof"]==latest)
+    complete_days=sum(1 for p in (out/"raw").glob("*.json"))
+    source_ready=latest_market_rows>=2000 and complete_days>=80
+    report=dict(source_ready=source_ready,complete_days=complete_days,latest_market_rows=latest_market_rows,schema="C3_KRX_FRESH_V1",source="KRX_OPEN_API_ONLY",days_requested=(end-start).days+1,source_receipts=receipts,universe=len(by),analyzed=len(candidates),top2_research_only=top,candidates=candidates,stage_gate="HOLD_REGULAR_ONLY_UNCERTIFIED",cash=True,orders_enabled=False,telegram_requests=0)
     out.mkdir(parents=True,exist_ok=True);(out/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
-    print(json.dumps(dict(universe=len(by),analyzed=len(candidates),top2=len(top),stage_gate=report["stage_gate"])))
+    print(json.dumps(dict(universe=len(by),analyzed=len(candidates),top2=len(top),source_ready=source_ready,complete_days=complete_days,latest_market_rows=latest_market_rows,stage_gate=report["stage_gate"])))
+    if not source_ready:raise SystemExit("KRX_SOURCE_NOT_CERTIFIED: latest market or 80 dated sessions unavailable")
 if __name__=="__main__":main()
