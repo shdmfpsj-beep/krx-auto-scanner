@@ -162,6 +162,27 @@ jobs:
                 and risk_at_entry is not None and .015<=risk_at_entry<=.05
                 and rr_entry is not None and rr_entry>=2.0
                 and entry_hi>=last-1.5*atr14 and entry_lo<=last+.5*atr14)
+              # Independent rejection reasons; preserve raw metrics for audits.
+              reasons=[]
+              if support is None:reasons.append('NO_NEARBY_CONFIRMED_SUPPORT')
+              if entry_lo is None or entry_hi is None or entry_lo>=entry_hi:reasons.append('INVALID_ENTRY_ZONE')
+              if stop is None or entry_lo is None or stop>=entry_lo:reasons.append('INVALID_STOP_STRUCTURE')
+              if risk_at_entry is None:reasons.append('RISK_NOT_COMPUTABLE')
+              elif risk_at_entry<.015:reasons.append('RISK_BELOW_1_5PCT')
+              elif risk_at_entry>.05:reasons.append('RISK_ABOVE_5PCT')
+              if r1 is None:reasons.append('NO_R1_ABOVE_ENTRY')
+              if rr_entry is None:reasons.append('RR_NOT_COMPUTABLE')
+              elif rr_entry<2.0:reasons.append('RR_BELOW_2')
+              if entry_lo is not None and entry_hi is not None and not (
+                entry_hi>=last-1.5*atr14 and entry_lo<=last+.5*atr14):
+                reasons.append('ENTRY_TOO_FAR_FROM_CLOSE')
+              if not geometry_ok and not reasons:reasons.append('OTHER_GEOMETRY_FAILURE')
+              # Legacy MA20 range is audit-only; never used for orders/selection.
+              legacy_lo=round(ma20*.99);legacy_hi=round(ma20*1.02)
+              legacy_stop=round(min(x[2] for x in a[-10:])*.995)
+              legacy_r1=round(high) if high>legacy_hi else None
+              legacy_risk=(legacy_hi-legacy_stop)/legacy_hi if legacy_hi>legacy_stop else None
+              legacy_rr=(legacy_r1-legacy_hi)/(legacy_hi-legacy_stop) if legacy_r1 is not None and legacy_risk is not None and legacy_risk>0 else None
               if not geometry_ok:
                 stop=None
                 rr_entry=None
@@ -174,6 +195,11 @@ jobs:
                 'structural_stop_ref':stop,'r1_ref':r1,'r2_ref':r2,
                 'atr14':round(atr14,2),'pivot_support':round(support) if support is not None else None,
                 'geometry_validated':bool(geometry_ok),
+                'rejection_reasons':reasons,
+                'raw_rr_entry':round((r1-entry_hi)/(entry_hi-(support-.5*atr14)),2) if r1 is not None and entry_hi is not None and support is not None and entry_hi>support-.5*atr14 else None,
+                'legacy_ma20_audit':{'entry_low':legacy_lo,'entry_high':legacy_hi,
+                  'stop':legacy_stop,'risk_pct':round(legacy_risk*100,2) if legacy_risk is not None else None,
+                  'rr_r1':round(legacy_rr,2) if legacy_rr is not None else None},
                 'rr_entry_ref':round(rr_entry,2) if rr_entry is not None else None,
                 'turnover20_krw':round(val),'ma5':round(ma5),'ma60':round(ma60),
                 'return20_pct':round(r20*100,2),'ma20_distance_pct':round(dist*100,2),
@@ -184,6 +210,23 @@ jobs:
             research_top5=pool[:5]
             qualified=[x for x in pool if x['geometry_validated']]
             selected=qualified[:5]
+            # Diagnostic evidence even when zero candidates qualify.
+            audit={'schema':'C3_ENTRY_GEOMETRY_AUDIT_V1','asof':days[-1],
+              'technical_candidate_count':len(pool),'qualified_count':len(qualified),
+              'rules':{'risk_min_pct':1.5,'risk_max_pct':5,'rr_min':2,
+                'nearby_support_atr_below_ma20':1.5,'nearby_support_atr_above_ma20':.5},
+              'candidates':[{'code':x['code'],'name':x['name'],'market':x['market'],
+                'score':x['score'],'status':x['status'],'rejection_reasons':x['rejection_reasons'],
+                'entry_low':x['entry_watch_low'],'entry_high':x['entry_watch_high'],
+                'pivot_support':x['pivot_support'],'atr14':x['atr14'],
+                'stop_ref':x['structural_stop_ref'],'risk_pct':x['entry_risk_pct'],
+                'rr_r1':x['raw_rr_entry'],'legacy_ma20_audit':x['legacy_ma20_audit']}
+                for x in pool]}
+            (root/'entry_geometry_audit.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n')
+            print('C3_GEOMETRY_AUDIT',json.dumps({'asof':days[-1],
+              'technical_candidates':len(pool),'qualified':len(qualified),
+              'rejections':[{'code':x['code'],'reasons':x['rejection_reasons']} for x in pool]},
+              ensure_ascii=False))
             for x in selected:
               key=(x['market'],x['code'])
               x['chart_bars']=[{'date':d,'close':data[key][d][0],'high':data[key][d][1],
