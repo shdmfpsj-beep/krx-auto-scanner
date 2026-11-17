@@ -111,10 +111,23 @@ jobs:
               if not (val>=1e9 and ma5>=ma20>=ma60 and last>=ma20 and .02<=r20<=.35 and rs>0):continue
               if not (-.01<=dist<=.08 and .01<=risk<=.08 and .4<=rvol<=4 and rr>=1.5):continue
               score=round(40+min(rs*100,15)+min(r20*50,12)+max(0,12-abs(dist-.025)*150)+max(0,10-(risk-.02)*100)+min(max(rvol-.4,0)*3,6),2)
+              # Structural reference: confirmed swing low over recent 10 sessions; below support with 0.5% buffer.
+              # It is a research reference, NOT a validated stop order.
+              stop=round(low*.995)
+              entry_lo=round(ma20*.99);entry_hi=round(ma20*1.02)
+              risk_at_entry=(entry_hi-stop)/entry_hi if entry_hi>stop else None
+              r1=round(high) if high>entry_hi else None
+              r2=round(max(x[1] for x in a[-60:]))
+              if r2<=max(high,entry_hi):r2=None
+              rr_entry=(r1-entry_hi)/(entry_hi-stop) if r1 and risk_at_entry and risk_at_entry>0 else None
               pool.append({'market':key[0],'code':key[1],'name':names[key],'score':score,
                 'close':round(last),'ma20':round(ma20),'low10':round(low),'high20':round(high),
                 'rvol':round(rvol,2),'rs20pp':round(rs*100,2),'stop_distance_pct':round(risk*100,2),
-                'entry_watch_low':round(ma20*.99),'entry_watch_high':round(ma20*1.02),
+                'entry_watch_low':entry_lo,'entry_watch_high':entry_hi,
+                'structural_stop_ref':stop,'r1_ref':r1,'r2_ref':r2,
+                'rr_entry_ref':round(rr_entry,2) if rr_entry is not None else None,
+                'turnover20_krw':round(val),'ma5':round(ma5),'ma60':round(ma60),
+                'return20_pct':round(r20*100,2),'ma20_distance_pct':round(dist*100,2),
                 'status':'WATCH_ONLY'})
             pool.sort(key=lambda z:(-z['score'],-z['rs20pp'],z['market'],z['code']))
             selected=pool[:5]
@@ -151,7 +164,7 @@ jobs:
                 xx=790+i*172;draw.line((xx,355,xx+28,355),fill=col,width=4)
                 draw.text((xx+35,339),str(n)+'일선',font=font(22),fill=SUB)
               left,right,top,bottom=155,1100,395,1018
-              vals=[v[k] for v in bars for k in ('high','low')]+[x['entry_watch_low'],x['entry_watch_high'],x['low10']]
+              vals=[v[k] for v in bars for k in ('high','low')]+[x['entry_watch_low'],x['entry_watch_high'],x['low10'],x['structural_stop_ref']]
               for n in (5,20,60):vals.extend(statistics.mean(closes[j-n+1:j+1]) for j in range(n-1,60))
               low=min(vals)*.96;high=max(vals)*1.04
               py=lambda v:int(bottom-(v-low)/(high-low)*(bottom-top))
@@ -160,7 +173,14 @@ jobs:
                 value=low+(high-low)*j/5;yy=py(value)
                 draw.line((left,yy,right,yy),fill=(231,229,223),width=1)
                 draw.text((left-18,yy),format(value,',.0f'),font=font(23),fill=SUB,anchor='rm')
-              draw.rectangle((left,py(x['entry_watch_high']),right,py(x['entry_watch_low'])),fill=(238,246,239))
+              # User requested a dashed-outline buy observation rectangle, not a filled band.
+              zone_top=py(x['entry_watch_high']);zone_bottom=py(x['entry_watch_low'])
+              for xx in range(left,right,20):
+                draw.line((xx,zone_top,min(xx+11,right),zone_top),fill=GREEN,width=3)
+                draw.line((xx,zone_bottom,min(xx+11,right),zone_bottom),fill=GREEN,width=3)
+              for yy in range(zone_top,zone_bottom,20):
+                draw.line((left,yy,left,min(yy+11,zone_bottom)),fill=GREEN,width=3)
+                draw.line((right,yy,right,min(yy+11,zone_bottom)),fill=GREEN,width=3)
               for k,v in enumerate(bars):
                 xx=px(k);color=RED if v['close']>=v['open'] else BLUE
                 draw.line((xx,py(v['high']),xx,py(v['low'])),fill=color,width=3)
@@ -169,6 +189,9 @@ jobs:
               for n,col in ((5,(64,91,129)),(20,GOLD),(60,(115,139,128))):
                 pts=[(px(j),py(statistics.mean(closes[j-n+1:j+1]))) for j in range(n-1,60)]
                 if len(pts)>1:draw.line(pts,fill=col,width=4)
+              # Dashed structural stop reference, clearly distinct from the entry rectangle.
+              stop_y=py(x['structural_stop_ref'])
+              for xx in range(left,right,20):draw.line((xx,stop_y,min(xx+10,right),stop_y),fill=RED,width=2)
               draw.line((right,py(x['close']),right+20,py(x['close'])),fill=INK,width=2)
               draw.rounded_rectangle((right+20,py(x['close'])-23,1345,py(x['close'])+23),radius=4,fill=INK)
               draw.text((1330,py(x['close'])),'종가 '+format(x['close'],','),font=font(26,True),fill='white',anchor='rm')
@@ -182,20 +205,21 @@ jobs:
               draw.text((1100,1033),'최대 '+format(vmax/1e6,'.2f')+'백만주',font=font(24),fill=SUB,anchor='ra')
               draw.text((53,1220),'연구용 관찰 가격 · 주문 승인이 아님',font=font(32,True),fill=INK)
               cells=[('매수 관찰 범위',format(x['entry_watch_low'],',')+'~'+format(x['entry_watch_high'],','),GREEN),
-                ('2차 매수','미확정',BLUE),('구조손절','미확정',RED),
-                ('1차 저항 R1','미확정',GOLD),('2차 저항 R2','미확정',PURPLE)]
+                ('2차 매수','미확정',BLUE),('손절 참고',format(x['structural_stop_ref'],','),RED),
+                ('1차 저항 R1',format(x['r1_ref'],',') if x['r1_ref'] else '미확정',GOLD),('2차 저항 R2',format(x['r2_ref'],',') if x['r2_ref'] else '미확정',PURPLE)]
               for j,(label,value,color) in enumerate(cells):
                 xx=48+j*261;draw.rectangle((xx,1270,xx+252,1404),fill='white')
                 draw.line((xx,1270,xx+252,1270),fill=color,width=4)
                 draw.text((xx+126,1288),label,font=font(25,True),fill=color,anchor='ma')
                 draw.text((xx+126,1340),value,font=font(23,True),fill=color,anchor='ma')
               draw.text((53,1430),'기존 정렬 순위 '+str(rank)+' · 임의 가중 점수 '+str(x['score'])+'점',font=font(31,True),fill=INK)
-              draw.text((55,1490),'RS20 '+format(x['rs20pp'],'+.2f')+'%p · RVOL '+str(x['rvol'])+' · 10일 저가 '+format(x['low10'],',')+'원',font=font(29),fill=INK)
-              draw.text((53,1570),'선정 후 기업 자료 및 위험 검토',font=font(33,True),fill=INK)
-              notes=[('정량·섹터','KRX 가격·거래량 기반 연구 후보. 업종·재료 원본 미확인.'),
-                ('재무·실적','OpenDART 당일 PIT 재무 미연결. 실적·재무 건전성 판단 보류.'),
-                ('주요 이슈·수급','뉴스·외국인·기관 수급 검증 미완료. 추정하지 않음.'),
-                ('리스크·구조손절','10일 저가 '+format(x['low10'],',')+'원은 참고선. 검증된 구조손절·저항·진입 승인 없음.')]
+              draw.text((55,1490),'RS20 '+format(x['rs20pp'],'+.2f')+'%p · RVOL '+str(x['rvol'])+' · 20일 상승 '+format(x['return20_pct'],'+.2f')+'%',font=font(27),fill=INK)
+              draw.text((55,1530),'20일 평균 거래대금 '+format(x['turnover20_krw']/1e8,',.1f')+'억원 · MA20 이격 '+format(x['ma20_distance_pct'],'+.2f')+'% · R1 손익비 '+(str(x['rr_entry_ref'])+'배' if x['rr_entry_ref'] is not None else '미확정'),font=font(25),fill=SUB)
+              draw.text((53,1580),'선정 후 기업 자료 및 위험 검토',font=font(33,True),fill=INK)
+              notes=[('정량·섹터','20일 상승 '+format(x['return20_pct'],'+.2f')+'%, RS20 '+format(x['rs20pp'],'+.2f')+'%p, RVOL '+str(x['rvol'])+'. 거래대금 '+format(x['turnover20_krw']/1e8,',.1f')+'억원. 업종 미검증.'),
+                ('재무·실적','OpenDART PIT 실적 미연결. 매출, 영업이익, 현금흐름, 부채 건전성 판단 보류.'),
+                ('주요 이슈·수급','MA5 '+format(x['ma5'],',')+'원 / MA20 '+format(x['ma20'],',')+'원 / MA60 '+format(x['ma60'],',')+'원. 뉴스·기관·외국인 수급 미검증.'),
+                ('리스크·구조손절','10일 저가 '+format(x['low10'],',')+'원 아래 0.5% 참고 '+format(x['structural_stop_ref'],',')+'원. R1 '+(format(x['r1_ref'],',') if x['r1_ref'] else '미확정')+'원, 실전 손절·저항 미승인.')]
               for j,(label,value) in enumerate(notes):
                 yy=1635+j*165;draw.rectangle((48,yy,1352,yy+155),fill='white')
                 draw.line((48,yy,48,yy+155),fill=GOLD,width=5)
@@ -212,7 +236,7 @@ jobs:
                 if len(lines)>3:raise ValueError('CARD_NOTE_OVERFLOW_'+x['code'])
                 for k,line in enumerate(lines):draw.text((365,yy+22+k*39),line,font=font(27),fill=INK)
               draw.text((700,2324),'KRX 공식 일봉 · 비수정 · 정규장 종가 및 기업행위 미인증',font=font(22),fill=SUB,anchor='ma')
-              draw.text((700,2363),'연구용 WATCH · 현재 매수 추천/실시간 성과 아님',font=font(23,True),fill=RED,anchor='ma')
+              draw.text((700,2363),'점선 녹색=매수 관찰 범위 · 점선 적색=손절 참고 · 실전 승인 아님',font=font(23,True),fill=RED,anchor='ma')
               path=root/(str(rank).zfill(2)+'_'+x['code']+'_c3_classic.png')
               im.save(path,optimize=True);images.append(path)
             receipt['image_sha256']=[hashlib.sha256(p.read_bytes()).hexdigest() for p in images]
