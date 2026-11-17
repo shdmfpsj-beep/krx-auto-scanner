@@ -165,16 +165,23 @@ jobs:
                 'rr_entry_ref':round(rr_entry,2) if rr_entry is not None else None,
                 'turnover20_krw':round(val),'ma5':round(ma5),'ma60':round(ma60),
                 'return20_pct':round(r20*100,2),'ma20_distance_pct':round(dist*100,2),
-                'status':'WATCH_ONLY'})
+                'status':'ENTRY_WATCH' if geometry_ok else 'PASS_RISK_GEOMETRY'})
             pool.sort(key=lambda z:(-z['score'],-z['rs20pp'],z['market'],z['code']))
-            selected=pool[:5]
+            # Separate research candidates from actionable technical watch candidates.
+            # Only validated risk geometry may enter TOP5 images / Telegram.
+            research_top5=pool[:5]
+            qualified=[x for x in pool if x['geometry_validated']]
+            selected=qualified[:5]
             for x in selected:
               key=(x['market'],x['code'])
               x['chart_bars']=[{'date':d,'close':data[key][d][0],'high':data[key][d][1],
                 'low':data[key][d][2],'volume':data[key][d][3],'open':data[key][d][5]} for d in days]
             receipt.update({'status':'TOP5_RENDER_READY','asof':days[-1],
               'valid_60_session_symbols':len(eligible),'passing_symbols':len(pool),
-              'candidates':selected,'selection':'Technical-only until PIT financial gate is available'})
+              'qualified_entry_watch_count':len(qualified),
+              'research_top5':[{'code':x['code'],'name':x['name'],'score':x['score'],
+                'geometry_validated':x['geometry_validated'],'status':x['status']} for x in research_top5],
+              'candidates':selected,'selection':'Risk-geometry qualified technical-only; PIT financial gate unavailable'})
             fontpath='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
             boldpath='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
             def font(size,bold=False):return ImageFont.truetype(boldpath if bold else fontpath,size)
