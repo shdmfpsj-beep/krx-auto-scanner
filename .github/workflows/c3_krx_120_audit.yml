@@ -1,0 +1,108 @@
+name: C3 official KRX 120-session data audit (research only)
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Fetch immutable source artifact and audit without checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,zipfile,io,gzip,csv,hashlib,collections,math,statistics
+          from pathlib import Path
+          out=Path('output/c3_120_audit');out.mkdir(parents=True,exist_ok=True)
+          report={'schema':'C3_120_AUDIT_V1','source_run_id':44007670342,
+            'source_artifact_id':14294819841,'status':'HOLD_AUDIT_NOT_COMPLETE',
+            'buy_approved':False,'orders_enabled':False,'telegram_requests':0,'decision':'CASH'}
+          try:
+            url='https://api.github.com/repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/14294819841/zip'
+            req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+              'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'})
+            with urllib.request.urlopen(req,timeout=120) as resp: blob=resp.read()
+            report['source_zip_sha256']=hashlib.sha256(blob).hexdigest()
+            expected='47bb77b8bcfbd806d0e1c637318a0c2c0b61973fe3bb585a94b316d55ee0295a'
+            if report['source_zip_sha256']!=expected:raise ValueError('SOURCE_ARTIFACT_ZIP_DIGEST_MISMATCH')
+            with zipfile.ZipFile(io.BytesIO(blob)) as z:
+              names=z.namelist()
+              manifest_name=next((n for n in names if n.endswith('manifest.json')),None)
+              data_name=next((n for n in names if n.endswith('official_120_sessions.csv.gz')),None)
+              if not manifest_name or not data_name:raise ValueError('MISSING_SOURCE_FILES')
+              manifest=json.loads(z.read(manifest_name))
+              compressed=z.read(data_name)
+            if manifest.get('status')!='COMPLETE_120_OFFICIAL_SESSIONS' or manifest.get('matched_sessions')!=120:
+              raise ValueError('SOURCE_MANIFEST_NOT_COMPLETE')
+            if hashlib.sha256(compressed).hexdigest()!=manifest.get('csv_gz_sha256'):
+              raise ValueError('CSV_HASH_MISMATCH')
+            dates=manifest['dates']
+            if len(dates)!=120 or len({d['date'] for d in dates})!=120:
+              raise ValueError('SOURCE_DATE_DUPLICATES')
+            required={'session','market','ISU_CD','TDD_CLSPRC','TDD_OPNPRC','TDD_HGPRC',
+              'TDD_LWPRC','ACC_TRDVOL','ACC_TRDVAL'}
+            def num(x):
+              try:return float(str(x).replace(',','').strip())
+              except:return None
+            groups=collections.defaultdict(list)
+            seen=set();issues=collections.Counter();market_dates=collections.Counter()
+            rows=0
+            with gzip.open(io.BytesIO(compressed),'rt',encoding='utf-8',newline='') as f:
+              reader=csv.DictReader(f)
+              if not required.issubset(reader.fieldnames or []):raise ValueError('MISSING_REQUIRED_COLUMNS')
+              for r in reader:
+                rows+=1;d=r['session'];m=r['market'];code=r['ISU_CD'].strip()
+                k=(d,m,code)
+                if k in seen:issues['duplicate_keys']+=1
+                seen.add(k)
+                market_dates[(d,m)]+=1
+                if d not in {x['date'] for x in dates}:issues['unexpected_dates']+=1
+                if not code:issues['missing_code']+=1
+                o,h,l,c=[num(r[x]) for x in ('TDD_OPNPRC','TDD_HGPRC','TDD_LWPRC','TDD_CLSPRC')]
+                v=num(r['ACC_TRDVOL']);value=num(r['ACC_TRDVAL'])
+                if None in (o,h,l,c,v,value):issues['non_numeric_ohlcv']+=1
+                elif min(o,h,l,c)<=0 or l>min(o,c) or h<max(o,c) or v<0 or value<0:
+                  issues['invalid_ohlcv_geometry']+=1
+                else:groups[(m,code)].append((d,c,v,value))
+            if rows!=manifest['rows']:issues['manifest_row_mismatch']+=1
+            for d in dates:
+              for m in ('KOSPI','KOSDAQ'):
+                if market_dates[(d['date'],m)]!=d[m]:issues['market_date_count_mismatch']+=1
+            lengths=collections.Counter(len(v) for v in groups.values())
+            n60=sum(len(v)>=60 for v in groups.values())
+            n120=sum(len(v)==120 for v in groups.values())
+            report.update({'source_rows':rows,'source_sessions':len(dates),'unique_market_codes':len(groups),
+              'symbols_with_60plus_observations':n60,'symbols_with_120_observations':n120,
+              'observation_count_distribution':dict(sorted(lengths.items())),
+              'issues':dict(issues),'date_range':{'first':min(d['date'] for d in dates),'last':max(d['date'] for d in dates)},
+              'limitations':['Official API daily fields not certified as 15:30 regular-only',
+                'Corporate-action-adjusted prices not independently certified',
+                'No point-in-time financial statements','No market regime or sector verification',
+                'No historical backtest or execution-cost validation']})
+            critical=['duplicate_keys','unexpected_dates','missing_code','non_numeric_ohlcv',
+              'invalid_ohlcv_geometry','manifest_row_mismatch','market_date_count_mismatch']
+            if any(issues[x] for x in critical):report['status']='HOLD_DATA_QUALITY_FAILURE'
+            elif n60==0:report['status']='HOLD_NO_CONTINUOUS_SYMBOLS'
+            else:report['status']='RESEARCH_DATA_AUDIT_PASS_NOT_TRADE_CERTIFIED'
+            print('AUDIT_SUMMARY',json.dumps({k:report[k] for k in ('status','source_rows','source_sessions',
+              'unique_market_codes','symbols_with_60plus_observations','symbols_with_120_observations','issues')},ensure_ascii=False))
+          except Exception as e:
+            report['status']='HOLD_AUDIT_EXCEPTION'
+            report['error']=type(e).__name__+': '+str(e)[:240]
+            print('AUDIT_ERROR',report['error'])
+          finally:
+            (out/'audit_report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          if report['status']!='RESEARCH_DATA_AUDIT_PASS_NOT_TRADE_CERTIFIED':raise SystemExit(1)
+          PY
+      - name: Upload audit receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-krx-120-audit-report
+          path: output/c3_120_audit/
+          retention-days: 30
+          if-no-files-found: warn
