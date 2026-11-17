@@ -10,33 +10,41 @@ jobs:
     env:
       KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Query KRX official KOSPI and KOSDAQ dated API
+      # Do not checkout: main contains an invalid oversized historical path.
+      - name: Query KRX official daily API without repository checkout
+        shell: bash
         run: |
-          python scripts/c3_official_recheck_v19.py --date 2026-11-16 --outdir output/krx_nov16_direct
-      - name: Validate authenticated responses and create explicit receipt
-        run: |
-          python - <<'PY'
-          import json
+          python3 - <<'PY'
+          import os,json,hashlib,urllib.request,urllib.parse,urllib.error
           from pathlib import Path
-          p=Path('output/krx_nov16_direct/c3_official_dated_recheck_v19.json')
-          d=json.loads(p.read_text())
-          ok=(d.get('requested_asof')=='2026-11-16'
-              and d.get('official_target_authenticated') is True
-              and d.get('official_target_rows',0)>=2000
-              and set(d.get('raw_response_sha256',{}))=={'KOSPI','KOSDAQ'})
+          out=Path('output/krx_nov16_direct');out.mkdir(parents=True,exist_ok=True)
+          day='20261116'; counts={}; digests={}; errors={}
+          key=os.environ.get('KRX_AUTH_KEY','')
+          for market,endpoint in [('KOSPI','stk_bydd_trd'),('KOSDAQ','ksq_bydd_trd')]:
+              if not key:
+                  errors[market]='KRX_AUTH_KEY_MISSING';continue
+              url='https://data-dbg.krx.co.kr/svc/apis/sto/'+endpoint+'?'+urllib.parse.urlencode({'basDd':day})
+              try:
+                  req=urllib.request.Request(url,headers={'AUTH_KEY':key,'Accept':'application/json'})
+                  with urllib.request.urlopen(req,timeout=30) as resp:
+                      body=resp.read(8*1024*1024+1)
+                  if len(body)>8*1024*1024:raise ValueError('RESPONSE_TOO_LARGE')
+                  data=json.loads(body)
+                  rows=data.get('OutBlock_1') if isinstance(data,dict) else None
+                  if not isinstance(rows,list) or not rows:raise ValueError('EMPTY_OR_MISSING_OUTBLOCK')
+                  if any(not isinstance(r,dict) or str(r.get('BAS_DD',day)).replace('-','')!=day for r in rows):
+                      raise ValueError('DATE_MISMATCH')
+                  counts[market]=len(rows);digests[market]=hashlib.sha256(body).hexdigest()
+              except urllib.error.HTTPError as exc:errors[market]='HTTP_'+str(exc.code)
+              except Exception as exc:errors[market]=type(exc).__name__+': '+str(exc)[:160]
+          ok=set(counts)=={'KOSPI','KOSDAQ'} and sum(counts.values())>=2000 and not errors
           receipt={'asof':'2026-11-16','status':'DIRECT_KRX_EOD_CAPTURED' if ok else 'HOLD_DIRECT_KRX_NOT_VERIFIED',
-                   'source':'KRX_OPEN_API_DIRECT','official_market_rows':d.get('official_target_rows',0),
-                   'response_sha256':d.get('raw_response_sha256',{}),
-                   'official_target_status':d.get('official_target_status'),
-                   'regular_session_1530_certified':False,'buy_approved':False,
-                   'orders_enabled':False,'telegram_requests':0,'current_action':'CASH'}
-          Path('output/krx_nov16_direct/receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
-          print(json.dumps(receipt))
-          if not ok: raise SystemExit('DIRECT_KRX_EOD_NOT_VERIFIED')
+                   'source':'KRX_OPEN_API_DIRECT','official_market_counts':counts,'official_market_rows':sum(counts.values()),
+                   'response_sha256':digests,'errors':errors,'regular_session_1530_certified':False,
+                   'buy_approved':False,'orders_enabled':False,'telegram_requests':0,'current_action':'CASH'}
+          (out/'receipt.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(receipt,ensure_ascii=False))
+          if not ok:raise SystemExit('DIRECT_KRX_EOD_NOT_VERIFIED')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
