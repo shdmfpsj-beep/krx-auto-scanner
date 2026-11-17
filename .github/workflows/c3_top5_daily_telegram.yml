@@ -1,0 +1,181 @@
+name: C3 TOP5 daily one-photo Telegram (user trades)
+on:
+  workflow_dispatch:
+  schedule:
+    # KST 23:30 Monday-Friday; GitHub scheduling can be delayed.
+    - cron: '30 14 * * 1-5'
+permissions:
+  contents: read
+concurrency:
+  group: c3-top5-daily-one-photo
+  cancel-in-progress: false
+jobs:
+  top5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - name: Install image renderer and Korean font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python3 -m pip install pillow --disable-pip-version-check
+      - name: Collect current official KRX sessions, select up to five and send one image
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,json,csv,io,datetime,urllib.request,urllib.parse,urllib.error,collections,statistics,math,time,hashlib
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from PIL import Image,ImageDraw,ImageFont
+          root=Path('output/c3_top5');root.mkdir(parents=True,exist_ok=True)
+          receipt={'schema':'C3_TOP5_DAILY_V1','status':'HOLD','decision':'CASH','orders_enabled':False,
+            'user_executes_trades':True,'telegram_photos_sent':0,'candidates':[],
+            'limitations':['Official KRX daily bars are not independently 15:30 regular-only certified',
+            'Corporate-action adjustments and PIT financial quality not verified',
+            'Entry references are not orders or investment recommendations']}
+          def fetch(day,endpoint):
+            u='https://data-dbg.krx.co.kr/svc/apis/sto/'+endpoint+'?'+urllib.parse.urlencode({'basDd':day})
+            req=urllib.request.Request(u,headers={'AUTH_KEY':os.environ['KRX_AUTH_KEY'],'Accept':'application/json'})
+            with urllib.request.urlopen(req,timeout=25) as res:raw=res.read(12*1024*1024+1)
+            if len(raw)>12*1024*1024:raise ValueError('RESPONSE_TOO_LARGE')
+            z=json.loads(raw)
+            a=z.get('OutBlock_1')
+            if not isinstance(a,list):raise ValueError('MISSING_OUTBLOCK')
+            return a
+          def num(v):
+            try:
+              x=float(str(v).replace(',','').strip())
+              return x if math.isfinite(x) else None
+            except:return None
+          try:
+            if not os.environ.get('KRX_AUTH_KEY'):raise ValueError('KRX_KEY_MISSING')
+            now=datetime.datetime.now(ZoneInfo('Asia/Seoul'))
+            target=now.date()
+            # On weekends manual execution targets last Friday; weekdays must use same-day data.
+            while target.weekday()>4:target-=datetime.timedelta(days=1)
+            if now.hour<21 and target==now.date():raise ValueError('BEFORE_DAILY_DATA_WINDOW')
+            days=[];data=collections.defaultdict(dict);names={}
+            for offset in range(105):
+              d=target-datetime.timedelta(days=offset)
+              if d.weekday()>4:continue
+              ds=d.strftime('%Y%m%d')
+              a=fetch(ds,'stk_bydd_trd');b=fetch(ds,'ksq_bydd_trd')
+              if not a and not b:continue
+              if not a or not b:raise ValueError('PARTIAL_MARKET_'+ds)
+              days.append(ds)
+              for market,rows in (('KOSPI',a),('KOSDAQ',b)):
+                for r in rows:
+                  code=str(r.get('ISU_CD','')).strip()
+                  o,h,l,c=[num(r.get(k)) for k in ('TDD_OPNPRC','TDD_HGPRC','TDD_LWPRC','TDD_CLSPRC')]
+                  vol=num(r.get('ACC_TRDVOL'));val=num(r.get('ACC_TRDVAL'))
+                  if not code or None in (o,h,l,c,vol,val) or min(o,h,l,c)<=0 or vol<=0 or val<=0 or l>min(o,c) or h<max(o,c):continue
+                  key=(market,code)
+                  data[key][ds]=(c,h,l,vol,val)
+                  names[key]=str(r.get('ISU_NM',''))
+              if len(days)==60:break
+              time.sleep(.12)
+            if len(days)!=60 or days[0]!=target.strftime('%Y%m%d'):
+              raise ValueError('TODAY_60_SESSION_SOURCE_INCOMPLETE')
+            days.sort()
+            bench=collections.defaultdict(list);eligible={}
+            for key,s in data.items():
+              if not all(d in s for d in days):continue
+              a=[s[d] for d in days];c=[v[0] for v in a]
+              eligible[key]=a
+              bench[key[0]].append(c[-1]/c[-21]-1)
+            med={k:statistics.median(v) for k,v in bench.items() if len(v)>=100}
+            if len(med)!=2:raise ValueError('MARKET_BENCHMARK_MISSING')
+            pool=[]
+            for key,a in eligible.items():
+              c=[x[0] for x in a];last=c[-1]
+              ma5=statistics.mean(c[-5:]);ma20=statistics.mean(c[-20:]);ma60=statistics.mean(c)
+              r20=last/c[-21]-1;rs=r20-med[key[0]]
+              val=statistics.mean(x[4] for x in a[-20:])
+              rvol=a[-1][3]/statistics.mean(x[3] for x in a[-21:-1])
+              dist=last/ma20-1
+              low=min(x[2] for x in a[-10:]);risk=1-low/last
+              high=max(x[1] for x in a[-20:]);rr=((high-last)/last)/risk if risk>0 else 0
+              if not (val>=1e9 and ma5>=ma20>=ma60 and last>=ma20 and .02<=r20<=.35 and rs>0):continue
+              if not (-.01<=dist<=.08 and .01<=risk<=.08 and .4<=rvol<=4 and rr>=1.5):continue
+              score=round(40+min(rs*100,15)+min(r20*50,12)+max(0,12-abs(dist-.025)*150)+max(0,10-(risk-.02)*100)+min(max(rvol-.4,0)*3,6),2)
+              pool.append({'market':key[0],'code':key[1],'name':names[key],'score':score,
+                'close':round(last),'ma20':round(ma20),'low10':round(low),'high20':round(high),
+                'rvol':round(rvol,2),'rs20pp':round(rs*100,2),'stop_distance_pct':round(risk*100,2),
+                'entry_watch_low':round(ma20*.99),'entry_watch_high':round(ma20*1.02),
+                'status':'WATCH_ONLY'})
+            pool.sort(key=lambda z:(-z['score'],-z['rs20pp'],z['market'],z['code']))
+            selected=pool[:5]
+            receipt.update({'status':'TOP5_RENDER_READY','asof':days[-1],
+              'valid_60_session_symbols':len(eligible),'passing_symbols':len(pool),
+              'candidates':selected,'selection':'Technical-only until PIT financial gate is available'})
+            fontpath='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
+            boldpath='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
+            def font(size,bold=False):return ImageFont.truetype(boldpath if bold else fontpath,size)
+            im=Image.new('RGB',(1120,1100),(245,247,251));draw=ImageDraw.Draw(im)
+            draw.rectangle((0,0,1120,135),fill=(19,33,56))
+            draw.text((46,29),'강현AI PRO  |  C3 TOP5',font=font(42,True),fill='white')
+            draw.text((48,91),'KRX '+days[-1]+'  ·  직접 매매용 관심종목  ·  자동주문 없음',font=font(21),fill=(202,217,234))
+            draw.text((45,160),'순위 / 종목 / 점수',font=font(23,True),fill=(52,67,89))
+            draw.text((610,160),'종가 / 관심구간 / 저가 참고선',font=font(23,True),fill=(52,67,89))
+            for i in range(5):
+              y=207+i*151
+              draw.rounded_rectangle((34,y,1086,y+134),radius=16,fill='white')
+              if i<len(selected):
+                x=selected[i]
+                draw.text((56,y+17),str(i+1)+'  '+x['name']+' ('+x['code']+')',font=font(28,True),fill=(26,42,63))
+                draw.text((56,y+70),x['market']+'  ·  '+str(x['score'])+'점  ·  RVOL '+str(x['rvol']),font=font(20),fill=(65,85,111))
+                draw.text((615,y+15),'종가 '+format(x['close'],',')+'원',font=font(25,True),fill=(25,47,77))
+                draw.text((615,y+58),'관심 '+format(x['entry_watch_low'],',')+'~'+format(x['entry_watch_high'],',')+'원',font=font(21),fill=(35,91,146))
+                draw.text((615,y+95),'10일 저가 '+format(x['low10'],',')+'원',font=font(19),fill=(117,77,70))
+              else:
+                draw.text((58,y+47),str(i+1)+'  조건 충족 종목 없음',font=font(25),fill=(133,144,160))
+            draw.text((46,988),'연구용 기술적 후보 · 재무/PIT·수정주가·정규장 종가 미인증',font=font(21),fill=(118,63,55))
+            draw.text((46,1030),'관심구간은 MA20 ±1~2% 참고값이며 주문가격이 아닙니다.',font=font(20),fill=(85,100,121))
+            image=root/'c3_top5_one_photo.png';im.save(image)
+            receipt['image_sha256']=hashlib.sha256(image.read_bytes()).hexdigest()
+            # Never send stale same-day duplicates from reruns: workflow concurrency prevents overlap,
+            # but manual reruns may duplicate. A separate persisted receipt gate is required.
+            # Until that gate exists, scheduled dispatch only; manual runs are preview-only.
+            if os.environ.get('GITHUB_EVENT_NAME')!='schedule':
+              receipt['status']='PREVIEW_ONLY_MANUAL_RUN'
+            else:
+              token=os.environ.get('TELEGRAM_BOT_TOKEN','');chat=os.environ.get('TELEGRAM_CHAT_ID','')
+              if not token or not chat:raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
+              import uuid
+              boundary='----C3'+uuid.uuid4().hex
+              def part(name,value,filename=None,ctype='text/plain'):
+                head='--'+boundary+'\r\nContent-Disposition: form-data; name="'+name+'"'
+                if filename:head+='; filename="'+filename+'"'
+                head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
+                return head.encode()+value+b'\r\n'
+              payload=part('chat_id',chat.encode())+part('caption',('C3 TOP5 '+days[-1]+' | 관심종목, 매매는 본인 판단').encode())+part('photo',image.read_bytes(),'c3_top5.png','image/png')+('--'+boundary+'--\r\n').encode()
+              req=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',data=payload,
+                headers={'Content-Type':'multipart/form-data; boundary='+boundary},method='POST')
+              with urllib.request.urlopen(req,timeout=30) as resp:response=json.load(resp)
+              if not response.get('ok'):raise ValueError('TELEGRAM_NOT_OK')
+              receipt['telegram_photos_sent']=1
+              receipt['status']='DELIVERED'
+            print('TOP5_RECEIPT',json.dumps({'status':receipt['status'],'asof':receipt['asof'],
+              'passing_symbols':len(pool),'selected':selected,'photos_sent':receipt['telegram_photos_sent']},ensure_ascii=False))
+          except Exception as e:
+            receipt['status']='HOLD_ERROR'
+            receipt['error']=type(e).__name__+': '+str(e)[:160]
+            print('TOP5_ERROR',receipt['error'])
+          finally:
+            (root/'receipt.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n')
+          if receipt['status']=='HOLD_ERROR':raise SystemExit(1)
+          PY
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+      - name: Upload single image and audit receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-top5-daily-one-photo
+          path: output/c3_top5/
+          retention-days: 30
+          if-no-files-found: warn
