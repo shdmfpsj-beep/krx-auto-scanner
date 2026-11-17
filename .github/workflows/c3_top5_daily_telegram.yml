@@ -24,6 +24,27 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y fonts-nanum >/dev/null
           python3 -m pip install pillow --disable-pip-version-check
+      - name: Syntax check embedded Python before KRX calls
+        shell: bash
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          import urllib.request,os,json,base64
+          # Checkout is intentionally skipped because the repository contains
+          # a filename that prevents a full checkout on the runner.
+          url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/.github/workflows/c3_top5_daily_telegram.yml?ref='+os.environ['GITHUB_SHA']
+          req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+          with urllib.request.urlopen(req,timeout=20) as r:obj=json.load(r)
+          workflow=base64.b64decode(obj['content']).decode()
+          start=workflow.index("          python - <<'PY'\\n",workflow.index('      - name: Collect KRX sessions'))+len("          python - <<'PY'\\n")
+          end=workflow.index('\\n          PY',start)
+          code='\\n'.join(line[10:] if line.startswith('          ') else line for line in workflow[start:end].splitlines())
+          ast.parse(code,filename='c3_top5_embedded.py')
+          print('EMBEDDED_PYTHON_SYNTAX_OK')
+          PY
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Collect KRX sessions and render one classic image per stock
         shell: bash
         run: |
@@ -232,7 +253,7 @@ jobs:
               notes=[('정량·섹터','20일 상승 '+format(x['return20_pct'],'+.2f')+'%, RS20 '+format(x['rs20pp'],'+.2f')+'%p, RVOL '+str(x['rvol'])+'. 거래대금 '+format(x['turnover20_krw']/1e8,',.1f')+'억원. 업종 미검증.'),
                 ('재무·실적','OpenDART PIT 실적 미연결. 매출, 영업이익, 현금흐름, 부채 건전성 판단 보류.'),
                 ('주요 이슈·수급','MA5 '+format(x['ma5'],',')+'원 / MA20 '+format(x['ma20'],',')+'원 / MA60 '+format(x['ma60'],',')+'원. 뉴스·기관·외국인 수급 미검증.'),
-                ('리스크·구조손절',('피벗지지 '+format(x['pivot_support'],',')+'원, ATR14 '+format(x['atr14'],',.1f')+'원, 손절 참고 '+format(x['structural_stop_ref'],',')+'원. 실전 미승인.' if x['geometry_validated'] else '지지구조·ATR·최대위험 5%·R1 손익비 2배 검증 실패: PASS. 손절 미확정.')))]
+                ('리스크·구조손절',('피벗지지 '+format(x['pivot_support'],',')+'원, ATR14 '+format(x['atr14'],',.1f')+'원, 손절 참고 '+format(x['structural_stop_ref'],',')+'원. 실전 미승인.' if x['geometry_validated'] else '지지구조·ATR·최대위험 5%·R1 손익비 2배 검증 실패: PASS. 손절 미확정.'))]
               for j,(label,value) in enumerate(notes):
                 yy=1635+j*165;draw.rectangle((48,yy,1352,yy+155),fill='white')
                 draw.line((48,yy,48,yy+155),fill=GOLD,width=5)
