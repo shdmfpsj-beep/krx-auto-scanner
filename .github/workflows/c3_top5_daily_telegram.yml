@@ -83,7 +83,7 @@ jobs:
                   vol=num(r.get('ACC_TRDVOL'));val=num(r.get('ACC_TRDVAL'))
                   if not code or None in (o,h,l,c,vol,val) or min(o,h,l,c)<=0 or vol<=0 or val<=0 or l>min(o,c) or h<max(o,c):continue
                   key=(market,code)
-                  data[key][ds]=(c,h,l,vol,val)
+                  data[key][ds]=(c,h,l,vol,val,o)
                   names[key]=str(r.get('ISU_NM',''))
               if len(days)==60:break
               time.sleep(.12)
@@ -118,32 +118,77 @@ jobs:
                 'status':'WATCH_ONLY'})
             pool.sort(key=lambda z:(-z['score'],-z['rs20pp'],z['market'],z['code']))
             selected=pool[:5]
+            for x in selected:
+              key=(x['market'],x['code'])
+              x['chart_bars']=[{'date':d,'close':data[key][d][0],'high':data[key][d][1],
+                'low':data[key][d][2],'volume':data[key][d][3],'open':data[key][d][5]} for d in days]
             receipt.update({'status':'TOP5_RENDER_READY','asof':days[-1],
               'valid_60_session_symbols':len(eligible),'passing_symbols':len(pool),
               'candidates':selected,'selection':'Technical-only until PIT financial gate is available'})
             fontpath='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
             boldpath='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
             def font(size,bold=False):return ImageFont.truetype(boldpath if bold else fontpath,size)
-            im=Image.new('RGB',(1120,1100),(245,247,251));draw=ImageDraw.Draw(im)
-            draw.rectangle((0,0,1120,135),fill=(19,33,56))
-            draw.text((46,29),'강현AI PRO  |  C3 TOP5',font=font(42,True),fill='white')
-            draw.text((48,91),'KRX '+days[-1]+'  ·  직접 매매용 관심종목  ·  자동주문 없음',font=font(21),fill=(202,217,234))
-            draw.text((45,160),'순위 / 종목 / 점수',font=font(23,True),fill=(52,67,89))
-            draw.text((610,160),'종가 / 관심구간 / 저가 참고선',font=font(23,True),fill=(52,67,89))
+            # Compact five-panel classic white/gold report: actual OHLC candles, MA5/20/60,
+            # volume, entry observation band and 10-day low reference.
+            from PIL import Image
+            INK=(42,43,44);SUB=(108,112,115);GOLD=(172,136,72)
+            GREEN=(41,119,86);BLUE=(54,124,175);RED=(184,75,72)
+            im=Image.new('RGB',(1400,2440),(250,249,245));draw=ImageDraw.Draw(im)
+            draw.rectangle((0,0,1400,164),fill=(255,255,255))
+            draw.rectangle((0,0,14,164),fill=GOLD)
+            draw.text((58,28),'강현AI PRO  |  C3 TOP5',font=font(49,True),fill=INK)
+            draw.text((60,103),'KRX '+days[-1]+'  ·  기술적 관심종목  ·  직접 매매 / 자동주문 없음',font=font(24),fill=SUB)
+            draw.line((55,166,1345,166),fill=GOLD,width=3)
             for i in range(5):
-              y=207+i*151
-              draw.rounded_rectangle((34,y,1086,y+134),radius=16,fill='white')
-              if i<len(selected):
-                x=selected[i]
-                draw.text((56,y+17),str(i+1)+'  '+x['name']+' ('+x['code']+')',font=font(28,True),fill=(26,42,63))
-                draw.text((56,y+70),x['market']+'  ·  '+str(x['score'])+'점  ·  RVOL '+str(x['rvol']),font=font(20),fill=(65,85,111))
-                draw.text((615,y+15),'종가 '+format(x['close'],',')+'원',font=font(25,True),fill=(25,47,77))
-                draw.text((615,y+58),'관심 '+format(x['entry_watch_low'],',')+'~'+format(x['entry_watch_high'],',')+'원',font=font(21),fill=(35,91,146))
-                draw.text((615,y+95),'10일 저가 '+format(x['low10'],',')+'원',font=font(19),fill=(117,77,70))
-              else:
-                draw.text((58,y+47),str(i+1)+'  조건 충족 종목 없음',font=font(25),fill=(133,144,160))
-            draw.text((46,988),'연구용 기술적 후보 · 재무/PIT·수정주가·정규장 종가 미인증',font=font(21),fill=(118,63,55))
-            draw.text((46,1030),'관심구간은 MA20 ±1~2% 참고값이며 주문가격이 아닙니다.',font=font(20),fill=(85,100,121))
+              y=195+i*425
+              draw.rounded_rectangle((42,y,1358,y+405),radius=18,fill=(255,255,255),outline=(223,216,202),width=2)
+              if i>=len(selected):
+                draw.text((82,y+155),str(i+1)+'  조건 충족 종목 없음',font=font(34,True),fill=SUB)
+                continue
+              x=selected[i];bars=x['chart_bars']
+              draw.text((76,y+20),str(i+1)+'  '+x['name']+'  ('+x['code']+')',font=font(32,True),fill=INK)
+              draw.text((76,y+68),x['market']+'  ·  '+str(x['score'])+'점  ·  RVOL '+str(x['rvol'])+
+                '  ·  RS '+str(x['rs20pp'])+'%p',font=font(21),fill=SUB)
+              px0,px1=83,849;py0,py1=y+123,y+301
+              prices=[v['high'] for v in bars]+[v['low'] for v in bars]
+              for n in (5,20,60):
+                closes=[v['close'] for v in bars]
+                prices.extend(statistics.mean(closes[k-n+1:k+1]) for k in range(n-1,len(closes)))
+              prices.extend([x['entry_watch_low'],x['entry_watch_high'],x['low10']])
+              pmin=min(prices)*.985;pmax=max(prices)*1.015
+              def py(v):return int(py1-(v-pmin)/(pmax-pmin)*(py1-py0))
+              def px(k):return int(px0+9+(px1-px0-18)*k/59)
+              draw.rectangle((px0,py(x['entry_watch_high']),px1,py(x['entry_watch_low'])),
+                fill=(237,245,240))
+              for j in range(5):
+                yy=py0+(py1-py0)*j//4
+                draw.line((px0,yy,px1,yy),fill=(231,232,230),width=1)
+              for k,v in enumerate(bars):
+                xx=px(k);up=v['close']>=v['open'];color=RED if up else BLUE
+                draw.line((xx,py(v['high']),xx,py(v['low'])),fill=color,width=2)
+                top=min(py(v['open']),py(v['close']));bottom=max(py(v['open']),py(v['close']))
+                draw.rectangle((xx-4,top,xx+4,max(top+2,bottom)),fill=color)
+              closes=[v['close'] for v in bars]
+              for n,color in ((5,(64,91,129)),(20,GOLD),(60,(115,139,128))):
+                pts=[(px(k),py(statistics.mean(closes[k-n+1:k+1]))) for k in range(n-1,60)]
+                if len(pts)>1:draw.line(pts,fill=color,width=3,joint='curve')
+              draw.line((px0,py(x['low10']),px1,py(x['low10'])),fill=RED,width=2)
+              vmax=max(v['volume'] for v in bars)
+              for k,v in enumerate(bars):
+                xx=px(k);base=y+366
+                height=int(v['volume']/vmax*48)
+                draw.rectangle((xx-4,base-height,xx+4,base),fill=(182,191,202))
+              draw.text((92,y+372),'60거래일 봉  |  MA5 파랑 · MA20 금색 · MA60 녹색 · 거래량 회색',font=font(17),fill=SUB)
+              tx=890
+              draw.text((tx,y+125),'종가  '+format(x['close'],',')+'원',font=font(29,True),fill=INK)
+              draw.text((tx,y+182),'관심구간',font=font(22),fill=SUB)
+              draw.text((tx,y+214),format(x['entry_watch_low'],',')+'~'+format(x['entry_watch_high'],',')+'원',font=font(26,True),fill=GREEN)
+              draw.text((tx,y+271),'10일 저가 참고',font=font(21),fill=SUB)
+              draw.text((tx,y+303),format(x['low10'],',')+'원',font=font(26,True),fill=RED)
+              draw.text((tx,y+353),'기술 후보 · 재무 미검증',font=font(18),fill=SUB)
+            draw.line((58,2333,1340,2333),fill=GOLD,width=2)
+            draw.text((61,2350),'자료: KRX Open API · 비수정 일봉 · 정규장 15:30 및 기업행위 미인증',font=font(22),fill=SUB)
+            draw.text((61,2390),'관심구간은 MA20 기준 관찰 영역, 손절 참고선은 10일 저가입니다. 매수 지시가 아닙니다.',font=font(19),fill=SUB)
             image=root/'c3_top5_one_photo.png';im.save(image)
             receipt['image_sha256']=hashlib.sha256(image.read_bytes()).hexdigest()
             # Never send stale same-day duplicates from reruns: workflow concurrency prevents overlap,
