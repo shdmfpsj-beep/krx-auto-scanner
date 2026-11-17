@@ -22,10 +22,10 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import os,json,gzip,csv,hashlib,collections,io
+          import json,gzip,csv,hashlib,collections,io
           from pathlib import Path
           out=Path('output/c3_120_audit');out.mkdir(parents=True,exist_ok=True)
-          report={'schema':'C3_120_AUDIT_V2','source_run_id':44007670342,
+          report={'schema':'C3_120_AUDIT_V3','source_run_id':44007670342,
             'source_artifact_id':14294819841,'status':'HOLD_AUDIT_NOT_COMPLETE',
             'buy_approved':False,'orders_enabled':False,'telegram_requests':0,'decision':'CASH'}
           try:
@@ -37,15 +37,18 @@ jobs:
             if hashlib.sha256(compressed).hexdigest()!=manifest.get('csv_gz_sha256'):
               raise ValueError('CSV_HASH_MISMATCH')
             dates=manifest['dates']
-            if len(dates)!=120 or len({d['date'] for d in dates})!=120:
-              raise ValueError('SOURCE_DATE_DUPLICATES')
+            valid_dates={x['date'] for x in dates}
+            if len(dates)!=120 or len(valid_dates)!=120:raise ValueError('SOURCE_DATE_DUPLICATES')
             required={'session','market','ISU_CD','TDD_CLSPRC','TDD_OPNPRC','TDD_HGPRC',
               'TDD_LWPRC','ACC_TRDVOL','ACC_TRDVAL'}
             def num(x):
-              try:return float(str(x).replace(',','').strip())
+              try:
+                y=float(str(x).replace(',','').strip())
+                return y if __import__('math').isfinite(y) else None
               except:return None
-            groups=collections.defaultdict(list)
             seen=set();issues=collections.Counter();market_dates=collections.Counter()
+            classes=collections.Counter();samples=collections.defaultdict(list)
+            by_symbol=collections.defaultdict(dict)
             rows=0
             with gzip.open(io.BytesIO(compressed),'rt',encoding='utf-8',newline='') as f:
               reader=csv.DictReader(f)
@@ -54,45 +57,70 @@ jobs:
                 rows+=1;d=r['session'];m=r['market'];code=r['ISU_CD'].strip()
                 k=(d,m,code)
                 if k in seen:issues['duplicate_keys']+=1
-                seen.add(k)
-                market_dates[(d,m)]+=1
-                if d not in {x['date'] for x in dates}:issues['unexpected_dates']+=1
+                seen.add(k);market_dates[(d,m)]+=1
+                if d not in valid_dates:issues['unexpected_dates']+=1
+                if m not in ('KOSPI','KOSDAQ'):issues['unexpected_market']+=1
                 if not code:issues['missing_code']+=1
                 o,h,l,c=[num(r[x]) for x in ('TDD_OPNPRC','TDD_HGPRC','TDD_LWPRC','TDD_CLSPRC')]
-                v=num(r['ACC_TRDVOL']);value=num(r['ACC_TRDVAL'])
-                if None in (o,h,l,c,v,value):issues['non_numeric_ohlcv']+=1
-                elif min(o,h,l,c)<=0 or l>min(o,c) or h<max(o,c) or v<0 or value<0:
-                  issues['invalid_ohlcv_geometry']+=1
-                else:groups[(m,code)].append((d,c,v,value))
+                v=num(r['ACC_TRDVOL']);val=num(r['ACC_TRDVAL'])
+                if None in (o,h,l,c,v,val):kind='MISSING_OR_NONFINITE'
+                elif min(o,h,l,c,v,val)<0:kind='NEGATIVE_PRICE_OR_ACTIVITY'
+                elif v==0 and val==0 and c>0 and (o==0 or h==0 or l==0):
+                  kind='NO_TRADE_ZERO_OHL_REFERENCE_CLOSE'
+                elif v==0 and val==0 and min(o,h,l,c)>0 and l<=min(o,c) and h>=max(o,c):
+                  kind='NO_TRADE_WITH_QUOTED_OHLC'
+                elif v==0 or val==0:kind='VOLUME_VALUE_INCONSISTENT'
+                elif min(o,h,l,c)==0:kind='ZERO_PRICE_WITH_TRADING'
+                elif l>h or l>min(o,c) or h<max(o,c):kind='OHLC_GEOMETRY_INVALID'
+                else:kind='VALID_TRADED'
+                classes[kind]+=1
+                if kind!='VALID_TRADED' and len(samples[kind])<12:
+                  samples[kind].append({'date':d,'market':m,'code':code,'name':r.get('ISU_NM',''),
+                    'o':o,'h':h,'l':l,'c':c,'volume':v,'value':val})
+                by_symbol[(m,code)][d]=kind
             if rows!=manifest['rows']:issues['manifest_row_mismatch']+=1
-            for d in dates:
+            for x in dates:
               for m in ('KOSPI','KOSDAQ'):
-                if market_dates[(d['date'],m)]!=d[m]:issues['market_date_count_mismatch']+=1
-            lengths=collections.Counter(len(v) for v in groups.values())
-            n60=sum(len(v)>=60 for v in groups.values())
-            n120=sum(len(v)==120 for v in groups.values())
-            report.update({'source_rows':rows,'source_sessions':len(dates),'unique_market_codes':len(groups),
-              'symbols_with_60plus_observations':n60,'symbols_with_120_observations':n120,
-              'observation_count_distribution':dict(sorted(lengths.items())),
-              'issues':dict(issues),'date_range':{'first':min(d['date'] for d in dates),'last':max(d['date'] for d in dates)},
-              'limitations':['Official API daily fields not certified as 15:30 regular-only',
-                'Corporate-action-adjusted prices not independently certified',
-                'No point-in-time financial statements','No market regime or sector verification',
-                'No historical backtest or execution-cost validation']})
-            critical=['duplicate_keys','unexpected_dates','missing_code','non_numeric_ohlcv',
-              'invalid_ohlcv_geometry','manifest_row_mismatch','market_date_count_mismatch']
-            if any(issues[x] for x in critical):report['status']='HOLD_DATA_QUALITY_FAILURE'
-            elif n60==0:report['status']='HOLD_NO_CONTINUOUS_SYMBOLS'
-            else:report['status']='RESEARCH_DATA_AUDIT_PASS_NOT_TRADE_CERTIFIED'
-            print('AUDIT_SUMMARY',json.dumps({k:report[k] for k in ('status','source_rows','source_sessions',
-              'unique_market_codes','symbols_with_60plus_observations','symbols_with_120_observations','issues')},ensure_ascii=False))
+                if market_dates[(x['date'],m)]!=x[m]:issues['market_date_count_mismatch']+=1
+            chronological=sorted(valid_dates)
+            full_valid=0;last60_valid=0;max_streaks=collections.Counter()
+            for symbol,ds in by_symbol.items():
+              full_valid+=all(ds.get(d)=='VALID_TRADED' for d in chronological)
+              last60_valid+=all(ds.get(d)=='VALID_TRADED' for d in chronological[-60:])
+              streak=peak=0
+              for d in chronological:
+                streak=streak+1 if ds.get(d)=='VALID_TRADED' else 0
+                peak=max(peak,streak)
+              max_streaks[peak]+=1
+            report.update({'source_rows':rows,'source_sessions':120,'unique_market_codes':len(by_symbol),
+              'classification_counts':dict(classes),'classification_samples':dict(samples),
+              'structural_issues':dict(issues),'symbols_valid_all_120':full_valid,
+              'symbols_valid_latest_60':last60_valid,
+              'max_consecutive_valid_sessions_distribution':dict(sorted(max_streaks.items())),
+              'date_range':{'first':chronological[0],'last':chronological[-1]},
+              'classification_policy':{'VALID_TRADED':'Eligible for further research only',
+                'NO_TRADE_ZERO_OHL_REFERENCE_CLOSE':'Quarantine as non-trading; never fill OHLC with close',
+                'NO_TRADE_WITH_QUOTED_OHLC':'Quarantine as non-trading',
+                'all_other_nonvalid':'Quarantine pending source/market-status investigation'},
+              'limitations':['Zero-volume classification is heuristic; not official suspension proof',
+                'No adjusted-price certification','No 15:30 regular-session certification',
+                'No PIT financial verification','No strategy backtest']})
+            structural=any(issues.values())
+            severe=sum(classes[k] for k in ('MISSING_OR_NONFINITE','NEGATIVE_PRICE_OR_ACTIVITY',
+              'VOLUME_VALUE_INCONSISTENT','ZERO_PRICE_WITH_TRADING','OHLC_GEOMETRY_INVALID'))
+            if structural:report['status']='HOLD_STRUCTURAL_DATA_FAILURE'
+            elif severe:report['status']='HOLD_UNEXPLAINED_PRICE_ROWS'
+            elif last60_valid==0:report['status']='HOLD_NO_LAST60_VALID_SYMBOLS'
+            else:report['status']='RESEARCH_TRIAGE_PASS_NOT_TRADE_CERTIFIED'
+            print('TRIAGE_SUMMARY',json.dumps({k:report[k] for k in ('status','source_rows',
+              'classification_counts','structural_issues','symbols_valid_all_120','symbols_valid_latest_60')},ensure_ascii=False))
           except Exception as e:
             report['status']='HOLD_AUDIT_EXCEPTION'
             report['error']=type(e).__name__+': '+str(e)[:240]
             print('AUDIT_ERROR',report['error'])
           finally:
             (out/'audit_report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
-          if report['status']!='RESEARCH_DATA_AUDIT_PASS_NOT_TRADE_CERTIFIED':raise SystemExit(1)
+          if report['status']!='RESEARCH_TRIAGE_PASS_NOT_TRADE_CERTIFIED':raise SystemExit(1)
           PY
       - name: Upload audit receipt
         if: always()
