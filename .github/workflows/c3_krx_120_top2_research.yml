@@ -1,0 +1,145 @@
+name: C3 KRX 120-session TOP2 research candidates (CASH only)
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download audited immutable KRX historical source
+        uses: actions/download-artifact@v4
+        with:
+          name: c3-krx-official-120-session-history
+          run-id: 44007670342
+          github-token: ${{ github.token }}
+          path: input/history
+      - name: Download passed research data audit
+        uses: actions/download-artifact@v4
+        with:
+          name: c3-krx-120-audit-report
+          run-id: 44014994967
+          github-token: ${{ github.token }}
+          path: input/audit
+      - name: Run deterministic technical ranking without checkout
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import csv,gzip,io,json,hashlib,math,statistics,collections
+          from pathlib import Path
+          out=Path('output/c3_top2_research');out.mkdir(parents=True,exist_ok=True)
+          report={'schema':'C3_TECH_RESEARCH_V1','status':'HOLD',
+            'source_run_id':44007670342,'audit_run_id':44014994967,
+            'decision':'CASH','buy_approved':False,'orders_enabled':False,'telegram_requests':0,
+            'top2_research_only':[],'limitations':['No 15:30 regular-session close certification',
+            'No corporate-action-adjusted prices verification','No PIT financial verification',
+            'No backtest of 5/10/20 day outcomes','No transaction-cost validation']}
+          try:
+            source=Path('input/history')
+            audit=json.loads(Path('input/audit/audit_report.json').read_text())
+            manifest=json.loads((source/'manifest.json').read_text())
+            raw=(source/'official_120_sessions.csv.gz').read_bytes()
+            if audit.get('status')!='RESEARCH_TRIAGE_PASS_NOT_TRADE_CERTIFIED':
+              raise ValueError('RESEARCH_AUDIT_NOT_PASSED')
+            if manifest.get('matched_sessions')!=120 or manifest.get('rows')!=331880:
+              raise ValueError('SOURCE_ROW_OR_SESSION_MISMATCH')
+            if hashlib.sha256(raw).hexdigest()!=manifest.get('csv_gz_sha256'):
+              raise ValueError('SOURCE_HASH_MISMATCH')
+            dates=sorted(x['date'] for x in manifest['dates'])
+            if len(dates)!=120 or len(set(dates))!=120:raise ValueError('BAD_DATES')
+            def n(s):
+              try:
+                v=float(str(s).replace(',','').strip())
+                return v if math.isfinite(v) else None
+              except:return None
+            symbols=collections.defaultdict(dict);names={};invalid=collections.Counter()
+            with gzip.open(io.BytesIO(raw),'rt',encoding='utf-8',newline='') as f:
+              for r in csv.DictReader(f):
+                d=r['session'];m=r['market'];code=r['ISU_CD'].strip()
+                if d not in dates or m not in ('KOSPI','KOSDAQ') or not code:raise ValueError('STRUCTURAL_ROW')
+                o,h,l,c=[n(r[k]) for k in ('TDD_OPNPRC','TDD_HGPRC','TDD_LWPRC','TDD_CLSPRC')]
+                v=n(r['ACC_TRDVOL']);val=n(r['ACC_TRDVAL'])
+                if None in (o,h,l,c,v,val) or min(o,h,l,c)<=0 or v<=0 or val<=0 or l>min(o,c) or h<max(o,c):
+                  invalid[(m,code)]+=1;continue
+                key=(m,code)
+                if d in symbols[key]:raise ValueError('DUPLICATE_VALID_ROW')
+                symbols[key][d]={'close':c,'high':h,'low':l,'volume':v,'value':val}
+                names[key]=r.get('ISU_NM','')
+            if len(symbols)<2000:raise ValueError('TOO_FEW_VALID_SYMBOLS')
+            # Benchmark is equal-weight market median of 20-session returns; not a KOSPI/KOSDAQ index.
+            benchmark=collections.defaultdict(list)
+            for (m,code),s in symbols.items():
+              if all(d in s for d in dates[-21:]):
+                z=[s[d]['close'] for d in dates[-21:]]
+                benchmark[m].append(z[-1]/z[0]-1)
+            bench={m:statistics.median(v) for m,v in benchmark.items() if len(v)>=100}
+            if set(bench)!=set(('KOSPI','KOSDAQ')):raise ValueError('BENCHMARK_NOT_AVAILABLE')
+            candidates=[];reasons=collections.Counter()
+            for key,s in symbols.items():
+              m,code=key
+              if not all(d in s for d in dates[-60:]):
+                reasons['no_60_continuous_valid_sessions']+=1;continue
+              recent=[s[d] for d in dates[-60:]]
+              closes=[x['close'] for x in recent];values=[x['value'] for x in recent]
+              volumes=[x['volume'] for x in recent]
+              c=closes[-1];ma5=statistics.mean(closes[-5:]);ma20=statistics.mean(closes[-20:])
+              ma60=statistics.mean(closes)
+              r20=c/closes[-21]-1;r10=c/closes[-11]-1
+              rs20=r20-bench[m]
+              rvol=volumes[-1]/statistics.mean(volumes[-21:-1])
+              avg_value20=statistics.mean(values[-20:])
+              distance20=c/ma20-1
+              stop=min(x['low'] for x in recent[-10:])
+              stop_distance=1-stop/c
+              # Avoid fabricated target prices; reference is observed 20-day high.
+              resistance=max(x['high'] for x in recent[-20:])
+              reward=(resistance-c)/c
+              rr=reward/stop_distance if stop_distance>0 else 0
+              if avg_value20<1000000000:reasons['low_liquidity']+=1;continue
+              if not (ma5>=ma20>=ma60 and c>=ma20):reasons['trend_filter']+=1;continue
+              if not (0.02<=r20<=0.35 and rs20>0):reasons['momentum_rs_filter']+=1;continue
+              if not (-0.01<=distance20<=0.08):reasons['ma20_distance_filter']+=1;continue
+              if not (0.01<=stop_distance<=0.08):reasons['stop_distance_filter']+=1;continue
+              if not (0.4<=rvol<=4):reasons['rvol_filter']+=1;continue
+              if rr<1.5:reasons['reward_risk_filter']+=1;continue
+              score=round(40+min(rs20*100,15)+min(r20*50,12)
+                +max(0,12-abs(distance20-0.025)*150)
+                +max(0,10-(stop_distance-0.02)*100)
+                +min(max(rvol-0.4,0)*3,6),2)
+              candidates.append({'market':m,'code':code,'name':names[key],'score':score,
+                'last_close':c,'ma5':round(ma5,2),'ma20':round(ma20,2),
+                'ma60':round(ma60,2),'return_10d_pct':round(r10*100,2),
+                'return_20d_pct':round(r20*100,2),'relative_strength_20d_pp':round(rs20*100,2),
+                'rvol20':round(rvol,2),'ma20_distance_pct':round(distance20*100,2),
+                'avg_trading_value_20d_krw':round(avg_value20),
+                'observed_10d_low_reference':stop,'stop_distance_pct':round(stop_distance*100,2),
+                'observed_20d_high_reference':resistance,'reward_risk_to_observed_high':round(rr,2),
+                'entry_status':'RESEARCH_ONLY_NOT_ACTIONABLE'})
+            candidates.sort(key=lambda x:(-x['score'],-x['relative_strength_20d_pp'],x['market'],x['code']))
+            report.update({'status':'RESEARCH_RANKING_COMPLETE_NOT_TRADE_CERTIFIED',
+              'asof':dates[-1],'market_median_20d_returns_pct':{k:round(v*100,2) for k,v in bench.items()},
+              'valid_symbol_groups':len(symbols),'eligible_candidate_count':len(candidates),
+              'filter_exclusion_counts':dict(reasons),'top2_research_only':candidates[:2],
+              'ranking_method':'MA5>=MA20>=MA60, 20d RS vs same-market median, MA20 distance, liquidity, RVOL, 10d low stop geometry and 20d observed high R:R',
+              'no_candidates_is_valid':True})
+            (out/'ranked_research_candidates.json').write_text(json.dumps(candidates[:30],ensure_ascii=False,indent=2)+'\n')
+            print('RESEARCH_RECEIPT',json.dumps({k:report[k] for k in ('status','asof','valid_symbol_groups',
+              'eligible_candidate_count','top2_research_only')},ensure_ascii=False))
+          except Exception as e:
+            report['status']='HOLD_RESEARCH_ERROR'
+            report['error']=type(e).__name__+': '+str(e)[:240]
+            print('RESEARCH_ERROR',report['error'])
+          finally:
+            (out/'research_receipt.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          if report['status']!='RESEARCH_RANKING_COMPLETE_NOT_TRADE_CERTIFIED':raise SystemExit(1)
+          PY
+      - name: Upload read-only research receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-120-technical-research-candidates
+          path: output/c3_top2_research/
+          retention-days: 30
+          if-no-files-found: warn
