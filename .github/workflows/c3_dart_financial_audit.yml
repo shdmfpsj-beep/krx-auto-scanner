@@ -99,10 +99,18 @@ jobs:
               current,prior=next(iter(vals))
               result[metric]={'status':'OBSERVED_NOT_PIT_CERTIFIED','current_krw':current,
                 'prior_krw':prior,'source_account_ids':sorted({x.get('account_id') for x in matches})}
-              if metric in ('revenue','operating_profit','net_income','operating_cash_flow'):
-                result[metric]['period_basis']='DART_REPORTED_CUMULATIVE_OR_PERIOD_UNCONFIRMED'
-                if current is not None and prior is not None and prior>0:
-                  result[metric]['reported_yoy_pct']=round((current/prior-1)*100,2)
+              if metric in ('revenue','operating_profit','net_income'):
+                # Quarter IS current=3-month amount; prior year's same quarter is frmtrm_q_amount.
+                # Never compare against frmtrm_amount, which can be a different period.
+                qvals={amount(x,'frmtrm_q_amount') for x in matches}
+                prev_q=next(iter(qvals)) if len(qvals)==1 else None
+                result[metric]['prior_same_quarter_krw']=prev_q
+                result[metric]['period_basis']='QUARTER_3_MONTH_IS'
+                if current is not None and prev_q is not None and prev_q>0:
+                  result[metric]['quarter_yoy_pct']=round((current/prev_q-1)*100,2)
+              elif metric=='operating_cash_flow':
+                result[metric]['period_basis']='CUMULATIVE_CASH_FLOW'
+                # No growth rate until prior-year same cumulative period is verified.
             def v(key):
               d=result.get(key,{})
               return d.get('current_krw') if d.get('status')=='OBSERVED_NOT_PIT_CERTIFIED' else None
