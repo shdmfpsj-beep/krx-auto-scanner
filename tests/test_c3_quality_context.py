@@ -44,9 +44,7 @@ class ContextTests(unittest.TestCase):
                    "opportunity_score":70,"entry_status":"ENTRY_READY"}
         with patch.object(q,"corps",return_value={"123456":"12345678"}),\
              patch.object(q,"annual_asof",return_value=(data,[],"VERIFIED_ANNUAL")),\
-             patch.object(q.datetime,"datetime",wraps=datetime.datetime) as dt:
-            dt.now.return_value=datetime.datetime(2026,11,18,22,tzinfo=datetime.timezone(datetime.timedelta(hours=9)))
-            dt.strptime.side_effect=datetime.datetime.strptime
+             patch.object(q.datetime,"datetime",FrozenDatetime):
             result,audit=q.enrich([candidate],"20261118","a"*40)
         self.assertTrue(result[0]["quality_risk_flag"])
         self.assertEqual(result[0]["context_status"],"NONPOSITIVE_EQUITY")
