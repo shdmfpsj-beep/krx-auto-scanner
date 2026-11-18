@@ -42,8 +42,8 @@ class ContextTests(unittest.TestCase):
         class FrozenDatetime(datetime.datetime):
             @classmethod
             def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
-        with patch.object(q.datetime,"datetime",FrozenDatetime),\\
-             patch.object(q,"corps",return_value={}):
+        with (patch.object(q.datetime,"datetime",FrozenDatetime),
+              patch.object(q,"corps",return_value={})):
             result,audit=q.enrich([candidate],"20261117","a"*40)
         self.assertEqual(audit["status"],"CONTEXT_RESEARCH_COMPLETED")
         self.assertNotEqual(audit["status"],"ASOF_OUTSIDE_RECENT_WINDOW")
