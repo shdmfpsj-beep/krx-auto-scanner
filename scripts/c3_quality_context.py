@@ -46,7 +46,7 @@ def metric(rows,kind,field,section):
 def annual_asof(corp,key,asof):
     # Only annual reports actually filed by as-of; never future/retroactive financials.
     filings=get_json("list.json",{"corp_code":corp,"bgn_de":str(asof.year-2)+"0101",
-        "end_de":asof.strftime("%Y%m%d"),"page_count":100,"pblntf_ty":"A"},key)
+        "end_de":asof.strftime("%Y%m%d"),"page_count":100},key)
     if filings.get("status")!="000":return None,[], "FILINGS_UNAVAILABLE"
     available=[r for r in filings.get("list",[]) if str(r.get("rcept_dt",""))<=asof.strftime("%Y%m%d")]
     years=[]
@@ -134,7 +134,7 @@ def enrich(pool,asof,key,max_requests=12):
             flagged=[r for r in recent if any(term in str(r.get("report_nm","")).replace(" ","") for term in RISK_TERMS)]
             x["disclosure_status"]="RISK_TITLE_REVIEW_REQUIRED" if flagged else "NO_MATCH_IN_RETRIEVED_PERIODIC_LIST"
             x["disclosure_title_flags"]=[str(r.get("report_nm",""))[:90] for r in flagged[:3]]
-            if flagged:x["quality_risk_flag"]=True
+            if flagged:x["context_status"]="DISCLOSURE_REVIEW_REQUIRED"
         except Exception as ex:
             x["context_status"]="DART_REQUEST_FAILED_"+type(ex).__name__
         audit["checked"].append({"code":ticker,"context_status":x["context_status"],
