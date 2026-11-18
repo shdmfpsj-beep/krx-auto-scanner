@@ -36,6 +36,17 @@ class ContextTests(unittest.TestCase):
         result,audit=q.enrich(candidates,"20261118","")
         self.assertEqual(audit["status"],"DART_KEY_MISSING_OR_INVALID")
         self.assertEqual(result,candidates)
+    def test_previous_completed_session_is_eligible(self):
+        candidate={"code":"123456","name":"Example","geometry_validated":True,
+                   "opportunity_score":70,"entry_status":"ENTRY_READY"}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
+        with patch.object(q.datetime,"datetime",FrozenDatetime),\\
+             patch.object(q,"corps",return_value={}):
+            result,audit=q.enrich([candidate],"20261117","a"*40)
+        self.assertEqual(audit["status"],"CONTEXT_RESEARCH_COMPLETED")
+        self.assertNotEqual(audit["status"],"ASOF_OUTSIDE_RECENT_WINDOW")
     def test_negative_equity_risk(self):
         data={"equity":-1,"assets":100,"liabilities":101,"sales":100,
               "sales_prev":90,"profit":2,"profit_prev":1,
