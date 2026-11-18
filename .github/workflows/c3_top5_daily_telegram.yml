@@ -159,13 +159,33 @@ jobs:
               support=max(nearby) if nearby else None
               # Entry is a narrow ATR zone around tested support, not MA20 +/- 1-2%.
               # No valid support -> no invented entry/stop.
-              entry_lo=round(max(support,ma20-.5*atr14)) if support is not None else None
-              entry_hi=round(min(ma20+.25*atr14,entry_lo+.6*atr14)) if entry_lo is not None else None
-              stop=round(support-.5*atr14) if support is not None else None
+              # Exchange tick ladder for ordinary KOSPI/KOSDAQ shares.
+              # Rounding is directional: do not raise entry ceiling or lower stop.
+              def tick(p):
+                return (1 if p<2000 else 5 if p<5000 else 10 if p<20000
+                  else 50 if p<50000 else 100 if p<200000 else 500 if p<500000 else 1000)
+              def executable(p,direction):
+                if p is None:return None
+                import decimal
+                v=decimal.Decimal(str(p))
+                # Iterate to respect tick changes at price-band boundaries.
+                unit=tick(float(v))
+                mode=decimal.ROUND_CEILING if direction=='up' else decimal.ROUND_FLOOR
+                q=int((v/decimal.Decimal(unit)).to_integral_value(rounding=mode))*unit
+                while tick(q)!=unit:
+                  unit=tick(q)
+                  q=int((v/decimal.Decimal(unit)).to_integral_value(rounding=mode))*unit
+                return q
+              raw_lo=max(support,ma20-.5*atr14) if support is not None else None
+              raw_hi=min(ma20+.25*atr14,raw_lo+.6*atr14) if raw_lo is not None else None
+              raw_stop=support-.5*atr14 if support is not None else None
+              entry_lo=executable(raw_lo,'up')
+              entry_hi=executable(raw_hi,'down')
+              stop=executable(raw_stop,'up')
               high=max(x[1] for x in a[-20:])
               # Prior resistance must be above entry; use only completed sessions.
-              r1=round(high) if entry_hi is not None and high>entry_hi else None
-              r2=round(max(x[1] for x in a[-60:]))
+              r1=executable(high,'down') if entry_hi is not None and high>entry_hi else None
+              r2=executable(max(x[1] for x in a[-60:]),'down')
               if r2<=max(high,entry_hi or high):r2=None
               rr_entry=(r1-entry_hi)/(entry_hi-stop) if r1 and stop is not None and entry_hi>stop else None
               risk_at_entry=(entry_hi-stop)/entry_hi if stop is not None and entry_hi else None
@@ -187,6 +207,7 @@ jobs:
                 and entry_hi>=last-1.5*atr14 and entry_lo<=last+.5*atr14
                 and entry_hi<=last+atr14
                 and r1 is not None and r1>max(entry_hi,last))
+              # All risk, proximity, RR and selection decisions above use executable prices.
               # Independent rejection reasons; preserve raw metrics for audits.
               reasons=[]
               if support is None:reasons.append('NO_NEARBY_CONFIRMED_SUPPORT')
@@ -217,6 +238,10 @@ jobs:
                 'close':round(last),'ma20':round(ma20),'low10':round(low),'high20':round(high),
                 'rvol':round(rvol,2),'rs20pp':round(rs*100,2),'stop_distance_pct':round(risk*100,2),
                 'entry_watch_low':entry_lo,'entry_watch_high':entry_hi,
+                'raw_entry_low':round(raw_lo) if raw_lo is not None else None,
+                'raw_entry_high':round(raw_hi) if raw_hi is not None else None,
+                'raw_structural_stop':round(raw_stop) if raw_stop is not None else None,
+                'price_tick_policy':'KRX_EQUITY_DIRECTIONAL_V1',
                 'entry_method':'CONFIRMED_PIVOT_ATR_ZONE_V1',
                 'entry_gap_pct':round(entry_gap_pct,2) if entry_gap_pct is not None else None,
                 'entry_ready':bool(entry_ready),'entry_status':entry_status,
