@@ -118,12 +118,36 @@ def interim_asof(corp,key,asof,filings,annual_year):
             return result,"VERIFIED_INTERIM_YTD"
     return None,"INTERIM_CUMULATIVE_UNVERIFIED"
 
+# Sector evidence must be independently sourced; never infer industry from company name.
+SECTOR_EXCLUDED=("제약","의약품","바이오","생명공학","PHARMACEUTICAL","BIOTECH")
+SECTOR_DEFENSIVE=("전기·가스","전기가스","유틸리티")
+SECTOR_CYCLICAL=("건설","반도체","자동차","철강","화학","조선")
+
+def sector_evidence(candidate,asof):
+    """Only explicit dated KRX classification, never a guessed sector."""
+    sector=candidate.get("krx_sector_name")
+    source=candidate.get("krx_sector_source")
+    dated=candidate.get("krx_sector_asof")
+    if not isinstance(sector,str) or not sector.strip():
+        return {"status":"UNVERIFIED","score":None,"exclude":False}
+    if source!="KRX_OFFICIAL" or not isinstance(dated,str) or not re.fullmatch(r"\\d{8}",dated) or dated>asof:
+        return {"status":"UNVERIFIED","score":None,"exclude":False}
+    normalized=sector.upper().replace(" ","")
+    if any(t.upper().replace(" ","") in normalized for t in SECTOR_EXCLUDED):
+        return {"status":"EXCLUDED_VERIFIED_SECTOR","score":None,"exclude":True,"name":sector}
+    # No sector outperformance data is provided; score stays neutral.
+    kind=("CYCLICAL" if any(t in normalized for t in SECTOR_CYCLICAL)
+          else "DEFENSIVE" if any(t in normalized for t in SECTOR_DEFENSIVE)
+          else "OTHER")
+    return {"status":"VERIFIED_CLASSIFICATION_"+kind,"score":5.0,
+            "exclude":False,"name":sector}
+
 def enrich(pool,asof,key,max_requests=12):
     """Return a NEW ranked list and audit. Keep original technical score intact."""
     output=[dict(x) for x in pool]
     audit={"schema":"C3_QUALITY_CONTEXT_V1","asof":asof,"mode":"TECHNICAL_FIRST",
            "weights":{"technical":65,"financial_and_earnings":20,"industry":10,"disclosures":5},
-           "industry_policy":"NO_VERIFIED_SECTOR_CLASSIFICATION_NEUTRAL",
+           "industry_policy":"DATED_KRX_CLASSIFICATION_ONLY_NEUTRAL_WITHOUT_SECTOR_PERFORMANCE",
            "news_policy":"OFFICIAL_DART_DISCLOSURES_ONLY",
            "checked":[]}
     if not key or not re.fullmatch(r"[A-Za-z0-9]{40}",key):
@@ -148,7 +172,15 @@ def enrich(pool,asof,key,max_requests=12):
         x["context_status"]="UNVERIFIED"
         x["quality_score"]=None
         x["quality_risk_flag"]=False
-        x["sector_quality_status"]="UNVERIFIED"
+        sector=sector_evidence(x,asof)
+        x["sector_quality_status"]=sector["status"]
+        x["sector_score"]=sector["score"]
+        if sector["exclude"]:
+            x["quality_risk_flag"]=True
+            x["context_status"]="EXCLUDED_VERIFIED_SECTOR"
+            audit["checked"].append({"code":x["code"],"context_status":x["context_status"],
+                "sector_quality_status":sector["status"],"risk_flag":True})
+            continue
         x["disclosure_status"]="UNVERIFIED"
         if not x.get("geometry_validated"):continue
         if checked>=max_requests:continue
@@ -226,7 +258,7 @@ def enrich(pool,asof,key,max_requests=12):
         x["context_composite_score"]=round(
             min(65,max(0,x["opportunity_score"])*.65)+
             (x["quality_score"] if x["quality_score"] is not None else 10)+
-            5+2.5,2)
+            (x.get("sector_score") if x.get("sector_score") is not None else 5)+2.5,2)
     audit["status"]="CONTEXT_RESEARCH_COMPLETED"
     audit["reviewed_count"]=checked
     return output,audit
