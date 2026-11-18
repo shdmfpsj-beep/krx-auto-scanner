@@ -29,8 +29,18 @@ jobs:
           import os,json,io,zipfile,urllib.request,re,pathlib
           out=pathlib.Path('output/c3_financial_overlay');out.mkdir(parents=True,exist_ok=True)
           def get(url):
+            # Artifact downloads redirect to a signed storage URL. Do not forward the
+            # GitHub bearer token to another host: storage may reject it with 401.
+            from urllib.parse import urlsplit
+            class SafeRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl):
+                nxt=super().redirect_request(req,fp,code,msg,headers,newurl)
+                if nxt and urlsplit(req.full_url).netloc!=urlsplit(newurl).netloc:
+                  nxt.headers.pop('Authorization',None)
+                  nxt.unredirected_hdrs.pop('Authorization',None)
+                return nxt
             req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
-            with urllib.request.urlopen(req,timeout=30) as r:return r.read()
+            with urllib.request.build_opener(SafeRedirect()).open(req,timeout=30) as r:return r.read()
           def load(runkey,artifact_name):
             run=os.environ[runkey]
             if not re.fullmatch(r'[0-9]{5,15}',run):raise ValueError('INVALID_RUN_ID_'+runkey)
