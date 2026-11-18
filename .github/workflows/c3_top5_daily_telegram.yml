@@ -299,6 +299,17 @@ jobs:
                 'Accept':'application/vnd.github+json'})
               with urllib.request.urlopen(module_req,timeout=20) as res:module_obj=json.load(res)
               module_text=base64.b64decode(module_obj['content']).decode('utf-8')
+              # Pin the existing audited interim parser to the exact workflow SHA.
+              import sys
+              interim_url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/scripts/dart_interim_periods.py?ref='+os.environ['GITHUB_SHA']
+              interim_req=urllib.request.Request(interim_url,headers={
+                'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(interim_req,timeout=20) as res:interim_obj=json.load(res)
+              interim_text=base64.b64decode(interim_obj['content']).decode('utf-8')
+              interim_module=types.ModuleType('dart_interim_periods')
+              exec(compile(interim_text,'dart_interim_periods.py','exec'),interim_module.__dict__)
+              sys.modules['dart_interim_periods']=interim_module
               quality_module=types.ModuleType('c3_quality_context')
               exec(compile(module_text,'c3_quality_context.py','exec'),quality_module.__dict__)
               enriched,quality_audit=quality_module.enrich(
