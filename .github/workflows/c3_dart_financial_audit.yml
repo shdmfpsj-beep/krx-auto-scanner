@@ -124,6 +124,26 @@ jobs:
               and any(term in x.get('account_nm','') for term in ('매출','영업수익','영업이익','순이익'))
               and x.get('account_id') not in set(sum((list(v[1]) for k,v in specs.items()
                 if k in ('revenue','operating_profit','net_income')),[]))][:25]
+            # Exploratory score only. No PIT certification, no production gate or orders.
+            # Avoid sector-blind approval: these are transparent diagnostic flags, not a buy signal.
+            def observed(key):
+              d=result.get(key,{})
+              return d if d.get('status')=='OBSERVED_NOT_PIT_CERTIFIED' else {}
+            revenue,op,net,ocf=(observed(k) for k in
+              ('revenue','operating_profit','net_income','operating_cash_flow'))
+            checks={
+              'positive_operating_profit':(op.get('current_krw',0)>0 if op.get('current_krw') is not None else None),
+              'positive_net_income':(net.get('current_krw',0)>0 if net.get('current_krw') is not None else None),
+              'positive_operating_cash_flow':(ocf.get('current_krw',0)>0 if ocf.get('current_krw') is not None else None),
+              'revenue_yoy_positive':(revenue['quarter_yoy_pct']>0 if 'quarter_yoy_pct' in revenue else None),
+              'operating_profit_yoy_positive':(op['quarter_yoy_pct']>0 if 'quarter_yoy_pct' in op else None),
+              'debt_to_equity_below_200_pct':(result['debt_to_equity_pct']<200
+                if result['debt_to_equity_pct'] is not None else None)}
+            known=[v for v in checks.values() if v is not None]
+            result['exploratory_quality']={'checks':checks,
+              'passed':sum(known),'evaluated':len(known),'possible':len(checks),
+              'score_pct_of_evaluated':round(100*sum(known)/len(known),1) if known else None,
+              'status':'RESEARCH_ONLY_NOT_SECTOR_ADJUSTED_NOT_PIT_CERTIFIED'}
             result['quality_gate']='HOLD_NOT_PIT_CERTIFIED'
             return result
           for stock in codes:
