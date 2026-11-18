@@ -23,6 +23,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       GH_TOKEN: ${{ github.token }}
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
     steps:
       - name: Install image renderer and Korean font
         run: |
@@ -287,7 +288,37 @@ jobs:
             ready_watch=[x for x in qualified if x['entry_status']=='ENTRY_READY']
             near_watch=[x for x in qualified if x['entry_status']=='NEAR_ENTRY']
             far_watch=[x for x in qualified if x['entry_status']=='WATCH']
-            selected=(ready_watch+near_watch)[:5]
+            # Quality context runs ONLY after technical geometry and never rescues invalid entries.
+            # Load one pinned repository module without checkout (repository has unsafe filename).
+            import base64,types
+            quality_audit={'status':'NOT_RUN'}
+            try:
+              module_url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/scripts/c3_quality_context.py?ref='+os.environ['GITHUB_SHA']
+              module_req=urllib.request.Request(module_url,headers={
+                'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(module_req,timeout=20) as res:module_obj=json.load(res)
+              module_text=base64.b64decode(module_obj['content']).decode('utf-8')
+              quality_module=types.ModuleType('c3_quality_context')
+              exec(compile(module_text,'c3_quality_context.py','exec'),quality_module.__dict__)
+              enriched,quality_audit=quality_module.enrich(
+                ready_watch+near_watch,days[-1],os.environ.get('OPENDART_API_KEY',''),max_requests=12)
+              # Respect ENTRY_READY priority; quality affects only within-class ranking.
+              def priority(x):
+                return (0 if x['entry_status']=='ENTRY_READY' else 1,
+                  bool(x.get('quality_risk_flag')), -x.get('context_composite_score',0),
+                  -x['opportunity_score'],x['code'])
+              enriched.sort(key=priority)
+              selected=[x for x in enriched if not x.get('quality_risk_flag')][:5]
+            except Exception as context_error:
+              quality_audit={'status':'CONTEXT_MODULE_ERROR_'+type(context_error).__name__}
+              selected=(ready_watch+near_watch)[:5]
+            receipt['quality_context']=quality_audit
+            (root/'quality_context_audit.json').write_text(json.dumps(
+              quality_audit,ensure_ascii=False,indent=2)+'\\n')
+            print('C3_QUALITY_CONTEXT',json.dumps({'status':quality_audit['status'],
+              'reviewed':quality_audit.get('reviewed_count',0),
+              'selected':len(selected)},ensure_ascii=False))
             # Diagnostic evidence even when zero candidates qualify.
             audit={'schema':'C3_ENTRY_GEOMETRY_AUDIT_V1','asof':days[-1],
               'technical_candidate_count':len(pool),'qualified_count':len(qualified),
