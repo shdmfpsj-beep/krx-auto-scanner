@@ -74,7 +74,7 @@ jobs:
             return (str(year),'11011' if month==12 else '11012' if month==6 else '11013' if month==3 else '11014' if month==9 else None)
           def amount(row,field):
             raw=str(row.get(field,'')).replace(',','').strip()
-            if not re.fullmatch(r'-?\\d+',raw):return None
+            if not re.fullmatch(r'-?\d+',raw):return None
             return int(raw)
           def financial_metrics(rows):
             # Prefer standardized account IDs. Never use arbitrary extension accounts.
