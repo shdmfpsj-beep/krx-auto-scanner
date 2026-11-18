@@ -1,0 +1,35 @@
+name: C3 TOP5 dispatch diagnostic (no orders or Telegram)
+on:
+  workflow_dispatch:
+    inputs:
+      asof:
+        description: 'Optional KRX date YYYYMMDD'
+        required: false
+        type: string
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm dispatch and selected source date
+        env:
+          C3_ASOF: ${{ inputs.asof }}
+        run: |
+          python3 - <<'PY'
+          import os,datetime
+          from zoneinfo import ZoneInfo
+          now=datetime.datetime.now(ZoneInfo('Asia/Seoul'))
+          raw=os.environ.get('C3_ASOF','').strip()
+          if raw:
+              assert len(raw)==8 and raw.isdigit(), 'INVALID_ASOF'
+              target=datetime.datetime.strptime(raw,'%Y%m%d').date()
+              assert target<=now.date() and target.weekday()<5, 'INVALID_ASOF_DATE'
+          else:
+              target=now.date()
+              if now.hour<21:target-=datetime.timedelta(days=1)
+              while target.weekday()>4:target-=datetime.timedelta(days=1)
+          print('C3_DISPATCH_DIAGNOSTIC_OK',target.strftime('%Y%m%d'))
+          print('NO_MARKET_FETCH_NO_TELEGRAM_NO_ORDERS')
+          PY
