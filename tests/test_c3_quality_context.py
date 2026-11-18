@@ -93,6 +93,22 @@ class ContextTests(unittest.TestCase):
                 datetime.date(2026,11,17))
         self.assertIsNone(values)
         self.assertEqual(status,"FILINGS_PAGINATION_INCOMPLETE")
+    def test_verified_pharma_sector_is_excluded(self):
+        candidate={"krx_sector_name":"의약품","krx_sector_source":"KRX_OFFICIAL",
+                   "krx_sector_asof":"20261117"}
+        result=q.sector_evidence(candidate,"20261117")
+        self.assertTrue(result["exclude"])
+        self.assertEqual(result["status"],"EXCLUDED_VERIFIED_SECTOR")
+    def test_unverified_sector_never_guessed(self):
+        candidate={"name":"어떤바이오","krx_sector_name":"의약품",
+                   "krx_sector_source":"UNKNOWN","krx_sector_asof":"20261117"}
+        result=q.sector_evidence(candidate,"20261117")
+        self.assertFalse(result["exclude"])
+        self.assertEqual(result["status"],"UNVERIFIED")
+    def test_future_sector_metadata_not_used(self):
+        candidate={"krx_sector_name":"의약품","krx_sector_source":"KRX_OFFICIAL",
+                   "krx_sector_asof":"20261119"}
+        self.assertFalse(q.sector_evidence(candidate,"20261117")["exclude"])
     def test_negative_equity_risk(self):
         data={"equity":-1,"assets":100,"liabilities":101,"sales":100,
               "sales_prev":90,"profit":2,"profit_prev":1,
