@@ -106,7 +106,7 @@ jobs:
                 target=datetime.datetime.strptime(manual_asof,'%Y%m%d').date()
                 if target>now.date() or target.weekday()>4:raise ValueError('INVALID_MANUAL_ASOF_DATE')
             days=[];data=collections.defaultdict(dict);names={}
-            session_coverage=[];rejected_rows=collections.Counter()
+            session_coverage=[];rejected_rows=collections.Counter();rejection_reasons=collections.Counter();rejection_dates=collections.defaultdict(collections.Counter);rejection_codes=collections.defaultdict(set)
             for offset in range(105):
               d=target-datetime.timedelta(days=offset)
               if d.weekday()>4:continue
@@ -121,8 +121,19 @@ jobs:
                   code=str(r.get('ISU_CD','')).strip()
                   o,h,l,c=[num(r.get(k)) for k in ('TDD_OPNPRC','TDD_HGPRC','TDD_LWPRC','TDD_CLSPRC')]
                   vol=num(r.get('ACC_TRDVOL'));val=num(r.get('ACC_TRDVAL'))
-                  if not code or None in (o,h,l,c,vol,val) or min(o,h,l,c)<=0 or vol<=0 or val<=0 or l>min(o,c) or h<max(o,c):
+                  reasons=[]
+                  if not code:reasons.append('MISSING_CODE')
+                  if None in (o,h,l,c,vol,val):reasons.append('MISSING_OR_NONFINITE_FIELD')
+                  else:
+                    if min(o,h,l,c)<=0:reasons.append('NONPOSITIVE_PRICE')
+                    if vol<=0:reasons.append('ZERO_OR_NEGATIVE_VOLUME')
+                    if val<=0:reasons.append('ZERO_OR_NEGATIVE_TURNOVER')
+                    if l>min(o,c) or h<max(o,c) or h<l:reasons.append('OHLC_RANGE_INCONSISTENT')
+                  if reasons:
                     rejected_rows[market]+=1
+                    rejection_dates[ds][market]+=1
+                    if code:rejection_codes[market].add(code)
+                    for reason in reasons:rejection_reasons[market+':'+reason]+=1
                     continue
                   key=(market,code)
                   data[key][ds]=(c,h,l,vol,val,o)
@@ -142,6 +153,10 @@ jobs:
               'market_rows_min':{'KOSPI':min(x['kospi_rows'] for x in session_coverage),
                 'KOSDAQ':min(x['kosdaq_rows'] for x in session_coverage)},
               'invalid_ohlcv_rows':dict(rejected_rows),
+              'invalid_ohlcv_reason_counts':dict(sorted(rejection_reasons.items())),
+              'invalid_ohlcv_distinct_codes':{m:len(s) for m,s in sorted(rejection_codes.items())},
+              'invalid_ohlcv_by_session':{d:dict(v) for d,v in sorted(rejection_dates.items())},
+              'invalid_ohlcv_interpretation':'Rejected source rows across 60 sessions; not distinct stocks; zero-volume rows can be valid no-trade observations and are not automatically data errors',
               'coverage_floor_policy':'KOSPI>=500,KOSDAQ>=800 per session; not official completeness certification',
               'regular_session_price_certified':False,'corporate_actions_certified':False}
             print('C3_SOURCE_PREFLIGHT',json.dumps(receipt['source_integrity'],ensure_ascii=False))
