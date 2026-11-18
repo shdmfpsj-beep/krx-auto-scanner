@@ -103,10 +103,11 @@ jobs:
                 'prior_krw':prior,'source_account_ids':sorted({x.get('account_id') for x in matches}),
                 'statement_types':sorted({x.get('sj_div') for x in matches})}
               if metric in ('revenue','operating_profit','net_income'):
-                # Both sides MUST be the 3-month quarter values.
-                current_q_vals={amount(x,'thstrm_q_amount') for x in matches}
+                # DART fnlttSinglAcntAll uses thstrm_amount for current-period
+                # income statement and frmtrm_q_amount for prior same quarter.
+                # thstrm_q_amount is not present in this endpoint's response.
                 prior_q_vals={amount(x,'frmtrm_q_amount') for x in matches}
-                current_q=next(iter(current_q_vals)) if len(current_q_vals)==1 else None
+                current_q=current
                 prev_q=next(iter(prior_q_vals)) if len(prior_q_vals)==1 else None
                 result[metric]['current_quarter_krw']=current_q
                 result[metric]['prior_same_quarter_krw']=prev_q
