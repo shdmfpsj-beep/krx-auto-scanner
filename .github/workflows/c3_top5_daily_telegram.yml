@@ -1,6 +1,11 @@
 name: C3 TOP5 classic per-stock Telegram (user trades)
 on:
   workflow_dispatch:
+    inputs:
+      asof:
+        description: 'Optional KRX as-of date YYYYMMDD (manual preview only)'
+        required: false
+        type: string
   schedule:
     # KST 23:30 Monday-Friday; GitHub scheduling can be delayed.
     - cron: '30 14 * * 1-5'
@@ -51,6 +56,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Collect KRX sessions and render one classic image per stock
         shell: bash
+        env:
+          C3_MANUAL_ASOF: ${{ inputs.asof }}
         run: |
           python3 - <<'PY'
           import os,json,csv,io,datetime,urllib.request,urllib.parse,urllib.error,collections,statistics,math,time,hashlib
@@ -91,6 +98,11 @@ jobs:
               target-=datetime.timedelta(days=1)
             if os.environ.get('GITHUB_EVENT_NAME')=='workflow_dispatch':
               receipt['preview_source_policy']='NO_SEND_MANUAL_PREVIEW'
+              manual_asof=os.environ.get('C3_MANUAL_ASOF','').strip()
+              if manual_asof:
+                if len(manual_asof)!=8 or not manual_asof.isdigit():raise ValueError('INVALID_MANUAL_ASOF')
+                target=datetime.datetime.strptime(manual_asof,'%Y%m%d').date()
+                if target>now.date() or target.weekday()>4:raise ValueError('INVALID_MANUAL_ASOF_DATE')
             days=[];data=collections.defaultdict(dict);names={}
             for offset in range(105):
               d=target-datetime.timedelta(days=offset)
