@@ -92,9 +92,14 @@ jobs:
               matched=[n for n in top_zip.namelist() if n==original or n.endswith('/'+original)]
               if len(matched)!=1:raise ValueError('SOURCE_IMAGE_MISSING_'+c['code'])
               im=Image.open(io.BytesIO(top_zip.read(matched[0]))).convert('RGB')
-              if im.size!=(1400,2400):raise ValueError('UNEXPECTED_IMAGE_DIMENSIONS')
-              canvas=Image.new('RGB',(1400,2790),'#faf9f5')
+              if im.width!=1400 or im.height not in (1710,2400):raise ValueError('UNEXPECTED_IMAGE_DIMENSIONS')
+              # Legacy financial research cards remain optional; daily cards have no finance panel.
+              delta=im.height-2400
+              canvas=Image.new('RGB',(1400,im.height+390),'#faf9f5')
               canvas.paste(im,(0,0));draw=ImageDraw.Draw(canvas)
+              # Move the legacy overlay band to follow the source card without overlap.
+              band=Image.new('RGB',(1400,390),'#eee9dc')
+              banddraw=ImageDraw.Draw(band)
               screen=c['financial_screen'];flags=screen.get('critical_flags',[]);cautions=screen.get('cautions',[])
               if not isinstance(flags,list) or not isinstance(cautions,list):raise ValueError('INVALID_FINANCIAL_FLAGS')
               status=screen.get('status','UNKNOWN_NO_DART_COVERAGE')
@@ -102,11 +107,10 @@ jobs:
               def short(value):
                 value=str(value)
                 return value if len(value)<=72 else value[:69]+'...'
-              draw.rectangle((0,2400,1400,2600),fill='#eee9dc')
-              draw.text((45,2415),'DART RESEARCH OVERLAY · NOT CERTIFIED',font=ImageFont.truetype(bold,30),fill='#4c4436')
-              draw.text((45,2460),'Financial: '+short(status),font=ImageFont.truetype(font,29),fill='#514a40')
-              draw.text((45,2505),'Critical: '+short(', '.join(flags) if flags else 'none observed'),font=ImageFont.truetype(font,25),fill='#8b3434')
-              draw.text((45,2544),'Cautions: '+short(', '.join(cautions) if cautions else 'none observed'),font=ImageFont.truetype(font,25),fill='#514a40')
+              banddraw.text((45,15),'DART RESEARCH OVERLAY · NOT CERTIFIED',font=ImageFont.truetype(bold,30),fill='#4c4436')
+              banddraw.text((45,60),'Financial: '+short(status),font=ImageFont.truetype(font,29),fill='#514a40')
+              banddraw.text((45,105),'Critical: '+short(', '.join(flags) if flags else 'none observed'),font=ImageFont.truetype(font,25),fill='#8b3434')
+              banddraw.text((45,144),'Cautions: '+short(', '.join(cautions) if cautions else 'none observed'),font=ImageFont.truetype(font,25),fill='#514a40')
               # Observed consolidated financial values are useful, but never PIT-certified.
               metrics=c['financial_metrics']
               def eok(key,field='current_krw'):
@@ -119,12 +123,13 @@ jobs:
                 return f'{v/1e8:,.0f} eok KRW' if isinstance(v,(int,float)) else 'unavailable'
               def yoy(v):
                 return f'{v:+.1f}%' if isinstance(v,(int,float)) else 'unavailable'
-              draw.text((45,2588),'2026 Q3 CFS observed · not point-in-time certified',font=ImageFont.truetype(bold,27),fill='#4c4436')
-              draw.text((45,2630),'Revenue '+krw(eok('revenue','current_quarter_krw'))+' / YoY '+yoy(eok_yoy('revenue')),font=ImageFont.truetype(font,26),fill='#514a40')
-              draw.text((45,2670),'Operating profit '+krw(eok('operating_profit','current_quarter_krw'))+' / YoY '+yoy(eok_yoy('operating_profit')),font=ImageFont.truetype(font,26),fill='#514a40')
-              draw.text((45,2710),'Net income '+krw(eok('net_income','current_quarter_krw'))+' / YoY '+yoy(eok_yoy('net_income')),font=ImageFont.truetype(font,26),fill='#514a40')
+              banddraw.text((45,188),'2026 Q3 CFS observed · not point-in-time certified',font=ImageFont.truetype(bold,27),fill='#4c4436')
+              banddraw.text((45,230),'Revenue '+krw(eok('revenue','current_quarter_krw'))+' / YoY '+yoy(eok_yoy('revenue')),font=ImageFont.truetype(font,26),fill='#514a40')
+              banddraw.text((45,270),'Operating profit '+krw(eok('operating_profit','current_quarter_krw'))+' / YoY '+yoy(eok_yoy('operating_profit')),font=ImageFont.truetype(font,26),fill='#514a40')
+              banddraw.text((45,310),'Net income '+krw(eok('net_income','current_quarter_krw'))+' / YoY '+yoy(eok_yoy('net_income')),font=ImageFont.truetype(font,26),fill='#514a40')
               debt=metrics.get('debt_to_equity_pct')
-              draw.text((45,2750),'Operating CF (YTD) '+krw(eok('operating_cash_flow'))+' / D-E '+(f'{debt:.1f}%' if isinstance(debt,(int,float)) else 'unavailable'),font=ImageFont.truetype(font,25),fill='#514a40')
+              banddraw.text((45,350),'Operating CF (YTD) '+krw(eok('operating_cash_flow'))+' / D-E '+(f'{debt:.1f}%' if isinstance(debt,(int,float)) else 'unavailable'),font=ImageFont.truetype(font,25),fill='#514a40')
+              canvas.paste(band,(0,im.height))
               filename=f'{idx+1:02d}_{c["code"]}_financial_research.png'
               canvas.save(out/filename,optimize=True)
             result['image_files']=[f'{i+1:02d}_{c["code"]}_financial_research.png' for i,c in enumerate(result['candidates'])]

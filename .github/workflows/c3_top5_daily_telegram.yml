@@ -314,17 +314,17 @@ jobs:
             images=[]
             for rank,x in enumerate(selected,1):
               bars=x['chart_bars'];closes=[v['close'] for v in bars]
-              im=Image.new('RGB',(1400,2400),(250,249,245));draw=ImageDraw.Draw(im)
+              im=Image.new('RGB',(1400,1710),(250,249,245));draw=ImageDraw.Draw(im)
               draw.rectangle((0,0,1400,98),fill=INK);draw.rectangle((0,94,1400,100),fill=GOLD)
               draw.text((50,22),'강현AI PRO | C3 TOP5',font=font(46,True),fill=(243,230,205))
               draw.text((1100,32),days[-1][:4]+'.'+days[-1][4:6]+'.'+days[-1][6:],font=font(29),fill=(238,234,226))
               draw.text((54,128),x['name'],font=font(63,True),fill=INK)
-              draw.text((54,207),x['code']+' · '+x['market']+' · WATCH TOP'+str(rank),font=font(30),fill=SUB)
+              draw.text((54,207),x['code']+' · '+x['market']+' · TOP'+str(rank)+' · '+x['entry_status'],font=font(30),fill=SUB)
               draw.text((1330,125),format(x['close'],',')+'원',font=font(59,True),fill=INK,anchor='ra')
               change=x['close']-bars[-2]['close'];pct=change/bars[-2]['close']*100
               draw.text((1330,205),f'{change:+,.0f}원 ({pct:+.2f}%)',font=font(30),fill=RED if change>0 else BLUE,anchor='ra')
               draw.rectangle((48,256,1352,302),fill=(240,235,221))
-              draw.text((700,264),'별도 WATCH · 재무 미검증 · 신규 진입 승인 없음',font=font(26,True),fill=GOLD,anchor='ma')
+              draw.text((700,264),'매수 범위 도달 시에만 관찰 · 직접 매매',font=font(26,True),fill=GOLD,anchor='ma')
               draw.rounded_rectangle((48,319,1352,1193),radius=13,fill='white',outline=(222,218,209),width=2)
               draw.text((75,339),'실제 일봉 60거래일 · 거래량',font=font(31,True),fill=INK)
               for i,(n,col) in enumerate(((5,(64,91,129)),(20,GOLD),(60,(115,139,128)))):
@@ -371,40 +371,23 @@ jobs:
                   draw.text((xx,1146),v['date'][4:6]+'/'+v['date'][6:],font=font(23),fill=SUB,anchor='ma')
               draw.text((155,1033),'거래량',font=font(24),fill=SUB)
               draw.text((1100,1033),'최대 '+format(vmax/1e6,'.2f')+'백만주',font=font(24),fill=SUB,anchor='ra')
-              draw.text((53,1220),'연구용 관찰 가격 · '+('구조위험 PASS' if not x['geometry_validated'] else '구조손절 참고')+' · 주문 승인 아님',font=font(32,True),fill=INK)
-              cells=[('매수 관찰 범위',format(x['entry_watch_low'],',')+'~'+format(x['entry_watch_high'],','),GREEN),
-                ('2차 매수','미확정',BLUE),('손절 참고',format(x['structural_stop_ref'],',') if x['structural_stop_ref'] is not None else 'PASS',RED),
-                ('1차 저항 R1',format(x['r1_ref'],',') if x['r1_ref'] else '미확정',GOLD),('2차 저항 R2',format(x['r2_ref'],',') if x['r2_ref'] else '미확정',PURPLE)]
+              # Compact, phone-readable decision panel. Full audit remains in receipt.json.
+              draw.text((53,1210),'매매 관찰 기준',font=font(38,True),fill=INK)
+              cells=[('매수 관찰 범위',format(x['entry_watch_low'],',')+' ~ '+format(x['entry_watch_high'],','),GREEN),
+                ('구조손절',format(x['structural_stop_ref'],',') if x['structural_stop_ref'] is not None else 'PASS',RED),
+                ('1차 저항 R1',format(x['r1_ref'],',') if x['r1_ref'] else '미확정',GOLD),
+                ('2차 저항 R2',format(x['r2_ref'],',') if x['r2_ref'] else '미확정',PURPLE)]
               for j,(label,value,color) in enumerate(cells):
-                xx=48+j*261;draw.rectangle((xx,1270,xx+252,1404),fill='white')
-                draw.line((xx,1270,xx+252,1270),fill=color,width=4)
-                draw.text((xx+126,1288),label,font=font(25,True),fill=color,anchor='ma')
-                draw.text((xx+126,1340),value,font=font(23,True),fill=color,anchor='ma')
-              draw.text((53,1430),'진입 우선순위 '+str(rank)+' · 기회 점수 '+str(x['opportunity_score'])+'점',font=font(31,True),fill=INK)
-              draw.text((55,1490),'RS20 '+format(x['rs20pp'],'+.2f')+'%p · RVOL '+str(x['rvol'])+' · 진입 거리 '+str(x['entry_gap_pct'])+'%',font=font(27),fill=INK)
-              draw.text((55,1530),'20일 평균 거래대금 '+format(x['turnover20_krw']/1e8,',.1f')+'억원 · MA20 이격 '+format(x['ma20_distance_pct'],'+.2f')+'% · R1 손익비 '+(str(x['rr_entry_ref'])+'배' if x['rr_entry_ref'] is not None else '미확정'),font=font(25),fill=SUB)
-              draw.text((53,1580),'선정 후 기업 자료 및 위험 검토',font=font(33,True),fill=INK)
-              notes=[('정량·섹터','20일 상승 '+format(x['return20_pct'],'+.2f')+'%, RS20 '+format(x['rs20pp'],'+.2f')+'%p, RVOL '+str(x['rvol'])+'. 거래대금 '+format(x['turnover20_krw']/1e8,',.1f')+'억원. 업종 미검증.'),
-                ('재무·실적','OpenDART PIT 실적 미연결. 매출, 영업이익, 현금흐름, 부채 건전성 판단 보류.'),
-                ('주요 이슈·수급','MA5 '+format(x['ma5'],',')+'원 / MA20 '+format(x['ma20'],',')+'원 / MA60 '+format(x['ma60'],',')+'원. 뉴스·기관·외국인 수급 미검증.'),
-                ('리스크·구조손절',('피벗지지 '+format(x['pivot_support'],',')+'원, ATR14 '+format(x['atr14'],',.1f')+'원, 손절 참고 '+format(x['structural_stop_ref'],',')+'원. 실전 미승인.' if x['geometry_validated'] else '지지구조·ATR·최대위험 5% 검증 실패: PASS. 손절 미확정.'))]
-              for j,(label,value) in enumerate(notes):
-                yy=1635+j*165;draw.rectangle((48,yy,1352,yy+155),fill='white')
-                draw.line((48,yy,48,yy+155),fill=GOLD,width=5)
-                draw.text((72,yy+28),f'{j+1:02}',font=font(23,True),fill=GOLD)
-                draw.text((120,yy+25),label,font=font(27,True),fill=INK)
-                # Width-aware two-line wrap; no text outside the note box.
-                words=value.split();lines=[];line=''
-                for word in words:
-                  test=(line+' '+word).strip()
-                  if draw.textlength(test,font=font(27))>920 and line:
-                    lines.append(line);line=word
-                  else:line=test
-                if line:lines.append(line)
-                if len(lines)>3:raise ValueError('CARD_NOTE_OVERFLOW_'+x['code'])
-                for k,line in enumerate(lines):draw.text((365,yy+22+k*39),line,font=font(27),fill=INK)
-              draw.text((700,2324),'KRX 공식 일봉 · 비수정 · 정규장 종가 및 기업행위 미인증',font=font(22),fill=SUB,anchor='ma')
-              draw.text((700,2363),'점선 녹색=매수 관찰 범위 · 점선 적색=손절 참고 · 실전 승인 아님',font=font(23,True),fill=RED,anchor='ma')
+                xx=48+j*327
+                draw.rounded_rectangle((xx,1270,xx+316,1415),radius=12,fill='white',outline=(226,222,214),width=2)
+                draw.line((xx+16,1280,xx+300,1280),fill=color,width=5)
+                draw.text((xx+158,1301),label,font=font(25,True),fill=SUB,anchor='ma')
+                draw.text((xx+158,1353),value,font=font(30,True) if j!=0 else font(25,True),fill=color,anchor='ma')
+              draw.text((54,1450),'진입 '+x['entry_status']+'  ·  위험 '+format(x['entry_risk_pct'],'.2f')+'%  ·  R1 손익비 '+(str(x['rr_entry_ref'])+'배' if x['rr_entry_ref'] is not None else '미확정'),font=font(29,True),fill=INK)
+              draw.text((54,1504),'RS20 '+format(x['rs20pp'],'+.2f')+'%p   RVOL '+str(x['rvol'])+'   MA20 이격 '+format(x['ma20_distance_pct'],'+.2f')+'%',font=font(27),fill=SUB)
+              draw.line((48,1570,1352,1570),fill=(219,214,204),width=2)
+              draw.text((54,1602),'진입범위 밖 PASS · 구조손절 기준 · 최종 매매는 사용자 판단',font=font(25,True),fill=SUB)
+              draw.text((54,1651),'KRX 일봉 기반 · 정규장 종가/수정주가 미인증',font=font(22),fill=SUB)
               path=root/(str(rank).zfill(2)+'_'+x['code']+'_c3_classic.png')
               im.save(path,optimize=True);images.append(path)
             receipt['image_sha256']=[hashlib.sha256(p.read_bytes()).hexdigest() for p in images]
@@ -421,7 +404,7 @@ jobs:
               with Image.open(p) as verify:
                 verify.verify()
               with Image.open(p) as verify:
-                if verify.size!=(1400,2400) or verify.format!='PNG':
+                if verify.size!=(1400,1710) or verify.format!='PNG':
                   raise ValueError('IMAGE_FORMAT_OR_SIZE_INVALID_'+str(idx+1))
             receipt['delivery_preflight']='PASSED' if images else 'NO_CANDIDATES'
             print('C3_DELIVERY_PREFLIGHT',json.dumps({
