@@ -1,0 +1,83 @@
+name: C3 Telegram one-time smoke test (manual only)
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Successful manual C3 TOP5 preview run ID'
+        required: true
+        default: '44264255666'
+        type: string
+permissions:
+  actions: read
+  contents: read
+jobs:
+  send-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+    steps:
+      - name: Download verified preview artifact and send one test image
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.parse,zipfile,io,re,hashlib,datetime
+          token=os.getenv('TELEGRAM_BOT_TOKEN','');chat=os.getenv('TELEGRAM_CHAT_ID','')
+          run=os.environ['SOURCE_RUN_ID']
+          if not re.fullmatch(r'\d{8,15}',run):raise ValueError('INVALID_SOURCE_RUN_ID')
+          if not token or not chat:raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
+          repo=os.environ['GITHUB_REPOSITORY']
+          headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
+          def api(path):
+            req=urllib.request.Request('https://api.github.com/repos/'+repo+'/'+path,headers=headers)
+            with urllib.request.urlopen(req,timeout=20) as r:return json.load(r)
+          info=api('actions/runs/'+run)
+          if info.get('conclusion')!='success' or info.get('event')!='workflow_dispatch':
+            raise ValueError('SOURCE_NOT_SUCCESSFUL_MANUAL_PREVIEW')
+          if info.get('path','').split('@')[0]!='.github/workflows/c3_top5_daily_telegram.yml':
+            raise ValueError('WRONG_SOURCE_WORKFLOW')
+          artifacts=api('actions/runs/'+run+'/artifacts')['artifacts']
+          matches=[a for a in artifacts if a['name']=='c3-top5-daily-classic-per-stock' and not a['expired']]
+          if len(matches)!=1:raise ValueError('ARTIFACT_MISSING_OR_AMBIGUOUS')
+          url=matches[0]['archive_download_url']
+          req=urllib.request.Request(url,headers=headers)
+          class SafeRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self,req,fp,code,msg,headers,newurl):
+              result=super().redirect_request(req,fp,code,msg,headers,newurl)
+              if urllib.parse.urlsplit(newurl).hostname!=urllib.parse.urlsplit(req.full_url).hostname:
+                result.remove_header('Authorization')
+              return result
+          with urllib.request.build_opener(SafeRedirect()).open(req,timeout=30) as r:blob=r.read(20_000_001)
+          if len(blob)>20_000_000:raise ValueError('ARTIFACT_TOO_LARGE')
+          with zipfile.ZipFile(io.BytesIO(blob)) as z:
+            receipt=json.loads(z.read('receipt.json'))
+            images=receipt.get('image_files',[])
+            if receipt.get('status')!='PREVIEW_ONLY_MANUAL_RUN' or receipt.get('delivery_preflight')!='PASSED':
+              raise ValueError('SOURCE_PREVIEW_NOT_VERIFIED')
+            if receipt.get('price_integrity')!='EXECUTABLE_TICKS_AND_RISK_VERIFIED':
+              raise ValueError('PRICE_INTEGRITY_NOT_VERIFIED')
+            if not images or len(images)!=receipt.get('image_count'):raise ValueError('SOURCE_IMAGE_COUNT_INVALID')
+            image_name=images[0];photo=z.read(image_name)
+            if not photo.startswith(b'\x89PNG\r\n\x1a\n'):raise ValueError('NOT_PNG')
+            if hashlib.sha256(photo).hexdigest()!=receipt['image_sha256'][0]:raise ValueError('IMAGE_HASH_MISMATCH')
+          # Never mutate production delivery reservations or send ledger.
+          boundary='----C3SmokeTest20261118'
+          def field(name,value,filename=None):
+            h='--'+boundary+'\r\nContent-Disposition: form-data; name="'+name+'"'
+            if filename:h+='; filename="'+filename+'"'
+            h+='\r\n\r\n'
+            return h.encode()+value+b'\r\n'
+          caption=('🧪 C3 TOP5 Telegram 연결 테스트 | '+receipt['asof']+' 기준 | 실거래 신호 아님 | 수동 테스트')
+          body=field('chat_id',chat.encode())+field('caption',caption.encode())+field('photo',photo,image_name)+('--'+boundary+'--\r\n').encode()
+          req=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',data=body,
+            headers={'Content-Type':'multipart/form-data; boundary='+boundary},method='POST')
+          with urllib.request.urlopen(req,timeout=30) as r:response=json.load(r)
+          if not response.get('ok'):raise ValueError('TELEGRAM_SEND_FAILED')
+          msg=response.get('result',{})
+          print('C3_TELEGRAM_SMOKE_RECEIPT',json.dumps({'status':'SENT_TEST_ONLY',
+            'source_run_id':run,'asof':receipt['asof'],'image':image_name,
+            'telegram_message_id':msg.get('message_id'),'telegram_chat_id':str(msg.get('chat',{}).get('id')),
+            'orders_enabled':False,'production_reservation_changed':False},ensure_ascii=False))
+          PY
