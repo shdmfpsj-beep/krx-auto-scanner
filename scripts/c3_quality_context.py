@@ -49,13 +49,28 @@ def metric(rows,kind,field,section):
 
 def annual_asof(corp,key,asof):
     # Only annual reports actually filed by as-of; never future/retroactive financials.
-    filings=get_json("list.json",{"corp_code":corp,"bgn_de":str(asof.year-2)+"0101",
-        "end_de":asof.strftime("%Y%m%d"),"page_count":100},key)
-    if filings.get("status")!="000":return None,[], "FILINGS_UNAVAILABLE"
-    available=[r for r in filings.get("list",[]) if str(r.get("rcept_dt",""))<=asof.strftime("%Y%m%d")]
-    # Do not silently treat the first 100 filing records as exhaustive.
-    if int(filings.get("total_page",1))>1:
-        return None,available,"FILINGS_PAGINATION_INCOMPLETE"
+    # Bounded complete pagination: no financial or disclosure claim from a partial list.
+    params={"corp_code":corp,"bgn_de":str(asof.year-2)+"0101",
+        "end_de":asof.strftime("%Y%m%d"),"page_count":100}
+    filings=[]
+    total_pages=None
+    for page in range(1,21):
+        response=get_json("list.json",{**params,"page_no":page},key)
+        if response.get("status")!="000":
+            return None,[],"FILINGS_UNAVAILABLE"
+        try:
+            count=int(response.get("total_page",1))
+        except (ValueError,TypeError):
+            return None,[],"FILINGS_PAGE_METADATA_INVALID"
+        if count<1 or count>20 or (total_pages is not None and count!=total_pages):
+            return None,[],"FILINGS_PAGINATION_INCOMPLETE"
+        total_pages=count
+        rows=response.get("list")
+        if not isinstance(rows,list):
+            return None,[],"FILINGS_PAGE_INVALID"
+        filings.extend(rows)
+        if page>=total_pages:break
+    available=[r for r in filings if str(r.get("rcept_dt",""))<=asof.strftime("%Y%m%d")]
     years=[]
     for r in available:
         name=str(r.get("report_nm","")).replace(" ","")
@@ -176,7 +191,14 @@ def enrich(pool,asof,key,max_requests=12):
                 x["interim_filing_date"]=interim["filing"]["receipt_date"]
                 x["interim_yoy_revenue_pct"]=interim["yoy_revenue_pct"]
                 x["interim_yoy_operating_profit_pct"]=interim["yoy_operating_profit_pct"]
-                if interim["quality"]=="INTERIM_PROFIT_OR_SALES_WEAKENING":
+                # Separate revenue contraction from profit deterioration.
+                revenue=interim["yoy_revenue_pct"]
+                profit_now=interim.get("current_ytd_operating_profit_krw")
+                profit_prev=interim.get("previous_ytd_operating_profit_krw")
+                if revenue is not None and revenue<0 and profit_now is not None and profit_prev is not None and profit_now>profit_prev and profit_now>0:
+                    x["financial_quality_status"]="REVENUE_DOWN_PROFIT_UP"
+                    x["quality_score"]=max(0,(x.get("quality_score") or 10)-2)
+                elif interim["quality"]=="INTERIM_PROFIT_OR_SALES_WEAKENING":
                     x["quality_score"]=min(x.get("quality_score") or 10,10)
                     x["financial_quality_status"]="RECENT_INTERIM_WEAKENING"
                 elif interim["quality"]=="INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED":
