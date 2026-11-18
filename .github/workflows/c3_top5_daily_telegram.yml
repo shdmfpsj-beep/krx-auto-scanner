@@ -173,7 +173,9 @@ jobs:
               # A distant pullback may be technically valid but is not actionable now.
               entry_gap_pct=(max(entry_lo-last,0,last-entry_hi)/last*100
                 if entry_lo is not None and entry_hi is not None else None)
-              entry_ready=(entry_gap_pct is not None and entry_gap_pct<=2.0)
+              entry_status=('ENTRY_READY' if entry_lo is not None and entry_hi is not None and entry_lo<=last<=entry_hi
+                else 'NEAR_ENTRY' if entry_gap_pct is not None and entry_gap_pct<=2.0 else 'WATCH')
+              entry_ready=entry_status=='ENTRY_READY'
               # Ranking is forward-looking opportunity priority, not a backtested return estimate.
               opportunity_score=round(score-max(0,entry_gap_pct or 0)*2,2)
               # Guard against non-executable watch bands and stale resistance levels.
@@ -217,7 +219,7 @@ jobs:
                 'entry_watch_low':entry_lo,'entry_watch_high':entry_hi,
                 'entry_method':'CONFIRMED_PIVOT_ATR_ZONE_V1',
                 'entry_gap_pct':round(entry_gap_pct,2) if entry_gap_pct is not None else None,
-                'entry_ready':bool(entry_ready),
+                'entry_ready':bool(entry_ready),'entry_status':entry_status,
                 'opportunity_score':opportunity_score,
                 'financial_quality_status':'UNVERIFIED_DART_NOT_CONNECTED',
                 'entry_risk_pct':round(risk_at_entry*100,2) if risk_at_entry is not None else None,
@@ -232,7 +234,7 @@ jobs:
                 'rr_entry_ref':round(rr_entry,2) if rr_entry is not None else None,
                 'turnover20_krw':round(val),'ma5':round(ma5),'ma60':round(ma60),
                 'return20_pct':round(r20*100,2),'ma20_distance_pct':round(dist*100,2),
-                'status':'ENTRY_WATCH' if geometry_ok else 'PASS_RISK_GEOMETRY'})
+                'status':entry_status if geometry_ok else 'PASS_RISK_GEOMETRY'})
             pool.sort(key=lambda z:(-z['opportunity_score'],-z['score'],-z['rs20pp'],z['market'],z['code']))
             # Separate research candidates from actionable technical watch candidates.
             # Only validated risk geometry may enter TOP5 images / Telegram.
@@ -240,18 +242,19 @@ jobs:
             qualified=[x for x in pool if x['geometry_validated']]
             # Never promote a far-away limit order zone as an immediate opportunity.
             # The 2% gap is an operational proximity gate, not a profitability claim.
-            near_watch=[x for x in qualified if x['entry_ready']]
-            far_watch=[x for x in qualified if not x['entry_ready']]
-            selected=near_watch[:5]
+            ready_watch=[x for x in qualified if x['entry_status']=='ENTRY_READY']
+            near_watch=[x for x in qualified if x['entry_status']=='NEAR_ENTRY']
+            far_watch=[x for x in qualified if x['entry_status']=='WATCH']
+            selected=(ready_watch+near_watch)[:5]
             # Diagnostic evidence even when zero candidates qualify.
             audit={'schema':'C3_ENTRY_GEOMETRY_AUDIT_V1','asof':days[-1],
               'technical_candidate_count':len(pool),'qualified_count':len(qualified),
-              'near_entry_count':len(near_watch),'far_entry_count':len(far_watch),
+              'entry_ready_count':len(ready_watch),'near_entry_count':len(near_watch),'far_entry_count':len(far_watch),
               'rules':{'risk_min_pct':1.5,'risk_max_pct':5,'rr_min':None,'rr_policy':'REFERENCE_ONLY',
                 'nearby_support_atr_below_ma20':1.5,'nearby_support_atr_above_ma20':.5},
               'candidates':[{'code':x['code'],'name':x['name'],'market':x['market'],
                 'score':x['score'],'opportunity_score':x['opportunity_score'],
-                'entry_gap_pct':x['entry_gap_pct'],'entry_ready':x['entry_ready'],
+                'entry_gap_pct':x['entry_gap_pct'],'entry_ready':x['entry_ready'],'entry_status':x['entry_status'],
                 'financial_quality_status':x['financial_quality_status'],
                 'status':x['status'],'rejection_reasons':x['rejection_reasons'],
                 'entry_low':x['entry_watch_low'],'entry_high':x['entry_watch_high'],
@@ -262,7 +265,7 @@ jobs:
             (root/'entry_geometry_audit.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n')
             print('C3_GEOMETRY_AUDIT',json.dumps({'asof':days[-1],
               'technical_candidates':len(pool),'qualified':len(qualified),
-              'near_entry':len(near_watch),'far_entry':len(far_watch),
+              'entry_ready':len(ready_watch),'near_entry':len(near_watch),'far_entry':len(far_watch),
               'rejections':[{'code':x['code'],'reasons':x['rejection_reasons']} for x in pool]},
               ensure_ascii=False))
             for x in selected:
@@ -272,7 +275,7 @@ jobs:
             receipt.update({'status':'TOP5_RENDER_READY','asof':days[-1],
               'valid_60_session_symbols':len(eligible),'passing_symbols':len(pool),
               'qualified_entry_watch_count':len(qualified),
-              'near_entry_count':len(near_watch),'far_entry_count':len(far_watch),
+              'entry_ready_count':len(ready_watch),'near_entry_count':len(near_watch),'far_entry_count':len(far_watch),
               'research_top5':[{'code':x['code'],'name':x['name'],'score':x['score'],
                 'geometry_validated':x['geometry_validated'],
                 'entry_gap_pct':x['entry_gap_pct'],'status':x['status']} for x in research_top5],
