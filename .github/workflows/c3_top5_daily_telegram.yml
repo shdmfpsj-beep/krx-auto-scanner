@@ -106,7 +106,7 @@ jobs:
                 target=datetime.datetime.strptime(manual_asof,'%Y%m%d').date()
                 if target>now.date() or target.weekday()>4:raise ValueError('INVALID_MANUAL_ASOF_DATE')
             days=[];data=collections.defaultdict(dict);names={}
-            session_coverage=[];rejected_rows=collections.Counter();rejection_reasons=collections.Counter();rejection_dates=collections.defaultdict(collections.Counter);rejection_codes=collections.defaultdict(set)
+            session_coverage=[];rejected_rows=collections.Counter();rejection_reasons=collections.Counter();rejection_dates=collections.defaultdict(collections.Counter);rejection_codes=collections.defaultdict(set);rejection_examples=collections.defaultdict(list);rejection_code_dates=collections.defaultdict(set);zero_row_shape=collections.Counter()
             for offset in range(105):
               d=target-datetime.timedelta(days=offset)
               if d.weekday()>4:continue
@@ -132,7 +132,13 @@ jobs:
                   if reasons:
                     rejected_rows[market]+=1
                     rejection_dates[ds][market]+=1
-                    if code:rejection_codes[market].add(code)
+                    if code:
+                      rejection_codes[market].add(code)
+                      rejection_code_dates[(market,code)].add(ds)
+                    if len(rejection_examples[market])<15:
+                      rejection_examples[market].append({'date':ds,'code':code,'name':str(r.get('ISU_NM',''))[:40],
+                        'open':o,'high':h,'low':l,'close':c,'volume':vol,'turnover':val,'reasons':reasons})
+                    zero_row_shape[market+':'+('ALL_ZERO' if all(v==0 for v in (o,h,l,c,vol,val)) else 'PARTIAL_OR_NONZERO')]+=1
                     for reason in reasons:rejection_reasons[market+':'+reason]+=1
                     continue
                   key=(market,code)
@@ -155,6 +161,11 @@ jobs:
               'invalid_ohlcv_rows':dict(rejected_rows),
               'invalid_ohlcv_reason_counts':dict(sorted(rejection_reasons.items())),
               'invalid_ohlcv_distinct_codes':{m:len(s) for m,s in sorted(rejection_codes.items())},
+              'invalid_ohlcv_zero_shape':dict(sorted(zero_row_shape.items())),
+              'invalid_ohlcv_examples':dict(rejection_examples),
+              'invalid_ohlcv_code_frequency_top':[
+                {'market':m,'code':code,'rejected_sessions':len(ds)}
+                for (m,code),ds in sorted(rejection_code_dates.items(),key=lambda x:(-len(x[1]),x[0]))[:30]],
               'invalid_ohlcv_by_session':{d:dict(v) for d,v in sorted(rejection_dates.items())},
               'invalid_ohlcv_interpretation':'Rejected source rows across 60 sessions; not distinct stocks; zero-volume rows can be valid no-trade observations and are not automatically data errors',
               'coverage_floor_policy':'KOSPI>=500,KOSDAQ>=800 per session; not official completeness certification',
