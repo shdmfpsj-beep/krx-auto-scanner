@@ -47,6 +47,26 @@ class ContextTests(unittest.TestCase):
             result,audit=q.enrich([candidate],"20261117","a"*40)
         self.assertEqual(audit["status"],"CONTEXT_RESEARCH_COMPLETED")
         self.assertNotEqual(audit["status"],"ASOF_OUTSIDE_RECENT_WINDOW")
+    def test_latest_interim_period_uses_ytd(self):
+        filings=[{"rcept_dt":"20261116","rcept_no":"20261116000001",
+                  "report_nm":"분기보고서 (2026.09)"}]
+        rows=[
+          {"sj_div":"IS","account_id":"ifrs-full_Revenue",
+           "thstrm_add_amount":"150","frmtrm_add_amount":"100"},
+          {"sj_div":"IS","account_id":"dart_OperatingIncomeLoss",
+           "thstrm_add_amount":"20","frmtrm_add_amount":"10"}]
+        with patch.object(q,"get_json",return_value={"status":"000","list":rows}):
+            result,status=q.interim_asof("12345678","x",
+                datetime.date(2026,11,17),filings,2025)
+        self.assertEqual(status,"VERIFIED_INTERIM_YTD")
+        self.assertEqual(result["quality"],"INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED")
+    def test_future_interim_filing_is_not_used(self):
+        filings=[{"rcept_dt":"20261119","rcept_no":"20261119000001",
+                  "report_nm":"분기보고서 (2026.09)"}]
+        result,status=q.interim_asof("12345678","x",
+            datetime.date(2026,11,17),filings,2025)
+        self.assertIsNone(result)
+        self.assertEqual(status,"NO_NEWER_INTERIM_FILING")
     def test_negative_equity_risk(self):
         data={"equity":-1,"assets":100,"liabilities":101,"sales":100,
               "sales_prev":90,"profit":2,"profit_prev":1,
