@@ -1,0 +1,84 @@
+name: C3 TOP5 financial overlay research (manual only)
+on:
+  workflow_dispatch:
+    inputs:
+      top5_run_id:
+        description: 'Successful C3 TOP5 manual run ID'
+        required: true
+        type: string
+      dart_run_id:
+        description: 'Successful DART financial audit run ID'
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: read
+jobs:
+  overlay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Join verified matching research artifacts (no trades or Telegram)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TOP5_RUN: ${{ inputs.top5_run_id }}
+          DART_RUN: ${{ inputs.dart_run_id }}
+        run: |
+          python3 - <<'PY'
+          import os,json,io,zipfile,urllib.request,re,pathlib
+          out=pathlib.Path('output/c3_financial_overlay');out.mkdir(parents=True,exist_ok=True)
+          def get(url):
+            req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+            with urllib.request.urlopen(req,timeout=30) as r:return r.read()
+          def load(runkey,artifact_name):
+            run=os.environ[runkey]
+            if not re.fullmatch(r'[0-9]{5,15}',run):raise ValueError('INVALID_RUN_ID_'+runkey)
+            base='https://api.github.com/repos/'+os.environ['REPO']
+            runinfo=json.loads(get(base+'/actions/runs/'+run))
+            if runinfo.get('conclusion')!='success':raise ValueError('SOURCE_RUN_NOT_SUCCESS_'+runkey)
+            arts=json.loads(get(base+'/actions/runs/'+run+'/artifacts?per_page=100')).get('artifacts',[])
+            matches=[a for a in arts if a['name']==artifact_name and not a['expired']]
+            if len(matches)!=1:raise ValueError('ARTIFACT_MISSING_OR_AMBIGUOUS_'+runkey)
+            raw=get(base+'/actions/artifacts/'+str(matches[0]['id'])+'/zip')
+            z=zipfile.ZipFile(io.BytesIO(raw))
+            if 'receipt.json' not in z.namelist():raise ValueError('RECEIPT_MISSING_'+runkey)
+            return json.loads(z.read('receipt.json')),{'run_id':run,'sha':runinfo['head_sha'],'artifact_id':matches[0]['id']}
+          result={'schema':'C3_FINANCIAL_OVERLAY_V1','status':'HOLD','orders_enabled':False,'telegram_sent':False,'candidates':[]}
+          try:
+            top,tmeta=load('TOP5_RUN','c3-top5-daily-classic-per-stock')
+            dart,dmeta=load('DART_RUN','c3-dart-financial-audit')
+            result['sources']={'top5':tmeta,'dart':dmeta}
+            if top.get('asof')!=dart.get('asof'):raise ValueError('ASOF_MISMATCH')
+            if top.get('status')!='PREVIEW_ONLY_MANUAL_RUN' or dart.get('status')!='RESEARCH_ONLY':
+              raise ValueError('SOURCE_NOT_RESEARCH_PREVIEW')
+            lookup={x.get('stock_code'):x for x in dart.get('companies',[])}
+            if len(lookup)!=len(dart.get('companies',[])):raise ValueError('DUPLICATE_DART_STOCK_CODE')
+            for c in top.get('candidates',[]):
+              d=lookup.get(c['code'])
+              screen=(d or {}).get('financial_metrics',{}).get('lightweight_screen')
+              if screen is None:screen={'status':'UNKNOWN_NO_DART_COVERAGE','critical_flags':[],'cautions':[]}
+              result['candidates'].append({'code':c['code'],'name':c['name'],
+                'entry_status':c.get('entry_status'),'entry_gap_pct':c.get('entry_gap_pct'),
+                'entry_risk_pct':c.get('entry_risk_pct'),'opportunity_score':c.get('opportunity_score'),
+                'financial_screen':screen,'financial_filing':(d or {}).get('latest_filing'),
+                'financial_data_status':(d or {}).get('financial_quality_status','NOT_COVERED'),
+                'financial_effect':'INFORMATION_ONLY_NO_SELECTION_OVERRIDE'})
+            result['asof']=top['asof']
+            result['status']='RESEARCH_OVERLAY_READY'
+          except Exception as e:
+            result['error']=type(e).__name__+': '+str(e)
+            (out/'receipt.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+            raise
+          (out/'receipt.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+          print('C3_FINANCIAL_OVERLAY',json.dumps({'status':result['status'],'asof':result['asof'],
+            'candidates':[(x['code'],x['entry_status'],x['financial_screen']['status']) for x in result['candidates']]},ensure_ascii=False))
+          PY
+      - name: Upload overlay receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-top5-financial-overlay
+          path: output/c3_financial_overlay/
+          retention-days: 30
+          if-no-files-found: warn
