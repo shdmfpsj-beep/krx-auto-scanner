@@ -65,6 +65,12 @@ jobs:
               'Consolidated and separate financial statements must not be mixed',
               'No automatic financial approval, trade, or Telegram send'],
             'companies':[]}
+          def report_period(name):
+            # Reporting year/quarter is extracted from the published report title.
+            m=re.search(r'\\((20\\d{2})\\.(\\d{2})\\)',name)
+            if not m:return None
+            year,month=int(m.group(1)),int(m.group(2))
+            return (str(year),'11011' if month==12 else '11012' if month==6 else '11013' if month==3 else '11014' if month==9 else None)
           for stock in codes:
             m=mapping.get(stock)
             rec={'stock_code':stock,'company':m['corp_name'] if m else None,
@@ -72,15 +78,35 @@ jobs:
             if not m:
               rec['reason']='NO_CORP_MAPPING';result['companies'].append(rec);continue
             try:
-              # Filing metadata must exist on or before asof. Limit to regular annual/quarterly reports.
-              filings=api('list.json',{'corp_code':m['corp_code'],'bgn_de':str(int(asof[:4])-3)+'0101',
-                'end_de':asof,'pblntf_ty':'A','page_count':100})
-              items=[x for x in filings.get('list',[]) if x.get('report_nm','').startswith(('사업보고서','반기보고서','분기보고서'))
-                and x.get('rcept_dt','')<=asof]
-              items.sort(key=lambda x:x.get('rcept_dt',''),reverse=True)
+              # Filing metadata must exist on or before asof. Check every page.
+              items=[]
+              for page in range(1,21):
+                filings=api('list.json',{'corp_code':m['corp_code'],
+                  'bgn_de':str(int(asof[:4])-3)+'0101','end_de':asof,
+                  'pblntf_ty':'A','page_count':100,'page_no':page})
+                items.extend(x for x in filings.get('list',[]) if
+                  x.get('report_nm','').startswith(('사업보고서','반기보고서','분기보고서'))
+                  and x.get('rcept_dt','')<=asof)
+                if page>=int(filings.get('total_page',1)):break
+              items.sort(key=lambda x:(x.get('rcept_dt',''),x.get('rcept_no','')),reverse=True)
               rec['latest_filing']={k:items[0].get(k) for k in ('report_nm','rcept_dt','rcept_no')} if items else None
               rec['filing_count']=len(items)
-              rec['reason']='PIT_FINANCIAL_VALUES_NOT_CERTIFIED' if items else 'NO_ELIGIBLE_REPORT_BY_ASOF'
+              if items:
+                period=report_period(items[0]['report_nm'])
+                rec['period']={'year':period[0],'report_code':period[1]} if period else None
+                if period and period[1]:
+                  # This endpoint is research-only: subsequent corrections can affect returned values.
+                  statement=api('fnlttSinglAcntAll.json',{'corp_code':m['corp_code'],
+                    'bsns_year':period[0],'reprt_code':period[1],'fs_div':'CFS'})
+                  rows=statement.get('list',[])
+                  rec['consolidated_statement_rows']=len(rows)
+                  rec['statement_status']='AVAILABLE_NOT_PIT_CERTIFIED' if rows else 'NO_CONSOLIDATED_STATEMENT'
+                  rec['sample_accounts']=[{'account_nm':x.get('account_nm'),
+                    'sj_nm':x.get('sj_nm'),'thstrm_amount':x.get('thstrm_amount')}
+                    for x in rows[:12]]
+                else:rec['statement_status']='REPORT_PERIOD_UNRECOGNIZED'
+                rec['reason']='PIT_FINANCIAL_VALUES_NOT_CERTIFIED'
+              else:rec['reason']='NO_ELIGIBLE_REPORT_BY_ASOF'
             except Exception as e:
               rec['reason']='DART_LOOKUP_ERROR';rec['error']=type(e).__name__+': '+str(e)[:120]
             result['companies'].append(rec)
