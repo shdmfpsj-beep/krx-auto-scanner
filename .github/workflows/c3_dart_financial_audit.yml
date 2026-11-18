@@ -149,6 +149,29 @@ jobs:
               'passed':sum(known),'evaluated':len(known),'possible':len(checks),
               'score_pct_of_evaluated':round(100*sum(known)/len(known),1) if known else None,
               'status':'RESEARCH_ONLY_NOT_SECTOR_ADJUSTED_NOT_PIT_CERTIFIED'}
+            # Lightweight current-filing risk triage, not a historical PIT gate.
+            # Profit and cashflow may be cyclically negative: flag for review, not automatic exclusion.
+            def metric_value(key):
+              item=result.get(key,{})
+              return item.get('current_krw') if item.get('status')=='OBSERVED_NOT_PIT_CERTIFIED' else None
+            equity_value=metric_value('equity')
+            op_value=metric_value('operating_profit')
+            cf_value=metric_value('operating_cash_flow')
+            red_flags=[]
+            cautions=[]
+            if equity_value is not None and equity_value<=0:
+              red_flags.append('NON_POSITIVE_EQUITY')
+            if op_value is not None and op_value<0:
+              cautions.append('OPERATING_LOSS_REVIEW')
+            if cf_value is not None and cf_value<0:
+              cautions.append('NEGATIVE_OPERATING_CASH_FLOW_REVIEW')
+            if result['debt_to_equity_pct'] is not None and result['debt_to_equity_pct']>=300:
+              cautions.append('HIGH_LEVERAGE_SECTOR_REVIEW')
+            result['lightweight_screen']={
+              'status':'REVIEW_REQUIRED' if red_flags else 'NO_CRITICAL_FLAG_OBSERVED',
+              'critical_flags':red_flags,'cautions':cautions,
+              'policy':'Current reported CFS only; no sector adjustment, no PIT certification; never auto-approve trades',
+              'technical_selection_override':False}
             result['quality_gate']='HOLD_NOT_PIT_CERTIFIED'
             return result
           for stock in codes:
