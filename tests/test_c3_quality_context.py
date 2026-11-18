@@ -42,6 +42,9 @@ class ContextTests(unittest.TestCase):
               "filing_date":"20260320","fiscal_year":2025}
         candidate={"code":"123456","name":"Example","geometry_validated":True,
                    "opportunity_score":70,"entry_status":"ENTRY_READY"}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
         with patch.object(q,"corps",return_value={"123456":"12345678"}),\
              patch.object(q,"annual_asof",return_value=(data,[],"VERIFIED_ANNUAL")),\
              patch.object(q.datetime,"datetime",FrozenDatetime):
