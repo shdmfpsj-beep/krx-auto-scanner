@@ -103,12 +103,16 @@ jobs:
                 'prior_krw':prior,'source_account_ids':sorted({x.get('account_id') for x in matches}),
                 'statement_types':sorted({x.get('sj_div') for x in matches})}
               if metric in ('revenue','operating_profit','net_income'):
-                qvals={amount(x,'frmtrm_q_amount') for x in matches}
-                prev_q=next(iter(qvals)) if len(qvals)==1 else None
+                # Both sides MUST be the 3-month quarter values.
+                current_q_vals={amount(x,'thstrm_q_amount') for x in matches}
+                prior_q_vals={amount(x,'frmtrm_q_amount') for x in matches}
+                current_q=next(iter(current_q_vals)) if len(current_q_vals)==1 else None
+                prev_q=next(iter(prior_q_vals)) if len(prior_q_vals)==1 else None
+                result[metric]['current_quarter_krw']=current_q
                 result[metric]['prior_same_quarter_krw']=prev_q
                 result[metric]['period_basis']='QUARTER_3_MONTH_IS_OR_CIS'
-                if current is not None and prev_q is not None and prev_q>0:
-                  result[metric]['quarter_yoy_pct']=round((current/prev_q-1)*100,2)
+                if current_q is not None and prev_q is not None and prev_q>0:
+                  result[metric]['quarter_yoy_pct']=round((current_q/prev_q-1)*100,2)
               elif metric=='operating_cash_flow':
                 result[metric]['period_basis']='CUMULATIVE_CASH_FLOW'
             def v(key):
