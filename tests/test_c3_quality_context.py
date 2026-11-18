@@ -133,6 +133,33 @@ class ContextTests(unittest.TestCase):
               patch.object(q,"corps",return_value={})):
             result,audit=q.enrich([candidate],"20261118","a"*40)
         self.assertEqual(result[0]["context_composite_score"],71.0)
+    def test_financial_quality_breaks_technical_tie(self):
+        candidates=[
+          {"code":"111111","name":"Strong","geometry_validated":True,
+           "opportunity_score":80,"entry_status":"ENTRY_READY"},
+          {"code":"222222","name":"Weak","geometry_validated":True,
+           "opportunity_score":80,"entry_status":"ENTRY_READY"}]
+        annual={
+          "11111111":{"equity":60,"assets":100,"liabilities":40,"sales":150,
+            "sales_prev":100,"profit":20,"profit_prev":10,"filing_date":"20260320","fiscal_year":2025},
+          "22222222":{"equity":60,"assets":100,"liabilities":40,"sales":80,
+            "sales_prev":100,"profit":-5,"profit_prev":10,"filing_date":"20260320","fiscal_year":2025}}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
+        with (patch.object(q.datetime,"datetime",FrozenDatetime),
+              patch.object(q,"corps",return_value={"111111":"11111111","222222":"22222222"}),
+              patch.object(q,"annual_asof",side_effect=lambda corp,key,asof:
+                (annual[corp],[],"VERIFIED_ANNUAL")),
+              patch.object(q,"interim_asof",return_value=(None,"NO_NEWER_INTERIM_FILING"))):
+            results,audit=q.enrich(candidates,"20261118","a"*40)
+        by_code={x["code"]:x for x in results}
+        self.assertEqual(by_code["111111"]["quality_score"],25)
+        self.assertEqual(by_code["222222"]["quality_score"],10)
+        self.assertGreater(by_code["111111"]["context_composite_score"],
+                           by_code["222222"]["context_composite_score"])
+        self.assertEqual(by_code["111111"]["context_composite_score"],83.5)
+        self.assertEqual(by_code["222222"]["context_composite_score"],68.5)
     def test_negative_equity_risk(self):
         data={"equity":-1,"assets":100,"liabilities":101,"sales":100,
               "sales_prev":90,"profit":2,"profit_prev":1,
