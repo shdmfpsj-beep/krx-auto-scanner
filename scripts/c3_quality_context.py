@@ -4,6 +4,7 @@ Financial and disclosure observations cannot rescue invalid entry geometry.
 """
 import datetime,io,json,os,re,urllib.parse,urllib.request,zipfile
 from xml.etree import ElementTree
+from dart_interim_periods import identify_interim_filing,evaluate_interim
 
 API="https://opendart.fss.or.kr/api/"
 FIN_IDS={"equity":{"ifrs-full_Equity","ifrs_Equity"},
@@ -71,6 +72,31 @@ def annual_asof(corp,key,asof):
             return values,available,"VERIFIED_ANNUAL"
     return None,available,"ANNUAL_INCOMPLETE"
 
+def interim_asof(corp,key,asof,filings,annual_year):
+    """Newest filed fiscal interim, verified cumulative YTD only."""
+    candidates=[]
+    for row in filings:
+        day_text=str(row.get("rcept_dt",""))
+        receipt=str(row.get("rcept_no",""))
+        try:day=datetime.datetime.strptime(day_text,"%Y%m%d").date()
+        except ValueError:continue
+        if day>asof:continue
+        filing=identify_interim_filing((day,receipt,row.get("report_nm","")),asof)
+        if not filing:continue
+        end=datetime.date.fromisoformat(filing["period_end"])
+        if day<=end or filing["fiscal_year"]<=annual_year:continue
+        candidates.append((end,day,receipt,filing))
+    if not candidates:return None,"NO_NEWER_INTERIM_FILING"
+    filing=max(candidates,key=lambda x:(x[0],x[1],x[2]))[3]
+    for division in ("CFS","OFS"):
+        payload=get_json("fnlttSinglAcntAll.json",{
+            "corp_code":corp,"bsns_year":str(filing["fiscal_year"]),
+            "reprt_code":filing["report_code"],"fs_div":division},key)
+        result=evaluate_interim(payload,division,filing)
+        if result["status"]=="DATED_INTERIM_YTD_RESEARCH_ONLY":
+            return result,"VERIFIED_INTERIM_YTD"
+    return None,"INTERIM_CUMULATIVE_UNVERIFIED"
+
 def enrich(pool,asof,key,max_requests=12):
     """Return a NEW ranked list and audit. Keep original technical score intact."""
     output=[dict(x) for x in pool]
@@ -135,6 +161,20 @@ def enrich(pool,asof,key,max_requests=12):
                         x["financial_filing_date"]=values["filing_date"]
                         x["financial_fiscal_year"]=values["fiscal_year"]
                 else:x["context_status"]="BALANCE_SHEET_IDENTITY_UNVERIFIED"
+            # Verify latest interim YTD; no fabricated single-quarter growth.
+            interim,interim_status=interim_asof(corp,key,target,filings,
+                values["fiscal_year"] if values else target.year-2)
+            x["interim_status"]=interim_status
+            if interim:
+                x["interim_quality"]=interim["quality"]
+                x["interim_filing_date"]=interim["filing"]["receipt_date"]
+                x["interim_yoy_revenue_pct"]=interim["yoy_revenue_pct"]
+                x["interim_yoy_operating_profit_pct"]=interim["yoy_operating_profit_pct"]
+                if interim["quality"]=="INTERIM_PROFIT_OR_SALES_WEAKENING":
+                    x["quality_score"]=min(x.get("quality_score") or 10,10)
+                    x["financial_quality_status"]="RECENT_INTERIM_WEAKENING"
+                elif interim["quality"]=="INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED":
+                    x["quality_score"]=min(20,(x.get("quality_score") or 10)+2)
             # Check latest public filing titles; cannot treat absence as no risk.
             recent=[r for r in filings if str(r.get("rcept_dt",""))>=
                     (datetime.datetime.strptime(asof,"%Y%m%d").date()-datetime.timedelta(days=90)).strftime("%Y%m%d")]
@@ -146,7 +186,8 @@ def enrich(pool,asof,key,max_requests=12):
             x["context_status"]="DART_REQUEST_FAILED_"+type(ex).__name__
         audit["checked"].append({"code":ticker,"context_status":x["context_status"],
             "financial_quality_status":x.get("financial_quality_status"),
-            "disclosure_status":x["disclosure_status"],"risk_flag":x["quality_risk_flag"]})
+            "disclosure_status":x["disclosure_status"],"interim_status":x.get("interim_status"),
+            "interim_quality":x.get("interim_quality"),"risk_flag":x["quality_risk_flag"]})
     # Never replace the technical entry-first ordering; quality only tie-breaks within status.
     for x in output:
         x.setdefault("context_status","UNVERIFIED")
