@@ -105,6 +105,7 @@ jobs:
                 target=datetime.datetime.strptime(manual_asof,'%Y%m%d').date()
                 if target>now.date() or target.weekday()>4:raise ValueError('INVALID_MANUAL_ASOF_DATE')
             days=[];data=collections.defaultdict(dict);names={}
+            session_coverage=[];rejected_rows=collections.Counter()
             for offset in range(105):
               d=target-datetime.timedelta(days=offset)
               if d.weekday()>4:continue
@@ -113,12 +114,15 @@ jobs:
               if not a and not b:continue
               if not a or not b:raise ValueError('PARTIAL_MARKET_'+ds)
               days.append(ds)
+              session_coverage.append({'date':ds,'kospi_rows':len(a),'kosdaq_rows':len(b)})
               for market,rows in (('KOSPI',a),('KOSDAQ',b)):
                 for r in rows:
                   code=str(r.get('ISU_CD','')).strip()
                   o,h,l,c=[num(r.get(k)) for k in ('TDD_OPNPRC','TDD_HGPRC','TDD_LWPRC','TDD_CLSPRC')]
                   vol=num(r.get('ACC_TRDVOL'));val=num(r.get('ACC_TRDVAL'))
-                  if not code or None in (o,h,l,c,vol,val) or min(o,h,l,c)<=0 or vol<=0 or val<=0 or l>min(o,c) or h<max(o,c):continue
+                  if not code or None in (o,h,l,c,vol,val) or min(o,h,l,c)<=0 or vol<=0 or val<=0 or l>min(o,c) or h<max(o,c):
+                    rejected_rows[market]+=1
+                    continue
                   key=(market,code)
                   data[key][ds]=(c,h,l,vol,val,o)
                   names[key]=str(r.get('ISU_NM',''))
@@ -127,6 +131,19 @@ jobs:
             if len(days)!=60 or days[0]!=target.strftime('%Y%m%d'):
               raise ValueError('TODAY_60_SESSION_SOURCE_INCOMPLETE')
             days.sort()
+            session_coverage.sort(key=lambda x:x['date'])
+            for coverage in session_coverage:
+              if coverage['kospi_rows']<500 or coverage['kosdaq_rows']<800:
+                raise ValueError('MARKET_COVERAGE_TOO_SMALL_'+coverage['date'])
+            receipt['source_integrity']={'schema':'C3_KRX_SOURCE_PREFLIGHT_V1',
+              'session_count':len(days),'first_session':days[0],'last_session':days[-1],
+              'market_rows_latest':session_coverage[-1],
+              'market_rows_min':{'KOSPI':min(x['kospi_rows'] for x in session_coverage),
+                'KOSDAQ':min(x['kosdaq_rows'] for x in session_coverage)},
+              'invalid_ohlcv_rows':dict(rejected_rows),
+              'coverage_floor_policy':'KOSPI>=500,KOSDAQ>=800 per session; not official completeness certification',
+              'regular_session_price_certified':False,'corporate_actions_certified':False}
+            print('C3_SOURCE_PREFLIGHT',json.dumps(receipt['source_integrity'],ensure_ascii=False))
             bench=collections.defaultdict(list);eligible={}
             for key,s in data.items():
               if not all(d in s for d in days):continue
@@ -393,6 +410,22 @@ jobs:
             receipt['image_sha256']=[hashlib.sha256(p.read_bytes()).hexdigest() for p in images]
             receipt['image_files']=[p.name for p in images]
             receipt['image_count']=len(images)
+            # Recheck executable prices, risk and chart integrity before send reservation.
+            def tick_ok(v):
+              return isinstance(v,int) and v>0 and v%tick(v)==0
+            for x in selected:
+              prices=[x['entry_watch_low'],x['entry_watch_high'],x['structural_stop_ref'],
+                x['r1_ref']]+([x['r2_ref']] if x['r2_ref'] is not None else [])
+              if not all(tick_ok(v) for v in prices):
+                raise ValueError('NON_EXECUTABLE_PRICE_'+x['code'])
+              if not (x['structural_stop_ref']<x['entry_watch_low']<=x['entry_watch_high']<x['r1_ref']):
+                raise ValueError('INVALID_PRICE_ORDER_'+x['code'])
+              actual_risk=(x['entry_watch_high']-x['structural_stop_ref'])/x['entry_watch_high']
+              if not (.015<=actual_risk<=.05):
+                raise ValueError('POST_ROUNDING_RISK_INVALID_'+x['code'])
+              if len(x['chart_bars'])!=60 or x['chart_bars'][-1]['date']!=days[-1]:
+                raise ValueError('CHART_SOURCE_MISMATCH_'+x['code'])
+            receipt['price_integrity']='EXECUTABLE_TICKS_AND_RISK_VERIFIED'
             # Fail closed before any scheduled delivery if cards are missing,
             # unreadable, duplicated, or inconsistent with qualified candidates.
             if len(images)!=len(selected):raise ValueError('IMAGE_SELECTION_COUNT_MISMATCH')
