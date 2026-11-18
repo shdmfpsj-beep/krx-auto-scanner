@@ -130,7 +130,7 @@ def sector_evidence(candidate,asof):
     dated=candidate.get("krx_sector_asof")
     if not isinstance(sector,str) or not sector.strip():
         return {"status":"UNVERIFIED","score":None,"exclude":False}
-    if source!="KRX_OFFICIAL" or not isinstance(dated,str) or not re.fullmatch(r"\\d{8}",dated) or dated>asof:
+    if source!="KRX_OFFICIAL" or not isinstance(dated,str) or not re.fullmatch(r"\d{8}",dated) or dated>asof:
         return {"status":"UNVERIFIED","score":None,"exclude":False}
     normalized=sector.upper().replace(" ","")
     if any(t.upper().replace(" ","") in normalized for t in SECTOR_EXCLUDED):
