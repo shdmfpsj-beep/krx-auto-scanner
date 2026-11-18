@@ -61,6 +61,7 @@ jobs:
                 'corp_name':(row.findtext('corp_name') or '').strip()}
           result={'schema':'C3_DART_RESEARCH_AUDIT_V1','asof':asof,'status':'RESEARCH_ONLY',
             'financial_gate':'HOLD_UNTIL_PIT_AND_STATEMENT_VERIFIED',
+            'metrics_policy':'Standard account IDs only; missing or duplicate values stay unverified; no auto-approval',
             'limitations':['DART financial API can reflect later corrections; filing date alone does not prove point-in-time numeric values',
               'Consolidated and separate financial statements must not be mixed',
               'No automatic financial approval, trade, or Telegram send'],
@@ -71,6 +72,85 @@ jobs:
             if not m:return None
             year,month=int(m.group(1)),int(m.group(2))
             return (str(year),'11011' if month==12 else '11012' if month==6 else '11013' if month==3 else '11014' if month==9 else None)
+          def amount(row,field):
+            raw=str(row.get(field,'')).replace(',','').strip()
+            if not re.fullmatch(r'-?\d+',raw):return None
+            return int(raw)
+          def financial_metrics(rows):
+            # Accept only standardized account IDs. IS and CIS are alternate presentation forms.
+            specs={
+              'assets':(('BS',),('ifrs-full_Assets','ifrs_Assets')),
+              'liabilities':(('BS',),('ifrs-full_Liabilities','ifrs_Liabilities')),
+              'equity':(('BS',),('ifrs-full_Equity','ifrs_Equity')),
+              'revenue':(('IS','CIS'),('ifrs-full_Revenue','ifrs_Revenue',
+                'ifrs-full_RevenueFromContractsWithCustomers','ifrs-full_SalesRevenueNet')),
+              'operating_profit':(('IS','CIS'),('dart_OperatingIncomeLoss',)),
+              'net_income':(('IS','CIS'),('ifrs-full_ProfitLoss','ifrs_ProfitLoss')),
+              'operating_cash_flow':(('CF',),('ifrs-full_CashFlowsFromUsedInOperatingActivities',
+                'ifrs_CashFlowsFromUsedInOperatingActivities'))}
+            result={}
+            for metric,(statements,ids) in specs.items():
+              matches=[x for x in rows if x.get('sj_div') in statements
+                and x.get('account_id') in ids and x.get('account_detail','-') in ('-','')]
+              # Distinct statement presentations must agree. Never silently select one.
+              vals={(amount(x,'thstrm_amount'),amount(x,'frmtrm_amount')) for x in matches}
+              if len(vals)!=1:
+                result[metric]={'status':'MISSING_OR_AMBIGUOUS','match_count':len(matches),
+                  'observed_account_ids':sorted({x.get('account_id','') for x in matches})}
+                continue
+              current,prior=next(iter(vals))
+              result[metric]={'status':'OBSERVED_NOT_PIT_CERTIFIED','current_krw':current,
+                'prior_krw':prior,'source_account_ids':sorted({x.get('account_id') for x in matches}),
+                'statement_types':sorted({x.get('sj_div') for x in matches})}
+              if metric in ('revenue','operating_profit','net_income'):
+                # DART fnlttSinglAcntAll uses thstrm_amount for current-period
+                # income statement and frmtrm_q_amount for prior same quarter.
+                # thstrm_q_amount is not present in this endpoint's response.
+                prior_q_vals={amount(x,'frmtrm_q_amount') for x in matches}
+                current_q=current
+                prev_q=next(iter(prior_q_vals)) if len(prior_q_vals)==1 else None
+                result[metric]['current_quarter_krw']=current_q
+                result[metric]['prior_same_quarter_krw']=prev_q
+                result[metric]['period_basis']='QUARTER_3_MONTH_IS_OR_CIS'
+                if current_q is not None and prev_q is not None and prev_q>0:
+                  result[metric]['quarter_yoy_pct']=round((current_q/prev_q-1)*100,2)
+              elif metric=='operating_cash_flow':
+                result[metric]['period_basis']='CUMULATIVE_CASH_FLOW'
+            def v(key):
+              d=result.get(key,{})
+              return d.get('current_krw') if d.get('status')=='OBSERVED_NOT_PIT_CERTIFIED' else None
+            debt,equity=v('liabilities'),v('equity')
+            result['debt_to_equity_pct']=(round(debt/equity*100,2) if
+              debt is not None and equity is not None and equity>0 else None)
+            # Diagnostic metadata for nonstandard company-specific labels.
+            result['unmapped_income_accounts']=[{'sj_div':x.get('sj_div'),
+              'account_id':x.get('account_id'),'account_nm':x.get('account_nm')}
+              for x in rows if x.get('sj_div') in ('IS','CIS')
+              and any(term in x.get('account_nm','') for term in ('매출','영업수익','영업이익','순이익'))
+              and x.get('account_id') not in set(sum((list(v[1]) for k,v in specs.items()
+                if k in ('revenue','operating_profit','net_income')),[]))][:25]
+            # Exploratory score only. No PIT certification, no production gate or orders.
+            # Avoid sector-blind approval: these are transparent diagnostic flags, not a buy signal.
+            def observed(key):
+              d=result.get(key,{})
+              return d if d.get('status')=='OBSERVED_NOT_PIT_CERTIFIED' else {}
+            revenue,op,net,ocf=(observed(k) for k in
+              ('revenue','operating_profit','net_income','operating_cash_flow'))
+            checks={
+              'positive_operating_profit':(op.get('current_krw',0)>0 if op.get('current_krw') is not None else None),
+              'positive_net_income':(net.get('current_krw',0)>0 if net.get('current_krw') is not None else None),
+              'positive_operating_cash_flow':(ocf.get('current_krw',0)>0 if ocf.get('current_krw') is not None else None),
+              'revenue_yoy_positive':(revenue['quarter_yoy_pct']>0 if 'quarter_yoy_pct' in revenue else None),
+              'operating_profit_yoy_positive':(op['quarter_yoy_pct']>0 if 'quarter_yoy_pct' in op else None),
+              'debt_to_equity_below_200_pct':(result['debt_to_equity_pct']<200
+                if result['debt_to_equity_pct'] is not None else None)}
+            known=[v for v in checks.values() if v is not None]
+            result['exploratory_quality']={'checks':checks,
+              'passed':sum(known),'evaluated':len(known),'possible':len(checks),
+              'score_pct_of_evaluated':round(100*sum(known)/len(known),1) if known else None,
+              'status':'RESEARCH_ONLY_NOT_SECTOR_ADJUSTED_NOT_PIT_CERTIFIED'}
+            result['quality_gate']='HOLD_NOT_PIT_CERTIFIED'
+            return result
           for stock in codes:
             m=mapping.get(stock)
             rec={'stock_code':stock,'company':m['corp_name'] if m else None,
@@ -100,6 +180,7 @@ jobs:
                     'bsns_year':period[0],'reprt_code':period[1],'fs_div':'CFS'})
                   rows=statement.get('list',[])
                   rec['consolidated_statement_rows']=len(rows)
+                  rec['financial_metrics']=financial_metrics(rows)
                   rec['statement_status']='AVAILABLE_NOT_PIT_CERTIFIED' if rows else 'NO_CONSOLIDATED_STATEMENT'
                   rec['sample_accounts']=[{'account_nm':x.get('account_nm'),
                     'sj_nm':x.get('sj_nm'),'thstrm_amount':x.get('thstrm_amount')}
