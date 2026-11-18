@@ -1,0 +1,99 @@
+name: C3 DART financial audit (manual research, no Telegram)
+on:
+  workflow_dispatch:
+    inputs:
+      asof:
+        description: 'KRX as-of YYYYMMDD; only disclosures available by this date'
+        required: true
+        type: string
+      codes:
+        description: 'Comma-separated six-digit stock codes'
+        required: false
+        default: '294870,215200,036460,000080,012750'
+        type: string
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      DART_API_KEY: ${{ secrets.DART_API_KEY }}
+      OPENDART_API_KEY: ${{ secrets.OPENDART_API_KEY }}
+      C3_ASOF: ${{ inputs.asof }}
+      C3_CODES: ${{ inputs.codes }}
+    steps:
+      - name: Audit public DART filings and financial statements
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.parse,zipfile,io,re,datetime,xml.etree.ElementTree as ET
+          from pathlib import Path
+          out=Path('output/c3_dart_audit');out.mkdir(parents=True,exist_ok=True)
+          key=os.getenv('DART_API_KEY') or os.getenv('OPENDART_API_KEY')
+          asof=os.environ['C3_ASOF'].strip()
+          if not re.fullmatch(r'20\d{6}',asof):raise ValueError('INVALID_ASOF')
+          target=datetime.datetime.strptime(asof,'%Y%m%d').date()
+          if target>datetime.date.today():raise ValueError('FUTURE_ASOF')
+          codes=[x.strip() for x in os.environ['C3_CODES'].split(',') if x.strip()]
+          if not codes or len(codes)>30 or any(not re.fullmatch(r'\d{6}',x) for x in codes):
+            raise ValueError('INVALID_CODES')
+          if not key:
+            (out/'receipt.json').write_text(json.dumps({'status':'HOLD_NO_DART_KEY','asof':asof,'codes':codes},indent=2))
+            raise ValueError('DART_API_KEY_OR_OPENDART_API_KEY_SECRET_MISSING')
+          def api(path,params):
+            url='https://opendart.fss.or.kr/api/'+path+'?'+urllib.parse.urlencode(dict(params,crtfc_key=key))
+            with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'C3-financial-audit/1.0'}),timeout=25) as r:
+              body=r.read(12_000_000)
+            if path.endswith('.xml'):return body
+            obj=json.loads(body)
+            if obj.get('status') not in ('000','013'):
+              raise ValueError('DART_'+path+'_'+str(obj.get('status'))+'_'+str(obj.get('message')))
+            return obj
+          # DART corpCode provides the stock-code-to-corp-code mapping.
+          raw=api('corpCode.xml',{})
+          root=ET.fromstring(zipfile.ZipFile(io.BytesIO(raw)).read('CORPCODE.xml'))
+          mapping={}
+          for row in root.findall('list'):
+            stock=(row.findtext('stock_code') or '').strip()
+            if stock in codes:
+              mapping[stock]={'corp_code':(row.findtext('corp_code') or '').strip(),
+                'corp_name':(row.findtext('corp_name') or '').strip()}
+          result={'schema':'C3_DART_RESEARCH_AUDIT_V1','asof':asof,'status':'RESEARCH_ONLY',
+            'financial_gate':'HOLD_UNTIL_PIT_AND_STATEMENT_VERIFIED',
+            'limitations':['DART financial API can reflect later corrections; filing date alone does not prove point-in-time numeric values',
+              'Consolidated and separate financial statements must not be mixed',
+              'No automatic financial approval, trade, or Telegram send'],
+            'companies':[]}
+          for stock in codes:
+            m=mapping.get(stock)
+            rec={'stock_code':stock,'company':m['corp_name'] if m else None,
+              'corp_code':m['corp_code'] if m else None,'financial_quality_status':'UNVERIFIED'}
+            if not m:
+              rec['reason']='NO_CORP_MAPPING';result['companies'].append(rec);continue
+            try:
+              # Filing metadata must exist on or before asof. Limit to regular annual/quarterly reports.
+              filings=api('list.json',{'corp_code':m['corp_code'],'bgn_de':str(max(20000101,int(asof[:4])-3)*10000) if False else str(int(asof[:4])-3)+'0101',
+                'end_de':asof,'pblntf_ty':'A','page_count':100})
+              items=[x for x in filings.get('list',[]) if x.get('report_nm','').startswith(('사업보고서','반기보고서','분기보고서'))
+                and x.get('rcept_dt','')<=asof]
+              items.sort(key=lambda x:x.get('rcept_dt',''),reverse=True)
+              rec['latest_filing']={k:items[0].get(k) for k in ('report_nm','rcept_dt','rcept_no')} if items else None
+              rec['filing_count']=len(items)
+              rec['reason']='PIT_FINANCIAL_VALUES_NOT_CERTIFIED' if items else 'NO_ELIGIBLE_REPORT_BY_ASOF'
+            except Exception as e:
+              rec['reason']='DART_LOOKUP_ERROR';rec['error']=type(e).__name__+': '+str(e)[:120]
+            result['companies'].append(rec)
+          (out/'receipt.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+          print('C3_DART_AUDIT',json.dumps({'asof':asof,'companies':len(result['companies']),
+            'with_filings':sum(bool(x.get('latest_filing')) for x in result['companies']),
+            'financial_verified':0,'status':result['status']},ensure_ascii=False))
+          PY
+      - name: Upload research receipt even when held
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-dart-financial-audit
+          path: output/c3_dart_audit/
+          retention-days: 30
+          if-no-files-found: warn
