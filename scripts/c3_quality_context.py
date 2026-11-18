@@ -4,7 +4,10 @@ Financial and disclosure observations cannot rescue invalid entry geometry.
 """
 import datetime,io,json,os,re,urllib.parse,urllib.request,zipfile
 from xml.etree import ElementTree
-from dart_interim_periods import identify_interim_filing,evaluate_interim
+try:
+    from scripts.dart_interim_periods import identify_interim_filing,evaluate_interim
+except ModuleNotFoundError:
+    from dart_interim_periods import identify_interim_filing,evaluate_interim
 
 API="https://opendart.fss.or.kr/api/"
 FIN_IDS={"equity":{"ifrs-full_Equity","ifrs_Equity"},
