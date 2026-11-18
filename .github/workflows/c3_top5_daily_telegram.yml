@@ -105,7 +105,7 @@ jobs:
                 if len(manual_asof)!=8 or not manual_asof.isdigit():raise ValueError('INVALID_MANUAL_ASOF')
                 target=datetime.datetime.strptime(manual_asof,'%Y%m%d').date()
                 if target>now.date() or target.weekday()>4:raise ValueError('INVALID_MANUAL_ASOF_DATE')
-            days=[];data=collections.defaultdict(dict);names={}
+            days=[];data=collections.defaultdict(dict);names={};listed_shares=collections.defaultdict(dict)
             session_coverage=[];rejected_rows=collections.Counter();rejection_reasons=collections.Counter();rejection_dates=collections.defaultdict(collections.Counter);rejection_codes=collections.defaultdict(set);rejection_examples=collections.defaultdict(list);rejection_code_dates=collections.defaultdict(set);zero_row_shape=collections.Counter();no_trade_reference_rows=collections.Counter();malformed_rows=collections.Counter()
             for offset in range(105):
               d=target-datetime.timedelta(days=offset)
@@ -151,6 +151,8 @@ jobs:
                   key=(market,code)
                   data[key][ds]=(c,h,l,vol,val,o)
                   names[key]=str(r.get('ISU_NM',''))
+                  shares=num(r.get('LIST_SHRS'))
+                  if shares is not None and shares>0:listed_shares[key][ds]=shares
               if len(days)==60:break
               time.sleep(.12)
             if len(days)!=60 or days[0]!=target.strftime('%Y%m%d'):
@@ -193,6 +195,15 @@ jobs:
                 for j in range(1,len(c)) if c[j-1]>0 and
                 (c[j]/c[j-1]>1.4 or c[j]/c[j-1]<.6)]
               if jumps:
+                for event in jumps:
+                  j=days.index(event['date'])
+                  prior=listed_shares[key].get(days[j-1])
+                  current=listed_shares[key].get(days[j])
+                  event['listed_shares_before']=prior
+                  event['listed_shares_after']=current
+                  event['listed_shares_ratio']=round(current/prior,4) if prior and current else None
+                  event['price_times_shares_ratio']=round((c[j]/c[j-1])*(current/prior),4) if prior and current else None
+                  event['share_change_evidence']='AVAILABLE' if prior and current else 'UNAVAILABLE'
                 price_discontinuity_count+=1
                 if len(price_discontinuity_flags)<30:
                   price_discontinuity_flags.append({'market':key[0],'code':key[1],
@@ -203,6 +214,7 @@ jobs:
             receipt['price_continuity_audit']={'schema':'C3_UNADJUSTED_CLOSE_DISCONTINUITY_V1',
               'policy':'exclude symbols with any adjacent close change above +40% or below -40% in 60 sessions; conservative anomaly/corporate-action proxy, not official action verification',
               'flagged_symbols':price_discontinuity_count,'examples':price_discontinuity_flags,
+              'listed_shares_crosscheck':'KRX LIST_SHRS ratio for adjacent discontinuity dates; supporting clue only, not corporate-action certification',
               'corporate_actions_certified':False}
             print('C3_PRICE_CONTINUITY_AUDIT',json.dumps(receipt['price_continuity_audit'],ensure_ascii=False))
             med={k:statistics.median(v) for k,v in bench.items() if len(v)>=100}
