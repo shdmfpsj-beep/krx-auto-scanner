@@ -53,6 +53,9 @@ def annual_asof(corp,key,asof):
         "end_de":asof.strftime("%Y%m%d"),"page_count":100},key)
     if filings.get("status")!="000":return None,[], "FILINGS_UNAVAILABLE"
     available=[r for r in filings.get("list",[]) if str(r.get("rcept_dt",""))<=asof.strftime("%Y%m%d")]
+    # Do not silently treat the first 100 filing records as exhaustive.
+    if int(filings.get("total_page",1))>1:
+        return None,available,"FILINGS_PAGINATION_INCOMPLETE"
     years=[]
     for r in available:
         name=str(r.get("report_nm","")).replace(" ","")
