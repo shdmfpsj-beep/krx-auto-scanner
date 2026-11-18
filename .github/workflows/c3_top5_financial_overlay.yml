@@ -18,6 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Install Korean font and image renderer
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python3 -m pip install pillow --disable-pip-version-check
       - name: Join verified matching research artifacts (no trades or Telegram)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -27,6 +32,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import os,json,io,zipfile,urllib.request,re,pathlib
+          from PIL import Image,ImageDraw,ImageFont
           out=pathlib.Path('output/c3_financial_overlay');out.mkdir(parents=True,exist_ok=True)
           def get(url):
             # Artifact downloads redirect to a signed storage URL. Do not forward the
@@ -53,11 +59,11 @@ jobs:
             raw=get(base+'/actions/artifacts/'+str(matches[0]['id'])+'/zip')
             z=zipfile.ZipFile(io.BytesIO(raw))
             if 'receipt.json' not in z.namelist():raise ValueError('RECEIPT_MISSING_'+runkey)
-            return json.loads(z.read('receipt.json')),{'run_id':run,'sha':runinfo['head_sha'],'artifact_id':matches[0]['id']}
+            return json.loads(z.read('receipt.json')),{'run_id':run,'sha':runinfo['head_sha'],'artifact_id':matches[0]['id']},z
           result={'schema':'C3_FINANCIAL_OVERLAY_V1','status':'HOLD','orders_enabled':False,'telegram_sent':False,'candidates':[]}
           try:
-            top,tmeta=load('TOP5_RUN','c3-top5-daily-classic-per-stock')
-            dart,dmeta=load('DART_RUN','c3-dart-financial-audit')
+            top,tmeta,top_zip=load('TOP5_RUN','c3-top5-daily-classic-per-stock')
+            dart,dmeta,_=load('DART_RUN','c3-dart-financial-audit')
             result['sources']={'top5':tmeta,'dart':dmeta}
             if top.get('asof')!=dart.get('asof'):raise ValueError('ASOF_MISMATCH')
             if top.get('status')!='PREVIEW_ONLY_MANUAL_RUN' or dart.get('status')!='RESEARCH_ONLY':
@@ -74,6 +80,35 @@ jobs:
                 'financial_screen':screen,'financial_filing':(d or {}).get('latest_filing'),
                 'financial_data_status':(d or {}).get('financial_quality_status','NOT_COVERED'),
                 'financial_effect':'INFORMATION_ONLY_NO_SELECTION_OVERRIDE'})
+            # Research-only annotated cards. The original production images remain unchanged.
+            images=top.get('image_files',[])
+            if len(images)!=len(top.get('candidates',[])):raise ValueError('SOURCE_IMAGE_COUNT_MISMATCH')
+            font='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
+            bold='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
+            for idx,c in enumerate(result['candidates']):
+              original=images[idx]
+              matched=[n for n in top_zip.namelist() if n==original or n.endswith('/'+original)]
+              if len(matched)!=1:raise ValueError('SOURCE_IMAGE_MISSING_'+c['code'])
+              im=Image.open(io.BytesIO(top_zip.read(matched[0]))).convert('RGB')
+              if im.size!=(1400,2400):raise ValueError('UNEXPECTED_IMAGE_DIMENSIONS')
+              canvas=Image.new('RGB',(1400,2600),'#faf9f5')
+              canvas.paste(im,(0,0));draw=ImageDraw.Draw(canvas)
+              screen=c['financial_screen'];flags=screen.get('critical_flags',[]);cautions=screen.get('cautions',[])
+              if not isinstance(flags,list) or not isinstance(cautions,list):raise ValueError('INVALID_FINANCIAL_FLAGS')
+              status=screen.get('status','UNKNOWN_NO_DART_COVERAGE')
+              # Use plain, bounded English codes to avoid long labels and font overflow.
+              def short(value):
+                value=str(value)
+                return value if len(value)<=72 else value[:69]+'...'
+              draw.rectangle((0,2400,1400,2600),fill='#eee9dc')
+              draw.text((45,2415),'DART RESEARCH OVERLAY · NOT CERTIFIED',font=ImageFont.truetype(bold,30),fill='#4c4436')
+              draw.text((45,2460),'Financial: '+short(status),font=ImageFont.truetype(font,29),fill='#514a40')
+              draw.text((45,2505),'Critical: '+short(', '.join(flags) if flags else 'none observed'),font=ImageFont.truetype(font,25),fill='#8b3434')
+              draw.text((45,2544),'Cautions: '+short(', '.join(cautions) if cautions else 'none observed'),font=ImageFont.truetype(font,25),fill='#514a40')
+              filename=f'{idx+1:02d}_{c["code"]}_financial_research.png'
+              canvas.save(out/filename,optimize=True)
+            result['image_files']=[f'{i+1:02d}_{c["code"]}_financial_research.png' for i,c in enumerate(result['candidates'])]
+            result['image_count']=len(result['image_files'])
             result['asof']=top['asof']
             result['status']='RESEARCH_OVERLAY_READY'
           except Exception as e:
