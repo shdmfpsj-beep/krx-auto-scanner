@@ -1,0 +1,36 @@
+name: C3 quality context isolated tests
+on:
+  pull_request:
+    paths:
+      - 'scripts/c3_quality_context.py'
+      - 'tests/test_c3_quality_context.py'
+      - '.github/workflows/c3_quality_context_tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download pinned source files without full checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import os,json,base64,urllib.request,pathlib
+          repo=os.environ['GITHUB_REPOSITORY']
+          sha=os.environ.get('GITHUB_HEAD_REF') or os.environ['GITHUB_SHA']
+          # Pull request refs are resolved from GitHub event's head SHA.
+          event=json.load(open(os.environ['GITHUB_EVENT_PATH']))
+          if 'pull_request' in event:sha=event['pull_request']['head']['sha']
+          for name in ('scripts/c3_quality_context.py','scripts/dart_interim_periods.py','tests/test_c3_quality_context.py'):
+            url='https://api.github.com/repos/'+repo+'/contents/'+name+'?ref='+sha
+            req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                'Accept':'application/vnd.github+json'})
+            with urllib.request.urlopen(req,timeout=20) as r:obj=json.load(r)
+            path=pathlib.Path(name);path.parent.mkdir(parents=True,exist_ok=True)
+            path.write_bytes(base64.b64decode(obj['content']))
+          PY
+      - name: Run deterministic unit tests
+        run: python3 -m unittest discover -s tests -p test_c3_quality_context.py -v

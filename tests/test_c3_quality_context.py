@@ -1,0 +1,179 @@
+import datetime
+import unittest
+from unittest.mock import patch
+from scripts import c3_quality_context as q
+
+class ContextTests(unittest.TestCase):
+    def test_accounting_and_improvement(self):
+        rows=[]
+        def row(k,id,section,cur,prev=None):
+            rows.append({"account_id":id,"sj_div":section,"thstrm_amount":str(cur),
+                "frmtrm_amount":str(prev) if prev is not None else "-"})
+        row("","ifrs-full_Equity","BS",60)
+        row("","ifrs-full_Assets","BS",100)
+        row("","ifrs-full_Liabilities","BS",40)
+        row("","ifrs-full_Revenue","IS",150,100)
+        row("","dart_OperatingIncomeLoss","IS",20,10)
+        filing={"rcept_dt":"20260320","rcept_no":"20260320000001",
+                "report_nm":"사업보고서 (2025.12)"}
+        def fake(path,params,key):
+            if path=="list.json":return {"status":"000","list":[filing]}
+            return {"status":"000","list":rows}
+        with patch.object(q,"get_json",side_effect=fake):
+            values,filings,status=q.annual_asof("12345678","x",datetime.date(2026,11,18))
+        self.assertEqual(status,"VERIFIED_ANNUAL")
+        self.assertEqual(values["profit_prev"],10)
+        self.assertEqual(values["equity"],60)
+    def test_future_filing_not_used(self):
+        with patch.object(q,"get_json",return_value={"status":"000","list":[
+            {"rcept_dt":"20261119","report_nm":"사업보고서 (2025.12)"}]}):
+            values,_,status=q.annual_asof("12345678","x",datetime.date(2026,11,18))
+        self.assertIsNone(values)
+        self.assertEqual(status,"NO_FILED_ANNUAL")
+    def test_missing_key_neutral(self):
+        candidates=[{"code":"123456","name":"Example","geometry_validated":True,
+                     "opportunity_score":70,"entry_status":"ENTRY_READY"}]
+        result,audit=q.enrich(candidates,"20261118","")
+        self.assertEqual(audit["status"],"DART_KEY_MISSING_OR_INVALID")
+        self.assertEqual(result,candidates)
+    def test_previous_completed_session_is_eligible(self):
+        candidate={"code":"123456","name":"Example","geometry_validated":True,
+                   "opportunity_score":70,"entry_status":"ENTRY_READY"}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
+        with (patch.object(q.datetime,"datetime",FrozenDatetime),
+              patch.object(q,"corps",return_value={})):
+            result,audit=q.enrich([candidate],"20261117","a"*40)
+        self.assertEqual(audit["status"],"CONTEXT_RESEARCH_COMPLETED")
+        self.assertNotEqual(audit["status"],"ASOF_OUTSIDE_RECENT_WINDOW")
+    def test_latest_interim_period_uses_ytd(self):
+        filings=[{"rcept_dt":"20261116","rcept_no":"20261116000001",
+                  "report_nm":"분기보고서 (2026.09)"}]
+        rows=[
+          {"sj_div":"IS","account_id":"ifrs-full_Revenue",
+           "thstrm_add_amount":"150","frmtrm_add_amount":"100"},
+          {"sj_div":"IS","account_id":"dart_OperatingIncomeLoss",
+           "thstrm_add_amount":"20","frmtrm_add_amount":"10"}]
+        with patch.object(q,"get_json",return_value={"status":"000","list":rows}):
+            result,status=q.interim_asof("12345678","x",
+                datetime.date(2026,11,17),filings,2025)
+        self.assertEqual(status,"VERIFIED_INTERIM_YTD")
+        self.assertEqual(result["quality"],"INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED")
+    def test_future_interim_filing_is_not_used(self):
+        filings=[{"rcept_dt":"20261119","rcept_no":"20261119000001",
+                  "report_nm":"분기보고서 (2026.09)"}]
+        result,status=q.interim_asof("12345678","x",
+            datetime.date(2026,11,17),filings,2025)
+        self.assertIsNone(result)
+        self.assertEqual(status,"NO_NEWER_INTERIM_FILING")
+    def test_dart_filing_pagination_collects_all_pages(self):
+        calls=[]
+        def fake(path,params,key):
+            if path=="list.json":
+                calls.append(params["page_no"])
+                if params["page_no"]==1:
+                    return {"status":"000","total_page":2,"list":[
+                        {"rcept_dt":"20261113","rcept_no":"20261113000001",
+                         "report_nm":"분기보고서 (2026.09)"}]}
+                return {"status":"000","total_page":2,"list":[
+                    {"rcept_dt":"20260318","rcept_no":"20260318000001",
+                     "report_nm":"사업보고서 (2025.12)"}]}
+            return {"status":"013"}
+        with patch.object(q,"get_json",side_effect=fake):
+            values,filings,status=q.annual_asof("12345678","x",
+                datetime.date(2026,11,17))
+        self.assertEqual(calls,[1,2])
+        self.assertEqual(len(filings),2)
+        self.assertEqual(status,"ANNUAL_INCOMPLETE")
+    def test_dart_pagination_above_limit_is_unverified(self):
+        with patch.object(q,"get_json",return_value={
+            "status":"000","total_page":21,"list":[]}):
+            values,filings,status=q.annual_asof("12345678","x",
+                datetime.date(2026,11,17))
+        self.assertIsNone(values)
+        self.assertEqual(status,"FILINGS_PAGINATION_INCOMPLETE")
+    def test_verified_pharma_sector_is_excluded(self):
+        candidate={"krx_sector_name":"의약품","krx_sector_source":"KRX_OFFICIAL",
+                   "krx_sector_asof":"20261117"}
+        result=q.sector_evidence(candidate,"20261117")
+        self.assertTrue(result["exclude"])
+        self.assertEqual(result["status"],"EXCLUDED_VERIFIED_SECTOR")
+    def test_unverified_sector_never_guessed(self):
+        candidate={"name":"어떤바이오","krx_sector_name":"의약품",
+                   "krx_sector_source":"UNKNOWN","krx_sector_asof":"20261117"}
+        result=q.sector_evidence(candidate,"20261117")
+        self.assertFalse(result["exclude"])
+        self.assertEqual(result["status"],"UNVERIFIED")
+    def test_future_sector_metadata_not_used(self):
+        candidate={"krx_sector_name":"의약품","krx_sector_source":"KRX_OFFICIAL",
+                   "krx_sector_asof":"20261119"}
+        self.assertFalse(q.sector_evidence(candidate,"20261117")["exclude"])
+    def test_new_weights_without_sector_score(self):
+        candidate={"code":"123456","name":"Example","geometry_validated":True,
+                   "opportunity_score":80,"entry_status":"ENTRY_READY"}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
+        with (patch.object(q.datetime,"datetime",FrozenDatetime),
+              patch.object(q,"corps",return_value={})):
+            result,audit=q.enrich([candidate],"20261118","a"*40)
+        self.assertEqual(audit["weights"],{"technical":70,"financial_and_earnings":25,
+            "industry":0,"disclosures":5})
+        self.assertEqual(result[0]["context_composite_score"],71.0)
+    def test_verified_sector_does_not_add_points(self):
+        candidate={"code":"123456","name":"Example","geometry_validated":True,
+                   "opportunity_score":80,"entry_status":"ENTRY_READY",
+                   "krx_sector_name":"건설","krx_sector_source":"KRX_OFFICIAL",
+                   "krx_sector_asof":"20261118"}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
+        with (patch.object(q.datetime,"datetime",FrozenDatetime),
+              patch.object(q,"corps",return_value={})):
+            result,audit=q.enrich([candidate],"20261118","a"*40)
+        self.assertEqual(result[0]["context_composite_score"],71.0)
+    def test_financial_quality_breaks_technical_tie(self):
+        candidates=[
+          {"code":"111111","name":"Strong","geometry_validated":True,
+           "opportunity_score":80,"entry_status":"ENTRY_READY"},
+          {"code":"222222","name":"Weak","geometry_validated":True,
+           "opportunity_score":80,"entry_status":"ENTRY_READY"}]
+        annual={
+          "11111111":{"equity":60,"assets":100,"liabilities":40,"sales":150,
+            "sales_prev":100,"profit":20,"profit_prev":10,"filing_date":"20260320","fiscal_year":2025},
+          "22222222":{"equity":60,"assets":100,"liabilities":40,"sales":80,
+            "sales_prev":100,"profit":-5,"profit_prev":10,"filing_date":"20260320","fiscal_year":2025}}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
+        with (patch.object(q.datetime,"datetime",FrozenDatetime),
+              patch.object(q,"corps",return_value={"111111":"11111111","222222":"22222222"}),
+              patch.object(q,"annual_asof",side_effect=lambda corp,key,asof:
+                (annual[corp],[],"VERIFIED_ANNUAL")),
+              patch.object(q,"interim_asof",return_value=(None,"NO_NEWER_INTERIM_FILING"))):
+            results,audit=q.enrich(candidates,"20261118","a"*40)
+        by_code={x["code"]:x for x in results}
+        self.assertEqual(by_code["111111"]["quality_score"],25)
+        self.assertEqual(by_code["222222"]["quality_score"],10)
+        self.assertGreater(by_code["111111"]["context_composite_score"],
+                           by_code["222222"]["context_composite_score"])
+        self.assertEqual(by_code["111111"]["context_composite_score"],83.5)
+        self.assertEqual(by_code["222222"]["context_composite_score"],68.5)
+    def test_negative_equity_risk(self):
+        data={"equity":-1,"assets":100,"liabilities":101,"sales":100,
+              "sales_prev":90,"profit":2,"profit_prev":1,
+              "filing_date":"20260320","fiscal_year":2025}
+        candidate={"code":"123456","name":"Example","geometry_validated":True,
+                   "opportunity_score":70,"entry_status":"ENTRY_READY"}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
+        with patch.object(q,"corps",return_value={"123456":"12345678"}),\
+             patch.object(q,"annual_asof",return_value=(data,[],"VERIFIED_ANNUAL")),\
+             patch.object(q.datetime,"datetime",FrozenDatetime):
+            result,audit=q.enrich([candidate],"20261118","a"*40)
+        self.assertTrue(result[0]["quality_risk_flag"])
+        self.assertEqual(result[0]["context_status"],"NONPOSITIVE_EQUITY")
+
+if __name__=="__main__":unittest.main()
