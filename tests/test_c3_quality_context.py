@@ -109,6 +109,30 @@ class ContextTests(unittest.TestCase):
         candidate={"krx_sector_name":"의약품","krx_sector_source":"KRX_OFFICIAL",
                    "krx_sector_asof":"20261119"}
         self.assertFalse(q.sector_evidence(candidate,"20261117")["exclude"])
+    def test_new_weights_without_sector_score(self):
+        candidate={"code":"123456","name":"Example","geometry_validated":True,
+                   "opportunity_score":80,"entry_status":"ENTRY_READY"}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
+        with (patch.object(q.datetime,"datetime",FrozenDatetime),
+              patch.object(q,"corps",return_value={})):
+            result,audit=q.enrich([candidate],"20261118","a"*40)
+        self.assertEqual(audit["weights"],{"technical":70,"financial_and_earnings":25,
+            "industry":0,"disclosures":5})
+        self.assertEqual(result[0]["context_composite_score"],71.0)
+    def test_verified_sector_does_not_add_points(self):
+        candidate={"code":"123456","name":"Example","geometry_validated":True,
+                   "opportunity_score":80,"entry_status":"ENTRY_READY",
+                   "krx_sector_name":"건설","krx_sector_source":"KRX_OFFICIAL",
+                   "krx_sector_asof":"20261118"}
+        class FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls,tz=None):return datetime.datetime(2026,11,18,22,tzinfo=tz)
+        with (patch.object(q.datetime,"datetime",FrozenDatetime),
+              patch.object(q,"corps",return_value={})):
+            result,audit=q.enrich([candidate],"20261118","a"*40)
+        self.assertEqual(result[0]["context_composite_score"],71.0)
     def test_negative_equity_risk(self):
         data={"equity":-1,"assets":100,"liabilities":101,"sales":100,
               "sales_prev":90,"profit":2,"profit_prev":1,
