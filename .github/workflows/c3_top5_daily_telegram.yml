@@ -133,7 +133,7 @@ jobs:
               low=min(x[2] for x in a[-10:]);risk=1-low/last
               high=max(x[1] for x in a[-20:]);rr=((high-last)/last)/risk if risk>0 else 0
               if not (val>=1e9 and ma5>=ma20>=ma60 and last>=ma20 and .02<=r20<=.35 and rs>0):continue
-              if not (-.01<=dist<=.08 and .01<=risk<=.08 and .4<=rvol<=4 and rr>=1.5):continue
+              if not (-.01<=dist<=.08 and .01<=risk<=.08 and .4<=rvol<=4):continue
               score=round(40+min(rs*100,15)+min(r20*50,12)+max(0,12-abs(dist-.025)*150)+max(0,10-(risk-.02)*100)+min(max(rvol-.4,0)*3,6),2)
               # Confirmed swing-pivot and ATR14 risk-first reference; no fixed 0.5% stop.
               tr=[max(a[j][1]-a[j][2],abs(a[j][1]-a[j-1][0]),abs(a[j][2]-a[j-1][0])) for j in range(1,len(a))]
@@ -162,7 +162,6 @@ jobs:
               geometry_ok=(entry_lo is not None and entry_hi is not None and entry_lo<entry_hi
                 and stop is not None and stop<entry_lo and stop<last
                 and risk_at_entry is not None and .015<=risk_at_entry<=.05
-                and rr_entry is not None and rr_entry>=2.0
                 and entry_hi>=last-1.5*atr14 and entry_lo<=last+.5*atr14
                 and entry_hi<=last+atr14
                 and r1 is not None and r1>max(entry_hi,last))
@@ -179,7 +178,6 @@ jobs:
               if stop is not None and stop>=last:reasons.append('STOP_NOT_BELOW_CLOSE')
               if entry_hi is not None and entry_hi>last+atr14:reasons.append('ENTRY_TOO_HIGH_VS_CLOSE')
               if rr_entry is None:reasons.append('RR_NOT_COMPUTABLE')
-              elif rr_entry<2.0:reasons.append('RR_BELOW_2')
               if entry_lo is not None and entry_hi is not None and not (
                 entry_hi>=last-1.5*atr14 and entry_lo<=last+.5*atr14):
                 reasons.append('ENTRY_TOO_FAR_FROM_CLOSE')
@@ -220,7 +218,7 @@ jobs:
             # Diagnostic evidence even when zero candidates qualify.
             audit={'schema':'C3_ENTRY_GEOMETRY_AUDIT_V1','asof':days[-1],
               'technical_candidate_count':len(pool),'qualified_count':len(qualified),
-              'rules':{'risk_min_pct':1.5,'risk_max_pct':5,'rr_min':2,
+              'rules':{'risk_min_pct':1.5,'risk_max_pct':5,'rr_min':None,'rr_policy':'REFERENCE_ONLY',
                 'nearby_support_atr_below_ma20':1.5,'nearby_support_atr_above_ma20':.5},
               'candidates':[{'code':x['code'],'name':x['name'],'market':x['market'],
                 'score':x['score'],'status':x['status'],'rejection_reasons':x['rejection_reasons'],
@@ -243,7 +241,7 @@ jobs:
               'qualified_entry_watch_count':len(qualified),
               'research_top5':[{'code':x['code'],'name':x['name'],'score':x['score'],
                 'geometry_validated':x['geometry_validated'],'status':x['status']} for x in research_top5],
-              'candidates':selected,'selection':'Risk-geometry qualified technical-only; PIT financial gate unavailable'})
+              'candidates':selected,'selection':'Risk-geometry qualified technical-only; RR reference-only; PIT financial gate unavailable'})
             fontpath='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
             boldpath='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
             def font(size,bold=False):return ImageFont.truetype(boldpath if bold else fontpath,size)
@@ -326,7 +324,7 @@ jobs:
               notes=[('정량·섹터','20일 상승 '+format(x['return20_pct'],'+.2f')+'%, RS20 '+format(x['rs20pp'],'+.2f')+'%p, RVOL '+str(x['rvol'])+'. 거래대금 '+format(x['turnover20_krw']/1e8,',.1f')+'억원. 업종 미검증.'),
                 ('재무·실적','OpenDART PIT 실적 미연결. 매출, 영업이익, 현금흐름, 부채 건전성 판단 보류.'),
                 ('주요 이슈·수급','MA5 '+format(x['ma5'],',')+'원 / MA20 '+format(x['ma20'],',')+'원 / MA60 '+format(x['ma60'],',')+'원. 뉴스·기관·외국인 수급 미검증.'),
-                ('리스크·구조손절',('피벗지지 '+format(x['pivot_support'],',')+'원, ATR14 '+format(x['atr14'],',.1f')+'원, 손절 참고 '+format(x['structural_stop_ref'],',')+'원. 실전 미승인.' if x['geometry_validated'] else '지지구조·ATR·최대위험 5%·R1 손익비 2배 검증 실패: PASS. 손절 미확정.'))]
+                ('리스크·구조손절',('피벗지지 '+format(x['pivot_support'],',')+'원, ATR14 '+format(x['atr14'],',.1f')+'원, 손절 참고 '+format(x['structural_stop_ref'],',')+'원. 실전 미승인.' if x['geometry_validated'] else '지지구조·ATR·최대위험 5% 검증 실패: PASS. 손절 미확정.'))]
               for j,(label,value) in enumerate(notes):
                 yy=1635+j*165;draw.rectangle((48,yy,1352,yy+155),fill='white')
                 draw.line((48,yy,48,yy+155),fill=GOLD,width=5)
