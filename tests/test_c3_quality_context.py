@@ -67,6 +67,32 @@ class ContextTests(unittest.TestCase):
             datetime.date(2026,11,17),filings,2025)
         self.assertIsNone(result)
         self.assertEqual(status,"NO_NEWER_INTERIM_FILING")
+    def test_dart_filing_pagination_collects_all_pages(self):
+        calls=[]
+        def fake(path,params,key):
+            if path=="list.json":
+                calls.append(params["page_no"])
+                if params["page_no"]==1:
+                    return {"status":"000","total_page":2,"list":[
+                        {"rcept_dt":"20261113","rcept_no":"20261113000001",
+                         "report_nm":"분기보고서 (2026.09)"}]}
+                return {"status":"000","total_page":2,"list":[
+                    {"rcept_dt":"20260318","rcept_no":"20260318000001",
+                     "report_nm":"사업보고서 (2025.12)"}]}
+            return {"status":"013"}
+        with patch.object(q,"get_json",side_effect=fake):
+            values,filings,status=q.annual_asof("12345678","x",
+                datetime.date(2026,11,17))
+        self.assertEqual(calls,[1,2])
+        self.assertEqual(len(filings),2)
+        self.assertEqual(status,"ANNUAL_INCOMPLETE")
+    def test_dart_pagination_above_limit_is_unverified(self):
+        with patch.object(q,"get_json",return_value={
+            "status":"000","total_page":21,"list":[]}):
+            values,filings,status=q.annual_asof("12345678","x",
+                datetime.date(2026,11,17))
+        self.assertIsNone(values)
+        self.assertEqual(status,"FILINGS_PAGINATION_INCOMPLETE")
     def test_negative_equity_risk(self):
         data={"equity":-1,"assets":100,"liabilities":101,"sales":100,
               "sales_prev":90,"profit":2,"profit_prev":1,
