@@ -1,18 +1,18 @@
 {
   "schema": "C3_CANDIDATE_EVIDENCE_V1",
   "evidence_audit_completed": true,
-  "asof": "2026-11-17",
-  "evaluated_at_utc": "2026-11-17T20:38:56.914489+00:00",
-  "evaluated_at_kst": "2026-11-18T05:38:56.914489+09:00",
-  "candidate_rows": 85,
+  "asof": "2026-11-18",
+  "evaluated_at_utc": "2026-11-18T19:55:56.264877+00:00",
+  "evaluated_at_kst": "2026-11-19T04:55:56.264877+09:00",
+  "candidate_rows": 120,
   "all_raw_candidates_preserved": true,
   "raw_scan_target": 2625,
-  "raw_valid_count": 2600,
+  "raw_valid_count": 2599,
   "raw_score_not_final80": true,
   "previous_results_not_rewritten": true,
   "input_sha256": {
-    "status.json": "af40852e757cca3c50fbc6419cabcaf7ba91237667ded384ae08078a076769de",
-    "c3_preliminary.csv": "157c01e0bcbba6f805c8092691d82fb421f476cc3ee00d6d641f536f96dae3d8"
+    "status.json": "3eddf129d428801b13371b8f2457972363857c38fec3196d458f81826dc274f2",
+    "c3_preliminary.csv": "235953d55361c92d7a0667f53735d4001feea93beb02fa4b41e688128065bb32"
   },
   "basic_source": {
     "status": "PRIOR_DATED_SNAPSHOT_REQUIRES_REFRESH",
@@ -37,16 +37,19 @@
     "file_sha256": {}
   },
   "instrument_counts": {
-    "COMMON_IN_PRIOR_SNAPSHOT": 72,
-    "EXCLUDE_SPECIAL": 13
+    "COMMON_IN_PRIOR_SNAPSHOT": 101,
+    "EXCLUDE_NON_DOMESTIC_COMMON": 2,
+    "EXCLUDE_SPECIAL": 17
   },
   "business_counts": {
-    "UNREVIEWED_BUSINESS": 84,
-    "EXCLUDE_PHARMA_BIOTECH": 1
+    "UNREVIEWED_BUSINESS": 115,
+    "BUSINESS_REVIEWED_NON_PHARMA": 3,
+    "EXCLUDE_PHARMA_BIOTECH": 1,
+    "BOUNDARY_REVIEW_REQUIRED": 1
   },
   "decision_counts": {
-    "EVIDENCE_PENDING": 71,
-    "EXCLUDE_FROM_C3": 14
+    "EVIDENCE_PENDING": 100,
+    "EXCLUDE_FROM_C3": 20
   },
   "actual_turnover_observed_count": 0,
   "regular_session_certified_count": 0,
@@ -60,7 +63,7 @@
   "trade_approved": false,
   "orders_enabled": false,
   "output_sha256": {
-    "c3_candidate_evidence_v1.csv": "de007af9fdb111d6913906e4ef334c3a839f93cca210a871bc9cbc1966a70732",
-    "c3_candidate_evidence_v1_mobile.md": "5cda5e418bbbe54ac54085a3fed67325e761dd46d2b05b8a712d78a361c36b42"
+    "c3_candidate_evidence_v1.csv": "906e1d34d5c585854210e9350f5ce283fd1fcd4fc8d359f1736d411d6a45d6bf",
+    "c3_candidate_evidence_v1_mobile.md": "49438cb24952b4b324d7e8719e29ed4a819af8d58d8e80e01d2a5e7b64e167ff"
   }
 }

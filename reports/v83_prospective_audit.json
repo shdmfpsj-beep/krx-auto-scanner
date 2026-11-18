@@ -1,6 +1,6 @@
 {
   "version": "8.3",
-  "run_kst": "2026-11-18T05:38:57+09:00",
+  "run_kst": "2026-11-19T04:55:57+09:00",
   "research_only": true,
   "purpose": "Separate C3 prospective TOP3 / K100 Tactical prospective TOP3 / four-stock K100 Core review",
   "source_pool": "C3 and K100 Tactical: upstream prefiltered candidates; K100 Core: confirmed four-stock user screenshot",
@@ -9,15 +9,15 @@
     "new_cohorts": 0,
     "unchanged_cohorts": 0,
     "conflicting_cohorts": 0,
-    "asof": "2026-11-18",
-    "candidate_count": 85,
+    "asof": "2026-11-19",
+    "candidate_count": 120,
     "candidate_date_counts": {
-      "2026-11-17": 85
+      "2026-11-18": 120
     }
   },
   "cumulative_cohorts": 63,
-  "evaluations_completed": 208,
-  "pending_or_quarantined": 44,
+  "evaluations_completed": 214,
+  "pending_or_quarantined": 38,
   "fetch_requested": true,
   "fetch_log": [
     {
@@ -63,7 +63,7 @@
     {
       "ticker": "050760",
       "status": "REFRESH_OK",
-      "revision_pct": 0.0
+      "revision_pct": 0.0777
     },
     {
       "ticker": "066670",
@@ -211,13 +211,13 @@
     {
       "account": "C3",
       "horizon": 10,
-      "observed_rows": 16,
-      "unique_cohort_dates": 6,
-      "mean_gross_pct": 1.0751,
-      "median_gross_pct": -0.2469,
-      "positive_row_pct": 43.75,
-      "date_balanced_mean_pct": 0.1319,
-      "positive_date_pct": 33.33,
+      "observed_rows": 19,
+      "unique_cohort_dates": 7,
+      "mean_gross_pct": -0.6958,
+      "median_gross_pct": -0.6068,
+      "positive_row_pct": 36.84,
+      "date_balanced_mean_pct": -1.3357,
+      "positive_date_pct": 28.57,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
     {
@@ -259,13 +259,13 @@
     {
       "account": "K100_TACTICAL",
       "horizon": 10,
-      "observed_rows": 17,
-      "unique_cohort_dates": 6,
-      "mean_gross_pct": -0.8785,
-      "median_gross_pct": -0.6068,
-      "positive_row_pct": 41.18,
-      "date_balanced_mean_pct": -1.5006,
-      "positive_date_pct": 33.33,
+      "observed_rows": 20,
+      "unique_cohort_dates": 7,
+      "mean_gross_pct": -2.2679,
+      "median_gross_pct": -1.0595,
+      "positive_row_pct": 35.0,
+      "date_balanced_mean_pct": -2.735,
+      "positive_date_pct": 28.57,
       "readiness": "INSUFFICIENT_INDEPENDENT_DATES"
     },
     {
