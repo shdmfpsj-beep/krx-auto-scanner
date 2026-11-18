@@ -67,7 +67,7 @@ jobs:
             'companies':[]}
           def report_period(name):
             # Reporting year/quarter is extracted from the published report title.
-            m=re.search(r'\\((20\\d{2})\\.(\\d{2})\\)',name)
+            m=re.search(r'\((20\d{2})\.(\d{2})\)',name)
             if not m:return None
             year,month=int(m.group(1)),int(m.group(2))
             return (str(year),'11011' if month==12 else '11012' if month==6 else '11013' if month==3 else '11014' if month==9 else None)
