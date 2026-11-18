@@ -169,6 +169,13 @@ jobs:
               if r2<=max(high,entry_hi or high):r2=None
               rr_entry=(r1-entry_hi)/(entry_hi-stop) if r1 and stop is not None and entry_hi>stop else None
               risk_at_entry=(entry_hi-stop)/entry_hi if stop is not None and entry_hi else None
+              # Distance to the actual executable observation zone, not to MA20.
+              # A distant pullback may be technically valid but is not actionable now.
+              entry_gap_pct=(max(entry_lo-last,0,last-entry_hi)/last*100
+                if entry_lo is not None and entry_hi is not None else None)
+              entry_ready=(entry_gap_pct is not None and entry_gap_pct<=2.0)
+              # Ranking is forward-looking opportunity priority, not a backtested return estimate.
+              opportunity_score=round(score-max(0,entry_gap_pct or 0)*2,2)
               # Guard against non-executable watch bands and stale resistance levels.
               # Latest close must be above stop, entry zone must lie within today's
               # 60-bar range and contain no inverted prices.
@@ -209,6 +216,10 @@ jobs:
                 'rvol':round(rvol,2),'rs20pp':round(rs*100,2),'stop_distance_pct':round(risk*100,2),
                 'entry_watch_low':entry_lo,'entry_watch_high':entry_hi,
                 'entry_method':'CONFIRMED_PIVOT_ATR_ZONE_V1',
+                'entry_gap_pct':round(entry_gap_pct,2) if entry_gap_pct is not None else None,
+                'entry_ready':bool(entry_ready),
+                'opportunity_score':opportunity_score,
+                'financial_quality_status':'UNVERIFIED_DART_NOT_CONNECTED',
                 'entry_risk_pct':round(risk_at_entry*100,2) if risk_at_entry is not None else None,
                 'structural_stop_ref':stop,'r1_ref':r1,'r2_ref':r2,
                 'atr14':round(atr14,2),'pivot_support':round(support) if support is not None else None,
@@ -222,19 +233,27 @@ jobs:
                 'turnover20_krw':round(val),'ma5':round(ma5),'ma60':round(ma60),
                 'return20_pct':round(r20*100,2),'ma20_distance_pct':round(dist*100,2),
                 'status':'ENTRY_WATCH' if geometry_ok else 'PASS_RISK_GEOMETRY'})
-            pool.sort(key=lambda z:(-z['score'],-z['rs20pp'],z['market'],z['code']))
+            pool.sort(key=lambda z:(-z['opportunity_score'],-z['score'],-z['rs20pp'],z['market'],z['code']))
             # Separate research candidates from actionable technical watch candidates.
             # Only validated risk geometry may enter TOP5 images / Telegram.
             research_top5=pool[:5]
             qualified=[x for x in pool if x['geometry_validated']]
-            selected=qualified[:5]
+            # Never promote a far-away limit order zone as an immediate opportunity.
+            # The 2% gap is an operational proximity gate, not a profitability claim.
+            near_watch=[x for x in qualified if x['entry_ready']]
+            far_watch=[x for x in qualified if not x['entry_ready']]
+            selected=near_watch[:5]
             # Diagnostic evidence even when zero candidates qualify.
             audit={'schema':'C3_ENTRY_GEOMETRY_AUDIT_V1','asof':days[-1],
               'technical_candidate_count':len(pool),'qualified_count':len(qualified),
+              'near_entry_count':len(near_watch),'far_entry_count':len(far_watch),
               'rules':{'risk_min_pct':1.5,'risk_max_pct':5,'rr_min':None,'rr_policy':'REFERENCE_ONLY',
                 'nearby_support_atr_below_ma20':1.5,'nearby_support_atr_above_ma20':.5},
               'candidates':[{'code':x['code'],'name':x['name'],'market':x['market'],
-                'score':x['score'],'status':x['status'],'rejection_reasons':x['rejection_reasons'],
+                'score':x['score'],'opportunity_score':x['opportunity_score'],
+                'entry_gap_pct':x['entry_gap_pct'],'entry_ready':x['entry_ready'],
+                'financial_quality_status':x['financial_quality_status'],
+                'status':x['status'],'rejection_reasons':x['rejection_reasons'],
                 'entry_low':x['entry_watch_low'],'entry_high':x['entry_watch_high'],
                 'pivot_support':x['pivot_support'],'atr14':x['atr14'],
                 'stop_ref':x['structural_stop_ref'],'risk_pct':x['entry_risk_pct'],
@@ -243,6 +262,7 @@ jobs:
             (root/'entry_geometry_audit.json').write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n')
             print('C3_GEOMETRY_AUDIT',json.dumps({'asof':days[-1],
               'technical_candidates':len(pool),'qualified':len(qualified),
+              'near_entry':len(near_watch),'far_entry':len(far_watch),
               'rejections':[{'code':x['code'],'reasons':x['rejection_reasons']} for x in pool]},
               ensure_ascii=False))
             for x in selected:
@@ -252,8 +272,10 @@ jobs:
             receipt.update({'status':'TOP5_RENDER_READY','asof':days[-1],
               'valid_60_session_symbols':len(eligible),'passing_symbols':len(pool),
               'qualified_entry_watch_count':len(qualified),
+              'near_entry_count':len(near_watch),'far_entry_count':len(far_watch),
               'research_top5':[{'code':x['code'],'name':x['name'],'score':x['score'],
-                'geometry_validated':x['geometry_validated'],'status':x['status']} for x in research_top5],
+                'geometry_validated':x['geometry_validated'],
+                'entry_gap_pct':x['entry_gap_pct'],'status':x['status']} for x in research_top5],
               'candidates':selected,'selection':'Risk-geometry qualified technical-only; RR reference-only; PIT financial gate unavailable'})
             fontpath='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
             boldpath='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
@@ -330,8 +352,8 @@ jobs:
                 draw.line((xx,1270,xx+252,1270),fill=color,width=4)
                 draw.text((xx+126,1288),label,font=font(25,True),fill=color,anchor='ma')
                 draw.text((xx+126,1340),value,font=font(23,True),fill=color,anchor='ma')
-              draw.text((53,1430),'기존 정렬 순위 '+str(rank)+' · 임의 가중 점수 '+str(x['score'])+'점',font=font(31,True),fill=INK)
-              draw.text((55,1490),'RS20 '+format(x['rs20pp'],'+.2f')+'%p · RVOL '+str(x['rvol'])+' · 20일 상승 '+format(x['return20_pct'],'+.2f')+'%',font=font(27),fill=INK)
+              draw.text((53,1430),'진입 우선순위 '+str(rank)+' · 기회 점수 '+str(x['opportunity_score'])+'점',font=font(31,True),fill=INK)
+              draw.text((55,1490),'RS20 '+format(x['rs20pp'],'+.2f')+'%p · RVOL '+str(x['rvol'])+' · 진입 거리 '+str(x['entry_gap_pct'])+'%',font=font(27),fill=INK)
               draw.text((55,1530),'20일 평균 거래대금 '+format(x['turnover20_krw']/1e8,',.1f')+'억원 · MA20 이격 '+format(x['ma20_distance_pct'],'+.2f')+'% · R1 손익비 '+(str(x['rr_entry_ref'])+'배' if x['rr_entry_ref'] is not None else '미확정'),font=font(25),fill=SUB)
               draw.text((53,1580),'선정 후 기업 자료 및 위험 검토',font=font(33,True),fill=INK)
               notes=[('정량·섹터','20일 상승 '+format(x['return20_pct'],'+.2f')+'%, RS20 '+format(x['rs20pp'],'+.2f')+'%p, RVOL '+str(x['rvol'])+'. 거래대금 '+format(x['turnover20_krw']/1e8,',.1f')+'억원. 업종 미검증.'),
