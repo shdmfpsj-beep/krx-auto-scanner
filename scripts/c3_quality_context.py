@@ -82,8 +82,15 @@ def enrich(pool,asof,key,max_requests=12):
     if not key or not re.fullmatch(r"[A-Za-z0-9]{40}",key):
         audit["status"]="DART_KEY_MISSING_OR_INVALID"
         return output,audit
-    if datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y%m%d")!=asof:
-        audit["status"]="HISTORICAL_ASOF_CONTEXT_NOT_RETROFITTED"
+    today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).date()
+    try:target=datetime.datetime.strptime(asof,"%Y%m%d").date()
+    except ValueError:
+        audit["status"]="INVALID_ASOF"
+        return output,audit
+    # A prior completed KRX session is normal for morning/manual previews.
+    # Never use filings later than the price as-of, or backfill distant history.
+    if target>today or (today-target).days>5:
+        audit["status"]="ASOF_OUTSIDE_RECENT_WINDOW"
         return output,audit
     try:lookup=corps(key)
     except Exception as ex:
