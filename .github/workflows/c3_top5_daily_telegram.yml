@@ -181,12 +181,30 @@ jobs:
               'coverage_floor_policy':'KOSPI>=500,KOSDAQ>=800 per session; not official completeness certification',
               'regular_session_price_certified':False,'corporate_actions_certified':False}
             print('C3_SOURCE_PREFLIGHT',json.dumps(receipt['source_integrity'],ensure_ascii=False))
-            bench=collections.defaultdict(list);eligible={}
+            bench=collections.defaultdict(list);eligible={};price_discontinuity_flags=[];price_discontinuity_count=0
             for key,s in data.items():
               if not all(d in s for d in days):continue
               a=[s[d] for d in days];c=[v[0] for v in a]
+              # A daily close-to-previous-close jump beyond 40% cannot be
+              # treated as an ordinary continuous unadjusted KRX price series.
+              # Do not infer an adjustment factor or invent adjusted prices.
+              jumps=[{'date':days[j],'previous_close':c[j-1],'close':c[j],
+                'change_pct':round((c[j]/c[j-1]-1)*100,2)}
+                for j in range(1,len(c)) if c[j-1]>0 and
+                (c[j]/c[j-1]>1.4 or c[j]/c[j-1]<.6)]
+              if jumps:
+                price_discontinuity_count+=1
+                if len(price_discontinuity_flags)<30:
+                  price_discontinuity_flags.append({'market':key[0],'code':key[1],
+                    'name':names.get(key,''),'events':jumps[:5]})
+                continue
               eligible[key]=a
               bench[key[0]].append(c[-1]/c[-21]-1)
+            receipt['price_continuity_audit']={'schema':'C3_UNADJUSTED_CLOSE_DISCONTINUITY_V1',
+              'policy':'exclude symbols with any adjacent close change above +40% or below -40% in 60 sessions; conservative anomaly/corporate-action proxy, not official action verification',
+              'flagged_symbols':price_discontinuity_count,'examples':price_discontinuity_flags,
+              'corporate_actions_certified':False}
+            print('C3_PRICE_CONTINUITY_AUDIT',json.dumps(receipt['price_continuity_audit'],ensure_ascii=False))
             med={k:statistics.median(v) for k,v in bench.items() if len(v)>=100}
             if len(med)!=2:raise ValueError('MARKET_BENCHMARK_MISSING')
             pool=[]
