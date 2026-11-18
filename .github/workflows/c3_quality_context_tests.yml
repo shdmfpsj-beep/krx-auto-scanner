@@ -24,7 +24,7 @@ jobs:
           # Pull request refs are resolved from GitHub event's head SHA.
           event=json.load(open(os.environ['GITHUB_EVENT_PATH']))
           if 'pull_request' in event:sha=event['pull_request']['head']['sha']
-          for name in ('scripts/c3_quality_context.py','tests/test_c3_quality_context.py'):
+          for name in ('scripts/c3_quality_context.py','scripts/dart_interim_periods.py','tests/test_c3_quality_context.py'):
             url='https://api.github.com/repos/'+repo+'/contents/'+name+'?ref='+sha
             req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],
                 'Accept':'application/vnd.github+json'})
