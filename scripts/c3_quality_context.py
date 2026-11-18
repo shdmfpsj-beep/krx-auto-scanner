@@ -146,8 +146,8 @@ def enrich(pool,asof,key,max_requests=12):
     """Return a NEW ranked list and audit. Keep original technical score intact."""
     output=[dict(x) for x in pool]
     audit={"schema":"C3_QUALITY_CONTEXT_V1","asof":asof,"mode":"TECHNICAL_FIRST",
-           "weights":{"technical":65,"financial_and_earnings":20,"industry":10,"disclosures":5},
-           "industry_policy":"DATED_KRX_CLASSIFICATION_ONLY_NEUTRAL_WITHOUT_SECTOR_PERFORMANCE",
+           "weights":{"technical":70,"financial_and_earnings":25,"industry":0,"disclosures":5},
+           "industry_policy":"NO_SECTOR_SCORE; VERIFIED_EXCLUSION_ONLY",
            "news_policy":"OFFICIAL_DART_DISCLOSURES_ONLY",
            "checked":[]}
     if not key or not re.fullmatch(r"[A-Za-z0-9]{40}",key):
@@ -208,7 +208,7 @@ def enrich(pool,asof,key,max_requests=12):
                         revenue_growth=prior>0 and sales>prior
                         profit_growth=profit>prior_profit
                         # Lightweight quality; loss or leverage alone is caution, not exclusion.
-                        x["quality_score"]=round(8+4*(profit>0)+4*revenue_growth+4*profit_growth,2)
+                        x["quality_score"]=round(10+5*(profit>0)+5*revenue_growth+5*profit_growth,2)
                         x["financial_quality_status"]=("IMPROVING" if revenue_growth and profit_growth and profit>0
                                                        else "CAUTION" if profit<=0 else "MIXED")
                         x["financial_filing_date"]=values["filing_date"]
@@ -229,12 +229,12 @@ def enrich(pool,asof,key,max_requests=12):
                 profit_prev=interim.get("previous_ytd_operating_profit_krw")
                 if revenue is not None and revenue<0 and profit_now is not None and profit_prev is not None and profit_now>profit_prev and profit_now>0:
                     x["financial_quality_status"]="REVENUE_DOWN_PROFIT_UP"
-                    x["quality_score"]=max(0,(x.get("quality_score") or 10)-2)
+                    x["quality_score"]=max(0,(x.get("quality_score") if x.get("quality_score") is not None else 12.5)-2)
                 elif interim["quality"]=="INTERIM_PROFIT_OR_SALES_WEAKENING":
-                    x["quality_score"]=min(x.get("quality_score") or 10,10)
+                    x["quality_score"]=min(x.get("quality_score") if x.get("quality_score") is not None else 12.5,12.5)
                     x["financial_quality_status"]="RECENT_INTERIM_WEAKENING"
                 elif interim["quality"]=="INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED":
-                    x["quality_score"]=min(20,(x.get("quality_score") or 10)+2)
+                    x["quality_score"]=min(25,(x.get("quality_score") if x.get("quality_score") is not None else 12.5)+2)
             # Check latest public filing titles; cannot treat absence as no risk.
             recent=[r for r in filings if str(r.get("rcept_dt",""))>=
                     (datetime.datetime.strptime(asof,"%Y%m%d").date()-datetime.timedelta(days=90)).strftime("%Y%m%d")]
@@ -248,6 +248,7 @@ def enrich(pool,asof,key,max_requests=12):
             "financial_quality_status":x.get("financial_quality_status"),
             "disclosure_status":x["disclosure_status"],"interim_status":x.get("interim_status"),
             "interim_quality":x.get("interim_quality"),"risk_flag":x["quality_risk_flag"]})
+    # Industry carries zero weight. Verified category evidence is exclusion-only.
     # Never replace the technical entry-first ordering; quality only tie-breaks within status.
     for x in output:
         x.setdefault("context_status","UNVERIFIED")
@@ -256,9 +257,8 @@ def enrich(pool,asof,key,max_requests=12):
         x.setdefault("sector_quality_status","UNVERIFIED")
         x.setdefault("disclosure_status","UNVERIFIED")
         x["context_composite_score"]=round(
-            min(65,max(0,x["opportunity_score"])*.65)+
-            (x["quality_score"] if x["quality_score"] is not None else 10)+
-            (x.get("sector_score") if x.get("sector_score") is not None else 5)+2.5,2)
+            min(70,max(0,x["opportunity_score"])*.70)+
+            (x["quality_score"] if x["quality_score"] is not None else 12.5)+2.5,2)
     audit["status"]="CONTEXT_RESEARCH_COMPLETED"
     audit["reviewed_count"]=checked
     return output,audit
