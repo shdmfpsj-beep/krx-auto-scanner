@@ -78,6 +78,8 @@ jobs:
                 'entry_status':c.get('entry_status'),'entry_gap_pct':c.get('entry_gap_pct'),
                 'entry_risk_pct':c.get('entry_risk_pct'),'opportunity_score':c.get('opportunity_score'),
                 'financial_screen':screen,'financial_filing':(d or {}).get('latest_filing'),
+                'financial_metrics':{k:(d or {}).get('financial_metrics',{}).get(k) for k in
+                  ('revenue','operating_profit','net_income','operating_cash_flow','debt_to_equity_pct')},
                 'financial_data_status':(d or {}).get('financial_quality_status','NOT_COVERED'),
                 'financial_effect':'INFORMATION_ONLY_NO_SELECTION_OVERRIDE'})
             # Research-only annotated cards. The original production images remain unchanged.
@@ -91,7 +93,7 @@ jobs:
               if len(matched)!=1:raise ValueError('SOURCE_IMAGE_MISSING_'+c['code'])
               im=Image.open(io.BytesIO(top_zip.read(matched[0]))).convert('RGB')
               if im.size!=(1400,2400):raise ValueError('UNEXPECTED_IMAGE_DIMENSIONS')
-              canvas=Image.new('RGB',(1400,2600),'#faf9f5')
+              canvas=Image.new('RGB',(1400,2790),'#faf9f5')
               canvas.paste(im,(0,0));draw=ImageDraw.Draw(canvas)
               screen=c['financial_screen'];flags=screen.get('critical_flags',[]);cautions=screen.get('cautions',[])
               if not isinstance(flags,list) or not isinstance(cautions,list):raise ValueError('INVALID_FINANCIAL_FLAGS')
@@ -105,6 +107,24 @@ jobs:
               draw.text((45,2460),'Financial: '+short(status),font=ImageFont.truetype(font,29),fill='#514a40')
               draw.text((45,2505),'Critical: '+short(', '.join(flags) if flags else 'none observed'),font=ImageFont.truetype(font,25),fill='#8b3434')
               draw.text((45,2544),'Cautions: '+short(', '.join(cautions) if cautions else 'none observed'),font=ImageFont.truetype(font,25),fill='#514a40')
+              # Observed consolidated financial values are useful, but never PIT-certified.
+              metrics=c['financial_metrics']
+              def eok(key,field='current_krw'):
+                m=metrics.get(key)
+                return m.get(field) if isinstance(m,dict) and m.get('status')=='OBSERVED_NOT_PIT_CERTIFIED' else None
+              def eok_yoy(key):
+                m=metrics.get(key)
+                return m.get('quarter_yoy_pct') if isinstance(m,dict) and m.get('period_basis')=='QUARTER_3_MONTH_IS_OR_CIS' else None
+              def krw(v):
+                return f'{v/1e8:,.0f} eok KRW' if isinstance(v,(int,float)) else 'unavailable'
+              def yoy(v):
+                return f'{v:+.1f}%' if isinstance(v,(int,float)) else 'unavailable'
+              draw.text((45,2588),'2026 Q3 CFS observed · not point-in-time certified',font=ImageFont.truetype(bold,27),fill='#4c4436')
+              draw.text((45,2630),'Revenue '+krw(eok('revenue','current_quarter_krw'))+' / YoY '+yoy(eok_yoy('revenue')),font=ImageFont.truetype(font,26),fill='#514a40')
+              draw.text((45,2670),'Operating profit '+krw(eok('operating_profit','current_quarter_krw'))+' / YoY '+yoy(eok_yoy('operating_profit')),font=ImageFont.truetype(font,26),fill='#514a40')
+              draw.text((45,2710),'Net income '+krw(eok('net_income','current_quarter_krw'))+' / YoY '+yoy(eok_yoy('net_income')),font=ImageFont.truetype(font,26),fill='#514a40')
+              debt=metrics.get('debt_to_equity_pct')
+              draw.text((45,2750),'Operating CF (YTD) '+krw(eok('operating_cash_flow'))+' / D-E '+(f'{debt:.1f}%' if isinstance(debt,(int,float)) else 'unavailable'),font=ImageFont.truetype(font,25),fill='#514a40')
               filename=f'{idx+1:02d}_{c["code"]}_financial_research.png'
               canvas.save(out/filename,optimize=True)
             result['image_files']=[f'{i+1:02d}_{c["code"]}_financial_research.png' for i,c in enumerate(result['candidates'])]
