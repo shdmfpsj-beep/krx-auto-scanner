@@ -653,7 +653,7 @@ jobs:
           print('C3_FINANCE_FIRST_DELIVERY',json.dumps({'status':result['status'],
             'selected_count':len(result['selected']),'telegram_photos_sent':0},ensure_ascii=False))
           PY
-      - name: Send finance-first conditional signals on scheduled main only
+      - name: Send complete ranked candidate charts on scheduled main only
         if: ${{ github.event_name == 'schedule' && github.ref_name == 'main' }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -666,56 +666,40 @@ jobs:
           manifest=json.loads((root/'finance_first_delivery_manifest.json').read_text())
           receipt=json.loads((root/'receipt.json').read_text())
           source=receipt.get('source_integrity',{})
-          if manifest.get('status')=='CASH_NO_FINANCIAL_CANDIDATES':
-            print('C3_FINAL_DELIVERY CASH_NO_CANDIDATES_NO_SEND')
-            raise SystemExit(0)
-          if manifest.get('status')!='FINANCE_FIRST_PREVIEW_READY_NO_SEND':
-            raise ValueError('FINANCE_MANIFEST_NOT_READY')
-          if not manifest.get('financial_coverage_complete'):
-            raise ValueError('FINANCIAL_COVERAGE_INCOMPLETE')
-          if source.get('session_count',0)<60 or source.get('last_session')!=manifest.get('asof'):
+          report=json.loads((root/'all_candidate_report'/'manifest.json').read_text())
+          if report.get('asof')!=receipt.get('asof'):
+            raise ValueError('ALL_CANDIDATE_DATE_MISMATCH')
+          if source.get('session_count',0)<60 or source.get('last_session')!=report.get('asof'):
             raise ValueError('SOURCE_DATE_OR_SESSION_MISMATCH')
           if source.get('market_rows_min',{}).get('KOSPI',0)<500 or source.get('market_rows_min',{}).get('KOSDAQ',0)<800:
             raise ValueError('MARKET_COVERAGE_BELOW_FLOOR')
-          if manifest.get('asof')!=receipt.get('asof'):
-            raise ValueError('RECEIPT_DATE_MISMATCH')
-          selected=manifest['selected']
-          images=manifest['images']
-          signals=manifest.get('signals',[])
-          if len(signals)!=len(selected):
-            raise ValueError('SIGNAL_SELECTION_COUNT_MISMATCH')
-          for item,signal in zip(selected,signals):
-            if item['code']!=signal.get('code'):
-              raise ValueError('SIGNAL_SYMBOL_MISMATCH')
-            expected='BUY_CONSIDER' if item.get('technical_status')=='ENTRY_READY' else 'WAIT_FOR_ENTRY'
-            if signal.get('signal')!=expected:
-              raise ValueError('INVALID_CONDITIONAL_SIGNAL')
-          if not selected or len(selected)!=len(images) or len(selected)>5:
-            raise ValueError('INVALID_FINAL_SELECTION')
+          selected=report.get('candidates',[])
+          if not selected:
+            print('C3_FINAL_DELIVERY CASH_NO_CANDIDATES_NO_SEND')
+            raise SystemExit(0)
+          if len(selected)>10 or len({x['code'] for x in selected})!=len(selected):
+            raise ValueError('INVALID_ALL_CANDIDATE_SELECTION')
           validated=[]
-          for item,im in zip(selected,images):
-            if item['code']!=im['code'] or item.get('technical_status') not in ('ENTRY_READY','NEAR_ENTRY'):
-              raise ValueError('FINANCIAL_TECHNICAL_MISMATCH')
-            if item.get('financial_flag') not in ('QUALIFIED','QUALIFIED_WITH_SLOWDOWN_FLAG'):
-              raise ValueError('FINANCIAL_QUALITY_NOT_ACCEPTED')
-            filename=im['image']
+          for i,item in enumerate(selected,1):
+            if item.get('rank')!=i or item.get('top5')!=(i<=5):
+              raise ValueError('INVALID_RANKING')
+            filename=item['image']
             if Path(filename).name!=filename:
               raise ValueError('INVALID_IMAGE_PATH')
-            p=root/'financial_preview'/filename
+            p=root/'all_candidate_report'/filename
             if not p.is_file() or p.stat().st_size<10000:
-              raise ValueError('MISSING_FINAL_IMAGE')
-            with Image.open(p) as check:
-              check.verify()
+              raise ValueError('MISSING_CANDIDATE_IMAGE')
+            with Image.open(p) as check:check.verify()
             with Image.open(p) as check:
               if check.format!='PNG' or check.size!=(1400,1710):
-                raise ValueError('INVALID_FINAL_IMAGE')
+                raise ValueError('INVALID_CANDIDATE_IMAGE')
             validated.append(p)
           token=os.environ.get('TELEGRAM_BOT_TOKEN','')
           chat=os.environ.get('TELEGRAM_CHAT_ID','')
           if not token or not chat:
             raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
           # Create-only daily reservation BEFORE any external send. No automatic retry.
-          date=manifest['asof']
+          date=report['asof']
           marker_path='receipts/c3_top5_daily/'+date+'.json'
           marker={'schema':'C3_FINANCE_FIRST_SEND_RESERVATION_V1','asof':date,
                   'run_id':os.environ['GITHUB_RUN_ID'],'status':'RESERVED_BEFORE_SEND',
@@ -740,9 +724,10 @@ jobs:
               if filename:head+='; filename="'+filename+'"'
               head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
               return head.encode()+value+b'\r\n'
-            caption=('C3 TOP5 '+date+' | '+item.get('name',item['code'])+
-              ' | '+str(i)+'/'+str(len(selected))+' | '+item['technical_status']+
-              '\n'+signals[i-1]['signal']+' / 재무·기술 조건부 신호 / 매수범위 미도달 PASS / 주문은 사용자 직접')
+            caption=('C3 전체 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
+              ' | 기술점수 '+str(item['technical_score'])+' | '+item['status']+
+              (' | TOP5' if item['top5'] else '')+
+              '\\n기술점수는 재무 종합점수가 아님 / 진입범위 미도달 PASS / 사용자 직접 매매')
             body=part('chat_id',chat.encode())+part('caption',caption.encode())+part('photo',p.read_bytes(),p.name,'image/png')+('--'+boundary+'--\r\n').encode()
             request=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',
               data=body,method='POST',headers={'Content-Type':'multipart/form-data; boundary='+boundary})
@@ -751,7 +736,7 @@ jobs:
             if not answer.get('ok'):
               raise ValueError('TELEGRAM_SEND_FAILED_'+str(i))
             print('C3_FINANCE_FIRST_PHOTO_SENT',i,item['code'])
-          print('C3_FINANCE_FIRST_DELIVERED',date,len(validated))
+          print('C3_ALL_CANDIDATES_DELIVERED',date,len(validated))
           PY
       - name: Upload individual classic images and audit receipt
         if: always()
