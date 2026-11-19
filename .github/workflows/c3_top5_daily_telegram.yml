@@ -75,7 +75,15 @@ jobs:
           def fetch(day,endpoint):
             u='https://data-dbg.krx.co.kr/svc/apis/sto/'+endpoint+'?'+urllib.parse.urlencode({'basDd':day})
             req=urllib.request.Request(u,headers={'AUTH_KEY':os.environ['KRX_AUTH_KEY'],'Accept':'application/json'})
-            with urllib.request.urlopen(req,timeout=25) as res:raw=res.read(12*1024*1024+1)
+            # Retry only transient transport failures; never retry invalid or incomplete data.
+            for attempt in range(3):
+              try:
+                with urllib.request.urlopen(req,timeout=25) as res:raw=res.read(12*1024*1024+1)
+                break
+              except (urllib.error.URLError,TimeoutError,ConnectionError) as ex:
+                if attempt==2:raise
+                print('C3_KRX_TRANSIENT_RETRY',day,endpoint,'attempt',attempt+1,type(ex).__name__)
+                time.sleep(2*(attempt+1))
             if len(raw)>12*1024*1024:raise ValueError('RESPONSE_TOO_LARGE')
             z=json.loads(raw)
             a=z.get('OutBlock_1')
