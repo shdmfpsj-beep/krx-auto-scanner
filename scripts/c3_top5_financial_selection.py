@@ -10,21 +10,23 @@ ACCEPTED = {"FINANCIAL_RESEARCH_GATE_PASSED",
 ANNUAL_OK = {"ANNUAL_GROWTH_AND_MARGIN_OBSERVED", "ANNUAL_POSITIVE_MIXED"}
 
 def classify(item):
-    """Unknown evidence is never treated as proof of financial safety."""
-    quality = item.get("financial_quality")
-    reasons = set(item.get("exclusion_reasons") or [])
-    if not item.get("financial_screen_pass") or reasons:
+    """Financial risk is the hard gate; earnings growth/slowdown is a score."""
+    if not isinstance(item, dict):
+        return "REVIEW_INSUFFICIENT_EVIDENCE"
+    if not item.get("financial_risk_gate_pass") or item.get("exclusion_reasons"):
         return "REVIEW_FAILED_FINANCIAL_GATE"
-    if quality == "ANNUAL_RISK_OR_SLOWDOWN":
-        return "REVIEW_ANNUAL_SLOWDOWN"
-    if quality not in ANNUAL_OK or item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
+    if item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
-    if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_quality"):
+    if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_filing_date"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
-    if item.get("interim_quality") == "INTERIM_PROFIT_OR_SALES_WEAKENING":
-        return "QUALIFIED_WITH_SLOWDOWN_FLAG"
-    if item.get("interim_quality") not in ("INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED", "INTERIM_MIXED"):
+    if item.get("financial_quality") not in ("ANNUAL_GROWTH_AND_MARGIN_OBSERVED",
+                                             "ANNUAL_POSITIVE_MIXED", "ANNUAL_RISK_OR_SLOWDOWN"):
+        return "REVIEW_UNRECOGNIZED_ANNUAL_QUALITY"
+    if item.get("interim_quality") not in ("INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED",
+                                           "INTERIM_MIXED", "INTERIM_PROFIT_OR_SALES_WEAKENING"):
         return "REVIEW_UNRECOGNIZED_INTERIM_QUALITY"
+    if item.get("recent_slowdown_flag") or item.get("financial_quality")=="ANNUAL_RISK_OR_SLOWDOWN":
+        return "QUALIFIED_WITH_SLOWDOWN_FLAG"
     return "QUALIFIED"
 
 def select(geometry, financial):
