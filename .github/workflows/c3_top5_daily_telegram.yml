@@ -617,8 +617,13 @@ jobs:
                   'selected':[],'images':[],'telegram_photos_sent':0,'trade_approved':False}
           try:
             selection=json.loads((root/'financial_selection_research.json').read_text())
-            preview=json.loads((root/'financial_preview'/'financial_preview_manifest.json').read_text())
             receipt=json.loads((root/'receipt.json').read_text())
+            if selection.get('status')=='CASH_FINANCIAL_EVIDENCE_PENDING':
+              result.update(status='CASH_FINANCIAL_EVIDENCE_PENDING',asof=receipt.get('asof'),
+                            financial_evidence_status=selection.get('financial_evidence_status'),
+                            financial_coverage_complete=False)
+              raise StopIteration('FINANCIAL_EVIDENCE_PENDING')
+            preview=json.loads((root/'financial_preview'/'financial_preview_manifest.json').read_text())
             selected=selection.get('selected',[])
             images=preview.get('images',[])
             if not (selection.get('asof')==preview.get('asof')==receipt.get('asof')):
@@ -653,6 +658,8 @@ jobs:
                           point_in_time_certification_required=False,
                           independent_price_certification_required=False)
             result['status']='FINANCE_FIRST_PREVIEW_READY_NO_SEND' if selected else 'CASH_NO_FINANCIAL_CANDIDATES'
+          except StopIteration:
+            pass
           except (OSError,KeyError,TypeError,ValueError,AttributeError) as e:
             result['status']='CASH_FINANCE_FIRST_MANIFEST_INVALID'
             result['error']=type(e).__name__+': '+str(e)[:160]
@@ -681,6 +688,9 @@ jobs:
             raise ValueError('SOURCE_DATE_OR_SESSION_MISMATCH')
           if source.get('market_rows_min',{}).get('KOSPI',0)<500 or source.get('market_rows_min',{}).get('KOSDAQ',0)<800:
             raise ValueError('MARKET_COVERAGE_BELOW_FLOOR')
+          if manifest.get('status')=='CASH_FINANCIAL_EVIDENCE_PENDING':
+            print('C3_FINAL_DELIVERY CASH_FINANCIAL_EVIDENCE_PENDING_NO_SEND')
+            raise SystemExit(0)
           if manifest.get('status') not in ('FINANCE_FIRST_PREVIEW_READY_NO_SEND','CASH_NO_FINANCIAL_CANDIDATES'):
             raise ValueError('FINANCE_FIRST_MANIFEST_NOT_VALID')
           if manifest.get('asof')!=report.get('asof') or not manifest.get('financial_coverage_complete'):
