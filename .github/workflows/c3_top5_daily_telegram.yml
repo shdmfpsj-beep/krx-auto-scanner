@@ -655,8 +655,8 @@ jobs:
                           financial_coverage_complete=selection.get('coverage_complete',False),
                           decision=selection.get('decision','CASH'),
                           signals=selection.get('signals',[]),
-                          point_in_time_certification_required=False,
-                          independent_price_certification_required=False)
+                          point_in_time_certification_required=True,
+                          independent_price_certification_required=True)
             result['status']='FINANCE_FIRST_PREVIEW_READY_NO_SEND' if selected else 'CASH_NO_FINANCIAL_CANDIDATES'
           except StopIteration:
             pass
@@ -700,6 +700,8 @@ jobs:
           approved_codes=[x.get('code') for x in manifest.get('selected',[])]
           if [x['code'] for x in selected]!=approved_codes:
             raise ValueError('TOP5_MANIFEST_SYMBOL_MISMATCH')
+          if report.get('selected_codes')!=approved_codes:
+            raise ValueError('TOP5_REPORT_SELECTION_MISMATCH')
           if not selected:
             print('C3_FINAL_DELIVERY CASH_NO_QUALIFIED_TOP5_NO_SEND')
             raise SystemExit(0)
