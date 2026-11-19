@@ -44,9 +44,9 @@ def verify(receipt, evidence):
             out["status"]="PRICE_MISMATCH_OR_SESSION_UNVERIFIED"
             return out
         out["matched"].append(c["code"])
-    out["status"]="PRICE_EVIDENCE_MATCHED"
-    out["regular_session_price_certified"]=True
-    out["corporate_actions_certified"]=True
+    # Matching user-provided rows is not proof of official provenance.
+    # Certification requires separately authenticated source and adjustment audit.
+    out["status"]="PRICE_ROWS_MATCHED_PROVENANCE_UNVERIFIED"
     return out
 
 def main():
