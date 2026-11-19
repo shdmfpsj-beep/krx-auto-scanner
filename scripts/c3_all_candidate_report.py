@@ -21,13 +21,17 @@ def main():
         e=covered.get(x['code'])
         flag=classify(e) if e else 'REVIEW_INSUFFICIENT_EVIDENCE'
         points=None
-        if flag in ('QUALIFIED','QUALIFIED_WITH_SLOWDOWN_FLAG'):
-            annual=18 if e.get('financial_quality')=='ANNUAL_GROWTH_AND_MARGIN_OBSERVED' else 12
-            interim=17 if e.get('interim_quality')=='INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED' else (8 if flag=='QUALIFIED_WITH_SLOWDOWN_FLAG' else 11)
+        if e and e.get('annual_status')=='DATED_ANNUAL_RESEARCH_ONLY' and e.get('interim_status')=='DATED_INTERIM_YTD_RESEARCH_ONLY' and e.get('filing_date') and e.get('interim_filing_date'):
+            # Evidence quality score is separate from the hard financial eligibility gate.
+            # Weak interim results remain visible for review but NEVER authorize TOP5.
+            annual={'ANNUAL_GROWTH_AND_MARGIN_OBSERVED':18,'ANNUAL_POSITIVE_MIXED':12,
+                    'ANNUAL_RISK_OR_SLOWDOWN':3}.get(e.get('financial_quality'),0)
+            interim={'INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED':17,'INTERIM_MIXED':11,
+                     'INTERIM_PROFIT_OR_SALES_WEAKENING':3}.get(e.get('interim_quality'),0)
             points=annual+interim
         x['financial_flag']=flag;x['financial_points']=points
         x['composite_score']=round(points+min(100,max(0,float(x.get('opportunity_score',0))))*.65,2) if points is not None else None
-        x['top5_eligible']=bool(points is not None and x.get('geometry_validated') and x.get('entry_status') in ('ENTRY_READY','NEAR_ENTRY'))
+        x['top5_eligible']=bool(flag in ('QUALIFIED','QUALIFIED_WITH_SLOWDOWN_FLAG') and x.get('geometry_validated') and x.get('entry_status') in ('ENTRY_READY','NEAR_ENTRY'))
     candidates.sort(key=lambda x:(not x['top5_eligible'],-(x['composite_score'] if x['composite_score'] is not None else -1),-float(x.get('opportunity_score',0)),x['code']))
     approved_top5={x['code'] for x in [v for v in candidates if v['top5_eligible']][:5]}
     regular='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
@@ -85,7 +89,7 @@ def main():
           'entry_low':x.get('entry_low') if valid else None,'entry_high':x.get('entry_high') if valid else None,
           'stop_ref':x.get('stop_ref') if valid else None})
     result={'schema':'C3_ALL_CANDIDATES_V1','asof':src['asof'],'candidate_count':len(rows),
-      'score_disclaimer':'35-point evidence-based financial quality + 65-point normalized technical opportunity; missing evidence is unscored',
+      'score_disclaimer':'35-point evidence-based financial quality + 65-point normalized technical opportunity; WATCH scores never override financial eligibility gate',
       'candidates':rows,'trade_approved':False}
     (out/'manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
     print('C3_ALL_CANDIDATES',json.dumps({'asof':src['asof'],'count':len(rows),
