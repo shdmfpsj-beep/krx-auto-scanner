@@ -44,6 +44,12 @@ class SelectionTests(unittest.TestCase):
     def test_interim_weakening_is_flagged_not_insolvency(self):
         self.assertEqual(classify(record("111111",interim="INTERIM_PROFIT_OR_SALES_WEAKENING")),
                          "QUALIFIED_WITH_SLOWDOWN_FLAG")
+    def test_interim_receipt_after_signal_is_review(self):
+        v=record("111111")
+        v["exclusion_reasons"]=["INTERIM_RECEIPT_AFTER_SIGNAL_OR_MISSING"]
+        self.assertEqual(classify(v),"REVIEW_INSUFFICIENT_EVIDENCE")
+    def test_unknown_interim_quality_is_review(self):
+        self.assertEqual(classify(record("111111",interim="INTERIM_UNKNOWN")),"REVIEW_UNRECOGNIZED_INTERIM_QUALITY")
     def test_growth_company_with_recent_weakening_is_visible(self):
         f={**F,"excluded":[record("222222","ANNUAL_GROWTH_AND_MARGIN_OBSERVED","INTERIM_PROFIT_OR_SALES_WEAKENING")]}
         x=select(G,f)
