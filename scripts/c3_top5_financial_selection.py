@@ -24,7 +24,7 @@ def classify(item):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
     if item.get("interim_quality") == "INTERIM_PROFIT_OR_SALES_WEAKENING":
         return "QUALIFIED_WITH_SLOWDOWN_FLAG"
-    if item.get("interim_quality") not in ("INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED", "INTERIM_POSITIVE_MIXED"):
+    if item.get("interim_quality") not in ("INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED", "INTERIM_MIXED"):
         return "REVIEW_UNRECOGNIZED_INTERIM_QUALITY"
     return "QUALIFIED"
 
