@@ -13,6 +13,8 @@ def classify(item):
     """Unknown evidence is never treated as proof of financial safety."""
     quality = item.get("financial_quality")
     reasons = set(item.get("exclusion_reasons") or [])
+    if not item.get("financial_screen_pass") or reasons:
+        return "REVIEW_FAILED_FINANCIAL_GATE"
     if quality == "ANNUAL_RISK_OR_SLOWDOWN":
         return "REVIEW_ANNUAL_SLOWDOWN"
     if quality not in ANNUAL_OK or item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
