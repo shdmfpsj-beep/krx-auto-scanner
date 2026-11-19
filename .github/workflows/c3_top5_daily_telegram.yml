@@ -599,7 +599,7 @@ jobs:
             echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
       - name: Rank every detected candidate and render every candidate image
-        if: ${{ always() && hashFiles('output/c3_top5/qualified_chart_pool.json', 'output/c3_top5/financial_pool_gate.json') != '' }}
+        if: ${{ always() && hashFiles('output/c3_top5/qualified_chart_pool.json') != '' && hashFiles('output/c3_top5/financial_pool_gate.json') != '' }}
         run: |
           python scripts/c3_all_candidate_report.py \
             --pool output/c3_top5/qualified_chart_pool.json \
