@@ -9,7 +9,7 @@ import argparse
 import json
 import os
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from dart_financial_screen import collect
@@ -30,9 +30,14 @@ def bridge(receipt, key, today=None, collector=collect):
     except ValueError:
         result["status"] = "INVALID_ASOF"
         return result
-    if day != today:
+    # Next-day reports may examine yesterday's signal, but today's OpenDART
+    # snapshot must never be represented as yesterday's PIT data.
+    if day != today and not (day == today - timedelta(days=1) and day.weekday() < 5):
         result["status"] = "HISTORICAL_REPLAY_NO_RETROACTIVE_FINANCIALS"
         return result
+    result["financial_observed_on"] = today.isoformat()
+    result["signal_date"] = asof
+    result["point_in_time_snapshot_verified"] = (day == today)
     if not isinstance(candidates, list) or not candidates:
         result["status"] = "NO_CANDIDATES"
         return result
@@ -55,7 +60,7 @@ def bridge(receipt, key, today=None, collector=collect):
         seen.add(ticker)
         stocks.append({"ticker": ticker, "name": str(c.get("name", "")),
                        "sector_id": "UNKNOWN", "research_proxy_index": ""})
-    research = collector(day, stocks, key, today=today)
+    research = collector(today, stocks, key, today=today)
     result["source_status"] = research.get("status", "UNKNOWN")
     returned = set()
     for r in research.get("researched", []):
@@ -82,6 +87,10 @@ def bridge(receipt, key, today=None, collector=collect):
                 "filing_date": r.get("receipt_date"),
                 "financial_screen_pass": pass_}
         (result["researched"] if pass_ else result["excluded"]).append(item)
+    if day != today:
+        result["status"] = "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED"
+        result["financial_verified"] = False
+        return result
     if len(result["researched"]) + len(result["excluded"]) != len(stocks):
         result["status"] = "INCOMPLETE_FINANCIAL_COVERAGE"
     elif result["excluded"]:
