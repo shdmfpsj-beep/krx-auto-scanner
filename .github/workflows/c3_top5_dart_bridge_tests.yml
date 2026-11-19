@@ -1,0 +1,19 @@
+name: C3 TOP5 DART bridge research tests
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/c3_top5_dart_bridge.py'
+      - 'scripts/test_c3_top5_dart_bridge.py'
+      - '.github/workflows/c3_top5_dart_bridge_tests.yml'
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile research adapter and tests
+        run: python -m py_compile scripts/c3_top5_dart_bridge.py scripts/test_c3_top5_dart_bridge.py
+      - name: Run offline fail-closed tests (no secrets or market calls)
+        run: PYTHONPATH=scripts python -m unittest -v test_c3_top5_dart_bridge
