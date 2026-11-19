@@ -11,6 +11,8 @@ def audit(receipt, financial):
     verified = {r.get("ticker") for r in rows if r.get("financial_screen_pass") is True}
     if financial.get("asof") != receipt.get("asof"):
         verified.clear()
+    # Financial-qualified shortlist is informational until price provenance is verified.
+    financial_shortlist = []
     integrity = receipt.get("source_integrity") or {}
     # Legacy receipt booleans are not independent proof of official provenance.
     # A separate authenticated certification process is required before promotion.
@@ -22,11 +24,15 @@ def audit(receipt, financial):
     for c in candidates if isinstance(candidates, list) else []:
         code = c.get("code") if isinstance(c, dict) else None
         financial_ok = bool(valid and code in verified)
+        if financial_ok:
+            financial_shortlist.append(code)
         status = "ELIGIBLE_RESEARCH_ONLY" if financial_ok and price_ok and actions_ok else "WATCH_UNVERIFIED"
         result["candidates"].append({"code": code, "name": c.get("name") if isinstance(c, dict) else None,
             "technical_status": c.get("status") if isinstance(c, dict) else None,
             "financial_verified": financial_ok, "status": status,
             "trade_approved": False})
+    result["financial_qualified_codes"] = financial_shortlist
+    result["financial_qualified_count"] = len(financial_shortlist)
     result["eligible_count"] = sum(x["status"] == "ELIGIBLE_RESEARCH_ONLY" for x in result["candidates"])
     return result
 
