@@ -19,7 +19,7 @@ class SelectionTests(unittest.TestCase):
     def test_risk_excluded_but_mixed_annual_can_qualify(self):
         x=select(G,F)
         self.assertEqual([v["code"] for v in x["selected"]],["111111"])
-        self.assertEqual(x["financial_classifications"]["222222"],"EXCLUDED_CONFIRMED_RISK")
+        self.assertEqual(x["financial_classifications"]["222222"],"REVIEW_ANNUAL_SLOWDOWN")
         self.assertFalse(x["trade_approved"])
     def test_entry_ready_precedes_near_even_with_growth_bonus(self):
         f={**F,"excluded":[record("222222","ANNUAL_GROWTH_AND_MARGIN_OBSERVED")]}
@@ -41,8 +41,14 @@ class SelectionTests(unittest.TestCase):
         v=record("111111")
         v["interim_quality"]=None
         self.assertEqual(classify(v),"REVIEW_INSUFFICIENT_EVIDENCE")
-    def test_interim_weakening_veto(self):
+    def test_interim_weakening_is_flagged_not_insolvency(self):
         self.assertEqual(classify(record("111111",interim="INTERIM_PROFIT_OR_SALES_WEAKENING")),
-                         "EXCLUDED_CONFIRMED_RISK")
+                         "QUALIFIED_WITH_SLOWDOWN_FLAG")
+    def test_growth_company_with_recent_weakening_is_visible(self):
+        f={**F,"excluded":[record("222222","ANNUAL_GROWTH_AND_MARGIN_OBSERVED","INTERIM_PROFIT_OR_SALES_WEAKENING")]}
+        x=select(G,f)
+        self.assertEqual(x["selected_count"],2)
+        self.assertEqual(x["selected"][1]["financial_flag"],"QUALIFIED_WITH_SLOWDOWN_FLAG")
+        self.assertFalse(x["trade_approved"])
 if __name__=="__main__":
     unittest.main()
