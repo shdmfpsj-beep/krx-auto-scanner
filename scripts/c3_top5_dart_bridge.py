@@ -83,12 +83,26 @@ def bridge(receipt, key, today=None, collector=collect):
                      str(r.get("receipt_date")) <= day.isoformat() and
                      bool(interim.get("filing", {}).get("receipt_date")) and
                      str(interim["filing"]["receipt_date"]) <= day.isoformat())
+        reasons = []
+        if not annual: reasons.append("ANNUAL_REPORT_NOT_VERIFIED")
+        if not r.get("financial_screen_pass"): reasons.append("ANNUAL_QUALITY_NOT_PASSED")
+        if interim.get("status") != "DATED_INTERIM_YTD_RESEARCH_ONLY": reasons.append("INTERIM_NOT_VERIFIED")
+        if not r.get("latest_periodic_division_comparable"): reasons.append("STATEMENT_DIVISION_NOT_COMPARABLE")
+        if r.get("recent_financial_weakening_veto"): reasons.append("RECENT_WEAKENING_VETO")
+        if not r.get("annual_plus_interim_growth_pass"): reasons.append("COMBINED_GROWTH_NOT_PASSED")
+        if not r.get("receipt_date") or str(r.get("receipt_date")) > day.isoformat(): reasons.append("ANNUAL_RECEIPT_AFTER_SIGNAL_OR_MISSING")
+        if not interim.get("filing", {}).get("receipt_date") or str(interim["filing"]["receipt_date"]) > day.isoformat(): reasons.append("INTERIM_RECEIPT_AFTER_SIGNAL_OR_MISSING")
         item = {"ticker": r["ticker"], "name": r.get("name"),
                 "annual_status": r.get("status"),
                 "interim_status": interim.get("status"),
                 "financial_quality": r.get("financial_quality"),
                 "filing_date": r.get("receipt_date"),
-                "financial_screen_pass": pass_}
+                "financial_screen_pass": pass_,
+                "annual_quality_screen_pass": bool(r.get("financial_screen_pass")),
+                "annual_plus_interim_growth_pass": bool(r.get("annual_plus_interim_growth_pass")),
+                "interim_quality": interim.get("quality"),
+                "interim_filing_date": interim.get("filing", {}).get("receipt_date"),
+                "exclusion_reasons": reasons if not pass_ else []}
         (result["researched"] if pass_ else result["excluded"]).append(item)
     if day != today:
         result["status"] = "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED"
