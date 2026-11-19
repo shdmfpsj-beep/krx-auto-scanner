@@ -75,7 +75,15 @@ jobs:
           def fetch(day,endpoint):
             u='https://data-dbg.krx.co.kr/svc/apis/sto/'+endpoint+'?'+urllib.parse.urlencode({'basDd':day})
             req=urllib.request.Request(u,headers={'AUTH_KEY':os.environ['KRX_AUTH_KEY'],'Accept':'application/json'})
-            with urllib.request.urlopen(req,timeout=25) as res:raw=res.read(12*1024*1024+1)
+            # Retry only transient transport failures; never retry invalid or incomplete data.
+            for attempt in range(3):
+              try:
+                with urllib.request.urlopen(req,timeout=25) as res:raw=res.read(12*1024*1024+1)
+                break
+              except (urllib.error.URLError,TimeoutError,ConnectionError) as ex:
+                if attempt==2:raise
+                print('C3_KRX_TRANSIENT_RETRY',day,endpoint,'attempt',attempt+1,type(ex).__name__)
+                time.sleep(2*(attempt+1))
             if len(raw)>12*1024*1024:raise ValueError('RESPONSE_TOO_LARGE')
             z=json.loads(raw)
             a=z.get('OutBlock_1')
@@ -310,6 +318,23 @@ jobs:
               'entry_ready':len(ready_watch),'near_entry':len(near_watch),'far_entry':len(far_watch),
               'rejections':[{'code':x['code'],'reasons':x['rejection_reasons']} for x in pool]},
               ensure_ascii=False))
+            # Research-only full qualified pool for finance-first image preview.
+            # This does not alter legacy selected images or Telegram delivery.
+            research_pool=[]
+            for x in ready_watch+near_watch:
+              key=(x['market'],x['code'])
+              research_pool.append({
+                'code':x['code'],'name':x['name'],'market':x['market'],
+                'entry_status':x['entry_status'],'entry_low':x['entry_watch_low'],
+                'entry_high':x['entry_watch_high'],
+                'stop_ref':x['structural_stop_ref'],'risk_pct':x['entry_risk_pct'],
+                'close':x['close'],'ma5':x['ma5'],'ma20':x['ma20'],'ma60':x['ma60'],
+                'bars':[{'date':d,'close':data[key][d][0],
+                         'high':data[key][d][1],'low':data[key][d][2],
+                         'volume':data[key][d][3]} for d in days]})
+            (root/'qualified_chart_pool.json').write_text(json.dumps({
+              'schema':'C3_QUALIFIED_CHART_POOL_RESEARCH_V1',
+              'asof':days[-1],'candidates':research_pool},ensure_ascii=False)+'\n')
             for x in selected:
               key=(x['market'],x['code'])
               x['chart_bars']=[{'date':d,'close':data[key][d][0],'high':data[key][d][1],
@@ -445,58 +470,9 @@ jobs:
               'status':receipt['delivery_preflight']},ensure_ascii=False))
             if not images:
               receipt['status']='CASH_NO_CANDIDATES_NO_SEND'
-            # Never send stale same-day duplicates from reruns: workflow concurrency prevents overlap,
-            # but manual reruns may duplicate. A separate persisted receipt gate is required.
-            # Persisted date reservation is enforced for scheduled dispatch; manual runs remain preview-only.
-            if not images:
-              receipt['status']='CASH_NO_CANDIDATES_NO_SEND'
-            elif os.environ.get('GITHUB_EVENT_NAME')!='schedule':
-              receipt['status']='PREVIEW_ONLY_MANUAL_RUN'
-            else:
-              token=os.environ.get('TELEGRAM_BOT_TOKEN','');chat=os.environ.get('TELEGRAM_CHAT_ID','')
-              if not token or not chat:raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
-              # Reserve the date BEFORE Telegram. A failed/uncertain send is not retried automatically.
-              # GitHub Contents create-only PUT is atomic for a new path; reruns fail closed.
-              import base64
-              repo=os.environ['GITHUB_REPOSITORY']
-              marker_path='receipts/c3_top5_daily/'+days[-1]+'.json'
-              marker={'schema':'C3_TOP5_SEND_RESERVATION_V1','asof':days[-1],
-                'run_id':os.environ['GITHUB_RUN_ID'],'image_sha256':receipt['image_sha256'],
-                'status':'RESERVED_BEFORE_SEND','selected_count':len(selected)}
-              api='https://api.github.com/repos/'+repo+'/contents/'+marker_path
-              body=json.dumps({'message':'Reserve C3 TOP5 one-photo delivery '+days[-1],
-                'content':base64.b64encode(json.dumps(marker,ensure_ascii=False).encode()).decode(),
-                'branch':'main'}).encode()
-              request=urllib.request.Request(api,data=body,method='PUT',headers={
-                'Authorization':'Bearer '+os.environ['GH_TOKEN'],
-                'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',
-                'Content-Type':'application/json'})
-              try:
-                with urllib.request.urlopen(request,timeout=20) as res:
-                  if res.status!=201:raise ValueError('RESERVATION_NOT_CREATED')
-              except urllib.error.HTTPError as ex:
-                if ex.code in (409,422):
-                  receipt['status']='DUPLICATE_OR_RESERVATION_CONFLICT_BLOCKED'
-                  receipt['duplicate_guard']='PERSISTED_CREATE_ONLY'
-                  print('TOP5_DUPLICATE_BLOCKED',days[-1],ex.code)
-                raise ValueError('DELIVERY_RESERVATION_BLOCKED_'+str(ex.code))
-              receipt['delivery_reservation']=marker_path
-              import uuid
-              boundary='----C3'+uuid.uuid4().hex
-              def part(name,value,filename=None,ctype='text/plain'):
-                head='--'+boundary+'\r\nContent-Disposition: form-data; name="'+name+'"'
-                if filename:head+='; filename="'+filename+'"'
-                head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
-                return head.encode()+value+b'\r\n'
-              # One separate image per selected stock; no automatic retries.
-              for idx,image in enumerate(images,1):
-                payload=part('chat_id',chat.encode())+part('caption',('C3 TOP5 '+days[-1]+' | '+selected[idx-1]['name']+' | '+str(idx)+'/'+str(len(images))+' · WATCH').encode())+part('photo',image.read_bytes(),image.name,'image/png')+('--'+boundary+'--\\r\\n').encode()
-                req=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',data=payload,
-                  headers={'Content-Type':'multipart/form-data; boundary='+boundary},method='POST')
-                with urllib.request.urlopen(req,timeout=30) as resp:response=json.load(resp)
-                if not response.get('ok'):raise ValueError('TELEGRAM_NOT_OK_AT_'+str(idx))
-                receipt['telegram_photos_sent']=idx
-              receipt['status']='DELIVERED'
+            # Never send preliminary technical-only candidates before financial review.
+            receipt['status']='PRE_FINANCIAL_TECHNICAL_PREVIEW_NO_SEND'
+            receipt['telegram_photos_sent']=0
             print('TOP5_RECEIPT',json.dumps({'status':receipt['status'],'asof':receipt['asof'],
               'passing_symbols':len(pool),'selected':selected,'photos_sent':receipt['telegram_photos_sent']},ensure_ascii=False))
           except Exception as e:
@@ -506,6 +482,261 @@ jobs:
           finally:
             (root/'receipt.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n')
           if receipt['status']=='HOLD_ERROR':raise SystemExit(1)
+          PY
+      # Research-only enrichment. Runs AFTER legacy delivery logic, cannot authorize
+      # a buy, alter the selection, or trigger another Telegram send.
+      - name: Preserve KRX research outputs outside checkout workspace
+        if: always()
+        run: |
+          if [ -d output/c3_top5 ]; then
+            mkdir -p "$RUNNER_TEMP/c3_top5_preserved"
+            cp -a output/c3_top5/. "$RUNNER_TEMP/c3_top5_preserved/"
+            echo 'C3_OUTPUT_PRESERVED'
+          else
+            echo 'C3_OUTPUT_NOT_FOUND_BEFORE_CHECKOUT'
+          fi
+      - name: Checkout minimal OpenDART research adapter
+        if: always()
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_top5_dart_bridge.py
+            scripts/c3_top5_eligibility_audit.py
+            scripts/c3_top5_financial_selection.py
+            scripts/c3_top5_financial_preview.py
+            scripts/dart_financial_screen.py
+            scripts/dart_interim_periods.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+          # Preserve untracked output/c3_top5 generated before sparse checkout.
+          clean: false
+      - name: Restore KRX research outputs after checkout
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/c3_top5_preserved" ]; then
+            mkdir -p output/c3_top5
+            cp -a "$RUNNER_TEMP/c3_top5_preserved/." output/c3_top5/
+            test -f output/c3_top5/receipt.json
+            test -f output/c3_top5/entry_geometry_audit.json
+            echo 'C3_OUTPUT_RESTORED'
+          else
+            echo 'C3_OUTPUT_NOT_PRESERVED'
+          fi
+      - name: Evaluate dated OpenDART evidence for selected TOP5 (research only)
+        if: always()
+        continue-on-error: true
+        env:
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          mkdir -p output/c3_top5
+          if [ -f output/c3_top5/receipt.json ]; then
+            PYTHONPATH=scripts python scripts/c3_top5_dart_bridge.py \
+              --receipt output/c3_top5/receipt.json \
+              --out output/c3_top5/financial_research_gate.json
+          else
+            echo 'FINANCIAL_RESEARCH_SKIPPED_NO_RECEIPT'
+          fi
+      - name: Record non-authorizing TOP5 eligibility audit
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -f output/c3_top5/receipt.json ] && [ -f output/c3_top5/financial_research_gate.json ]; then
+            PYTHONPATH=scripts python scripts/c3_top5_eligibility_audit.py \
+              --receipt output/c3_top5/receipt.json \
+              --financial output/c3_top5/financial_research_gate.json \
+              --out output/c3_top5/eligibility_audit.json
+          else
+            echo 'ELIGIBILITY_AUDIT_SKIPPED_MISSING_EVIDENCE'
+          fi
+      - name: Research finance-first selection across technical pool
+        if: always()
+        continue-on-error: true
+        env:
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          if [ -f output/c3_top5/entry_geometry_audit.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('output/c3_top5')
+          geometry=json.loads((root/'entry_geometry_audit.json').read_text())
+          eligible=[{'code':c['code'],'name':c.get('name','')}
+                    for c in geometry.get('candidates',[])
+                    if c.get('status') in ('ENTRY_READY','NEAR_ENTRY')
+                    and c.get('risk_pct') is not None and 0<c['risk_pct']<=5]
+          (root/'financial_pool_input.json').write_text(json.dumps({
+              'asof':geometry['asof'],'candidates':eligible},ensure_ascii=False))
+          PY
+            PYTHONPATH=scripts python scripts/c3_top5_dart_bridge.py \
+              --receipt output/c3_top5/financial_pool_input.json \
+              --out output/c3_top5/financial_pool_gate.json
+            PYTHONPATH=scripts python scripts/c3_top5_financial_selection.py \
+              --geometry output/c3_top5/entry_geometry_audit.json \
+              --financial output/c3_top5/financial_pool_gate.json \
+              --out output/c3_top5/financial_selection_research.json
+            if [ -f output/c3_top5/qualified_chart_pool.json ]; then
+              PYTHONPATH=scripts python scripts/c3_top5_financial_preview.py \
+                --pool output/c3_top5/qualified_chart_pool.json \
+                --selection output/c3_top5/financial_selection_research.json \
+                --out output/c3_top5/financial_preview
+            fi
+          else
+            echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
+          fi
+      - name: Build finance-first conditional signal delivery manifest
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('output/c3_top5')
+          result={'schema':'C3_FINANCE_FIRST_MANIFEST_V1','status':'CASH_NO_SEND',
+                  'selected':[],'images':[],'telegram_photos_sent':0,'trade_approved':False}
+          try:
+            selection=json.loads((root/'financial_selection_research.json').read_text())
+            preview=json.loads((root/'financial_preview'/'financial_preview_manifest.json').read_text())
+            receipt=json.loads((root/'receipt.json').read_text())
+            selected=selection.get('selected',[])
+            images=preview.get('images',[])
+            if not (selection.get('asof')==preview.get('asof')==receipt.get('asof')):
+              raise ValueError('ASOF_MISMATCH')
+            if selection.get('status')!='CONDITIONAL_SIGNALS' or not selection.get('coverage_complete'):
+              raise ValueError('FINANCIAL_SELECTION_NOT_VALID')
+            if len(selected)>5 or len(selected)!=len(images):
+              raise ValueError('SELECTION_IMAGE_COUNT_MISMATCH')
+            if len({x['code'] for x in selected})!=len(selected):
+              raise ValueError('DUPLICATE_SYMBOL')
+            for item,im in zip(selected,images):
+              if item['code']!=im['code']:
+                raise ValueError('IMAGE_SYMBOL_MISMATCH')
+              filename=im['image']
+              if Path(filename).name!=filename:
+                raise ValueError('UNSAFE_IMAGE_NAME')
+              p=root/'financial_preview'/filename
+              if not p.is_file() or p.stat().st_size<10000:
+                raise ValueError('IMAGE_MISSING')
+            signals=selection.get('signals',[])
+            if len(signals)!=len(selected):
+              raise ValueError('SIGNAL_COUNT_MISMATCH')
+            for item,signal in zip(selected,signals):
+              if item['code']!=signal.get('code'):
+                raise ValueError('SIGNAL_SYMBOL_MISMATCH')
+              if signal.get('signal')!=('BUY_CONSIDER' if item.get('technical_status')=='ENTRY_READY' else 'WAIT_FOR_ENTRY'):
+                raise ValueError('SIGNAL_STATUS_MISMATCH')
+            result.update(asof=selection['asof'],selected=selected,images=images,
+                          financial_coverage_complete=selection.get('coverage_complete',False),
+                          decision=selection.get('decision','CASH'),
+                          signals=selection.get('signals',[]),
+                          point_in_time_certification_required=False,
+                          independent_price_certification_required=False)
+            result['status']='FINANCE_FIRST_PREVIEW_READY_NO_SEND' if selected else 'CASH_NO_FINANCIAL_CANDIDATES'
+          except (OSError,KeyError,TypeError,ValueError,AttributeError) as e:
+            result['status']='CASH_FINANCE_FIRST_MANIFEST_INVALID'
+            result['error']=type(e).__name__+': '+str(e)[:160]
+          root.mkdir(parents=True,exist_ok=True)
+          (root/'finance_first_delivery_manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+          print('C3_FINANCE_FIRST_DELIVERY',json.dumps({'status':result['status'],
+            'selected_count':len(result['selected']),'telegram_photos_sent':0},ensure_ascii=False))
+          PY
+      - name: Send finance-first conditional signals on scheduled main only
+        if: ${{ github.event_name == 'schedule' && github.ref_name == 'main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64,hashlib,json,os,urllib.request,urllib.error,uuid
+          from pathlib import Path
+          from PIL import Image
+          root=Path('output/c3_top5')
+          manifest=json.loads((root/'finance_first_delivery_manifest.json').read_text())
+          receipt=json.loads((root/'receipt.json').read_text())
+          source=receipt.get('source_integrity',{})
+          if manifest.get('status')=='CASH_NO_FINANCIAL_CANDIDATES':
+            print('C3_FINAL_DELIVERY CASH_NO_CANDIDATES_NO_SEND')
+            raise SystemExit(0)
+          if manifest.get('status')!='FINANCE_FIRST_PREVIEW_READY_NO_SEND':
+            raise ValueError('FINANCE_MANIFEST_NOT_READY')
+          if not manifest.get('financial_coverage_complete'):
+            raise ValueError('FINANCIAL_COVERAGE_INCOMPLETE')
+          if source.get('session_count',0)<60 or source.get('last_session')!=manifest.get('asof'):
+            raise ValueError('SOURCE_DATE_OR_SESSION_MISMATCH')
+          if source.get('market_rows_min',{}).get('KOSPI',0)<500 or source.get('market_rows_min',{}).get('KOSDAQ',0)<800:
+            raise ValueError('MARKET_COVERAGE_BELOW_FLOOR')
+          if manifest.get('asof')!=receipt.get('asof'):
+            raise ValueError('RECEIPT_DATE_MISMATCH')
+          selected=manifest['selected']
+          images=manifest['images']
+          signals=manifest.get('signals',[])
+          if len(signals)!=len(selected):
+            raise ValueError('SIGNAL_SELECTION_COUNT_MISMATCH')
+          for item,signal in zip(selected,signals):
+            if item['code']!=signal.get('code'):
+              raise ValueError('SIGNAL_SYMBOL_MISMATCH')
+            expected='BUY_CONSIDER' if item.get('technical_status')=='ENTRY_READY' else 'WAIT_FOR_ENTRY'
+            if signal.get('signal')!=expected:
+              raise ValueError('INVALID_CONDITIONAL_SIGNAL')
+          if not selected or len(selected)!=len(images) or len(selected)>5:
+            raise ValueError('INVALID_FINAL_SELECTION')
+          validated=[]
+          for item,im in zip(selected,images):
+            if item['code']!=im['code'] or item.get('technical_status') not in ('ENTRY_READY','NEAR_ENTRY'):
+              raise ValueError('FINANCIAL_TECHNICAL_MISMATCH')
+            if item.get('financial_flag') not in ('QUALIFIED','QUALIFIED_WITH_SLOWDOWN_FLAG'):
+              raise ValueError('FINANCIAL_QUALITY_NOT_ACCEPTED')
+            filename=im['image']
+            if Path(filename).name!=filename:
+              raise ValueError('INVALID_IMAGE_PATH')
+            p=root/'financial_preview'/filename
+            if not p.is_file() or p.stat().st_size<10000:
+              raise ValueError('MISSING_FINAL_IMAGE')
+            with Image.open(p) as check:
+              check.verify()
+            with Image.open(p) as check:
+              if check.format!='PNG' or check.size!=(1400,1710):
+                raise ValueError('INVALID_FINAL_IMAGE')
+            validated.append(p)
+          token=os.environ.get('TELEGRAM_BOT_TOKEN','')
+          chat=os.environ.get('TELEGRAM_CHAT_ID','')
+          if not token or not chat:
+            raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
+          # Create-only daily reservation BEFORE any external send. No automatic retry.
+          date=manifest['asof']
+          marker_path='receipts/c3_top5_daily/'+date+'.json'
+          marker={'schema':'C3_FINANCE_FIRST_SEND_RESERVATION_V1','asof':date,
+                  'run_id':os.environ['GITHUB_RUN_ID'],'status':'RESERVED_BEFORE_SEND',
+                  'selected_codes':[x['code'] for x in selected],
+                  'image_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in validated},
+                  'disclaimer':'CONDITIONAL_SIGNAL_NO_INDEPENDENT_CERTIFICATION_USER_TRADES'}
+          payload=json.dumps({'message':'Reserve C3 finance-first research chart delivery '+date,
+             'content':base64.b64encode(json.dumps(marker,ensure_ascii=False).encode()).decode(),
+             'branch':'main'}).encode()
+          req=urllib.request.Request('https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/'+marker_path,
+             data=payload,method='PUT',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+             'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',
+             'Content-Type':'application/json'})
+          with urllib.request.urlopen(req,timeout=20) as response:
+            if response.status!=201:
+              raise ValueError('SEND_RESERVATION_NOT_CREATED')
+          print('C3_FINANCE_FIRST_RESERVED',date,len(validated))
+          for i,(item,p) in enumerate(zip(selected,validated),1):
+            boundary='----C3'+uuid.uuid4().hex
+            def part(name,value,filename=None,ctype='text/plain'):
+              head='--'+boundary+'\r\nContent-Disposition: form-data; name="'+name+'"'
+              if filename:head+='; filename="'+filename+'"'
+              head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
+              return head.encode()+value+b'\r\n'
+            caption=('C3 TOP5 '+date+' | '+item.get('name',item['code'])+
+              ' | '+str(i)+'/'+str(len(selected))+' | '+item['technical_status']+
+              '\n'+signals[i-1]['signal']+' / 재무·기술 조건부 신호 / 매수범위 미도달 PASS / 주문은 사용자 직접')
+            body=part('chat_id',chat.encode())+part('caption',caption.encode())+part('photo',p.read_bytes(),p.name,'image/png')+('--'+boundary+'--\r\n').encode()
+            request=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',
+              data=body,method='POST',headers={'Content-Type':'multipart/form-data; boundary='+boundary})
+            with urllib.request.urlopen(request,timeout=30) as response:
+              answer=json.load(response)
+            if not answer.get('ok'):
+              raise ValueError('TELEGRAM_SEND_FAILED_'+str(i))
+            print('C3_FINANCE_FIRST_PHOTO_SENT',i,item['code'])
+          print('C3_FINANCE_FIRST_DELIVERED',date,len(validated))
           PY
       - name: Upload individual classic images and audit receipt
         if: always()

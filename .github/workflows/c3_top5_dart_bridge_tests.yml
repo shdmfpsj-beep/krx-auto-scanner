@@ -1,0 +1,57 @@
+name: C3 TOP5 DART bridge research tests
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/c3_top5_dart_bridge.py'
+      - 'scripts/test_c3_top5_dart_bridge.py'
+      - 'scripts/c3_top5_eligibility_audit.py'
+      - 'scripts/test_c3_top5_eligibility_audit.py'
+      - 'scripts/c3_top5_independent_price_evidence.py'
+      - 'scripts/test_c3_top5_independent_price_evidence.py'
+      - 'scripts/c3_top5_financial_selection.py'
+      - 'scripts/c3_top5_financial_preview.py'
+      - 'scripts/test_c3_top5_financial_selection.py'
+      - '.github/workflows/c3_top5_dart_bridge_tests.yml'
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_top5_dart_bridge.py
+            scripts/test_c3_top5_dart_bridge.py
+            scripts/c3_top5_eligibility_audit.py
+            scripts/test_c3_top5_eligibility_audit.py
+            scripts/c3_top5_independent_price_evidence.py
+            scripts/test_c3_top5_independent_price_evidence.py
+            scripts/c3_top5_financial_selection.py
+            scripts/c3_top5_financial_preview.py
+            scripts/test_c3_top5_financial_selection.py
+            scripts/dart_financial_screen.py
+            scripts/dart_interim_periods.py
+            .github/workflows/c3_top5_daily_telegram.yml
+          sparse-checkout-cone-mode: false
+      - name: Compile research adapter and tests
+        run: python -m py_compile scripts/c3_top5_dart_bridge.py scripts/test_c3_top5_dart_bridge.py scripts/c3_top5_eligibility_audit.py scripts/test_c3_top5_eligibility_audit.py scripts/c3_top5_independent_price_evidence.py scripts/test_c3_top5_independent_price_evidence.py scripts/c3_top5_financial_selection.py scripts/test_c3_top5_financial_selection.py scripts/c3_top5_financial_preview.py
+      - name: Run offline fail-closed tests (no secrets or market calls)
+        run: PYTHONPATH=scripts python -m unittest -v test_c3_top5_dart_bridge test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence test_c3_top5_financial_selection
+      - name: Check research hook contract without running Telegram
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source=Path('.github/workflows/c3_top5_daily_telegram.yml').read_text()
+          hook=source.index('      - name: Evaluate dated OpenDART evidence for selected TOP5')
+          upload=source.index('      - name: Upload individual classic images and audit receipt')
+          assert hook < upload
+          fragment=source[hook:upload]
+          assert 'continue-on-error: true' in fragment
+          assert 'financial_research_gate.json' in fragment
+          assert any('scripts/c3_top5_dart_bridge.py' in line for line in fragment.splitlines())
+          assert any('--receipt output/c3_top5/receipt.json' in line for line in fragment.splitlines())
+          assert 'telegram' not in fragment.lower()
+          print('TOP5_DART_RESEARCH_HOOK_STATIC_CONTRACT_OK')
+          PY
