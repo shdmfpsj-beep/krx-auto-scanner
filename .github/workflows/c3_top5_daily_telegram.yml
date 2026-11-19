@@ -462,58 +462,9 @@ jobs:
               'status':receipt['delivery_preflight']},ensure_ascii=False))
             if not images:
               receipt['status']='CASH_NO_CANDIDATES_NO_SEND'
-            # Never send stale same-day duplicates from reruns: workflow concurrency prevents overlap,
-            # but manual reruns may duplicate. A separate persisted receipt gate is required.
-            # Persisted date reservation is enforced for scheduled dispatch; manual runs remain preview-only.
-            if not images:
-              receipt['status']='CASH_NO_CANDIDATES_NO_SEND'
-            elif os.environ.get('GITHUB_EVENT_NAME')!='schedule' or os.environ.get('GITHUB_REF_NAME')!='main':
-              receipt['status']='PREVIEW_ONLY_RESEARCH_BRANCH_OR_MANUAL'
-            else:
-              token=os.environ.get('TELEGRAM_BOT_TOKEN','');chat=os.environ.get('TELEGRAM_CHAT_ID','')
-              if not token or not chat:raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
-              # Reserve the date BEFORE Telegram. A failed/uncertain send is not retried automatically.
-              # GitHub Contents create-only PUT is atomic for a new path; reruns fail closed.
-              import base64
-              repo=os.environ['GITHUB_REPOSITORY']
-              marker_path='receipts/c3_top5_daily/'+days[-1]+'.json'
-              marker={'schema':'C3_TOP5_SEND_RESERVATION_V1','asof':days[-1],
-                'run_id':os.environ['GITHUB_RUN_ID'],'image_sha256':receipt['image_sha256'],
-                'status':'RESERVED_BEFORE_SEND','selected_count':len(selected)}
-              api='https://api.github.com/repos/'+repo+'/contents/'+marker_path
-              body=json.dumps({'message':'Reserve C3 TOP5 one-photo delivery '+days[-1],
-                'content':base64.b64encode(json.dumps(marker,ensure_ascii=False).encode()).decode(),
-                'branch':'main'}).encode()
-              request=urllib.request.Request(api,data=body,method='PUT',headers={
-                'Authorization':'Bearer '+os.environ['GH_TOKEN'],
-                'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',
-                'Content-Type':'application/json'})
-              try:
-                with urllib.request.urlopen(request,timeout=20) as res:
-                  if res.status!=201:raise ValueError('RESERVATION_NOT_CREATED')
-              except urllib.error.HTTPError as ex:
-                if ex.code in (409,422):
-                  receipt['status']='DUPLICATE_OR_RESERVATION_CONFLICT_BLOCKED'
-                  receipt['duplicate_guard']='PERSISTED_CREATE_ONLY'
-                  print('TOP5_DUPLICATE_BLOCKED',days[-1],ex.code)
-                raise ValueError('DELIVERY_RESERVATION_BLOCKED_'+str(ex.code))
-              receipt['delivery_reservation']=marker_path
-              import uuid
-              boundary='----C3'+uuid.uuid4().hex
-              def part(name,value,filename=None,ctype='text/plain'):
-                head='--'+boundary+'\r\nContent-Disposition: form-data; name="'+name+'"'
-                if filename:head+='; filename="'+filename+'"'
-                head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
-                return head.encode()+value+b'\r\n'
-              # One separate image per selected stock; no automatic retries.
-              for idx,image in enumerate(images,1):
-                payload=part('chat_id',chat.encode())+part('caption',('C3 TOP5 '+days[-1]+' | '+selected[idx-1]['name']+' | '+str(idx)+'/'+str(len(images))+' · WATCH').encode())+part('photo',image.read_bytes(),image.name,'image/png')+('--'+boundary+'--\\r\\n').encode()
-                req=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',data=payload,
-                  headers={'Content-Type':'multipart/form-data; boundary='+boundary},method='POST')
-                with urllib.request.urlopen(req,timeout=30) as resp:response=json.load(resp)
-                if not response.get('ok'):raise ValueError('TELEGRAM_NOT_OK_AT_'+str(idx))
-                receipt['telegram_photos_sent']=idx
-              receipt['status']='DELIVERED'
+            # Never send preliminary technical-only candidates before financial review.
+            receipt['status']='PRE_FINANCIAL_TECHNICAL_PREVIEW_NO_SEND'
+            receipt['telegram_photos_sent']=0
             print('TOP5_RECEIPT',json.dumps({'status':receipt['status'],'asof':receipt['asof'],
               'passing_symbols':len(pool),'selected':selected,'photos_sent':receipt['telegram_photos_sent']},ensure_ascii=False))
           except Exception as e:
@@ -624,6 +575,48 @@ jobs:
           else
             echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
+      - name: Build finance-first delivery manifest (no Telegram until certified)
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('output/c3_top5')
+          result={'schema':'C3_FINANCE_FIRST_MANIFEST_V1','status':'CASH_NO_SEND',
+                  'selected':[],'images':[],'telegram_photos_sent':0,'trade_approved':False}
+          try:
+            selection=json.loads((root/'financial_selection_research.json').read_text())
+            preview=json.loads((root/'financial_preview'/'financial_preview_manifest.json').read_text())
+            receipt=json.loads((root/'receipt.json').read_text())
+            selected=selection.get('selected',[])
+            images=preview.get('images',[])
+            if not (selection.get('asof')==preview.get('asof')==receipt.get('asof')):
+              raise ValueError('ASOF_MISMATCH')
+            if len(selected)>5 or len(selected)!=len(images):
+              raise ValueError('SELECTION_IMAGE_COUNT_MISMATCH')
+            if len({x['code'] for x in selected})!=len(selected):
+              raise ValueError('DUPLICATE_SYMBOL')
+            for item,im in zip(selected,images):
+              if item['code']!=im['code']:
+                raise ValueError('IMAGE_SYMBOL_MISMATCH')
+              filename=im['image']
+              if Path(filename).name!=filename:
+                raise ValueError('UNSAFE_IMAGE_NAME')
+              p=root/'financial_preview'/filename
+              if not p.is_file() or p.stat().st_size<10000:
+                raise ValueError('IMAGE_MISSING')
+            result.update(asof=selection['asof'],selected=selected,images=images,
+                          financial_coverage_complete=selection.get('coverage_complete',False),
+                          point_in_time_certified=selection.get('point_in_time_certified',False))
+            result['status']='FINANCE_FIRST_PREVIEW_READY_NO_SEND' if selected else 'CASH_NO_FINANCIAL_CANDIDATES'
+          except (OSError,KeyError,TypeError,ValueError,AttributeError) as e:
+            result['status']='CASH_FINANCE_FIRST_MANIFEST_INVALID'
+            result['error']=type(e).__name__+': '+str(e)[:160]
+          root.mkdir(parents=True,exist_ok=True)
+          (root/'finance_first_delivery_manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
+          print('C3_FINANCE_FIRST_DELIVERY',json.dumps({'status':result['status'],
+            'selected_count':len(result['selected']),'telegram_photos_sent':0},ensure_ascii=False))
+          PY
       - name: Upload individual classic images and audit receipt
         if: always()
         uses: actions/upload-artifact@v4
