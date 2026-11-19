@@ -13,6 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/c3_top5_dart_bridge.py
+            scripts/test_c3_top5_dart_bridge.py
+            scripts/dart_financial_screen.py
+            scripts/dart_interim_periods.py
+          sparse-checkout-cone-mode: false
       - name: Compile research adapter and tests
         run: python -m py_compile scripts/c3_top5_dart_bridge.py scripts/test_c3_top5_dart_bridge.py
       - name: Run offline fail-closed tests (no secrets or market calls)
