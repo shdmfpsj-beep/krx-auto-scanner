@@ -573,9 +573,7 @@ jobs:
           root=Path('output/c3_top5')
           geometry=json.loads((root/'entry_geometry_audit.json').read_text())
           eligible=[{'code':c['code'],'name':c.get('name','')}
-                    for c in geometry.get('candidates',[])
-                    if c.get('status') in ('ENTRY_READY','NEAR_ENTRY')
-                    and c.get('risk_pct') is not None and 0<c['risk_pct']<=5]
+                    for c in geometry.get('candidates',[])[:10]]
           (root/'financial_pool_input.json').write_text(json.dumps({
               'asof':geometry['asof'],'candidates':eligible},ensure_ascii=False))
           PY
@@ -601,6 +599,7 @@ jobs:
           python scripts/c3_all_candidate_report.py \
             --pool output/c3_top5/qualified_chart_pool.json \
             --selection output/c3_top5/financial_selection_research.json \
+            --financial output/c3_top5/financial_pool_gate.json \
             --out output/c3_top5/all_candidate_report
       - name: Build finance-first conditional signal delivery manifest
         if: always()
