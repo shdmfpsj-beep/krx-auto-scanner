@@ -7,6 +7,8 @@ on:
       - 'scripts/test_c3_top5_dart_bridge.py'
       - 'scripts/c3_top5_eligibility_audit.py'
       - 'scripts/test_c3_top5_eligibility_audit.py'
+      - 'scripts/c3_top5_independent_price_evidence.py'
+      - 'scripts/test_c3_top5_independent_price_evidence.py'
       - '.github/workflows/c3_top5_dart_bridge_tests.yml'
 permissions:
   contents: read
@@ -21,14 +23,16 @@ jobs:
             scripts/test_c3_top5_dart_bridge.py
             scripts/c3_top5_eligibility_audit.py
             scripts/test_c3_top5_eligibility_audit.py
+            scripts/c3_top5_independent_price_evidence.py
+            scripts/test_c3_top5_independent_price_evidence.py
             scripts/dart_financial_screen.py
             scripts/dart_interim_periods.py
             .github/workflows/c3_top5_daily_telegram.yml
           sparse-checkout-cone-mode: false
       - name: Compile research adapter and tests
-        run: python -m py_compile scripts/c3_top5_dart_bridge.py scripts/test_c3_top5_dart_bridge.py scripts/c3_top5_eligibility_audit.py scripts/test_c3_top5_eligibility_audit.py
+        run: python -m py_compile scripts/c3_top5_dart_bridge.py scripts/test_c3_top5_dart_bridge.py scripts/c3_top5_eligibility_audit.py scripts/test_c3_top5_eligibility_audit.py scripts/c3_top5_independent_price_evidence.py scripts/test_c3_top5_independent_price_evidence.py
       - name: Run offline fail-closed tests (no secrets or market calls)
-        run: PYTHONPATH=scripts python -m unittest -v test_c3_top5_dart_bridge test_c3_top5_eligibility_audit
+        run: PYTHONPATH=scripts python -m unittest -v test_c3_top5_dart_bridge test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
       - name: Check research hook contract without running Telegram
         run: |
           python - <<'PY'
