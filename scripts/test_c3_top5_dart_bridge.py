@@ -33,6 +33,29 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(x["status"],"NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED")
         self.assertFalse(x["financial_verified"])
         self.assertEqual(x["financial_observed_on"],"2026-11-19")
+    def test_exclusion_reasons_distinguish_annual_and_interim(self):
+        def stub(day, stocks, key, today):
+            return {"researched": [{
+                "ticker": "294870",
+                "status": "DATED_ANNUAL_RESEARCH_ONLY",
+                "receipt_date": "2026-03-20",
+                "financial_screen_pass": True,
+                "financial_quality": "ANNUAL_GROWTH_AND_MARGIN_OBSERVED",
+                "annual_plus_interim_growth_pass": False,
+                "latest_periodic_division_comparable": True,
+                "recent_financial_weakening_veto": True,
+                "interim_research": {
+                    "status": "DATED_INTERIM_YTD_RESEARCH_ONLY",
+                    "quality": "INTERIM_PROFIT_OR_SALES_WEAKENING",
+                    "filing": {"receipt_date": "2026-11-16"}}}]}
+        r = bridge(BASE, "dummy", TODAY, stub)
+        item = r["excluded"][0]
+        self.assertTrue(item["annual_quality_screen_pass"])
+        self.assertIn("RECENT_WEAKENING_VETO", item["exclusion_reasons"])
+        self.assertIn("COMBINED_GROWTH_NOT_PASSED", item["exclusion_reasons"])
+        self.assertNotIn("ANNUAL_QUALITY_NOT_PASSED", item["exclusion_reasons"])
+        self.assertFalse(r["financial_verified"])
+
     def test_missing_key_cannot_pass(self):
         r = bridge(BASE, None, TODAY, collector=lambda *a, **k: self.fail("API called"))
         self.assertEqual(r["status"], "MISSING_DART_KEY")
