@@ -17,6 +17,12 @@ def main():
     covered={str(x['ticker']):x for x in evidence.get('researched',[])+evidence.get('excluded',[]) if isinstance(x,dict) and x.get('ticker')}
     if evidence.get('asof')!=src.get('asof'):covered={}
     candidates=src.get('candidates',[])[:10]
+    selected_codes=[x['code'] for x in fin.get('selected',[]) if isinstance(x,dict) and x.get('code')]
+    if fin.get('asof')!=src.get('asof') or len(selected_codes)>5 or len(set(selected_codes))!=len(selected_codes):
+        selected_codes=[]
+    selected_set=set(selected_codes)
+    if not selected_set.issubset({x['code'] for x in candidates}):
+        raise ValueError('SELECTION_NOT_IN_CHART_POOL')
     for x in candidates:
         e=covered.get(x['code'])
         flag=classify(e) if e else 'REVIEW_INSUFFICIENT_EVIDENCE'
@@ -30,10 +36,13 @@ def main():
                      'INTERIM_PROFIT_OR_SALES_WEAKENING':4}.get(e.get('interim_quality'),0)
             points=annual+interim
         x['financial_flag']=flag;x['financial_points']=points
-        x['composite_score']=round(points+min(100,max(0,float(x.get('opportunity_score',0))))*.70,2) if points is not None else None
-        x['top5_eligible']=bool(flag in ('QUALIFIED','QUALIFIED_WITH_SLOWDOWN_FLAG') and x.get('geometry_validated') and x.get('entry_status') in ('ENTRY_READY','NEAR_ENTRY'))
-    candidates.sort(key=lambda x:(not x['top5_eligible'],-(x['composite_score'] if x['composite_score'] is not None else -1),-float(x.get('opportunity_score',0)),x['code']))
-    approved_top5={x['code'] for x in [v for v in candidates if v['top5_eligible']][:5]}
+        x['composite_score']=round(float(x.get('opportunity_score',x.get('score',0)) or 0),2)
+        x['top5_eligible']=bool(x['code'] in selected_set and x.get('geometry_validated') and x.get('entry_status') in ('ENTRY_READY','NEAR_ENTRY'))
+    candidates.sort(key=lambda x:(selected_codes.index(x['code']) if x['code'] in selected_set else 100,
+                                  -float(x.get('opportunity_score',0)),x['code']))
+    approved_top5=selected_set
+    if sum(x['top5_eligible'] for x in candidates)!=len(selected_codes):
+        raise ValueError('SELECTION_GEOMETRY_MISMATCH')
     regular='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
     bold='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
     def font(n,b=False):return ImageFont.truetype(bold if b else regular,n)
@@ -83,7 +92,7 @@ def main():
         name=f"{rank:02d}_{x['code']}_all_candidate.png"
         im.save(out/name,optimize=True)
         rows.append({'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
-          'score_type':'FINANCIAL_30_TECHNICAL_70_RISK_FIRST','status':state,'financial_selected':top5,'financial_evidence_scored':is_fin,
+          'score_type':'CHARTIST_TECHNICAL_OPPORTUNITY_ONLY','status':state,'financial_selected':top5,'financial_evidence_scored':is_fin,
           'financial_flag':x['financial_flag'],'financial_points':x['financial_points'],
           'financial_eligibility':'PASS' if x['top5_eligible'] else 'WATCH_ONLY',
           'financial_exclusion_reasons':(covered.get(x['code']) or {}).get('exclusion_reasons',[]),
@@ -91,8 +100,8 @@ def main():
           'entry_low':x.get('entry_low') if valid else None,'entry_high':x.get('entry_high') if valid else None,
           'stop_ref':x.get('stop_ref') if valid else None})
     result={'schema':'C3_ALL_CANDIDATES_V2','asof':src['asof'],'candidate_count':len(rows),
-      'score_disclaimer':'30-point evidence-based financial quality + 70-point normalized technical opportunity; WATCH scores never override financial eligibility gate',
-      'candidates':rows,'trade_approved':False,
+      'score_disclaimer':'Technical opportunity score only; financial evidence is basic risk exclusion, not ranking; no trade approval',
+      'candidates':rows,'selected_codes':selected_codes,'trade_approved':False,
       'financial_diagnostics':{'evidence_count':sum(x['financial_points'] is not None for x in rows),
        'eligible_top5_count':sum(x['top5'] for x in rows),
        'failed_gate_count':sum(x['financial_flag']=='REVIEW_FAILED_FINANCIAL_GATE' for x in rows),
