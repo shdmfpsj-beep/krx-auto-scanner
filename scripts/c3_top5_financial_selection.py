@@ -13,6 +13,8 @@ def classify(item):
     """Unknown evidence is never treated as proof of financial safety."""
     quality = item.get("financial_quality")
     reasons = set(item.get("exclusion_reasons") or [])
+    if not item.get("financial_screen_pass") or reasons:
+        return "REVIEW_FAILED_FINANCIAL_GATE"
     if quality == "ANNUAL_RISK_OR_SLOWDOWN":
         return "REVIEW_ANNUAL_SLOWDOWN"
     if quality not in ANNUAL_OK or item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
@@ -28,10 +30,11 @@ def classify(item):
 def select(geometry, financial):
     asof = geometry.get("asof")
     candidates = geometry.get("candidates", [])
-    requested = {c.get("code") for c in candidates if isinstance(c, dict)
-                 and c.get("status") in ("ENTRY_READY", "NEAR_ENTRY")
-                 and isinstance(c.get("risk_pct"), (int, float))
-                 and 0 < c["risk_pct"] <= 5}
+    requested = {c.get("code") for c in candidates[:10] if isinstance(c, dict)}
+    actionable = {c.get("code") for c in candidates if isinstance(c, dict)
+                  and c.get("status") in ("ENTRY_READY", "NEAR_ENTRY")
+                  and isinstance(c.get("risk_pct"), (int, float))
+                  and 0 < c["risk_pct"] <= 5}
     evidence = financial.get("researched", []) + financial.get("excluded", [])
     covered = [x.get("ticker") for x in evidence if isinstance(x, dict)]
     coverage_ok = len(covered) == len(set(covered)) and set(covered) == requested
@@ -39,7 +42,7 @@ def select(geometry, financial):
              and coverage_ok)
     classifications = {x["ticker"]: classify(x) for x in evidence} if valid else {}
     qualified = [c for c in candidates if isinstance(c, dict)
-                 and c.get("code") in requested
+                 and c.get("code") in actionable
                  and classifications.get(c.get("code")) in ("QUALIFIED", "QUALIFIED_WITH_SLOWDOWN_FLAG")]
     quality_by_ticker = {x["ticker"]: x.get("financial_quality") for x in evidence} if valid else {}
     qualified.sort(key=lambda c: (
