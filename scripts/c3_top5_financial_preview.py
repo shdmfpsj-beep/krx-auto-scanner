@@ -37,6 +37,7 @@ def render(pool,selection,out):
         d.text((50,235),"As-of "+str(pool["asof"])+" | "+c["entry_status"],font=font(30),fill=(80,90,95))
         d.text((50,295),"Not PIT certified / No trade authorization / No Telegram",font=font(25),fill=(150,70,60))
         closes=[b["close"] for b in bars[-60:]]
+        prior_close=bars[-61]["close"] if len(bars)>=61 else None
         targets=[(key,c.get(key)) for key in ("r1_ref","r2_ref") if isinstance(c.get(key),(int,float)) and math.isfinite(c.get(key)) and c.get(key)>hi]
         values=closes+[lo,hi,stop]+[v for _,v in targets]
         low=min(values)*.95;high=max(values)*1.05
@@ -49,6 +50,9 @@ def render(pool,selection,out):
         for i in range(1,60):
             d.line((px(i-1),py(closes[i-1]),px(i),py(closes[i])),fill=(46,112,167),width=4)
         for n,color in ((5,(53,125,88)),(20,(187,130,52)),(60,(121,93,157))):
+            if n==60 and prior_close is None:
+                d.ellipse((px(59)-5,py(sum(closes)/60)-5,px(59)+5,py(sum(closes)/60)+5),fill=color)
+                continue
             for i in range(n-1,60):
                 if i==n-1: continue
                 a=sum(closes[i-n:i])/n
