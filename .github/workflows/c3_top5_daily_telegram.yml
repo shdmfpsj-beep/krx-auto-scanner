@@ -516,6 +516,7 @@ jobs:
           sparse-checkout: |
             scripts/c3_top5_dart_bridge.py
             scripts/c3_top5_eligibility_audit.py
+            scripts/c3_top5_financial_selection.py
             scripts/dart_financial_screen.py
             scripts/dart_interim_periods.py
           sparse-checkout-cone-mode: false
@@ -545,6 +546,35 @@ jobs:
               --out output/c3_top5/eligibility_audit.json
           else
             echo 'ELIGIBILITY_AUDIT_SKIPPED_MISSING_EVIDENCE'
+          fi
+      - name: Research finance-first selection across technical pool
+        if: always()
+        continue-on-error: true
+        env:
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          if [ -f output/c3_top5/entry_geometry_audit.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('output/c3_top5')
+          geometry=json.loads((root/'entry_geometry_audit.json').read_text())
+          eligible=[{'code':c['code'],'name':c.get('name','')}
+                    for c in geometry.get('candidates',[])
+                    if c.get('status') in ('ENTRY_READY','NEAR_ENTRY')
+                    and c.get('risk_pct') is not None and 0<c['risk_pct']<=5]
+          (root/'financial_pool_input.json').write_text(json.dumps({
+              'asof':geometry['asof'],'candidates':eligible},ensure_ascii=False))
+          PY
+            PYTHONPATH=scripts python scripts/c3_top5_dart_bridge.py \
+              --receipt output/c3_top5/financial_pool_input.json \
+              --out output/c3_top5/financial_pool_gate.json
+            PYTHONPATH=scripts python scripts/c3_top5_financial_selection.py \
+              --geometry output/c3_top5/entry_geometry_audit.json \
+              --financial output/c3_top5/financial_pool_gate.json \
+              --out output/c3_top5/financial_selection_research.json
+          else
+            echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
       - name: Upload individual classic images and audit receipt
         if: always()
