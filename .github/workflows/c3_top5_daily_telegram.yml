@@ -684,7 +684,7 @@ jobs:
             raise ValueError('INVALID_ALL_CANDIDATE_SELECTION')
           validated=[]
           for i,item in enumerate(selected,1):
-            if item.get('rank')!=i or item.get('top5')!=(i<=5):
+            if item.get('rank')!=i or (item.get('top5') and (i>5 or item.get('composite_score') is None or item.get('status') not in ('ENTRY_READY','NEAR_ENTRY'))):
               raise ValueError('INVALID_RANKING')
             filename=item['image']
             if Path(filename).name!=filename:
