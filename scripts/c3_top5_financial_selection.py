@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""TOP5 conditional trading signals: financial quality first, entry timing second."""
+"""TOP5 chartist-first technical selection with basic financial risk exclusions."""
 import argparse
 import json
 from pathlib import Path
 
 ACCEPTED = {"FINANCIAL_RESEARCH_GATE_PASSED",
             "PARTIAL_OR_FAILED_FINANCIAL_GATE",
-            "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED"}
+            "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED",
+            "HISTORICAL_DISCLOSURE_DATE_FILTERED_RESEARCH_ONLY"}
 ANNUAL_OK = {"ANNUAL_GROWTH_AND_MARGIN_OBSERVED", "ANNUAL_POSITIVE_MIXED"}
 
 def classify(item):
@@ -19,15 +20,7 @@ def classify(item):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
     if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_filing_date"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
-    if item.get("financial_quality") not in ("ANNUAL_GROWTH_AND_MARGIN_OBSERVED",
-                                             "ANNUAL_POSITIVE_MIXED", "ANNUAL_RISK_OR_SLOWDOWN"):
-        return "REVIEW_UNRECOGNIZED_ANNUAL_QUALITY"
-    if item.get("interim_quality") not in ("INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED",
-                                           "INTERIM_MIXED", "INTERIM_PROFIT_OR_SALES_WEAKENING"):
-        return "REVIEW_UNRECOGNIZED_INTERIM_QUALITY"
-    if item.get("recent_slowdown_flag") or item.get("financial_quality")=="ANNUAL_RISK_OR_SLOWDOWN":
-        return "QUALIFIED_WITH_SLOWDOWN_FLAG"
-    return "QUALIFIED"
+    return "QUALIFIED_BASIC_FINANCIAL_RISK"
 
 def select(geometry, financial):
     asof = geometry.get("asof")
@@ -45,12 +38,12 @@ def select(geometry, financial):
     classifications = {x["ticker"]: classify(x) for x in evidence} if valid else {}
     qualified = [c for c in candidates if isinstance(c, dict)
                  and c.get("code") in actionable
-                 and classifications.get(c.get("code")) in ("QUALIFIED", "QUALIFIED_WITH_SLOWDOWN_FLAG")]
+                 and classifications.get(c.get("code")) in ("QUALIFIED_BASIC_FINANCIAL_RISK",)]
     quality_by_ticker = {x["ticker"]: x.get("financial_quality") for x in evidence} if valid else {}
+    # Chartist priority: ENTRY_READY, technical opportunity and strength;
+    # financial quality never reorders otherwise eligible charts.
     qualified.sort(key=lambda c: (
         0 if c.get("status") == "ENTRY_READY" else 1,
-        0 if classifications.get(c["code"]) == "QUALIFIED" else 1,
-        0 if quality_by_ticker.get(c["code"]) == "ANNUAL_GROWTH_AND_MARGIN_OBSERVED" else 1,
         -float(c.get("opportunity_score") or 0),
         -float(c.get("score") or 0), c["code"]))
     selected = qualified[:5]
@@ -79,6 +72,8 @@ def select(geometry, financial):
             "slowdown_flag_count": sum(v == "QUALIFIED_WITH_SLOWDOWN_FLAG" for v in classifications.values()),
             "watch_count": 0,
             "financial_pass_count": len(qualified),
+            "selection_priority": "CHARTIST_FIRST_BASIC_FINANCIAL_RISK_ONLY",
+            "historical_pit_certified": bool(financial.get("point_in_time_snapshot_verified")),
             "selected_count": len(selected)}
 
 def main():
