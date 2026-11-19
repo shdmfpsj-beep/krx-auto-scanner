@@ -32,12 +32,13 @@ def bridge(receipt, key, today=None, collector=collect):
         return result
     # Next-day reports may examine yesterday's signal, but today's OpenDART
     # snapshot must never be represented as yesterday's PIT data.
-    if day != today and not (day == today - timedelta(days=1) and day.weekday() < 5):
-        result["status"] = "HISTORICAL_REPLAY_NO_RETROACTIVE_FINANCIALS"
+    if day > today:
+        result["status"] = "FUTURE_ASOF_NOT_ALLOWED"
         return result
     result["financial_observed_on"] = today.isoformat()
     result["signal_date"] = asof
     result["point_in_time_snapshot_verified"] = (day == today)
+    result["historical_disclosure_date_filter_only"] = (day < today)
     if not isinstance(candidates, list) or not candidates:
         result["status"] = "NO_CANDIDATES"
         return result
@@ -120,12 +121,11 @@ def bridge(receipt, key, today=None, collector=collect):
                 "interim_filing_date": interim.get("filing", {}).get("receipt_date"),
                 "exclusion_reasons": reasons if not pass_ else []}
         (result["researched"] if pass_ else result["excluded"]).append(item)
-    if day != today:
-        result["status"] = "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED"
-        result["financial_verified"] = False
-        return result
     if len(result["researched"]) + len(result["excluded"]) != len(stocks):
         result["status"] = "INCOMPLETE_FINANCIAL_COVERAGE"
+    elif day < today:
+        result["status"] = "HISTORICAL_DISCLOSURE_DATE_FILTERED_RESEARCH_ONLY"
+        result["financial_verified"] = False
     elif result["excluded"]:
         result["status"] = "PARTIAL_OR_FAILED_FINANCIAL_GATE"
     else:
