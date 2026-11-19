@@ -16,6 +16,8 @@ class EligibilityTests(unittest.TestCase):
         r={**R,"source_integrity":{"regular_session_price_certified":True,"corporate_actions_certified":True}}
         x=audit(r,F)
         self.assertEqual(x["eligible_count"],0)
+        self.assertEqual(x["financial_qualified_codes"],["005930"])
+        self.assertEqual(x["financial_qualified_count"],1)
         self.assertEqual(x["candidates"][0]["status"],"WATCH_UNVERIFIED")
         self.assertEqual(x["candidates"][1]["status"],"WATCH_UNVERIFIED")
         self.assertFalse(x["trade_approved"])
