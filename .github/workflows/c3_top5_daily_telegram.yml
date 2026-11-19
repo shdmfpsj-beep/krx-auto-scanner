@@ -714,6 +714,16 @@ jobs:
                 item.get('composite_score') is None or
                 item.get('status') not in ('ENTRY_READY','NEAR_ENTRY')):
               raise ValueError('INVALID_TOP5_RANKING')
+            low,high,stop,close=(item.get(k) for k in ('entry_low','entry_high','stop_ref','asof_close'))
+            risk=item.get('risk_pct')
+            if not all(isinstance(v,(int,float)) and v>0 for v in (low,high,stop,close,risk)):
+              raise ValueError('INVALID_ENTRY_STOP_RISK_'+item['code'])
+            if not (stop<low<=high<close and 0<risk<=5):
+              raise ValueError('UNSAFE_ENTRY_STOP_GEOMETRY_'+item['code'])
+            if abs((high-stop)/high*100-risk)>1.5:
+              raise ValueError('RISK_PERCENT_MISMATCH_'+item['code'])
+            if item.get('name')!=manifest['selected'][i-1].get('name'):
+              raise ValueError('SELECTED_NAME_MISMATCH_'+item['code'])
             filename=item['image']
             if Path(filename).name!=filename:
               raise ValueError('INVALID_IMAGE_PATH')
@@ -756,8 +766,9 @@ jobs:
               head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
               return head.encode()+value+b'\r\n'
             caption=('C3 TOP5 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
-              ' | 종합점수 '+str(item['composite_score'])+' | '+item['status']+
+              ' | 기술점수 '+str(item['composite_score'])+' | '+item['status']+
               (' | TOP5' if item['top5'] else '')+
+              '\\n매수범위 '+str(item['entry_low'])+'~'+str(item['entry_high'])+'원 / 구조손절 '+str(item['stop_ref'])+'원'+
               '\\n조건부 관찰 후보 / 진입범위 미도달 PASS / 사용자 직접 매매')
             body=part('chat_id',chat.encode())+part('caption',caption.encode())+part('photo',p.read_bytes(),p.name,'image/png')+('--'+boundary+'--\r\n').encode()
             request=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',

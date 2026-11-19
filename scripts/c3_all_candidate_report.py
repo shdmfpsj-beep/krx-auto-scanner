@@ -21,6 +21,7 @@ def main():
     if fin.get('asof')!=src.get('asof') or len(selected_codes)>5 or len(set(selected_codes))!=len(selected_codes):
         selected_codes=[]
     selected_set=set(selected_codes)
+    selected_names={x['code']:x.get('name') for x in fin.get('selected',[]) if isinstance(x,dict) and x.get('code')}
     if not selected_set.issubset({x['code'] for x in candidates}):
         raise ValueError('SELECTION_NOT_IN_CHART_POOL')
     for x in candidates:
@@ -41,6 +42,8 @@ def main():
     candidates.sort(key=lambda x:(selected_codes.index(x['code']) if x['code'] in selected_set else 100,
                                   -float(x.get('opportunity_score',0)),x['code']))
     approved_top5=selected_set
+    if any(x['code'] in selected_set and x.get('name')!=selected_names.get(x['code']) for x in candidates):
+        raise ValueError('SELECTION_NAME_MISMATCH')
     if sum(x['top5_eligible'] for x in candidates)!=len(selected_codes):
         raise ValueError('SELECTION_GEOMETRY_MISMATCH')
     regular='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
@@ -98,7 +101,11 @@ def main():
           'financial_exclusion_reasons':(covered.get(x['code']) or {}).get('exclusion_reasons',[]),
           'composite_score':composite,'top5':top5,'geometry_validated':valid,'image':name,
           'entry_low':x.get('entry_low') if valid else None,'entry_high':x.get('entry_high') if valid else None,
-          'stop_ref':x.get('stop_ref') if valid else None})
+          'stop_ref':x.get('stop_ref') if valid else None,
+          'risk_pct':x.get('risk_pct') if valid else None,
+          'r1_ref':x.get('r1_ref') if valid else None,
+          'r2_ref':x.get('r2_ref') if valid else None,
+          'asof_close':prices[-1]})
     result={'schema':'C3_ALL_CANDIDATES_V2','asof':src['asof'],'candidate_count':len(rows),
       'score_disclaimer':'Technical opportunity score only; financial evidence is basic risk exclusion, not ranking; no trade approval',
       'candidates':rows,'selected_codes':selected_codes,'trade_approved':False,
