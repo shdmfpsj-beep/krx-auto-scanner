@@ -61,6 +61,9 @@ def bridge(receipt, key, today=None, collector=collect):
         stocks.append({"ticker": ticker, "name": str(c.get("name", "")),
                        "sector_id": "UNKNOWN", "research_proxy_index": ""})
     research = collector(today, stocks, key, today=today)
+    if not isinstance(research, dict):
+        result["status"] = "INVALID_DART_RESPONSE"
+        return result
     result["source_status"] = research.get("status", "UNKNOWN")
     returned = set()
     for r in research.get("researched", []):
