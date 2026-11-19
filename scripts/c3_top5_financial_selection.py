@@ -8,12 +8,23 @@ def select(geometry, financial):
     asof=geometry.get("asof")
     candidates=geometry.get("candidates",[])
     passed=set()
-    # A partial collector response must never silently shrink the ranked universe.
-    financial_coverage_complete = (financial.get("financial_verified") is True or
-        financial.get("status") == "PARTIAL_OR_FAILED_FINANCIAL_GATE")
-    if financial_coverage_complete and financial.get("asof")==asof and financial.get("status") in (
-        "FINANCIAL_RESEARCH_GATE_PASSED","PARTIAL_OR_FAILED_FINANCIAL_GATE"):
-        passed={x.get("ticker") for x in financial.get("researched",[])
+    status=financial.get("status")
+    # Next-day OpenDART observations may inform a research shortlist but
+    # must never be mistaken for a historical point-in-time certification.
+    accepted=("FINANCIAL_RESEARCH_GATE_PASSED",
+              "PARTIAL_OR_FAILED_FINANCIAL_GATE",
+              "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED")
+    valid_date=financial.get("asof")==asof
+    researched=financial.get("researched",[])
+    excluded=financial.get("excluded",[])
+    requested={c.get("code") for c in candidates if isinstance(c,dict)
+               and c.get("status") in ("ENTRY_READY","NEAR_ENTRY")
+               and isinstance(c.get("risk_pct"),(int,float))
+               and 0<c["risk_pct"]<=5}
+    covered=[x.get("ticker") for x in researched+excluded if isinstance(x,dict)]
+    coverage_ok=(len(covered)==len(set(covered)) and set(covered)==requested)
+    if valid_date and status in accepted and coverage_ok:
+        passed={x.get("ticker") for x in researched
                 if x.get("financial_screen_pass") is True}
     ready=[];near=[];watch=[]
     for c in candidates if isinstance(candidates,list) else []:
@@ -31,7 +42,9 @@ def select(geometry, financial):
     near.sort(key=lambda c:(-float(c.get("opportunity_score") or 0),-float(c.get("score") or 0),c["code"]))
     selected=(ready+near)[:5]
     return {"schema":"C3_TOP5_FINANCIAL_SELECTION_RESEARCH_V1","asof":asof,
-            "status":"RESEARCH_ONLY","decision":"CASH","trade_approved":False,
+            "status":"RESEARCH_ONLY","financial_evidence_status":status,
+            "coverage_complete":coverage_ok,"point_in_time_certified":False,
+            "decision":"CASH","trade_approved":False,
             "selected":[{"code":c["code"],"name":c.get("name"),
                          "technical_status":c.get("status")} for c in selected],
             "watch_count":len(watch),"financial_pass_count":len(passed),
