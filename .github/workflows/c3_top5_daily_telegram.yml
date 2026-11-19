@@ -467,8 +467,8 @@ jobs:
             # Persisted date reservation is enforced for scheduled dispatch; manual runs remain preview-only.
             if not images:
               receipt['status']='CASH_NO_CANDIDATES_NO_SEND'
-            elif os.environ.get('GITHUB_EVENT_NAME')!='schedule':
-              receipt['status']='PREVIEW_ONLY_MANUAL_RUN'
+            elif os.environ.get('GITHUB_EVENT_NAME')!='schedule' or os.environ.get('GITHUB_REF_NAME')!='main':
+              receipt['status']='PREVIEW_ONLY_RESEARCH_BRANCH_OR_MANUAL'
             else:
               token=os.environ.get('TELEGRAM_BOT_TOKEN','');chat=os.environ.get('TELEGRAM_CHAT_ID','')
               if not token or not chat:raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
