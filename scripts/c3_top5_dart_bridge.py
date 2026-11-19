@@ -25,31 +25,56 @@ def bridge(receipt, key, today=None, collector=collect):
     if not re.fullmatch(r"\d{8}", asof):
         result["status"] = "INVALID_ASOF"
         return result
-    day = date.fromisoformat(f"{asof[:4]}-{asof[4:6]}-{asof[6:]}")
+    try:
+        day = date.fromisoformat(f"{asof[:4]}-{asof[4:6]}-{asof[6:]}")
+    except ValueError:
+        result["status"] = "INVALID_ASOF"
+        return result
     if day != today:
         result["status"] = "HISTORICAL_REPLAY_NO_RETROACTIVE_FINANCIALS"
         return result
     if not isinstance(candidates, list) or not candidates:
         result["status"] = "NO_CANDIDATES"
         return result
+    if not key:
+        result["status"] = "MISSING_DART_KEY"
+        return result
     stocks = []
+    seen = set()
     for c in candidates:
+        if not isinstance(c, dict):
+            result["status"] = "INVALID_CANDIDATE"
+            return result
         ticker = str(c.get("code", ""))
         if not re.fullmatch(r"\d{6}", ticker):
             result["status"] = "INVALID_TICKER"
             return result
+        if ticker in seen:
+            result["status"] = "DUPLICATE_TICKER"
+            return result
+        seen.add(ticker)
         stocks.append({"ticker": ticker, "name": str(c.get("name", "")),
                        "sector_id": "UNKNOWN", "research_proxy_index": ""})
     research = collector(day, stocks, key, today=today)
     result["source_status"] = research.get("status", "UNKNOWN")
+    returned = set()
     for r in research.get("researched", []):
+        if r.get("ticker") not in seen or r.get("ticker") in returned:
+            result["status"] = "INVALID_FINANCIAL_COVERAGE"
+            result["researched"] = []
+            result["excluded"] = []
+            return result
+        returned.add(r["ticker"])
         annual = r.get("status") == "DATED_ANNUAL_RESEARCH_ONLY"
         interim = r.get("interim_research") or {}
         pass_ = bool(annual and r.get("financial_screen_pass") and
                      r.get("annual_plus_interim_growth_pass") and
                      not r.get("recent_financial_weakening_veto") and
                      interim.get("status") == "DATED_INTERIM_YTD_RESEARCH_ONLY" and
-                     str(r.get("receipt_date", "")) <= day.isoformat())
+                     bool(r.get("receipt_date")) and
+                     str(r.get("receipt_date")) <= day.isoformat() and
+                     bool(interim.get("filing", {}).get("receipt_date")) and
+                     str(interim["filing"]["receipt_date"]) <= day.isoformat())
         item = {"ticker": r["ticker"], "name": r.get("name"),
                 "annual_status": r.get("status"),
                 "interim_status": interim.get("status"),
