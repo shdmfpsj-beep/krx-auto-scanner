@@ -669,8 +669,7 @@ jobs:
           print('C3_FINANCE_FIRST_DELIVERY',json.dumps({'status':result['status'],
             'selected_count':len(result['selected']),'telegram_photos_sent':0},ensure_ascii=False))
           PY
-      - name: Send complete ranked candidate charts on scheduled main only
-        if: ${{ github.event_name == 'schedule' && github.ref_name == 'main' }}
+      - name: Validate delivery on every run; send only on scheduled main
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -719,7 +718,9 @@ jobs:
             risk=item.get('risk_pct')
             if not all(isinstance(v,(int,float)) and v>0 for v in (low,high,stop,close,risk)):
               raise ValueError('INVALID_ENTRY_STOP_RISK_'+item['code'])
-            if not (stop<low<=high<close and 0<risk<=5):
+            if not (stop<low<=high and 0<risk<=5 and
+                    ((item.get('status')=='NEAR_ENTRY' and close>high) or
+                     (item.get('status')=='ENTRY_READY' and low<=close<=high))):
               raise ValueError('UNSAFE_ENTRY_STOP_GEOMETRY_'+item['code'])
             if abs((high-stop)/high*100-risk)>1.5:
               raise ValueError('RISK_PERCENT_MISMATCH_'+item['code'])
@@ -736,6 +737,10 @@ jobs:
               if check.format!='PNG' or check.size!=(1400,1710):
                 raise ValueError('INVALID_CANDIDATE_IMAGE')
             validated.append(p)
+          print('C3_FINAL_DELIVERY_PREFLIGHT_PASSED',report['asof'],len(validated))
+          if os.environ.get('GITHUB_EVENT_NAME')!='schedule' or os.environ.get('GITHUB_REF_NAME')!='main':
+            print('C3_FINAL_DELIVERY_DRY_RUN_NO_TELEGRAM')
+            raise SystemExit(0)
           token=os.environ.get('TELEGRAM_BOT_TOKEN','')
           chat=os.environ.get('TELEGRAM_CHAT_ID','')
           if not token or not chat:
