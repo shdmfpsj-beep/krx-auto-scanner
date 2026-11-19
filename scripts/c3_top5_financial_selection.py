@@ -1,37 +1,35 @@
 #!/usr/bin/env python3
-"""TOP5 conditional trading signals: financial quality first, entry timing second."""
+"""TOP5 chartist-first technical selection with basic financial risk exclusions."""
 import argparse
 import json
 from pathlib import Path
 
 ACCEPTED = {"FINANCIAL_RESEARCH_GATE_PASSED",
             "PARTIAL_OR_FAILED_FINANCIAL_GATE",
-            "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED"}
+            "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED",
+            "HISTORICAL_DISCLOSURE_DATE_FILTERED_RESEARCH_ONLY"}
 ANNUAL_OK = {"ANNUAL_GROWTH_AND_MARGIN_OBSERVED", "ANNUAL_POSITIVE_MIXED"}
 
 def classify(item):
-    """Unknown evidence is never treated as proof of financial safety."""
-    quality = item.get("financial_quality")
-    reasons = set(item.get("exclusion_reasons") or [])
-    if quality == "ANNUAL_RISK_OR_SLOWDOWN":
-        return "REVIEW_ANNUAL_SLOWDOWN"
-    if quality not in ANNUAL_OK or item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
+    """Financial risk is the hard gate; earnings growth/slowdown is a score."""
+    if not isinstance(item, dict):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
-    if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_quality"):
+    if not item.get("financial_risk_gate_pass") or item.get("exclusion_reasons"):
+        return "REVIEW_FAILED_FINANCIAL_GATE"
+    if item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
-    if item.get("interim_quality") == "INTERIM_PROFIT_OR_SALES_WEAKENING":
-        return "QUALIFIED_WITH_SLOWDOWN_FLAG"
-    if item.get("interim_quality") not in ("INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED", "INTERIM_MIXED"):
-        return "REVIEW_UNRECOGNIZED_INTERIM_QUALITY"
-    return "QUALIFIED"
+    if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_filing_date"):
+        return "REVIEW_INSUFFICIENT_EVIDENCE"
+    return "QUALIFIED_BASIC_FINANCIAL_RISK"
 
 def select(geometry, financial):
     asof = geometry.get("asof")
     candidates = geometry.get("candidates", [])
-    requested = {c.get("code") for c in candidates if isinstance(c, dict)
-                 and c.get("status") in ("ENTRY_READY", "NEAR_ENTRY")
-                 and isinstance(c.get("risk_pct"), (int, float))
-                 and 0 < c["risk_pct"] <= 5}
+    requested = {c.get("code") for c in candidates[:10] if isinstance(c, dict)}
+    actionable = {c.get("code") for c in candidates if isinstance(c, dict)
+                  and c.get("status") in ("ENTRY_READY", "NEAR_ENTRY")
+                  and isinstance(c.get("risk_pct"), (int, float))
+                  and 0 < c["risk_pct"] <= 5}
     evidence = financial.get("researched", []) + financial.get("excluded", [])
     covered = [x.get("ticker") for x in evidence if isinstance(x, dict)]
     coverage_ok = len(covered) == len(set(covered)) and set(covered) == requested
@@ -39,13 +37,13 @@ def select(geometry, financial):
              and coverage_ok)
     classifications = {x["ticker"]: classify(x) for x in evidence} if valid else {}
     qualified = [c for c in candidates if isinstance(c, dict)
-                 and c.get("code") in requested
-                 and classifications.get(c.get("code")) in ("QUALIFIED", "QUALIFIED_WITH_SLOWDOWN_FLAG")]
+                 and c.get("code") in actionable
+                 and classifications.get(c.get("code")) in ("QUALIFIED_BASIC_FINANCIAL_RISK",)]
     quality_by_ticker = {x["ticker"]: x.get("financial_quality") for x in evidence} if valid else {}
+    # Chartist priority: ENTRY_READY, technical opportunity and strength;
+    # financial quality never reorders otherwise eligible charts.
     qualified.sort(key=lambda c: (
         0 if c.get("status") == "ENTRY_READY" else 1,
-        0 if classifications.get(c["code"]) == "QUALIFIED" else 1,
-        0 if quality_by_ticker.get(c["code"]) == "ANNUAL_GROWTH_AND_MARGIN_OBSERVED" else 1,
         -float(c.get("opportunity_score") or 0),
         -float(c.get("score") or 0), c["code"]))
     selected = qualified[:5]
@@ -53,13 +51,15 @@ def select(geometry, financial):
                 "technical_status": c.get("status"),
                 "financial_flag": classifications.get(c["code"])}
                for c in selected]
+    evidence_pending = financial.get("status") in ("HISTORICAL_REPLAY_NO_RETROACTIVE_FINANCIALS", "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED", "MISSING_DART_KEY", "INCOMPLETE_FINANCIAL_COVERAGE", "INVALID_ASOF")
     return {"schema": "C3_TOP5_FINANCE_FIRST_CONDITIONAL_SIGNAL_V3",
-            "asof": asof, "status": "CONDITIONAL_SIGNALS" if valid else "CASH_EVIDENCE_INVALID",
+            "asof": asof, "status": "CONDITIONAL_SIGNALS" if valid else ("CASH_FINANCIAL_EVIDENCE_PENDING" if evidence_pending else "CASH_EVIDENCE_INVALID"),
             "financial_evidence_status": financial.get("status"),
             "coverage_complete": coverage_ok,
             "point_in_time_certification_required": False,
             "independent_price_certification_required": False,
-            "decision": "BUY_CONSIDER" if any(x["signal"] == "BUY_CONSIDER" for x in signals) else "CASH",
+            "data_quality_validation_required": True,
+            "decision": ("ENTRY_READY" if any(x["signal"] == "BUY_CONSIDER" for x in signals) else ("WAIT_FOR_ENTRY" if selected else "CASH")),
             "trade_approved": False, "user_executes_trades": True,
             "signals": signals,
             "selected": [{"code": c["code"], "name": c.get("name"),
@@ -73,6 +73,8 @@ def select(geometry, financial):
             "slowdown_flag_count": sum(v == "QUALIFIED_WITH_SLOWDOWN_FLAG" for v in classifications.values()),
             "watch_count": 0,
             "financial_pass_count": len(qualified),
+            "selection_priority": "CHARTIST_FIRST_BASIC_FINANCIAL_RISK_ONLY",
+            "historical_pit_certified": bool(financial.get("point_in_time_snapshot_verified")),
             "selected_count": len(selected)}
 
 def main():
