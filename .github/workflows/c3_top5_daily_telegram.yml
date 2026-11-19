@@ -515,6 +515,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/c3_top5_dart_bridge.py
+            scripts/c3_top5_eligibility_audit.py
             scripts/dart_financial_screen.py
             scripts/dart_interim_periods.py
           sparse-checkout-cone-mode: false
@@ -532,6 +533,18 @@ jobs:
               --out output/c3_top5/financial_research_gate.json
           else
             echo 'FINANCIAL_RESEARCH_SKIPPED_NO_RECEIPT'
+          fi
+      - name: Record non-authorizing TOP5 eligibility audit
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -f output/c3_top5/receipt.json ] && [ -f output/c3_top5/financial_research_gate.json ]; then
+            PYTHONPATH=scripts python scripts/c3_top5_eligibility_audit.py \
+              --receipt output/c3_top5/receipt.json \
+              --financial output/c3_top5/financial_research_gate.json \
+              --out output/c3_top5/eligibility_audit.json
+          else
+            echo 'ELIGIBILITY_AUDIT_SKIPPED_MISSING_EVIDENCE'
           fi
       - name: Upload individual classic images and audit receipt
         if: always()
