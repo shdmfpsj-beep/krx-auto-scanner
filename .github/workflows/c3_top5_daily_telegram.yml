@@ -583,7 +583,7 @@ jobs:
           else
             echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
-      - name: Build finance-first delivery manifest (no Telegram until certified)
+      - name: Build finance-first conditional signal delivery manifest
         if: always()
         run: |
           python - <<'PY'
@@ -600,6 +600,8 @@ jobs:
             images=preview.get('images',[])
             if not (selection.get('asof')==preview.get('asof')==receipt.get('asof')):
               raise ValueError('ASOF_MISMATCH')
+            if selection.get('status')!='CONDITIONAL_SIGNALS' or not selection.get('coverage_complete'):
+              raise ValueError('FINANCIAL_SELECTION_NOT_VALID')
             if len(selected)>5 or len(selected)!=len(images):
               raise ValueError('SELECTION_IMAGE_COUNT_MISMATCH')
             if len({x['code'] for x in selected})!=len(selected):
@@ -613,6 +615,14 @@ jobs:
               p=root/'financial_preview'/filename
               if not p.is_file() or p.stat().st_size<10000:
                 raise ValueError('IMAGE_MISSING')
+            signals=selection.get('signals',[])
+            if len(signals)!=len(selected):
+              raise ValueError('SIGNAL_COUNT_MISMATCH')
+            for item,signal in zip(selected,signals):
+              if item['code']!=signal.get('code'):
+                raise ValueError('SIGNAL_SYMBOL_MISMATCH')
+              if signal.get('signal')!=('BUY_CONSIDER' if item.get('technical_status')=='ENTRY_READY' else 'WAIT_FOR_ENTRY'):
+                raise ValueError('SIGNAL_STATUS_MISMATCH')
             result.update(asof=selection['asof'],selected=selected,images=images,
                           financial_coverage_complete=selection.get('coverage_complete',False),
                           decision=selection.get('decision','CASH'),
@@ -628,7 +638,7 @@ jobs:
           print('C3_FINANCE_FIRST_DELIVERY',json.dumps({'status':result['status'],
             'selected_count':len(result['selected']),'telegram_photos_sent':0},ensure_ascii=False))
           PY
-      - name: Send finance-first research charts on scheduled main only
+      - name: Send finance-first conditional signals on scheduled main only
         if: ${{ github.event_name == 'schedule' && github.ref_name == 'main' }}
         env:
           GH_TOKEN: ${{ github.token }}
