@@ -534,6 +534,7 @@ jobs:
             scripts/c3_top5_dart_bridge.py
             scripts/c3_top5_eligibility_audit.py
             scripts/c3_top5_financial_selection.py
+            scripts/c3_top5_financial_preview.py
             scripts/dart_financial_screen.py
             scripts/dart_interim_periods.py
           sparse-checkout-cone-mode: false
@@ -590,6 +591,12 @@ jobs:
               --geometry output/c3_top5/entry_geometry_audit.json \
               --financial output/c3_top5/financial_pool_gate.json \
               --out output/c3_top5/financial_selection_research.json
+            if [ -f output/c3_top5/qualified_chart_pool.json ]; then
+              PYTHONPATH=scripts python scripts/c3_top5_financial_preview.py \
+                --pool output/c3_top5/qualified_chart_pool.json \
+                --selection output/c3_top5/financial_selection_research.json \
+                --out output/c3_top5/financial_preview
+            fi
           else
             echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
