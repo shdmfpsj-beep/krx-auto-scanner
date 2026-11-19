@@ -9,9 +9,13 @@ def audit(receipt, financial):
     rows = financial.get("researched", [])
     valid = financial.get("status") in ("FINANCIAL_RESEARCH_GATE_PASSED", "PARTIAL_OR_FAILED_FINANCIAL_GATE")
     verified = {r.get("ticker") for r in rows if r.get("financial_screen_pass") is True}
+    if financial.get("asof") != receipt.get("asof"):
+        verified.clear()
     integrity = receipt.get("source_integrity") or {}
-    price_ok = integrity.get("regular_session_price_certified") is True
-    actions_ok = integrity.get("corporate_actions_certified") is True
+    # Legacy receipt booleans are not independent proof of official provenance.
+    # A separate authenticated certification process is required before promotion.
+    price_ok = False
+    actions_ok = False
     result = {"schema": "C3_TOP5_ELIGIBILITY_AUDIT_V1", "decision": "CASH",
               "trade_approved": False, "price_certified": price_ok,
               "corporate_actions_certified": actions_ok, "candidates": []}
