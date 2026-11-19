@@ -310,6 +310,23 @@ jobs:
               'entry_ready':len(ready_watch),'near_entry':len(near_watch),'far_entry':len(far_watch),
               'rejections':[{'code':x['code'],'reasons':x['rejection_reasons']} for x in pool]},
               ensure_ascii=False))
+            # Research-only full qualified pool for finance-first image preview.
+            # This does not alter legacy selected images or Telegram delivery.
+            research_pool=[]
+            for x in ready_watch+near_watch:
+              key=(x['market'],x['code'])
+              research_pool.append({
+                'code':x['code'],'name':x['name'],'market':x['market'],
+                'entry_status':x['entry_status'],'entry_low':x['entry_watch_low'],
+                'entry_high':x['entry_watch_high'],
+                'stop_ref':x['structural_stop_ref'],'risk_pct':x['entry_risk_pct'],
+                'close':x['close'],'ma5':x['ma5'],'ma20':x['ma20'],'ma60':x['ma60'],
+                'bars':[{'date':d,'close':data[key][d][0],
+                         'high':data[key][d][1],'low':data[key][d][2],
+                         'volume':data[key][d][3]} for d in days]})
+            (root/'qualified_chart_pool.json').write_text(json.dumps({
+              'schema':'C3_QUALIFIED_CHART_POOL_RESEARCH_V1',
+              'asof':days[-1],'candidates':research_pool},ensure_ascii=False)+'\n')
             for x in selected:
               key=(x['market'],x['code'])
               x['chart_bars']=[{'date':d,'close':data[key][d][0],'high':data[key][d][1],
