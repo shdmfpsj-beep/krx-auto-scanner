@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Research-only TOP5: exclude evidenced annual risk, reward growth, prioritize entry."""
+"""TOP5 conditional trading signals: financial quality first, entry timing second."""
 import argparse
 import json
 from pathlib import Path
@@ -16,9 +16,6 @@ def classify(item):
     if quality == "ANNUAL_RISK_OR_SLOWDOWN":
         return "REVIEW_ANNUAL_SLOWDOWN"
     if quality not in ANNUAL_OK or item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
-        return "REVIEW_INSUFFICIENT_EVIDENCE"
-    if ("ANNUAL_RECEIPT_AFTER_SIGNAL_OR_MISSING" in reasons or
-            "INTERIM_RECEIPT_AFTER_SIGNAL_OR_MISSING" in reasons):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
     if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_quality"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
@@ -52,12 +49,19 @@ def select(geometry, financial):
         -float(c.get("opportunity_score") or 0),
         -float(c.get("score") or 0), c["code"]))
     selected = qualified[:5]
-    return {"schema": "C3_TOP5_FINANCIAL_SELECTION_RESEARCH_V2",
-            "asof": asof, "status": "RESEARCH_ONLY",
+    signals = [{"code": c["code"], "signal": "BUY_CONSIDER" if c.get("status") == "ENTRY_READY" else "WAIT_FOR_ENTRY",
+                "technical_status": c.get("status"),
+                "financial_flag": classifications.get(c["code"])}
+               for c in selected]
+    return {"schema": "C3_TOP5_FINANCE_FIRST_CONDITIONAL_SIGNAL_V3",
+            "asof": asof, "status": "CONDITIONAL_SIGNALS" if valid else "CASH_EVIDENCE_INVALID",
             "financial_evidence_status": financial.get("status"),
             "coverage_complete": coverage_ok,
-            "point_in_time_certified": False, "decision": "CASH",
-            "trade_approved": False,
+            "point_in_time_certification_required": False,
+            "independent_price_certification_required": False,
+            "decision": "BUY_CONSIDER" if any(x["signal"] == "BUY_CONSIDER" for x in signals) else "CASH",
+            "trade_approved": False, "user_executes_trades": True,
+            "signals": signals,
             "selected": [{"code": c["code"], "name": c.get("name"),
                           "technical_status": c.get("status"),
                           "financial_quality": quality_by_ticker.get(c["code"]),
@@ -79,7 +83,7 @@ def main():
     a = p.parse_args()
     result = select(json.loads(a.geometry.read_text()), json.loads(a.financial.read_text()))
     a.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
-    print("FINANCIAL_SELECTION", result["selected_count"], "decision=CASH")
+    print("FINANCIAL_SELECTION", result["selected_count"], "decision="+result["decision"])
 
 if __name__ == "__main__":
     main()

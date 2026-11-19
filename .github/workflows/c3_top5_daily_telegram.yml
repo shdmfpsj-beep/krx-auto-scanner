@@ -615,7 +615,10 @@ jobs:
                 raise ValueError('IMAGE_MISSING')
             result.update(asof=selection['asof'],selected=selected,images=images,
                           financial_coverage_complete=selection.get('coverage_complete',False),
-                          point_in_time_certified=selection.get('point_in_time_certified',False))
+                          decision=selection.get('decision','CASH'),
+                          signals=selection.get('signals',[]),
+                          point_in_time_certification_required=False,
+                          independent_price_certification_required=False)
             result['status']='FINANCE_FIRST_PREVIEW_READY_NO_SEND' if selected else 'CASH_NO_FINANCIAL_CANDIDATES'
           except (OSError,KeyError,TypeError,ValueError,AttributeError) as e:
             result['status']='CASH_FINANCE_FIRST_MANIFEST_INVALID'
@@ -653,6 +656,15 @@ jobs:
             raise ValueError('RECEIPT_DATE_MISMATCH')
           selected=manifest['selected']
           images=manifest['images']
+          signals=manifest.get('signals',[])
+          if len(signals)!=len(selected):
+            raise ValueError('SIGNAL_SELECTION_COUNT_MISMATCH')
+          for item,signal in zip(selected,signals):
+            if item['code']!=signal.get('code'):
+              raise ValueError('SIGNAL_SYMBOL_MISMATCH')
+            expected='BUY_CONSIDER' if item.get('technical_status')=='ENTRY_READY' else 'WAIT_FOR_ENTRY'
+            if signal.get('signal')!=expected:
+              raise ValueError('INVALID_CONDITIONAL_SIGNAL')
           if not selected or len(selected)!=len(images) or len(selected)>5:
             raise ValueError('INVALID_FINAL_SELECTION')
           validated=[]
@@ -684,7 +696,7 @@ jobs:
                   'run_id':os.environ['GITHUB_RUN_ID'],'status':'RESERVED_BEFORE_SEND',
                   'selected_codes':[x['code'] for x in selected],
                   'image_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in validated},
-                  'disclaimer':'RESEARCH_ONLY_NOT_PRICE_OR_PIT_CERTIFIED'}
+                  'disclaimer':'CONDITIONAL_SIGNAL_NO_INDEPENDENT_CERTIFICATION_USER_TRADES'}
           payload=json.dumps({'message':'Reserve C3 finance-first research chart delivery '+date,
              'content':base64.b64encode(json.dumps(marker,ensure_ascii=False).encode()).decode(),
              'branch':'main'}).encode()
@@ -705,7 +717,7 @@ jobs:
               return head.encode()+value+b'\r\n'
             caption=('C3 TOP5 '+date+' | '+item.get('name',item['code'])+
               ' | '+str(i)+'/'+str(len(selected))+' | '+item['technical_status']+
-              '\n재무·기술 연구 참고용 / 가격·공시시점 미인증 / 매매 승인 아님 / 매수범위 미도달 PASS')
+              '\n'+signals[i-1]['signal']+' / 재무·기술 조건부 신호 / 매수범위 미도달 PASS / 주문은 사용자 직접')
             body=part('chat_id',chat.encode())+part('caption',caption.encode())+part('photo',p.read_bytes(),p.name,'image/png')+('--'+boundary+'--\r\n').encode()
             request=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',
               data=body,method='POST',headers={'Content-Type':'multipart/form-data; boundary='+boundary})

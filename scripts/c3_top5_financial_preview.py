@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render finance-qualified TOP5 research preview images; never sends Telegram."""
+"""Render finance-qualified TOP5 conditional-signal images; never sends Telegram."""
 import argparse,json,math
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
@@ -32,10 +32,10 @@ def render(pool,selection,out):
             try:return ImageFont.truetype(fontpath,n)
             except OSError:return ImageFont.load_default()
         d.rectangle((0,0,1400,115),fill=(40,46,55))
-        d.text((50,27),"C3 TOP5 | FINANCIAL RESEARCH PREVIEW",font=font(36),fill="white")
+        d.text((50,27),"C3 TOP5 | FINANCE-FIRST SIGNAL PREVIEW",font=font(36),fill="white")
         d.text((50,160),str(c.get("name",""))+"  "+c["code"],font=font(45),fill=(38,42,46))
         d.text((50,235),"As-of "+str(pool["asof"])+" | "+c["entry_status"],font=font(30),fill=(80,90,95))
-        d.text((50,295),"Not PIT certified / No trade authorization / No Telegram",font=font(25),fill=(150,70,60))
+        d.text((50,295),"BUY_CONSIDER=entry ready | NEAR_ENTRY=wait | User trades",font=font(25),fill=(150,70,60))
         closes=[b["close"] for b in bars[-60:]]
         prior_close=bars[-61]["close"] if len(bars)>=61 else None
         targets=[(key,c.get(key)) for key in ("r1_ref","r2_ref") if isinstance(c.get(key),(int,float)) and math.isfinite(c.get(key)) and c.get(key)>hi]
@@ -75,8 +75,8 @@ def render(pool,selection,out):
             height=int(100*v/vmax) if vmax else 0
             x=px(i)
             d.rectangle((x-5,1530-height,x+5,1530),fill=(110,135,155))
-        d.text((60,1570),"Research only / Price and PIT not certified / No Telegram",font=font(25),fill=(105,95,85))
-        d.text((60,1620),"Entry not reached: PASS. User decides all trades.",font=font(26),fill=(105,95,85))
+        d.text((60,1570),"Conditional signal / Independent certification not required",font=font(25),fill=(105,95,85))
+        d.text((60,1620),"Entry not reached: PASS. No automated orders.",font=font(26),fill=(105,95,85))
         name=f"financial_preview_{rank:02d}_{c['code']}.png"
         im.save(out/name)
         results.append({"code":c["code"],"image":name})
@@ -92,7 +92,7 @@ def main():
     selection=json.loads(a.selection.read_text())
     results=render(pool,selection,a.out)
     (a.out/"financial_preview_manifest.json").write_text(json.dumps({
-        "asof":pool["asof"],"status":"RESEARCH_ONLY_NO_SEND",
+        "asof":pool["asof"],"status":"CONDITIONAL_SIGNAL_PREVIEW_NO_SEND",
         "images":results},ensure_ascii=False,indent=2)+"\n")
     print("FINANCIAL_PREVIEW_RENDERED",len(results),"NO_TELEGRAM")
 if __name__=="__main__":main()
