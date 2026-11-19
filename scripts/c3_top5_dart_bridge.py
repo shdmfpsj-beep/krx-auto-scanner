@@ -75,29 +75,45 @@ def bridge(receipt, key, today=None, collector=collect):
         returned.add(r["ticker"])
         annual = r.get("status") == "DATED_ANNUAL_RESEARCH_ONLY"
         interim = r.get("interim_research") or {}
-        pass_ = bool(annual and r.get("financial_screen_pass") and
-                     r.get("annual_plus_interim_growth_pass") and
-                     not r.get("recent_financial_weakening_veto") and
-                     interim.get("status") == "DATED_INTERIM_YTD_RESEARCH_ONLY" and
-                     bool(r.get("receipt_date")) and
-                     str(r.get("receipt_date")) <= day.isoformat() and
-                     bool(interim.get("filing", {}).get("receipt_date")) and
-                     str(interim["filing"]["receipt_date"]) <= day.isoformat())
+        annual_receipt = r.get("receipt_date")
+        interim_receipt = interim.get("filing", {}).get("receipt_date")
+        comparable = bool(r.get("latest_periodic_division_comparable"))
+        # Hard risk gate: verified statements, positive equity and annual operating
+        # profit, and no excessive balance-sheet leverage. Sales/profit slowdown
+        # is scored, not an automatic veto. No missing metric is assumed safe.
+        equity = r.get("equity_krw")
+        liabilities = r.get("liabilities_krw")
+        operating_profit = r.get("operating_profit_krw")
+        leverage_ok = (isinstance(equity,(int,float)) and equity>0 and
+                       isinstance(liabilities,(int,float)) and liabilities>=0 and
+                       liabilities/equity<=3.0)
+        profitable = isinstance(operating_profit,(int,float)) and operating_profit>0
+        evidence_ok = bool(annual and
+            interim.get("status")=="DATED_INTERIM_YTD_RESEARCH_ONLY" and
+            comparable and annual_receipt and interim_receipt and
+            str(annual_receipt)<=day.isoformat() and
+            str(interim_receipt)<=day.isoformat())
+        pass_ = bool(evidence_ok and leverage_ok and profitable and
+            r.get("financial_quality")!="FINANCIAL_SECTOR_SPECIAL_MODEL_REQUIRED")
         reasons = []
         if not annual: reasons.append("ANNUAL_REPORT_NOT_VERIFIED")
-        if not r.get("financial_screen_pass"): reasons.append("ANNUAL_QUALITY_NOT_PASSED")
-        if interim.get("status") != "DATED_INTERIM_YTD_RESEARCH_ONLY": reasons.append("INTERIM_NOT_VERIFIED")
-        if not r.get("latest_periodic_division_comparable"): reasons.append("STATEMENT_DIVISION_NOT_COMPARABLE")
-        if r.get("recent_financial_weakening_veto"): reasons.append("RECENT_WEAKENING_VETO")
-        if not r.get("annual_plus_interim_growth_pass"): reasons.append("COMBINED_GROWTH_NOT_PASSED")
-        if not r.get("receipt_date") or str(r.get("receipt_date")) > day.isoformat(): reasons.append("ANNUAL_RECEIPT_AFTER_SIGNAL_OR_MISSING")
-        if not interim.get("filing", {}).get("receipt_date") or str(interim["filing"]["receipt_date"]) > day.isoformat(): reasons.append("INTERIM_RECEIPT_AFTER_SIGNAL_OR_MISSING")
+        if interim.get("status")!="DATED_INTERIM_YTD_RESEARCH_ONLY": reasons.append("INTERIM_NOT_VERIFIED")
+        if not comparable: reasons.append("STATEMENT_DIVISION_NOT_COMPARABLE")
+        if not annual_receipt or str(annual_receipt)>day.isoformat(): reasons.append("ANNUAL_RECEIPT_AFTER_SIGNAL_OR_MISSING")
+        if not interim_receipt or str(interim_receipt)>day.isoformat(): reasons.append("INTERIM_RECEIPT_AFTER_SIGNAL_OR_MISSING")
+        if not leverage_ok: reasons.append("BALANCE_SHEET_LEVERAGE_OR_EQUITY_RISK")
+        if not profitable: reasons.append("ANNUAL_OPERATING_LOSS_OR_UNKNOWN")
+        if r.get("financial_quality")=="FINANCIAL_SECTOR_SPECIAL_MODEL_REQUIRED": reasons.append("SECTOR_MODEL_REQUIRED")
+        slowdown = bool(r.get("recent_financial_weakening_veto"))
         item = {"ticker": r["ticker"], "name": r.get("name"),
                 "annual_status": r.get("status"),
                 "interim_status": interim.get("status"),
                 "financial_quality": r.get("financial_quality"),
                 "filing_date": r.get("receipt_date"),
                 "financial_screen_pass": pass_,
+                "financial_risk_gate_pass": pass_,
+                "recent_slowdown_flag": slowdown,
+                "liabilities_to_equity_pct": round(liabilities/equity*100,2) if leverage_ok else None,
                 "annual_quality_screen_pass": bool(r.get("financial_screen_pass")),
                 "annual_plus_interim_growth_pass": bool(r.get("annual_plus_interim_growth_pass")),
                 "interim_quality": interim.get("quality"),
