@@ -24,13 +24,13 @@ def main():
         if e and e.get('annual_status')=='DATED_ANNUAL_RESEARCH_ONLY' and e.get('interim_status')=='DATED_INTERIM_YTD_RESEARCH_ONLY' and e.get('filing_date') and e.get('interim_filing_date'):
             # Evidence quality score is separate from the hard financial eligibility gate.
             # Weak interim results remain visible for review but NEVER authorize TOP5.
-            annual={'ANNUAL_GROWTH_AND_MARGIN_OBSERVED':18,'ANNUAL_POSITIVE_MIXED':12,
-                    'ANNUAL_RISK_OR_SLOWDOWN':3}.get(e.get('financial_quality'),0)
-            interim={'INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED':17,'INTERIM_MIXED':11,
-                     'INTERIM_PROFIT_OR_SALES_WEAKENING':3}.get(e.get('interim_quality'),0)
+            annual={'ANNUAL_GROWTH_AND_MARGIN_OBSERVED':16,'ANNUAL_POSITIVE_MIXED':11,
+                    'ANNUAL_RISK_OR_SLOWDOWN':5}.get(e.get('financial_quality'),0)
+            interim={'INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED':14,'INTERIM_MIXED':9,
+                     'INTERIM_PROFIT_OR_SALES_WEAKENING':4}.get(e.get('interim_quality'),0)
             points=annual+interim
         x['financial_flag']=flag;x['financial_points']=points
-        x['composite_score']=round(points+min(100,max(0,float(x.get('opportunity_score',0))))*.65,2) if points is not None else None
+        x['composite_score']=round(points+min(100,max(0,float(x.get('opportunity_score',0))))*.70,2) if points is not None else None
         x['top5_eligible']=bool(flag in ('QUALIFIED','QUALIFIED_WITH_SLOWDOWN_FLAG') and x.get('geometry_validated') and x.get('entry_status') in ('ENTRY_READY','NEAR_ENTRY'))
     candidates.sort(key=lambda x:(not x['top5_eligible'],-(x['composite_score'] if x['composite_score'] is not None else -1),-float(x.get('opportunity_score',0)),x['code']))
     approved_top5={x['code'] for x in [v for v in candidates if v['top5_eligible']][:5]}
@@ -53,7 +53,7 @@ def main():
         d.text((55,145),x['name'],font=font(62,True),fill=ink)
         d.text((55,242),f"전체 {rank}위 / {len(candidates)} | 종합 "+(f"{composite:.2f}점" if composite is not None else "미산정")+(" | TOP5" if top5 else ""),font=font(37,True),fill=gold)
         d.text((55,315),f"{x['code']}  |  {state}  |  "+x['financial_flag'],font=font(31),fill=ink)
-        d.text((55,395),f"종가 {prices[-1]:,.0f}원 | 기술 {score:.2f} | 재무 "+(str(x["financial_points"])+"/35" if is_fin else "미검증"),font=font(43,True),fill=ink)
+        d.text((55,395),f"종가 {prices[-1]:,.0f}원 | 기술 {score:.2f} | 재무 "+(str(x["financial_points"])+"/30" if is_fin else "미검증"),font=font(43,True),fill=ink)
         d.text((55,477),"매수범위 / 구조손절 / 목표가",font=font(31,True),fill=ink)
         if valid and all(x.get(k) is not None for k in ('entry_low','entry_high','stop_ref','r1_ref')):
             levels=f"{x['entry_low']:,.0f} ~ {x['entry_high']:,.0f}원  /  {x['stop_ref']:,.0f}원"
@@ -83,7 +83,7 @@ def main():
         name=f"{rank:02d}_{x['code']}_all_candidate.png"
         im.save(out/name,optimize=True)
         rows.append({'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
-          'score_type':'FINANCIAL_35_TECHNICAL_65_IF_VERIFIED','status':state,'financial_selected':top5,'financial_evidence_scored':is_fin,
+          'score_type':'FINANCIAL_30_TECHNICAL_70_RISK_FIRST','status':state,'financial_selected':top5,'financial_evidence_scored':is_fin,
           'financial_flag':x['financial_flag'],'financial_points':x['financial_points'],
           'financial_eligibility':'PASS' if x['top5_eligible'] else 'WATCH_ONLY',
           'financial_exclusion_reasons':(covered.get(x['code']) or {}).get('exclusion_reasons',[]),
@@ -91,7 +91,7 @@ def main():
           'entry_low':x.get('entry_low') if valid else None,'entry_high':x.get('entry_high') if valid else None,
           'stop_ref':x.get('stop_ref') if valid else None})
     result={'schema':'C3_ALL_CANDIDATES_V2','asof':src['asof'],'candidate_count':len(rows),
-      'score_disclaimer':'35-point evidence-based financial quality + 65-point normalized technical opportunity; WATCH scores never override financial eligibility gate',
+      'score_disclaimer':'30-point evidence-based financial quality + 70-point normalized technical opportunity; WATCH scores never override financial eligibility gate',
       'candidates':rows,'trade_approved':False,
       'financial_diagnostics':{'evidence_count':sum(x['financial_points'] is not None for x in rows),
        'eligible_top5_count':sum(x['top5'] for x in rows),
