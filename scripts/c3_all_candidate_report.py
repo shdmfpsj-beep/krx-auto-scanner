@@ -85,12 +85,18 @@ def main():
         rows.append({'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
           'score_type':'FINANCIAL_35_TECHNICAL_65_IF_VERIFIED','status':state,'financial_selected':is_fin,
           'financial_flag':x['financial_flag'],'financial_points':x['financial_points'],
+          'financial_eligibility':'PASS' if x['top5_eligible'] else 'WATCH_ONLY',
+          'financial_exclusion_reasons':(covered.get(x['code']) or {}).get('exclusion_reasons',[]),
           'composite_score':composite,'top5':top5,'geometry_validated':valid,'image':name,
           'entry_low':x.get('entry_low') if valid else None,'entry_high':x.get('entry_high') if valid else None,
           'stop_ref':x.get('stop_ref') if valid else None})
-    result={'schema':'C3_ALL_CANDIDATES_V1','asof':src['asof'],'candidate_count':len(rows),
+    result={'schema':'C3_ALL_CANDIDATES_V2','asof':src['asof'],'candidate_count':len(rows),
       'score_disclaimer':'35-point evidence-based financial quality + 65-point normalized technical opportunity; WATCH scores never override financial eligibility gate',
-      'candidates':rows,'trade_approved':False}
+      'candidates':rows,'trade_approved':False,
+      'financial_diagnostics':{'evidence_count':sum(x['financial_points'] is not None for x in rows),
+       'eligible_top5_count':sum(x['top5'] for x in rows),
+       'failed_gate_count':sum(x['financial_flag']=='REVIEW_FAILED_FINANCIAL_GATE' for x in rows),
+       'unverified_count':sum(x['financial_points'] is None for x in rows)}}
     (out/'manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
     print('C3_ALL_CANDIDATES',json.dumps({'asof':src['asof'],'count':len(rows),
       'images':len(rows),'top5':[x['code'] for x in rows if x['top5']]},ensure_ascii=False))
