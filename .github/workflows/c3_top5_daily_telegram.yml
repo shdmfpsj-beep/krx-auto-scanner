@@ -617,17 +617,17 @@ jobs:
                   'selected':[],'images':[],'telegram_photos_sent':0,'trade_approved':False}
           try:
             selection=json.loads((root/'financial_selection_research.json').read_text())
-            preview=json.loads((root/'financial_preview'/'financial_preview_manifest.json').read_text())
             receipt=json.loads((root/'receipt.json').read_text())
-            selected=selection.get('selected',[])
-            images=preview.get('images',[])
-            if not (selection.get('asof')==preview.get('asof')==receipt.get('asof')):
-              raise ValueError('ASOF_MISMATCH')
             if selection.get('status')=='CASH_FINANCIAL_EVIDENCE_PENDING':
               result.update(status='CASH_FINANCIAL_EVIDENCE_PENDING',asof=receipt.get('asof'),
                             financial_evidence_status=selection.get('financial_evidence_status'),
                             financial_coverage_complete=False)
               raise StopIteration('FINANCIAL_EVIDENCE_PENDING')
+            preview=json.loads((root/'financial_preview'/'financial_preview_manifest.json').read_text())
+            selected=selection.get('selected',[])
+            images=preview.get('images',[])
+            if not (selection.get('asof')==preview.get('asof')==receipt.get('asof')):
+              raise ValueError('ASOF_MISMATCH')
             if selection.get('status')!='CONDITIONAL_SIGNALS' or not selection.get('coverage_complete'):
               raise ValueError('FINANCIAL_SELECTION_NOT_VALID')
             if len(selected)>5 or len(selected)!=len(images):
