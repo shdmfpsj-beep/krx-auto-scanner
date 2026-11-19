@@ -539,6 +539,8 @@ jobs:
             scripts/dart_interim_periods.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
+          # Preserve untracked output/c3_top5 generated before sparse checkout.
+          clean: false
       - name: Evaluate dated OpenDART evidence for selected TOP5 (research only)
         if: always()
         continue-on-error: true
