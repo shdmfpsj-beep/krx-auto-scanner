@@ -37,7 +37,8 @@ def render(pool,selection,out):
         d.text((50,235),"As-of "+str(pool["asof"])+" | "+c["entry_status"],font=font(30),fill=(80,90,95))
         d.text((50,295),"Not PIT certified / No trade authorization / No Telegram",font=font(25),fill=(150,70,60))
         closes=[b["close"] for b in bars[-60:]]
-        values=closes+[lo,hi,stop]
+        targets=[(key,c.get(key)) for key in ("r1_ref","r2_ref") if isinstance(c.get(key),(int,float)) and math.isfinite(c.get(key)) and c.get(key)>hi]
+        values=closes+[lo,hi,stop]+[v for _,v in targets]
         low=min(values)*.95;high=max(values)*1.05
         left,right,top,bottom=135,1270,430,1120
         px=lambda i:int(left+(right-left)*i/59)
@@ -48,18 +49,30 @@ def render(pool,selection,out):
         for i in range(1,60):
             d.line((px(i-1),py(closes[i-1]),px(i),py(closes[i])),fill=(46,112,167),width=4)
         for n,color in ((5,(53,125,88)),(20,(187,130,52)),(60,(121,93,157))):
-            for i in range(n,60):
+            for i in range(n-1,60):
+                if i==n-1: continue
                 a=sum(closes[i-n:i])/n
                 b=sum(closes[i-n+1:i+1])/n
                 d.line((px(i-1),py(a),px(i),py(b)),fill=color,width=3)
+        for key,val in targets:
+            y=py(val)
+            d.line((left,y,right,y),fill=(115,85,155),width=2)
+            d.text((left+15,y-35),f"{key.upper()} {val:,.0f}",font=font(25),fill=(115,85,155))
         for val,color in ((lo,(45,133,85)),(hi,(45,133,85)),(stop,(177,63,63))):
             y=py(val);d.line((left,y,right,y),fill=color,width=3)
             d.text((right-180,y-39),f"{val:,.0f}",font=font(25),fill=color)
         d.text((60,1180),f"Entry  {lo:,.0f} - {hi:,.0f} KRW",font=font(43),fill=(35,102,72))
         d.text((60,1250),f"Structural stop  {stop:,.0f} KRW",font=font(43),fill=(175,65,65))
         d.text((60,1320),f"Max entry risk  {(hi-stop)/hi*100:.2f}%",font=font(37),fill=(45,48,55))
-        d.text((60,1430),"Research-only: finance checked after signal date may not be PIT.",font=font(26),fill=(105,95,85))
-        d.text((60,1490),"Entry range not reached: PASS. User decides all trades.",font=font(26),fill=(105,95,85))
+        volumes=[max(0,float(b.get("volume") or b.get("trading_volume") or 0)) for b in bars[-60:]]
+        vmax=max(volumes) if volumes else 0
+        d.text((60,1395),"Volume (60 sessions)",font=font(26),fill=(75,85,95))
+        for i,v in enumerate(volumes):
+            height=int(100*v/vmax) if vmax else 0
+            x=px(i)
+            d.rectangle((x-5,1530-height,x+5,1530),fill=(110,135,155))
+        d.text((60,1570),"Research only / Price and PIT not certified / No Telegram",font=font(25),fill=(105,95,85))
+        d.text((60,1620),"Entry not reached: PASS. User decides all trades.",font=font(26),fill=(105,95,85))
         name=f"financial_preview_{rank:02d}_{c['code']}.png"
         im.save(out/name)
         results.append({"code":c["code"],"image":name})
