@@ -7,8 +7,9 @@ on:
         required: false
         type: string
   schedule:
-    # KST 23:30 Monday-Friday; GitHub scheduling can be delayed.
-    - cron: '30 14 * * 1-5'
+    # KST 07:00 Tuesday-Saturday (previous KRX trading day); GitHub scheduling can be delayed.
+    # 22:00 UTC Monday-Friday = 07:00 KST next calendar day.
+    - cron: '0 22 * * 1-5'
 permissions:
   contents: write
 concurrency:
