@@ -1,62 +1,75 @@
 #!/usr/bin/env python3
-"""Select up to five finance-qualified technical candidates; research only."""
+"""Research-only TOP5: exclude evidenced annual risk, reward growth, prioritize entry."""
 import argparse
 import json
 from pathlib import Path
 
+ACCEPTED = {"FINANCIAL_RESEARCH_GATE_PASSED",
+            "PARTIAL_OR_FAILED_FINANCIAL_GATE",
+            "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED"}
+ANNUAL_OK = {"ANNUAL_GROWTH_AND_MARGIN_OBSERVED", "ANNUAL_POSITIVE_MIXED"}
+
+def classify(item):
+    """Unknown evidence is never treated as proof of financial safety."""
+    quality = item.get("financial_quality")
+    reasons = set(item.get("exclusion_reasons") or [])
+    if quality == "ANNUAL_RISK_OR_SLOWDOWN" or item.get("interim_quality") == "INTERIM_PROFIT_OR_SALES_WEAKENING" or "RECENT_WEAKENING_VETO" in reasons:
+        return "EXCLUDED_CONFIRMED_RISK"
+    if quality not in ANNUAL_OK or item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
+        return "REVIEW_INSUFFICIENT_EVIDENCE"
+    if "ANNUAL_RECEIPT_AFTER_SIGNAL_OR_MISSING" in reasons or "INTERIM_RECEIPT_AFTER_SIGNAL_OR_MISSING" in reasons and item.get("interim_filing_date"):
+        return "REVIEW_INSUFFICIENT_EVIDENCE"
+    return "QUALIFIED" if item.get("interim_status") == "DATED_INTERIM_YTD_RESEARCH_ONLY" and item.get("interim_quality") else "REVIEW_INSUFFICIENT_EVIDENCE"
+
 def select(geometry, financial):
-    asof=geometry.get("asof")
-    candidates=geometry.get("candidates",[])
-    passed=set()
-    status=financial.get("status")
-    # Next-day OpenDART observations may inform a research shortlist but
-    # must never be mistaken for a historical point-in-time certification.
-    accepted=("FINANCIAL_RESEARCH_GATE_PASSED",
-              "PARTIAL_OR_FAILED_FINANCIAL_GATE",
-              "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED")
-    valid_date=financial.get("asof")==asof
-    researched=financial.get("researched",[])
-    excluded=financial.get("excluded",[])
-    requested={c.get("code") for c in candidates if isinstance(c,dict)
-               and c.get("status") in ("ENTRY_READY","NEAR_ENTRY")
-               and isinstance(c.get("risk_pct"),(int,float))
-               and 0<c["risk_pct"]<=5}
-    covered=[x.get("ticker") for x in researched+excluded if isinstance(x,dict)]
-    coverage_ok=(len(covered)==len(set(covered)) and set(covered)==requested)
-    if valid_date and status in accepted and coverage_ok:
-        passed={x.get("ticker") for x in researched
-                if x.get("financial_screen_pass") is True}
-    ready=[];near=[];watch=[]
-    for c in candidates if isinstance(candidates,list) else []:
-        if not isinstance(c,dict) or c.get("code") not in passed:
-            continue
-        if c.get("risk_pct") is None or not 0 < c["risk_pct"] <= 5:
-            continue
-        if c.get("status")=="ENTRY_READY":
-            ready.append(c)
-        elif c.get("status")=="NEAR_ENTRY":
-            near.append(c)
-        else:
-            watch.append(c)
-    ready.sort(key=lambda c:(-float(c.get("opportunity_score") or 0),-float(c.get("score") or 0),c["code"]))
-    near.sort(key=lambda c:(-float(c.get("opportunity_score") or 0),-float(c.get("score") or 0),c["code"]))
-    selected=(ready+near)[:5]
-    return {"schema":"C3_TOP5_FINANCIAL_SELECTION_RESEARCH_V1","asof":asof,
-            "status":"RESEARCH_ONLY","financial_evidence_status":status,
-            "coverage_complete":coverage_ok,"point_in_time_certified":False,
-            "decision":"CASH","trade_approved":False,
-            "selected":[{"code":c["code"],"name":c.get("name"),
-                         "technical_status":c.get("status")} for c in selected],
-            "watch_count":len(watch),"financial_pass_count":len(passed),
-            "selected_count":len(selected)}
+    asof = geometry.get("asof")
+    candidates = geometry.get("candidates", [])
+    requested = {c.get("code") for c in candidates if isinstance(c, dict)
+                 and c.get("status") in ("ENTRY_READY", "NEAR_ENTRY")
+                 and isinstance(c.get("risk_pct"), (int, float))
+                 and 0 < c["risk_pct"] <= 5}
+    evidence = financial.get("researched", []) + financial.get("excluded", [])
+    covered = [x.get("ticker") for x in evidence if isinstance(x, dict)]
+    coverage_ok = len(covered) == len(set(covered)) and set(covered) == requested
+    valid = (financial.get("asof") == asof and financial.get("status") in ACCEPTED
+             and coverage_ok)
+    classifications = {x["ticker"]: classify(x) for x in evidence} if valid else {}
+    qualified = [c for c in candidates if isinstance(c, dict)
+                 and c.get("code") in requested
+                 and classifications.get(c.get("code")) == "QUALIFIED"]
+    quality_by_ticker = {x["ticker"]: x.get("financial_quality") for x in evidence} if valid else {}
+    qualified.sort(key=lambda c: (
+        0 if c.get("status") == "ENTRY_READY" else 1,
+        0 if quality_by_ticker.get(c["code"]) == "ANNUAL_GROWTH_AND_MARGIN_OBSERVED" else 1,
+        -float(c.get("opportunity_score") or 0),
+        -float(c.get("score") or 0), c["code"]))
+    selected = qualified[:5]
+    return {"schema": "C3_TOP5_FINANCIAL_SELECTION_RESEARCH_V2",
+            "asof": asof, "status": "RESEARCH_ONLY",
+            "financial_evidence_status": financial.get("status"),
+            "coverage_complete": coverage_ok,
+            "point_in_time_certified": False, "decision": "CASH",
+            "trade_approved": False,
+            "selected": [{"code": c["code"], "name": c.get("name"),
+                          "technical_status": c.get("status"),
+                          "financial_quality": quality_by_ticker.get(c["code"])}
+                         for c in selected],
+            "financial_classifications": classifications,
+            "review_count": sum(v == "REVIEW_INSUFFICIENT_EVIDENCE" for v in classifications.values()),
+            "excluded_count": sum(v == "EXCLUDED_CONFIRMED_RISK" for v in classifications.values()),
+            "watch_count": 0,
+            "financial_pass_count": len(qualified),
+            "selected_count": len(selected)}
 
 def main():
-    p=argparse.ArgumentParser()
-    p.add_argument("--geometry",type=Path,required=True)
-    p.add_argument("--financial",type=Path,required=True)
-    p.add_argument("--out",type=Path,required=True)
-    a=p.parse_args()
-    result=select(json.loads(a.geometry.read_text()),json.loads(a.financial.read_text()))
-    a.out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n")
-    print("FINANCIAL_SELECTION",result["selected_count"],"decision=CASH")
-if __name__=="__main__":main()
+    p = argparse.ArgumentParser()
+    p.add_argument("--geometry", type=Path, required=True)
+    p.add_argument("--financial", type=Path, required=True)
+    p.add_argument("--out", type=Path, required=True)
+    a = p.parse_args()
+    result = select(json.loads(a.geometry.read_text()), json.loads(a.financial.read_text()))
+    a.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+    print("FINANCIAL_SELECTION", result["selected_count"], "decision=CASH")
+
+if __name__ == "__main__":
+    main()
