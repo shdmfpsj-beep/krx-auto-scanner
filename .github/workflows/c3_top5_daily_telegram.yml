@@ -138,6 +138,11 @@ jobs:
               if len(days)==60:break
               time.sleep(.12)
             if len(days)!=60 or days[0]!=target.strftime('%Y%m%d'):
+              receipt['source_collection_diagnostics']={'target':target.strftime('%Y%m%d'),
+                'complete_sessions':len(days),'newest_available':days[0] if days else None,
+                'oldest_available':days[-1] if days else None,
+                'requested_calendar_days':105}
+              print('C3_SOURCE_INCOMPLETE_DIAGNOSTICS',json.dumps(receipt['source_collection_diagnostics']))
               raise ValueError('TODAY_60_SESSION_SOURCE_INCOMPLETE')
             days.sort()
             session_coverage.sort(key=lambda x:x['date'])
@@ -594,7 +599,7 @@ jobs:
             echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
       - name: Rank every detected candidate and render every candidate image
-        if: always()
+        if: ${{ always() && hashFiles('output/c3_top5/qualified_chart_pool.json', 'output/c3_top5/financial_pool_gate.json') != '' }}
         run: |
           python scripts/c3_all_candidate_report.py \
             --pool output/c3_top5/qualified_chart_pool.json \
