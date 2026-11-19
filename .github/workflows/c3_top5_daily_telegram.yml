@@ -163,6 +163,9 @@ jobs:
             if len(med)!=2:raise ValueError('MARKET_BENCHMARK_MISSING')
             pool=[]
             for key,a in eligible.items():
+              # User policy: exclude pharmaceutical/biotech candidates before ranking.
+              excluded_terms=('제약','바이오','파마','약품','신약','생명과학','메디','셀트리온')
+              if any(term in names[key] for term in excluded_terms):continue
               c=[x[0] for x in a];last=c[-1]
               ma5=statistics.mean(c[-5:]);ma20=statistics.mean(c[-20:]);ma60=statistics.mean(c)
               r20=last/c[-21]-1;rs=r20-med[key[0]]
