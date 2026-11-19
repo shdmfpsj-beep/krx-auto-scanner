@@ -28,10 +28,11 @@ def classify(item):
 def select(geometry, financial):
     asof = geometry.get("asof")
     candidates = geometry.get("candidates", [])
-    requested = {c.get("code") for c in candidates if isinstance(c, dict)
-                 and c.get("status") in ("ENTRY_READY", "NEAR_ENTRY")
-                 and isinstance(c.get("risk_pct"), (int, float))
-                 and 0 < c["risk_pct"] <= 5}
+    requested = {c.get("code") for c in candidates[:10] if isinstance(c, dict)}
+    actionable = {c.get("code") for c in candidates if isinstance(c, dict)
+                  and c.get("status") in ("ENTRY_READY", "NEAR_ENTRY")
+                  and isinstance(c.get("risk_pct"), (int, float))
+                  and 0 < c["risk_pct"] <= 5}
     evidence = financial.get("researched", []) + financial.get("excluded", [])
     covered = [x.get("ticker") for x in evidence if isinstance(x, dict)]
     coverage_ok = len(covered) == len(set(covered)) and set(covered) == requested
@@ -39,7 +40,7 @@ def select(geometry, financial):
              and coverage_ok)
     classifications = {x["ticker"]: classify(x) for x in evidence} if valid else {}
     qualified = [c for c in candidates if isinstance(c, dict)
-                 and c.get("code") in requested
+                 and c.get("code") in actionable
                  and classifications.get(c.get("code")) in ("QUALIFIED", "QUALIFIED_WITH_SLOWDOWN_FLAG")]
     quality_by_ticker = {x["ticker"]: x.get("financial_quality") for x in evidence} if valid else {}
     qualified.sort(key=lambda c: (
