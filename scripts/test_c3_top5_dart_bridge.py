@@ -17,6 +17,22 @@ class BridgeTests(unittest.TestCase):
         self.assertFalse(called)
         self.assertFalse(r["financial_verified"])
 
+    def test_next_day_research_runs_but_cannot_claim_pit(self):
+        called=[]
+        def stub(day, stocks, key, today):
+            called.append(day)
+            return {"researched": [{"ticker":"294870",
+                "status":"DATED_ANNUAL_RESEARCH_ONLY",
+                "receipt_date":"2026-03-20",
+                "financial_screen_pass":True,
+                "annual_plus_interim_growth_pass":True,
+                "interim_research":{"status":"DATED_INTERIM_YTD_RESEARCH_ONLY",
+                                   "filing":{"receipt_date":"2026-11-16"}}}]}
+        x=bridge({**BASE,"asof":"20261118"},"dummy",TODAY,stub)
+        self.assertEqual(called,[TODAY])
+        self.assertEqual(x["status"],"NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED")
+        self.assertFalse(x["financial_verified"])
+        self.assertEqual(x["financial_observed_on"],"2026-11-19")
     def test_missing_key_cannot_pass(self):
         r = bridge(BASE, None, TODAY, collector=lambda *a, **k: self.fail("API called"))
         self.assertEqual(r["status"], "MISSING_DART_KEY")
