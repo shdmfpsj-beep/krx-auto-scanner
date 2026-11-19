@@ -322,13 +322,20 @@ jobs:
             # Research-only full qualified pool for finance-first image preview.
             # This does not alter legacy selected images or Telegram delivery.
             research_pool=[]
-            for x in ready_watch+near_watch:
+            for x in pool[:10]:
               key=(x['market'],x['code'])
               research_pool.append({
                 'code':x['code'],'name':x['name'],'market':x['market'],
-                'entry_status':x['entry_status'],'entry_low':x['entry_watch_low'],
-                'entry_high':x['entry_watch_high'],
-                'stop_ref':x['structural_stop_ref'],'risk_pct':x['entry_risk_pct'],
+                'score':x['score'],'opportunity_score':x['opportunity_score'],
+                'geometry_validated':x['geometry_validated'],
+                'rejection_reasons':x['rejection_reasons'],
+                'entry_status':x['entry_status'] if x['geometry_validated'] else 'WATCH',
+                'entry_low':x['entry_watch_low'] if x['geometry_validated'] else None,
+                'entry_high':x['entry_watch_high'] if x['geometry_validated'] else None,
+                'stop_ref':x['structural_stop_ref'] if x['geometry_validated'] else None,
+                'r1_ref':x['r1_ref'] if x['geometry_validated'] else None,
+                'r2_ref':x['r2_ref'] if x['geometry_validated'] else None,
+                'risk_pct':x['entry_risk_pct'] if x['geometry_validated'] else None,
                 'close':x['close'],'ma5':x['ma5'],'ma20':x['ma20'],'ma60':x['ma60'],
                 'bars':[{'date':d,'close':data[key][d][0],
                          'high':data[key][d][1],'low':data[key][d][2],
@@ -584,6 +591,13 @@ jobs:
           else
             echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
+      - name: Rank every detected candidate and render every candidate image
+        if: always()
+        run: |
+          python scripts/c3_all_candidate_report.py \
+            --pool output/c3_top5/qualified_chart_pool.json \
+            --selection output/c3_top5/financial_selection_research.json \
+            --out output/c3_top5/all_candidate_report
       - name: Build finance-first conditional signal delivery manifest
         if: always()
         run: |
