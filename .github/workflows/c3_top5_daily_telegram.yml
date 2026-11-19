@@ -526,6 +526,16 @@ jobs:
           PY
       # Research-only enrichment. Runs AFTER legacy delivery logic, cannot authorize
       # a buy, alter the selection, or trigger another Telegram send.
+      - name: Preserve KRX research outputs outside checkout workspace
+        if: always()
+        run: |
+          if [ -d output/c3_top5 ]; then
+            mkdir -p "$RUNNER_TEMP/c3_top5_preserved"
+            cp -a output/c3_top5/. "$RUNNER_TEMP/c3_top5_preserved/"
+            echo 'C3_OUTPUT_PRESERVED'
+          else
+            echo 'C3_OUTPUT_NOT_FOUND_BEFORE_CHECKOUT'
+          fi
       - name: Checkout minimal OpenDART research adapter
         if: always()
         uses: actions/checkout@v4
@@ -541,6 +551,18 @@ jobs:
           persist-credentials: false
           # Preserve untracked output/c3_top5 generated before sparse checkout.
           clean: false
+      - name: Restore KRX research outputs after checkout
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/c3_top5_preserved" ]; then
+            mkdir -p output/c3_top5
+            cp -a "$RUNNER_TEMP/c3_top5_preserved/." output/c3_top5/
+            test -f output/c3_top5/receipt.json
+            test -f output/c3_top5/entry_geometry_audit.json
+            echo 'C3_OUTPUT_RESTORED'
+          else
+            echo 'C3_OUTPUT_NOT_PRESERVED'
+          fi
       - name: Evaluate dated OpenDART evidence for selected TOP5 (research only)
         if: always()
         continue-on-error: true
