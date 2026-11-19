@@ -8,7 +8,10 @@ def select(geometry, financial):
     asof=geometry.get("asof")
     candidates=geometry.get("candidates",[])
     passed=set()
-    if financial.get("asof")==asof and financial.get("status") in (
+    # A partial collector response must never silently shrink the ranked universe.
+    financial_coverage_complete = (financial.get("financial_verified") is True or
+        financial.get("status") == "PARTIAL_OR_FAILED_FINANCIAL_GATE")
+    if financial_coverage_complete and financial.get("asof")==asof and financial.get("status") in (
         "FINANCIAL_RESEARCH_GATE_PASSED","PARTIAL_OR_FAILED_FINANCIAL_GATE"):
         passed={x.get("ticker") for x in financial.get("researched",[])
                 if x.get("financial_screen_pass") is True}
@@ -24,6 +27,8 @@ def select(geometry, financial):
             near.append(c)
         else:
             watch.append(c)
+    ready.sort(key=lambda c:(-float(c.get("opportunity_score") or 0),-float(c.get("score") or 0),c["code"]))
+    near.sort(key=lambda c:(-float(c.get("opportunity_score") or 0),-float(c.get("score") or 0),c["code"]))
     selected=(ready+near)[:5]
     return {"schema":"C3_TOP5_FINANCIAL_SELECTION_RESEARCH_V1","asof":asof,
             "status":"RESEARCH_ONLY","decision":"CASH","trade_approved":False,
