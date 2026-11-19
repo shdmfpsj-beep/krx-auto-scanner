@@ -83,7 +83,7 @@ def main():
         name=f"{rank:02d}_{x['code']}_all_candidate.png"
         im.save(out/name,optimize=True)
         rows.append({'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
-          'score_type':'FINANCIAL_35_TECHNICAL_65_IF_VERIFIED','status':state,'financial_selected':is_fin,
+          'score_type':'FINANCIAL_35_TECHNICAL_65_IF_VERIFIED','status':state,'financial_selected':top5,'financial_evidence_scored':is_fin,
           'financial_flag':x['financial_flag'],'financial_points':x['financial_points'],
           'financial_eligibility':'PASS' if x['top5_eligible'] else 'WATCH_ONLY',
           'financial_exclusion_reasons':(covered.get(x['code']) or {}).get('exclusion_reasons',[]),
