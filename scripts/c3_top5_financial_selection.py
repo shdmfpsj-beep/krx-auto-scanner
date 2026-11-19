@@ -58,12 +58,13 @@ def select(geometry, financial):
                 "technical_status": c.get("status"),
                 "financial_flag": classifications.get(c["code"])}
                for c in selected]
+    evidence_pending = financial.get("status") in ("HISTORICAL_REPLAY_NO_RETROACTIVE_FINANCIALS", "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED", "MISSING_DART_KEY", "INCOMPLETE_FINANCIAL_COVERAGE", "INVALID_ASOF")
     return {"schema": "C3_TOP5_FINANCE_FIRST_CONDITIONAL_SIGNAL_V3",
-            "asof": asof, "status": "CONDITIONAL_SIGNALS" if valid else "CASH_EVIDENCE_INVALID",
+            "asof": asof, "status": "CONDITIONAL_SIGNALS" if valid else ("CASH_FINANCIAL_EVIDENCE_PENDING" if evidence_pending else "CASH_EVIDENCE_INVALID"),
             "financial_evidence_status": financial.get("status"),
             "coverage_complete": coverage_ok,
-            "point_in_time_certification_required": False,
-            "independent_price_certification_required": False,
+            "point_in_time_certification_required": True,
+            "independent_price_certification_required": True,
             "decision": "BUY_CONSIDER" if any(x["signal"] == "BUY_CONSIDER" for x in signals) else "CASH",
             "trade_approved": False, "user_executes_trades": True,
             "signals": signals,
