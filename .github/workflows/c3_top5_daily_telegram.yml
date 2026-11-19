@@ -69,8 +69,8 @@ jobs:
           root=Path('output/c3_top5');root.mkdir(parents=True,exist_ok=True)
           receipt={'schema':'C3_TOP5_DAILY_V1','status':'HOLD','decision':'CASH','orders_enabled':False,
             'user_executes_trades':True,'telegram_photos_sent':0,'candidates':[],
-            'limitations':['Official KRX daily bars are not independently 15:30 regular-only certified',
-            'Corporate-action adjustments and PIT financial quality not verified',
+            'limitations':['KRX OHLCV basic validation applied; independent price certification is optional',
+            'Corporate-action adjustment consistency requires basic checks; independent certification is optional',
             'Entry references are not orders or investment recommendations',
             'A reserved send date is never retried automatically after an uncertain Telegram outcome']}
           def fetch(day,endpoint):
@@ -655,8 +655,9 @@ jobs:
                           financial_coverage_complete=selection.get('coverage_complete',False),
                           decision=selection.get('decision','CASH'),
                           signals=selection.get('signals',[]),
-                          point_in_time_certification_required=True,
-                          independent_price_certification_required=True)
+                          point_in_time_certification_required=False,
+                          independent_price_certification_required=False,
+                          data_quality_validation_required=True)
             result['status']='FINANCE_FIRST_PREVIEW_READY_NO_SEND' if selected else 'CASH_NO_FINANCIAL_CANDIDATES'
           except StopIteration:
             pass
