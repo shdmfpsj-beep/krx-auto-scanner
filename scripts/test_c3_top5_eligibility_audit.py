@@ -12,13 +12,15 @@ class EligibilityTests(unittest.TestCase):
         self.assertEqual(x["eligible_count"],0)
         self.assertTrue(all(c["status"]=="WATCH_UNVERIFIED" for c in x["candidates"]))
         self.assertFalse(x["trade_approved"])
-    def test_verified_only_one_research_candidate(self):
+    def test_self_asserted_certification_does_not_authorize(self):
         r={**R,"source_integrity":{"regular_session_price_certified":True,"corporate_actions_certified":True}}
         x=audit(r,F)
-        self.assertEqual(x["eligible_count"],1)
-        self.assertEqual(x["candidates"][0]["status"],"ELIGIBLE_RESEARCH_ONLY")
+        self.assertEqual(x["eligible_count"],0)
+        self.assertEqual(x["candidates"][0]["status"],"WATCH_UNVERIFIED")
         self.assertEqual(x["candidates"][1]["status"],"WATCH_UNVERIFIED")
         self.assertFalse(x["trade_approved"])
+    def test_mismatched_financial_asof_blocks(self):
+        self.assertEqual(audit({**R,"asof":"20261119"}, {**F,"asof":"20261118"})["eligible_count"],0)
     def test_unknown_financial_status_blocks(self):
         r={**R,"source_integrity":{"regular_session_price_certified":True,"corporate_actions_certified":True}}
         self.assertEqual(audit(r,{**F,"status":"UNVERIFIED"})["eligible_count"],0)
