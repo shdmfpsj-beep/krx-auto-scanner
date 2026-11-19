@@ -11,7 +11,7 @@ BASE = {"asof": "20261119", "candidates": [
 class BridgeTests(unittest.TestCase):
     def test_historical_data_fails_closed_without_api(self):
         called = []
-        r = bridge({**BASE, "asof": "20261118"}, "dummy", TODAY,
+        r = bridge({**BASE, "asof": "20261117"}, "dummy", TODAY,
                    collector=lambda *a, **k: called.append(True))
         self.assertEqual(r["status"], "HISTORICAL_REPLAY_NO_RETROACTIVE_FINANCIALS")
         self.assertFalse(called)
