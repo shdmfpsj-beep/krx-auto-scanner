@@ -13,13 +13,17 @@ def classify(item):
     """Unknown evidence is never treated as proof of financial safety."""
     quality = item.get("financial_quality")
     reasons = set(item.get("exclusion_reasons") or [])
-    if quality == "ANNUAL_RISK_OR_SLOWDOWN" or item.get("interim_quality") == "INTERIM_PROFIT_OR_SALES_WEAKENING" or "RECENT_WEAKENING_VETO" in reasons:
-        return "EXCLUDED_CONFIRMED_RISK"
+    if quality == "ANNUAL_RISK_OR_SLOWDOWN":
+        return "REVIEW_ANNUAL_SLOWDOWN"
     if quality not in ANNUAL_OK or item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
     if "ANNUAL_RECEIPT_AFTER_SIGNAL_OR_MISSING" in reasons or "INTERIM_RECEIPT_AFTER_SIGNAL_OR_MISSING" in reasons and item.get("interim_filing_date"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
-    return "QUALIFIED" if item.get("interim_status") == "DATED_INTERIM_YTD_RESEARCH_ONLY" and item.get("interim_quality") else "REVIEW_INSUFFICIENT_EVIDENCE"
+    if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_quality"):
+        return "REVIEW_INSUFFICIENT_EVIDENCE"
+    if item.get("interim_quality") == "INTERIM_PROFIT_OR_SALES_WEAKENING":
+        return "QUALIFIED_WITH_SLOWDOWN_FLAG"
+    return "QUALIFIED"
 
 def select(geometry, financial):
     asof = geometry.get("asof")
@@ -36,10 +40,11 @@ def select(geometry, financial):
     classifications = {x["ticker"]: classify(x) for x in evidence} if valid else {}
     qualified = [c for c in candidates if isinstance(c, dict)
                  and c.get("code") in requested
-                 and classifications.get(c.get("code")) == "QUALIFIED"]
+                 and classifications.get(c.get("code")) in ("QUALIFIED", "QUALIFIED_WITH_SLOWDOWN_FLAG")]
     quality_by_ticker = {x["ticker"]: x.get("financial_quality") for x in evidence} if valid else {}
     qualified.sort(key=lambda c: (
         0 if c.get("status") == "ENTRY_READY" else 1,
+        0 if classifications.get(c["code"]) == "QUALIFIED" else 1,
         0 if quality_by_ticker.get(c["code"]) == "ANNUAL_GROWTH_AND_MARGIN_OBSERVED" else 1,
         -float(c.get("opportunity_score") or 0),
         -float(c.get("score") or 0), c["code"]))
@@ -52,11 +57,13 @@ def select(geometry, financial):
             "trade_approved": False,
             "selected": [{"code": c["code"], "name": c.get("name"),
                           "technical_status": c.get("status"),
-                          "financial_quality": quality_by_ticker.get(c["code"])}
+                          "financial_quality": quality_by_ticker.get(c["code"]),
+                          "financial_flag": classifications.get(c["code"])}
                          for c in selected],
             "financial_classifications": classifications,
-            "review_count": sum(v == "REVIEW_INSUFFICIENT_EVIDENCE" for v in classifications.values()),
+            "review_count": sum(v.startswith("REVIEW_") for v in classifications.values()),
             "excluded_count": sum(v == "EXCLUDED_CONFIRMED_RISK" for v in classifications.values()),
+            "slowdown_flag_count": sum(v == "QUALIFIED_WITH_SLOWDOWN_FLAG" for v in classifications.values()),
             "watch_count": 0,
             "financial_pass_count": len(qualified),
             "selected_count": len(selected)}
