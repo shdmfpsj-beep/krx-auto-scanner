@@ -681,16 +681,27 @@ jobs:
             raise ValueError('SOURCE_DATE_OR_SESSION_MISMATCH')
           if source.get('market_rows_min',{}).get('KOSPI',0)<500 or source.get('market_rows_min',{}).get('KOSDAQ',0)<800:
             raise ValueError('MARKET_COVERAGE_BELOW_FLOOR')
-          selected=report.get('candidates',[])
+          if manifest.get('status') not in ('FINANCE_FIRST_PREVIEW_READY_NO_SEND','CASH_NO_FINANCIAL_CANDIDATES'):
+            raise ValueError('FINANCE_FIRST_MANIFEST_NOT_VALID')
+          if manifest.get('asof')!=report.get('asof') or not manifest.get('financial_coverage_complete'):
+            raise ValueError('FINANCIAL_COVERAGE_OR_DATE_NOT_VALID')
+          all_candidates=report.get('candidates',[])
+          selected=[x for x in all_candidates if x.get('top5')]
+          approved_codes=[x.get('code') for x in manifest.get('selected',[])]
+          if [x['code'] for x in selected]!=approved_codes:
+            raise ValueError('TOP5_MANIFEST_SYMBOL_MISMATCH')
           if not selected:
-            print('C3_FINAL_DELIVERY CASH_NO_CANDIDATES_NO_SEND')
+            print('C3_FINAL_DELIVERY CASH_NO_QUALIFIED_TOP5_NO_SEND')
             raise SystemExit(0)
-          if len(selected)>10 or len({x['code'] for x in selected})!=len(selected):
-            raise ValueError('INVALID_ALL_CANDIDATE_SELECTION')
+          if len(selected)>5 or len({x['code'] for x in selected})!=len(selected):
+            raise ValueError('INVALID_TOP5_SELECTION')
           validated=[]
           for i,item in enumerate(selected,1):
-            if item.get('rank')!=i or (item.get('top5') and (i>5 or item.get('composite_score') is None or item.get('status') not in ('ENTRY_READY','NEAR_ENTRY'))):
-              raise ValueError('INVALID_RANKING')
+            if (not item.get('top5') or item.get('rank')!=i or
+                item.get('financial_eligibility')!='PASS' or
+                item.get('composite_score') is None or
+                item.get('status') not in ('ENTRY_READY','NEAR_ENTRY')):
+              raise ValueError('INVALID_TOP5_RANKING')
             filename=item['image']
             if Path(filename).name!=filename:
               raise ValueError('INVALID_IMAGE_PATH')
@@ -732,10 +743,10 @@ jobs:
               if filename:head+='; filename="'+filename+'"'
               head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
               return head.encode()+value+b'\r\n'
-            caption=('C3 전체 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
-              ' | 기술점수 '+str(item['technical_score'])+' | '+item['status']+
+            caption=('C3 TOP5 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
+              ' | 종합점수 '+str(item['composite_score'])+' | '+item['status']+
               (' | TOP5' if item['top5'] else '')+
-              '\\n기술점수는 재무 종합점수가 아님 / 진입범위 미도달 PASS / 사용자 직접 매매')
+              '\\n조건부 관찰 후보 / 진입범위 미도달 PASS / 사용자 직접 매매')
             body=part('chat_id',chat.encode())+part('caption',caption.encode())+part('photo',p.read_bytes(),p.name,'image/png')+('--'+boundary+'--\r\n').encode()
             request=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',
               data=body,method='POST',headers={'Content-Type':'multipart/form-data; boundary='+boundary})
