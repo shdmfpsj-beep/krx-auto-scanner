@@ -3,9 +3,14 @@ on:
   workflow_dispatch:
     inputs:
       asof:
-        description: 'Optional KRX as-of date YYYYMMDD (manual preview only)'
+        description: 'KRX as-of YYYYMMDD; manual preview unless test_send_telegram is true'
         required: false
         type: string
+      test_send_telegram:
+        description: 'Send ONE clearly labeled 20261119 test batch to Telegram (one-time, guarded)'
+        required: false
+        default: false
+        type: boolean
   schedule:
     # KST 07:00 Tuesday-Saturday (previous KRX trading day); GitHub scheduling can be delayed.
     # 22:00 UTC Monday-Friday = 07:00 KST next calendar day.
@@ -688,6 +693,8 @@ jobs:
       - name: Validate delivery on every run; send only on scheduled main
         env:
           GH_TOKEN: ${{ github.token }}
+          C3_TEST_SEND_TELEGRAM: ${{ inputs.test_send_telegram }}
+          C3_MANUAL_ASOF: ${{ inputs.asof }}
         run: |
           python - <<'PY'
           import base64,hashlib,json,os,urllib.request,urllib.error,uuid
@@ -754,17 +761,28 @@ jobs:
                 raise ValueError('INVALID_CANDIDATE_IMAGE')
             validated.append(p)
           print('C3_FINAL_DELIVERY_PREFLIGHT_PASSED',report['asof'],len(validated))
-          if os.environ.get('GITHUB_EVENT_NAME')!='schedule' or os.environ.get('GITHUB_REF_NAME')!='main':
+          event=os.environ.get('GITHUB_EVENT_NAME')
+          on_main=os.environ.get('GITHUB_REF_NAME')=='main'
+          test_requested=os.environ.get('C3_TEST_SEND_TELEGRAM','').lower()=='true'
+          is_test=(event=='workflow_dispatch' and test_requested and on_main and
+            os.environ.get('C3_MANUAL_ASOF','').strip()=='20261119' and report['asof']=='20261119')
+          is_production=(event=='schedule' and on_main)
+          if test_requested and not is_test:
+            raise ValueError('TEST_SEND_REQUIRES_MANUAL_MAIN_ASOF_20261119')
+          if not (is_test or is_production):
             print('C3_FINAL_DELIVERY_DRY_RUN_NO_TELEGRAM')
             raise SystemExit(0)
+          if is_test:
+            print('C3_TEST_SEND_EXPLICITLY_AUTHORIZED_20261119')
           token=os.environ.get('TELEGRAM_BOT_TOKEN','')
           chat=os.environ.get('TELEGRAM_CHAT_ID','')
           if not token or not chat:
             raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
           # Create-only daily reservation BEFORE any external send. No automatic retry.
           date=report['asof']
-          marker_path='receipts/c3_top5_daily/'+date+'.json'
+          marker_path=('receipts/c3_top5_test/'+date+'.json' if is_test else 'receipts/c3_top5_daily/'+date+'.json')
           marker={'schema':'C3_FINANCE_FIRST_SEND_RESERVATION_V1','asof':date,
+                  'mode':'EXPLICIT_MANUAL_TEST' if is_test else 'SCHEDULED_PRODUCTION',
                   'run_id':os.environ['GITHUB_RUN_ID'],'status':'RESERVED_BEFORE_SEND',
                   'selected_codes':[x['code'] for x in selected],
                   'image_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in validated},
@@ -787,7 +805,7 @@ jobs:
               if filename:head+='; filename="'+filename+'"'
               head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
               return head.encode()+value+b'\r\n'
-            caption=('C3 TOP5 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
+            caption=(('[테스트 전송 · 실제 매매 신호 아님] 2026-11-19 기준\\n' if is_test else '')+'C3 TOP5 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
               ' | 기술점수 '+str(item['composite_score'])+' | '+item['status']+
               (' | TOP5' if item['top5'] else '')+
               '\\n매수범위 '+str(item['entry_low'])+'~'+str(item['entry_high'])+'원 / 구조손절 '+str(item['stop_ref'])+'원'+
@@ -799,8 +817,8 @@ jobs:
               answer=json.load(response)
             if not answer.get('ok'):
               raise ValueError('TELEGRAM_SEND_FAILED_'+str(i))
-            print('C3_FINANCE_FIRST_PHOTO_SENT',i,item['code'])
-          print('C3_ALL_CANDIDATES_DELIVERED',date,len(validated))
+            print('C3_FINANCE_FIRST_PHOTO_SENT',i,item['code'],'telegram_message_id',answer.get('result',{}).get('message_id'),'mode','TEST' if is_test else 'PRODUCTION')
+          print('C3_ALL_CANDIDATES_DELIVERED',date,len(validated),'mode','TEST' if is_test else 'PRODUCTION')
           PY
       - name: Upload individual classic images and audit receipt
         if: always()
