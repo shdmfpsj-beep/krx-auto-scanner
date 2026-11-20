@@ -1,0 +1,104 @@
+name: C3 frozen price-corridor and forward-watch research (NO ORDERS)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/c3_*"
+      - "scripts/test_c3_*"
+      - ".github/workflows/c3_corridor_replay_v1_manual.yml"
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Immutable October 30 original scan run (must match frozen run)"
+        required: true
+        default: "41051723762"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  research-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: scripts
+      C3_REPLAY_ARTIFACT_PATH: ${{ runner.temp }}/c3-source
+      C3_REPLAY_OUTPUT_DIR: ${{ runner.temp }}/c3-output
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install analysis-only runtime
+        run: python -m pip install --disable-pip-version-check numpy pandas
+      - name: Fetch original frozen scan (never posthoc re-screen)
+        env:
+          RUN_ID: ${{ inputs.source_run_id || '41051723762' }}
+        run: |
+          test "$RUN_ID" = "41051723762" || { echo "Wrong original run"; exit 1; }
+          mkdir -p "$C3_REPLAY_ARTIFACT_PATH"
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name krx-scan-report --dir "$C3_REPLAY_ARTIFACT_PATH"
+      - name: Verify existing v1 research and history chronology
+        run: |
+          python -m unittest discover -s scripts -p 'test_c3_entry_corridor_v1.py' -v
+          python -m unittest discover -s scripts -p 'test_c3_corridor_replay_v1.py' -v
+          python -m unittest discover -s scripts -p 'test_c3_registered_next_session_shadow_v1.py' -v
+      - name: Recompute frozen price corridors and Oct29 to Oct30 shadow study
+        run: |
+          mkdir -p "$C3_REPLAY_OUTPUT_DIR"
+          python scripts/c3_corridor_replay_v1.py --input "$C3_REPLAY_ARTIFACT_PATH" --output "$C3_REPLAY_OUTPUT_DIR"
+          python scripts/c3_registered_next_session_shadow_v1.py --input "$C3_REPLAY_ARTIFACT_PATH" --output "$C3_REPLAY_OUTPUT_DIR"
+      - name: Validate v2 chronological prospective freeze and history diagnostic
+        run: |
+          python -m unittest discover -s scripts -p 'test_c3_forward_watch_v2.py' -v
+          python -m unittest discover -s scripts -p 'test_c3_historical_reclaim_diagnostic_v1.py' -v
+      - name: Generate frozen prospective watch (no D1 prices yet)
+        run: |
+          python scripts/c3_forward_watch_v2.py \
+            --input "$C3_REPLAY_ARTIFACT_PATH" \
+            --replay-csv "$C3_REPLAY_OUTPUT_DIR/c3_corridor_replay_v1.csv" \
+            --replay-status "$C3_REPLAY_OUTPUT_DIR/c3_corridor_replay_v1_status.json" \
+            --output "$C3_REPLAY_OUTPUT_DIR"
+      - name: Run selected 36 retrospective diagnostic with bias warning
+        run: |
+          python scripts/c3_historical_reclaim_diagnostic_v1.py \
+            --input "$C3_REPLAY_ARTIFACT_PATH" \
+            --output "$C3_REPLAY_OUTPUT_DIR"
+      - name: Compare intraday with closing stop and next-session gap
+        run: |
+          python scripts/c3_close_stop_comparison_v1.py \
+            --input "$C3_REPLAY_ARTIFACT_PATH" \
+            --diagnostic-csv "$C3_REPLAY_OUTPUT_DIR/c3_historical_reclaim_diagnostic_v1.csv" \
+            --diagnostic-status "$C3_REPLAY_OUTPUT_DIR/c3_historical_reclaim_diagnostic_v1_status.json" \
+            --output "$C3_REPLAY_OUTPUT_DIR"
+          python -m unittest discover -s scripts -p 'test_c3_close_stop_comparison_v1.py' -v
+      - name: Assert no order authorizations or claimed profitable backtests
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          root=pathlib.Path(os.environ["C3_REPLAY_OUTPUT_DIR"])
+          names=["c3_corridor_replay_v1_status.json",
+                 "c3_forward_watch_v2_pending.json",
+                 "c3_historical_reclaim_diagnostic_v1_status.json"]
+          reports=[json.loads((root/name).read_text()) for name in names]
+          assert all(x["trade_approved"] is False and x["orders_enabled"] is False for x in reports)
+          frozen=json.loads((root/"c3_forward_watch_v2_frozen.json").read_text())
+          assert len(frozen["frozen_signals"])==9
+          assert reports[1]["states"]=={"PENDING_NEXT_OBSERVED_SESSION":9}
+          assert reports[2]["strategy_profitability_proven"] is False
+          assert reports[2]["regular_only_source_verified"] is False
+          assert reports[2]["actual_broker_fills"]==0
+          paired=json.loads((root/"c3_close_stop_comparison_v1_status.json").read_text())
+          assert paired["trade_approved"] is False and paired["orders_enabled"] is False
+          assert paired["actual_fills"]==0
+          assert paired["hindsight_selected_universe_bias"] is True
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c3-oct30-frozen-prospective-and-biased-diagnostic-no-orders
+          path: ${{ runner.temp }}/c3-output/
+          retention-days: 30
