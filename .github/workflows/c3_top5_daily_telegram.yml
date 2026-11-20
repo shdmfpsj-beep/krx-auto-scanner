@@ -368,7 +368,7 @@ jobs:
                 'close':x['close'],'ma5':x['ma5'],'ma20':x['ma20'],'ma60':x['ma60'],
                 'bars':[{'date':d,'close':data[key][d][0],
                          'high':data[key][d][1],'low':data[key][d][2],
-                         'volume':data[key][d][3]} for d in days]})
+                         'volume':data[key][d][3],'open':data[key][d][5]} for d in days]})
             (root/'qualified_chart_pool.json').write_text(json.dumps({
               'schema':'C3_QUALIFIED_CHART_POOL_RESEARCH_V1',
               'asof':days[-1],'candidates':research_pool},ensure_ascii=False)+'\n')
