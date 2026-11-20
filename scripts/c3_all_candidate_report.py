@@ -75,7 +75,7 @@ def main():
         d.text((700,281),'매수 범위 도달 시에만 관찰 · 미도달 PASS · 직접 매매',font=font(25),fill=(122,97,57),anchor='ma')
         d.rounded_rectangle((42,342,1358,1158),radius=15,fill='white',outline=(216,216,212),width=2)
         d.text((70,359),'실제 일봉 60거래일 · 거래량',font=font(30,True),fill=ink)
-        d.text((1320,364),'5일선   20일선   60일선',font=font(23),fill=muted,anchor='ra')
+        d.text((1320,364),'MA5 · MA20 · MA60(마지막 값만)',font=font(22),fill=muted,anchor='ra')
         left,right,top,bottom=150,1100,440,957
         highs=[float(z['high']) for z in bars];lows=[float(z['low']) for z in bars]
         opens=[float(z['open']) for z in bars]
@@ -132,7 +132,7 @@ def main():
         risk=x.get('risk_pct') if valid else None
         d.text((50,1415),f"진입 {state} · 위험 "+(f"{risk:.2f}%" if isinstance(risk,(int,float)) else '미확정')+
                f" · 기술 {score:.2f} · 재무 "+(f"{x['financial_points']}/30" if is_fin else '미검증'),font=font(31,True),fill=ink)
-        d.text((50,1475),f"종합 {composite:.2f}점 | 전체 {rank}위 / {len(candidates)}",font=font(27),fill=muted)
+        d.text((50,1475),f"종합 {composite:.2f}점 | 전체 {rank}위 / {len(candidates)} | MA60 {sum(prices)/60:,.0f}원(마지막 값)",font=font(24),fill=muted)
         d.line((48,1540,1352,1540),fill=(220,220,216),width=2)
         d.text((50,1572),'KRX 일봉 기준 · 정규장 종가/수정주가 확인 필요',font=font(25),fill=muted)
         d.text((50,1620),f"기준일 {src['asof']} | 유효기간 미확정 · 재확인 후 판단 | 주문은 사용자 직접",font=font(24),fill=muted)
