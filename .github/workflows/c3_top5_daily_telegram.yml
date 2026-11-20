@@ -781,9 +781,9 @@ jobs:
             raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
           # Create-only daily reservation BEFORE any external send. No automatic retry.
           date=report['asof']
-          marker_path=('receipts/c3_top5_corrected_chart_test/'+date+'.json' if is_test else 'receipts/c3_top5_daily/'+date+'.json')
+          marker_path=('receipts/c3_top5_classic_final_test_v2/'+date+'.json' if is_test else 'receipts/c3_top5_daily/'+date+'.json')
           marker={'schema':'C3_FINANCE_FIRST_SEND_RESERVATION_V1','asof':date,
-                  'mode':'EXPLICIT_CORRECTED_CHART_TEST' if is_test else 'SCHEDULED_PRODUCTION',
+                  'mode':'EXPLICIT_CLASSIC_FINAL_TEST_V2' if is_test else 'SCHEDULED_PRODUCTION',
                   'run_id':os.environ['GITHUB_RUN_ID'],'status':'RESERVED_BEFORE_SEND',
                   'selected_codes':[x['code'] for x in selected],
                   'image_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in validated},
@@ -806,7 +806,7 @@ jobs:
               if filename:head+='; filename="'+filename+'"'
               head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
               return head.encode()+value+b'\r\n'
-            caption=(('[테스트 전송 · 실제 매매 신호 아님] 2026-11-19 기준\\n' if is_test else '')+'C3 TOP5 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
+            caption=(('[최종 클래식 디자인 검증 · 실제 매매 신호 아님] 2026-11-19 기준\\n' if is_test else '')+'C3 TOP5 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
               ' | 기술점수 '+str(item['composite_score'])+' | '+item['status']+
               (' | TOP5' if item['top5'] else '')+
               '\\n매수범위 '+str(item['entry_low'])+'~'+str(item['entry_high'])+'원 / 구조손절 '+str(item['stop_ref'])+'원'+
