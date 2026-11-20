@@ -69,8 +69,8 @@ jobs:
           root=Path('output/c3_top5');root.mkdir(parents=True,exist_ok=True)
           receipt={'schema':'C3_TOP5_DAILY_V1','status':'HOLD','decision':'CASH','orders_enabled':False,
             'user_executes_trades':True,'telegram_photos_sent':0,'candidates':[],
-            'limitations':['Official KRX daily bars are not independently 15:30 regular-only certified',
-            'Corporate-action adjustments and PIT financial quality not verified',
+            'limitations':['KRX OHLCV basic validation applied; independent price certification is optional',
+            'Corporate-action adjustment consistency requires basic checks; independent certification is optional',
             'Entry references are not orders or investment recommendations',
             'A reserved send date is never retried automatically after an uncertain Telegram outcome']}
           def fetch(day,endpoint):
@@ -138,6 +138,11 @@ jobs:
               if len(days)==60:break
               time.sleep(.12)
             if len(days)!=60 or days[0]!=target.strftime('%Y%m%d'):
+              receipt['source_collection_diagnostics']={'target':target.strftime('%Y%m%d'),
+                'complete_sessions':len(days),'newest_available':days[0] if days else None,
+                'oldest_available':days[-1] if days else None,
+                'requested_calendar_days':105}
+              print('C3_SOURCE_INCOMPLETE_DIAGNOSTICS',json.dumps(receipt['source_collection_diagnostics']))
               raise ValueError('TODAY_60_SESSION_SOURCE_INCOMPLETE')
             days.sort()
             session_coverage.sort(key=lambda x:x['date'])
@@ -163,6 +168,9 @@ jobs:
             if len(med)!=2:raise ValueError('MARKET_BENCHMARK_MISSING')
             pool=[]
             for key,a in eligible.items():
+              # User policy: exclude pharmaceutical/biotech candidates before ranking.
+              excluded_terms=('제약','바이오','파마','약품','신약','생명과학','메디','셀트리온')
+              if any(term in names[key] for term in excluded_terms):continue
               c=[x[0] for x in a];last=c[-1]
               ma5=statistics.mean(c[-5:]);ma20=statistics.mean(c[-20:]);ma60=statistics.mean(c)
               r20=last/c[-21]-1;rs=r20-med[key[0]]
@@ -322,13 +330,20 @@ jobs:
             # Research-only full qualified pool for finance-first image preview.
             # This does not alter legacy selected images or Telegram delivery.
             research_pool=[]
-            for x in ready_watch+near_watch:
+            for x in pool[:10]:
               key=(x['market'],x['code'])
               research_pool.append({
                 'code':x['code'],'name':x['name'],'market':x['market'],
-                'entry_status':x['entry_status'],'entry_low':x['entry_watch_low'],
-                'entry_high':x['entry_watch_high'],
-                'stop_ref':x['structural_stop_ref'],'risk_pct':x['entry_risk_pct'],
+                'score':x['score'],'opportunity_score':x['opportunity_score'],
+                'geometry_validated':x['geometry_validated'],
+                'rejection_reasons':x['rejection_reasons'],
+                'entry_status':x['entry_status'] if x['geometry_validated'] else 'WATCH',
+                'entry_low':x['entry_watch_low'] if x['geometry_validated'] else None,
+                'entry_high':x['entry_watch_high'] if x['geometry_validated'] else None,
+                'stop_ref':x['structural_stop_ref'] if x['geometry_validated'] else None,
+                'r1_ref':x['r1_ref'] if x['geometry_validated'] else None,
+                'r2_ref':x['r2_ref'] if x['geometry_validated'] else None,
+                'risk_pct':x['entry_risk_pct'] if x['geometry_validated'] else None,
                 'close':x['close'],'ma5':x['ma5'],'ma20':x['ma20'],'ma60':x['ma60'],
                 'bars':[{'date':d,'close':data[key][d][0],
                          'high':data[key][d][1],'low':data[key][d][2],
@@ -502,6 +517,7 @@ jobs:
         with:
           sparse-checkout: |
             scripts/c3_top5_dart_bridge.py
+            scripts/c3_all_candidate_report.py
             scripts/c3_top5_eligibility_audit.py
             scripts/c3_top5_financial_selection.py
             scripts/c3_top5_financial_preview.py
@@ -562,9 +578,7 @@ jobs:
           root=Path('output/c3_top5')
           geometry=json.loads((root/'entry_geometry_audit.json').read_text())
           eligible=[{'code':c['code'],'name':c.get('name','')}
-                    for c in geometry.get('candidates',[])
-                    if c.get('status') in ('ENTRY_READY','NEAR_ENTRY')
-                    and c.get('risk_pct') is not None and 0<c['risk_pct']<=5]
+                    for c in geometry.get('candidates',[])[:10]]
           (root/'financial_pool_input.json').write_text(json.dumps({
               'asof':geometry['asof'],'candidates':eligible},ensure_ascii=False))
           PY
@@ -584,6 +598,14 @@ jobs:
           else
             echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
+      - name: Rank every detected candidate and render every candidate image
+        if: ${{ always() && hashFiles('output/c3_top5/qualified_chart_pool.json') != '' && hashFiles('output/c3_top5/financial_pool_gate.json') != '' }}
+        run: |
+          python scripts/c3_all_candidate_report.py \
+            --pool output/c3_top5/qualified_chart_pool.json \
+            --selection output/c3_top5/financial_selection_research.json \
+            --financial output/c3_top5/financial_pool_gate.json \
+            --out output/c3_top5/all_candidate_report
       - name: Build finance-first conditional signal delivery manifest
         if: always()
         run: |
@@ -595,8 +617,13 @@ jobs:
                   'selected':[],'images':[],'telegram_photos_sent':0,'trade_approved':False}
           try:
             selection=json.loads((root/'financial_selection_research.json').read_text())
-            preview=json.loads((root/'financial_preview'/'financial_preview_manifest.json').read_text())
             receipt=json.loads((root/'receipt.json').read_text())
+            if selection.get('status')=='CASH_FINANCIAL_EVIDENCE_PENDING':
+              result.update(status='CASH_FINANCIAL_EVIDENCE_PENDING',asof=receipt.get('asof'),
+                            financial_evidence_status=selection.get('financial_evidence_status'),
+                            financial_coverage_complete=False)
+              raise StopIteration('FINANCIAL_EVIDENCE_PENDING')
+            preview=json.loads((root/'financial_preview'/'financial_preview_manifest.json').read_text())
             selected=selection.get('selected',[])
             images=preview.get('images',[])
             if not (selection.get('asof')==preview.get('asof')==receipt.get('asof')):
@@ -629,8 +656,11 @@ jobs:
                           decision=selection.get('decision','CASH'),
                           signals=selection.get('signals',[]),
                           point_in_time_certification_required=False,
-                          independent_price_certification_required=False)
+                          independent_price_certification_required=False,
+                          data_quality_validation_required=True)
             result['status']='FINANCE_FIRST_PREVIEW_READY_NO_SEND' if selected else 'CASH_NO_FINANCIAL_CANDIDATES'
+          except StopIteration:
+            pass
           except (OSError,KeyError,TypeError,ValueError,AttributeError) as e:
             result['status']='CASH_FINANCE_FIRST_MANIFEST_INVALID'
             result['error']=type(e).__name__+': '+str(e)[:160]
@@ -639,8 +669,7 @@ jobs:
           print('C3_FINANCE_FIRST_DELIVERY',json.dumps({'status':result['status'],
             'selected_count':len(result['selected']),'telegram_photos_sent':0},ensure_ascii=False))
           PY
-      - name: Send finance-first conditional signals on scheduled main only
-        if: ${{ github.event_name == 'schedule' && github.ref_name == 'main' }}
+      - name: Validate delivery on every run; send only on scheduled main
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -652,56 +681,72 @@ jobs:
           manifest=json.loads((root/'finance_first_delivery_manifest.json').read_text())
           receipt=json.loads((root/'receipt.json').read_text())
           source=receipt.get('source_integrity',{})
-          if manifest.get('status')=='CASH_NO_FINANCIAL_CANDIDATES':
-            print('C3_FINAL_DELIVERY CASH_NO_CANDIDATES_NO_SEND')
-            raise SystemExit(0)
-          if manifest.get('status')!='FINANCE_FIRST_PREVIEW_READY_NO_SEND':
-            raise ValueError('FINANCE_MANIFEST_NOT_READY')
-          if not manifest.get('financial_coverage_complete'):
-            raise ValueError('FINANCIAL_COVERAGE_INCOMPLETE')
-          if source.get('session_count',0)<60 or source.get('last_session')!=manifest.get('asof'):
+          report=json.loads((root/'all_candidate_report'/'manifest.json').read_text())
+          if report.get('asof')!=receipt.get('asof'):
+            raise ValueError('ALL_CANDIDATE_DATE_MISMATCH')
+          if source.get('session_count',0)<60 or source.get('last_session')!=report.get('asof'):
             raise ValueError('SOURCE_DATE_OR_SESSION_MISMATCH')
           if source.get('market_rows_min',{}).get('KOSPI',0)<500 or source.get('market_rows_min',{}).get('KOSDAQ',0)<800:
             raise ValueError('MARKET_COVERAGE_BELOW_FLOOR')
-          if manifest.get('asof')!=receipt.get('asof'):
-            raise ValueError('RECEIPT_DATE_MISMATCH')
-          selected=manifest['selected']
-          images=manifest['images']
-          signals=manifest.get('signals',[])
-          if len(signals)!=len(selected):
-            raise ValueError('SIGNAL_SELECTION_COUNT_MISMATCH')
-          for item,signal in zip(selected,signals):
-            if item['code']!=signal.get('code'):
-              raise ValueError('SIGNAL_SYMBOL_MISMATCH')
-            expected='BUY_CONSIDER' if item.get('technical_status')=='ENTRY_READY' else 'WAIT_FOR_ENTRY'
-            if signal.get('signal')!=expected:
-              raise ValueError('INVALID_CONDITIONAL_SIGNAL')
-          if not selected or len(selected)!=len(images) or len(selected)>5:
-            raise ValueError('INVALID_FINAL_SELECTION')
+          if manifest.get('status')=='CASH_FINANCIAL_EVIDENCE_PENDING':
+            print('C3_FINAL_DELIVERY CASH_FINANCIAL_EVIDENCE_PENDING_NO_SEND')
+            raise SystemExit(0)
+          if manifest.get('status') not in ('FINANCE_FIRST_PREVIEW_READY_NO_SEND','CASH_NO_FINANCIAL_CANDIDATES'):
+            raise ValueError('FINANCE_FIRST_MANIFEST_NOT_VALID')
+          if manifest.get('asof')!=report.get('asof') or not manifest.get('financial_coverage_complete'):
+            raise ValueError('FINANCIAL_COVERAGE_OR_DATE_NOT_VALID')
+          all_candidates=report.get('candidates',[])
+          selected=[x for x in all_candidates if x.get('top5')]
+          approved_codes=[x.get('code') for x in manifest.get('selected',[])]
+          if [x['code'] for x in selected]!=approved_codes:
+            raise ValueError('TOP5_MANIFEST_SYMBOL_MISMATCH')
+          if report.get('selected_codes')!=approved_codes:
+            raise ValueError('TOP5_REPORT_SELECTION_MISMATCH')
+          if not selected:
+            print('C3_FINAL_DELIVERY CASH_NO_QUALIFIED_TOP5_NO_SEND')
+            raise SystemExit(0)
+          if len(selected)>5 or len({x['code'] for x in selected})!=len(selected):
+            raise ValueError('INVALID_TOP5_SELECTION')
           validated=[]
-          for item,im in zip(selected,images):
-            if item['code']!=im['code'] or item.get('technical_status') not in ('ENTRY_READY','NEAR_ENTRY'):
-              raise ValueError('FINANCIAL_TECHNICAL_MISMATCH')
-            if item.get('financial_flag') not in ('QUALIFIED','QUALIFIED_WITH_SLOWDOWN_FLAG'):
-              raise ValueError('FINANCIAL_QUALITY_NOT_ACCEPTED')
-            filename=im['image']
+          for i,item in enumerate(selected,1):
+            if (not item.get('top5') or item.get('rank')!=i or
+                item.get('financial_eligibility')!='PASS' or
+                item.get('composite_score') is None or
+                item.get('status') not in ('ENTRY_READY','NEAR_ENTRY')):
+              raise ValueError('INVALID_TOP5_RANKING')
+            low,high,stop,close=(item.get(k) for k in ('entry_low','entry_high','stop_ref','asof_close'))
+            risk=item.get('risk_pct')
+            if not all(isinstance(v,(int,float)) and v>0 for v in (low,high,stop,close,risk)):
+              raise ValueError('INVALID_ENTRY_STOP_RISK_'+item['code'])
+            if not (stop<low<=high and 0<risk<=5 and
+                    ((item.get('status')=='NEAR_ENTRY' and close>high) or
+                     (item.get('status')=='ENTRY_READY' and low<=close<=high))):
+              raise ValueError('UNSAFE_ENTRY_STOP_GEOMETRY_'+item['code'])
+            if abs((high-stop)/high*100-risk)>1.5:
+              raise ValueError('RISK_PERCENT_MISMATCH_'+item['code'])
+            if item.get('name')!=manifest['selected'][i-1].get('name'):
+              raise ValueError('SELECTED_NAME_MISMATCH_'+item['code'])
+            filename=item['image']
             if Path(filename).name!=filename:
               raise ValueError('INVALID_IMAGE_PATH')
-            p=root/'financial_preview'/filename
+            p=root/'all_candidate_report'/filename
             if not p.is_file() or p.stat().st_size<10000:
-              raise ValueError('MISSING_FINAL_IMAGE')
-            with Image.open(p) as check:
-              check.verify()
+              raise ValueError('MISSING_CANDIDATE_IMAGE')
+            with Image.open(p) as check:check.verify()
             with Image.open(p) as check:
               if check.format!='PNG' or check.size!=(1400,1710):
-                raise ValueError('INVALID_FINAL_IMAGE')
+                raise ValueError('INVALID_CANDIDATE_IMAGE')
             validated.append(p)
+          print('C3_FINAL_DELIVERY_PREFLIGHT_PASSED',report['asof'],len(validated))
+          if os.environ.get('GITHUB_EVENT_NAME')!='schedule' or os.environ.get('GITHUB_REF_NAME')!='main':
+            print('C3_FINAL_DELIVERY_DRY_RUN_NO_TELEGRAM')
+            raise SystemExit(0)
           token=os.environ.get('TELEGRAM_BOT_TOKEN','')
           chat=os.environ.get('TELEGRAM_CHAT_ID','')
           if not token or not chat:
             raise ValueError('TELEGRAM_CREDENTIALS_MISSING')
           # Create-only daily reservation BEFORE any external send. No automatic retry.
-          date=manifest['asof']
+          date=report['asof']
           marker_path='receipts/c3_top5_daily/'+date+'.json'
           marker={'schema':'C3_FINANCE_FIRST_SEND_RESERVATION_V1','asof':date,
                   'run_id':os.environ['GITHUB_RUN_ID'],'status':'RESERVED_BEFORE_SEND',
@@ -726,9 +771,11 @@ jobs:
               if filename:head+='; filename="'+filename+'"'
               head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
               return head.encode()+value+b'\r\n'
-            caption=('C3 TOP5 '+date+' | '+item.get('name',item['code'])+
-              ' | '+str(i)+'/'+str(len(selected))+' | '+item['technical_status']+
-              '\n'+signals[i-1]['signal']+' / 재무·기술 조건부 신호 / 매수범위 미도달 PASS / 주문은 사용자 직접')
+            caption=('C3 TOP5 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
+              ' | 기술점수 '+str(item['composite_score'])+' | '+item['status']+
+              (' | TOP5' if item['top5'] else '')+
+              '\\n매수범위 '+str(item['entry_low'])+'~'+str(item['entry_high'])+'원 / 구조손절 '+str(item['stop_ref'])+'원'+
+              '\\n조건부 관찰 후보 / 진입범위 미도달 PASS / 사용자 직접 매매')
             body=part('chat_id',chat.encode())+part('caption',caption.encode())+part('photo',p.read_bytes(),p.name,'image/png')+('--'+boundary+'--\r\n').encode()
             request=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',
               data=body,method='POST',headers={'Content-Type':'multipart/form-data; boundary='+boundary})
@@ -737,7 +784,7 @@ jobs:
             if not answer.get('ok'):
               raise ValueError('TELEGRAM_SEND_FAILED_'+str(i))
             print('C3_FINANCE_FIRST_PHOTO_SENT',i,item['code'])
-          print('C3_FINANCE_FIRST_DELIVERED',date,len(validated))
+          print('C3_ALL_CANDIDATES_DELIVERED',date,len(validated))
           PY
       - name: Upload individual classic images and audit receipt
         if: always()
