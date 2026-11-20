@@ -806,12 +806,8 @@ jobs:
               if filename:head+='; filename="'+filename+'"'
               head+='\r\nContent-Type: '+ctype+'\r\n\r\n'
               return head.encode()+value+b'\r\n'
-            caption=(('[최종 클래식 디자인 검증 · 실제 매매 신호 아님] 2026-11-19 기준\\n' if is_test else '')+'C3 TOP5 후보 '+date+' | '+str(i)+'/'+str(len(selected))+' | '+item['name']+
-              ' | 기술점수 '+str(item['composite_score'])+' | '+item['status']+
-              (' | TOP5' if item['top5'] else '')+
-              '\\n매수범위 '+str(item['entry_low'])+'~'+str(item['entry_high'])+'원 / 구조손절 '+str(item['stop_ref'])+'원'+
-              '\\n조건부 관찰 후보 / 진입범위 미도달 PASS / 사용자 직접 매매')
-            body=part('chat_id',chat.encode())+part('caption',caption.encode())+part('photo',p.read_bytes(),p.name,'image/png')+('--'+boundary+'--\r\n').encode()
+            # Image-only Telegram delivery: omit the caption multipart field entirely.
+            body=part('chat_id',chat.encode())+part('photo',p.read_bytes(),p.name,'image/png')+('--'+boundary+'--\r\n').encode()
             request=urllib.request.Request('https://api.telegram.org/bot'+token+'/sendPhoto',
               data=body,method='POST',headers={'Content-Type':'multipart/form-data; boundary='+boundary})
             with urllib.request.urlopen(request,timeout=30) as response:
