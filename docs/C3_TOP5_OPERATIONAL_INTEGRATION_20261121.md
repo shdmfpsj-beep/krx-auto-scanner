@@ -19,6 +19,8 @@ PR #198의 head `6bc9994cca8864ea9e39a5f777cb3f83b3a5350f`와 [기존 93개 CI �
 
 ## 실제 운영 검증의 판정 기준
 
+추가 PR의 첫 CI 실행 [44883915299](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/44883915299)은 실행기의 기본 Python 3.14에서 pandas 2.2.3 소스 빌드 후 프로세스가 exit 139로 종료됐다. 이 실패를 성공으로 취급하지 않고 main 반영 전에 운영/CI 모두 `actions/setup-python@v5`의 Python 3.12로 고정했다. 변경 후의 필수 CI 성공을 확인한 뒤에만 병합한다.
+
 - 최신 완료일의 KOSPI·KOSDAQ를 실제 기존 API로 수집한다. source_integrity, reported_date_rows_checked, duplicate_valid_rows, large_price_moves_35pct를 확인한다.
 - 기술 후보→유효 진입 후보→최대 30개 재무 조회→최대 5개 또는 정상 CASH의 수와 사유를 확인한다.
 - 최종 0개이면 종목을 채우거나 전송하지 않는다. 기존 관찰/진단 이미지와 최종 TOP5 이미지를 구분한다.

@@ -48,6 +48,10 @@ jobs:
             scripts/dart_interim_periods.py
             .github/workflows/c3_top5_daily_telegram.yml
           sparse-checkout-cone-mode: false
+      - name: Use the same Python runtime as production
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Install existing chart dependencies for offline rendering
         run: |
           sudo apt-get update -qq

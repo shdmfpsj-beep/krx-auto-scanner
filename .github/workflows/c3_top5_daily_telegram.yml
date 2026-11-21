@@ -36,6 +36,10 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Use the validated Python runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Install image renderer and Korean font
         run: |
           sudo apt-get update -qq
