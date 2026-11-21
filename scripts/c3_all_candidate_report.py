@@ -3,7 +3,7 @@
 import argparse,json,math
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
-from c3_top5_financial_selection import classify
+from c3_top5_financial_selection import classify, financial_points, valid_entry
 
 def main():
     p=argparse.ArgumentParser()
@@ -16,7 +16,7 @@ def main():
     evidence=json.loads(Path(a.financial).read_text())
     covered={str(x['ticker']):x for x in evidence.get('researched',[])+evidence.get('excluded',[]) if isinstance(x,dict) and x.get('ticker')}
     if evidence.get('asof')!=src.get('asof'):covered={}
-    candidates=src.get('candidates',[])[:10]
+    candidates=src.get('candidates',[])
     selected_codes=[x['code'] for x in fin.get('selected',[]) if isinstance(x,dict) and x.get('code')]
     if fin.get('asof')!=src.get('asof') or len(selected_codes)>5 or len(set(selected_codes))!=len(selected_codes):
         selected_codes=[]
@@ -26,19 +26,16 @@ def main():
         raise ValueError('SELECTION_NOT_IN_CHART_POOL')
     for x in candidates:
         e=covered.get(x['code'])
-        flag=classify(e) if e else 'REVIEW_INSUFFICIENT_EVIDENCE'
+        flag=classify(e, src.get('asof')) if e else 'REVIEW_INSUFFICIENT_EVIDENCE'
         points=None
         if e and e.get('annual_status')=='DATED_ANNUAL_RESEARCH_ONLY' and e.get('interim_status')=='DATED_INTERIM_YTD_RESEARCH_ONLY' and e.get('filing_date') and e.get('interim_filing_date'):
             # Evidence quality score is separate from the hard financial eligibility gate.
             # Weak interim results remain visible for review but NEVER authorize TOP5.
-            annual={'ANNUAL_GROWTH_AND_MARGIN_OBSERVED':16,'ANNUAL_POSITIVE_MIXED':11,
-                    'ANNUAL_RISK_OR_SLOWDOWN':5}.get(e.get('financial_quality'),0)
-            interim={'INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED':14,'INTERIM_MIXED':9,
-                     'INTERIM_PROFIT_OR_SALES_WEAKENING':4}.get(e.get('interim_quality'),0)
-            points=annual+interim
+            points=financial_points(e)
         x['financial_flag']=flag;x['financial_points']=points
         x['composite_score']=round(float(x.get('opportunity_score',x.get('score',0)) or 0),2)
-        x['top5_eligible']=bool(x['code'] in selected_set and x.get('geometry_validated') and x.get('entry_status') in ('ENTRY_READY','NEAR_ENTRY'))
+        x['top5_eligible']=bool(x['code'] in selected_set and valid_entry(x)
+                              and flag=='QUALIFIED_BASIC_FINANCIAL_RISK')
     candidates.sort(key=lambda x:(selected_codes.index(x['code']) if x['code'] in selected_set else 100,
                                   -float(x.get('opportunity_score',0)),x['code']))
     approved_top5=selected_set
@@ -61,6 +58,9 @@ def main():
         # four trading-level cards, then risk/strength metrics.
         if len(bars)!=60 or any(not all(k in bar for k in ('open','high','low','close','volume','date')) for bar in bars):
             raise ValueError('CLASSIC_REQUIRES_60_REAL_OHLCV_'+x['code'])
+        if ([b['date'] for b in bars]!=sorted(set(b['date'] for b in bars)) or
+            bars[-1]['date']!=src['asof'] or prices[-1]!=x.get('close')):
+            raise ValueError('CLASSIC_SOURCE_DATE_OR_CLOSE_MISMATCH_'+x['code'])
         im=Image.new('RGB',(1400,1710),(250,249,245));d=ImageDraw.Draw(im)
         ink=(42,44,46);muted=(105,111,114);gold=(170,136,74)
         green=(43,122,86);red=(179,74,72);blue=(54,117,170)
@@ -132,7 +132,7 @@ def main():
         risk=x.get('risk_pct') if valid else None
         d.text((50,1415),f"진입 {state} · 위험 "+(f"{risk:.2f}%" if isinstance(risk,(int,float)) else '미확정')+
                f" · 기술 {score:.2f} · 재무 "+(f"{x['financial_points']}/30" if is_fin else '미검증'),font=font(31,True),fill=ink)
-        d.text((50,1475),f"종합 {composite:.2f}점 | 전체 {rank}위 / {len(candidates)} | MA60 {sum(prices)/60:,.0f}원(마지막 값)",font=font(24),fill=muted)
+        d.text((50,1475),f"기술 기회 {composite:.2f}점 | 전체 {rank}위 / {len(candidates)} | MA60 {sum(prices)/60:,.0f}원(마지막 값)",font=font(24),fill=muted)
         d.line((48,1540,1352,1540),fill=(220,220,216),width=2)
         d.text((50,1572),'KRX 일봉 기준 · 정규장 종가/수정주가 확인 필요',font=font(25),fill=muted)
         d.text((50,1620),f"기준일 {src['asof']} | 유효기간 미확정 · 재확인 후 판단 | 주문은 사용자 직접",font=font(24),fill=muted)
@@ -151,7 +151,7 @@ def main():
           'r2_ref':x.get('r2_ref') if valid else None,
           'asof_close':prices[-1]})
     result={'schema':'C3_ALL_CANDIDATES_V2','asof':src['asof'],'candidate_count':len(rows),
-      'score_disclaimer':'Technical opportunity score only; financial evidence is basic risk exclusion, not ranking; no trade approval',
+      'score_disclaimer':'Separate financial /30, technical strength and entry opportunity; TOP5 follows financial selection; no trade approval',
       'candidates':rows,'selected_codes':selected_codes,'trade_approved':False,
       'financial_diagnostics':{'evidence_count':sum(x['financial_points'] is not None for x in rows),
        'eligible_top5_count':sum(x['top5'] for x in rows),

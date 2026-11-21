@@ -4,6 +4,12 @@ R={"asof":"20261119","candidates":[{"code":"005930","close":100000}]}
 E={"source_type":"INDEPENDENT_OFFICIAL_EXCHANGE","asof":"20261119",
    "adjustment_policy_verified":True,"prices":[{"code":"005930","close":100000,"regular_session":True}]}
 class PriceEvidenceTests(unittest.TestCase):
+    def test_official_alphanumeric_ticker_is_preserved_without_certification(self):
+        r={**R,'candidates':[{'code':'0220W0','close':7780}]}
+        e={**E,'prices':[{'code':'0220W0','close':7780,'regular_session':True}]}
+        x=verify(r,e)
+        self.assertEqual(x['matched'],['0220W0'])
+        self.assertFalse(x['regular_session_price_certified'])
     def test_matching_rows_never_self_certify(self):
         x=verify(R,E)
         self.assertEqual(x["status"],"PRICE_ROWS_MATCHED_PROVENANCE_UNVERIFIED")

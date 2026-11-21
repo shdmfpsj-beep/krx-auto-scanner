@@ -1,11 +1,12 @@
 import unittest
 from c3_top5_eligibility_audit import audit
+from test_c3_top5_financial_selection import record
 
 R = {"candidates": [{"code":"005930","name":"삼성전자","status":"ENTRY_READY"},
                      {"code":"000080","name":"하이트진로","status":"NEAR_ENTRY"}],
      "source_integrity":{"regular_session_price_certified":False,"corporate_actions_certified":False}}
 F = {"status":"PARTIAL_OR_FAILED_FINANCIAL_GATE",
-     "researched":[{"ticker":"005930","financial_screen_pass":True}]}
+     "researched":[record('005930', financial_screen_pass=True)]}
 class EligibilityTests(unittest.TestCase):
     def test_no_price_certificate_blocks_every_candidate(self):
         x=audit(R,F)

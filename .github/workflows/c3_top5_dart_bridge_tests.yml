@@ -12,6 +12,11 @@ on:
       - 'scripts/c3_top5_financial_selection.py'
       - 'scripts/c3_top5_financial_preview.py'
       - 'scripts/test_c3_top5_financial_selection.py'
+      - 'scripts/test_c3_top5_pipeline.py'
+      - 'scripts/c3_all_candidate_report.py'
+      - 'scripts/dart_financial_screen.py'
+      - 'scripts/test_dart_financial_screen.py'
+      - '.github/workflows/c3_top5_daily_telegram.yml'
       - '.github/workflows/c3_top5_dart_bridge_tests.yml'
 permissions:
   contents: read
@@ -31,27 +36,36 @@ jobs:
             scripts/c3_top5_financial_selection.py
             scripts/c3_top5_financial_preview.py
             scripts/test_c3_top5_financial_selection.py
+            scripts/test_c3_top5_pipeline.py
+            scripts/c3_all_candidate_report.py
             scripts/dart_financial_screen.py
+            scripts/test_dart_financial_screen.py
+            scripts/test_dart_interim_periods.py
             scripts/dart_interim_periods.py
             .github/workflows/c3_top5_daily_telegram.yml
           sparse-checkout-cone-mode: false
+      - name: Install existing chart dependencies for offline rendering
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow --disable-pip-version-check
       - name: Compile research adapter and tests
         run: python -m py_compile scripts/c3_top5_dart_bridge.py scripts/test_c3_top5_dart_bridge.py scripts/c3_top5_eligibility_audit.py scripts/test_c3_top5_eligibility_audit.py scripts/c3_top5_independent_price_evidence.py scripts/test_c3_top5_independent_price_evidence.py scripts/c3_top5_financial_selection.py scripts/test_c3_top5_financial_selection.py scripts/c3_top5_financial_preview.py
       - name: Run offline fail-closed tests (no secrets or market calls)
-        run: PYTHONPATH=scripts python -m unittest -v test_c3_top5_dart_bridge test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence test_c3_top5_financial_selection
+        run: PYTHONPATH=scripts python -m unittest -v test_c3_top5_dart_bridge test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods
       - name: Check research hook contract without running Telegram
         run: |
           python - <<'PY'
           from pathlib import Path
           source=Path('.github/workflows/c3_top5_daily_telegram.yml').read_text()
           hook=source.index('      - name: Evaluate dated OpenDART evidence for selected TOP5')
-          upload=source.index('      - name: Upload individual classic images and audit receipt')
-          assert hook < upload
-          fragment=source[hook:upload]
+          end=source.index('      - name: Record non-authorizing TOP5 eligibility audit')
+          fragment=source[hook:end]
           assert 'continue-on-error: true' in fragment
           assert 'financial_research_gate.json' in fragment
           assert any('scripts/c3_top5_dart_bridge.py' in line for line in fragment.splitlines())
-          assert any('--receipt output/c3_top5/receipt.json' in line for line in fragment.splitlines())
+          assert any('--receipt output/c3_top5/financial_pool_input.json' in line for line in fragment.splitlines())
+          assert source.count('python scripts/c3_top5_dart_bridge.py')==1
           assert 'telegram' not in fragment.lower()
           print('TOP5_DART_RESEARCH_HOOK_STATIC_CONTRACT_OK')
           PY

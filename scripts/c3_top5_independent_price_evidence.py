@@ -25,7 +25,7 @@ def verify(receipt, evidence):
         return out
     lookup={}
     for r in rows:
-        if not isinstance(r,dict) or not re.fullmatch(r"\d{6}",str(r.get("code",""))) or r["code"] in lookup:
+        if not isinstance(r,dict) or not re.fullmatch(r"[0-9A-Z]{6}",str(r.get("code",""))) or r["code"] in lookup:
             out["status"]="INVALID_EVIDENCE"
             return out
         lookup[r["code"]]=r

@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from dart_financial_screen import collect
+from c3_top5_financial_selection import finite
 
 def bridge(receipt, key, today=None, collector=collect):
     today = today or datetime.now(ZoneInfo("Asia/Seoul")).date()
@@ -37,7 +38,8 @@ def bridge(receipt, key, today=None, collector=collect):
         return result
     result["financial_observed_on"] = today.isoformat()
     result["signal_date"] = asof
-    result["point_in_time_snapshot_verified"] = (day == today)
+    # Observation on the same date is not proof of an immutable PIT snapshot.
+    result["point_in_time_snapshot_verified"] = False
     result["historical_disclosure_date_filter_only"] = (day < today)
     if not isinstance(candidates, list) or not candidates:
         result["status"] = "NO_CANDIDATES"
@@ -52,7 +54,7 @@ def bridge(receipt, key, today=None, collector=collect):
             result["status"] = "INVALID_CANDIDATE"
             return result
         ticker = str(c.get("code", ""))
-        if not re.fullmatch(r"\d{6}", ticker):
+        if not re.fullmatch(r"[0-9A-Z]{6}", ticker):
             result["status"] = "INVALID_TICKER"
             return result
         if ticker in seen:
@@ -61,12 +63,17 @@ def bridge(receipt, key, today=None, collector=collect):
         seen.add(ticker)
         stocks.append({"ticker": ticker, "name": str(c.get("name", "")),
                        "sector_id": "UNKNOWN", "research_proxy_index": ""})
-    research = collector(today, stocks, key, today=today)
+    try:
+        research = collector(today, stocks, key, today=today)
+    except Exception as exc:
+        result["status"] = "DART_COLLECTION_FAILED_" + type(exc).__name__
+        return result
     if not isinstance(research, dict):
         result["status"] = "INVALID_DART_RESPONSE"
         return result
     result["source_status"] = research.get("status", "UNKNOWN")
     returned = set()
+    evidence_failed = False
     for r in research.get("researched", []):
         if r.get("ticker") not in seen or r.get("ticker") in returned:
             result["status"] = "INVALID_FINANCIAL_COVERAGE"
@@ -85,15 +92,17 @@ def bridge(receipt, key, today=None, collector=collect):
         equity = r.get("equity_krw")
         liabilities = r.get("liabilities_krw")
         operating_profit = r.get("operating_profit_krw")
-        leverage_ok = (isinstance(equity,(int,float)) and equity>0 and
-                       isinstance(liabilities,(int,float)) and liabilities>=0 and
+        leverage_ok = (finite(equity) and equity>0 and
+                       finite(liabilities) and liabilities>=0 and
                        liabilities/equity<=3.0)
-        profitable = isinstance(operating_profit,(int,float)) and operating_profit>0
+        profitable = finite(operating_profit) and operating_profit>0
         evidence_ok = bool(annual and
+            all(finite(v) for v in (equity, liabilities, operating_profit)) and
             interim.get("status")=="DATED_INTERIM_YTD_RESEARCH_ONLY" and
             comparable and annual_receipt and interim_receipt and
             str(annual_receipt)<=day.isoformat() and
             str(interim_receipt)<=day.isoformat())
+        evidence_failed = evidence_failed or not evidence_ok
         pass_ = bool(evidence_ok and leverage_ok and profitable and
             r.get("financial_quality")!="FINANCIAL_SECTOR_SPECIAL_MODEL_REQUIRED")
         reasons = []
@@ -107,6 +116,7 @@ def bridge(receipt, key, today=None, collector=collect):
         if r.get("financial_quality")=="FINANCIAL_SECTOR_SPECIAL_MODEL_REQUIRED": reasons.append("SECTOR_MODEL_REQUIRED")
         slowdown = bool(r.get("recent_financial_weakening_veto"))
         item = {"ticker": r["ticker"], "name": r.get("name"),
+                "financial_evidence_complete": evidence_ok,
                 "annual_status": r.get("status"),
                 "interim_status": interim.get("status"),
                 "financial_quality": r.get("financial_quality"),
@@ -123,6 +133,10 @@ def bridge(receipt, key, today=None, collector=collect):
         (result["researched"] if pass_ else result["excluded"]).append(item)
     if len(result["researched"]) + len(result["excluded"]) != len(stocks):
         result["status"] = "INCOMPLETE_FINANCIAL_COVERAGE"
+    elif evidence_failed:
+        # Missing/API-failed evidence is an operational failure, not a finding
+        # that every company is financially unsuitable and normal CASH.
+        result["status"] = "FAILED_FINANCIAL_EVIDENCE"
     elif day < today:
         result["status"] = "HISTORICAL_DISCLOSURE_DATE_FILTERED_RESEARCH_ONLY"
         result["financial_verified"] = False

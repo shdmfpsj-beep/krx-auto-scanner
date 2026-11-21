@@ -24,6 +24,15 @@ def filing(received="20260318",year=2025):
              rcept_no="20260318000001")])
 
 class DartAnnualTests(unittest.TestCase):
+    def test_alphanumeric_stock_code_maps_to_dart_and_survives_csv_input(self):
+        xml=b'<result><list><corp_code>02042949</corp_code><stock_code>0220W0</stock_code></list></result>'
+        stream=io.BytesIO()
+        with zipfile.ZipFile(stream,'w') as f:f.writestr('CORPCODE.xml',xml)
+        self.assertEqual(parse_corps(stream.getvalue()),{'0220W0':'02042949'})
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'input.csv'
+            path.write_text('ticker,name,sector_id,asof\n0220W0,Hanwha,UNKNOWN,'+str(ASOF)+'\n')
+            self.assertEqual(read_stocks(path,str(ASOF))[0]['ticker'],'0220W0')
     def test_exact_krw_financial_source_numbers_never_float_truncated(self):
         self.assertEqual(integer("9,007,199,254,740,993"),9007199254740993)
         self.assertEqual(integer("-9,007,199,254,740,993"),-9007199254740993)

@@ -3,12 +3,14 @@
 import argparse
 import json
 from pathlib import Path
+from c3_top5_financial_selection import ACCEPTED, classify
 
 def audit(receipt, financial):
     candidates = receipt.get("candidates", [])
     rows = financial.get("researched", [])
-    valid = financial.get("status") in ("FINANCIAL_RESEARCH_GATE_PASSED", "PARTIAL_OR_FAILED_FINANCIAL_GATE")
-    verified = {r.get("ticker") for r in rows if r.get("financial_screen_pass") is True}
+    valid = financial.get("status") in ACCEPTED
+    verified = {r.get("ticker") for r in rows
+                if classify(r, receipt.get("asof")) == "QUALIFIED_BASIC_FINANCIAL_RISK"}
     if financial.get("asof") != receipt.get("asof"):
         verified.clear()
     # Financial-qualified shortlist is informational until price provenance is verified.

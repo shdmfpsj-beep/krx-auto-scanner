@@ -64,7 +64,7 @@ def parse_corps(binary):
     for node in root.findall(".//list"):
         stock=(node.findtext("stock_code") or "").strip()
         code=(node.findtext("corp_code") or "").strip()
-        if re.fullmatch(r"\d{6}",stock) and re.fullmatch(r"\d{8}",code):
+        if re.fullmatch(r"[0-9A-Z]{6}",stock) and re.fullmatch(r"\d{8}",code):
             if stock in result and result[stock]!=code:
                 raise ValueError("DUPLICATE_CORP_CODE")
             result[stock]=code
@@ -236,7 +236,7 @@ def read_stocks(path,asof,limit=20,sector_ids=None):
         ticker=str(r.get("ticker","")).strip()
         name=str(r.get("name",""))
         sid=str(r.get("sector_id",""))
-        if (r.get("asof")!=asof or not re.fullmatch(r"\d{6}",ticker) or
+        if (r.get("asof")!=asof or not re.fullmatch(r"[0-9A-Z]{6}",ticker) or
             any(term in (name+" "+sid).upper() for term in EXCLUDE) or
             (sector_ids is not None and sid not in sector_ids)):
             continue
