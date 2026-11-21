@@ -1,5 +1,8 @@
 name: C3 TOP5 classic per-stock Telegram (user trades)
 on:
+  push:
+    branches: [main]
+    paths: ['scripts/c3_top5_session_policy.py']
   workflow_dispatch:
     inputs:
       asof:
@@ -22,6 +25,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   top5:
+    # One explicitly marked deployment verifies live data without enabling send.
+    # Other pushes never execute this job; the existing schedule is unchanged.
+    if: github.event_name != 'push' || startsWith(github.event.head_commit.message, 'C3 operational verification 20261121')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -34,7 +40,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y fonts-nanum >/dev/null
-          python3 -m pip install pillow --disable-pip-version-check
+          python3 -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
       - name: Syntax check embedded Python before KRX calls
         shell: bash
         run: |
@@ -56,6 +62,12 @@ jobs:
           end=next(i for i in range(start,len(lines)) if lines[i].strip()=='PY')
           code='\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end])
           ast.parse(code,filename='c3_top5_embedded.py')
+          policy_url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/scripts/c3_top5_session_policy.py?ref='+os.environ['GITHUB_SHA']
+          req=urllib.request.Request(policy_url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+          with urllib.request.urlopen(req,timeout=20) as r:policy=base64.b64decode(json.load(r)['content']).decode()
+          ast.parse(policy,filename='c3_top5_session_policy.py')
+          Path('scripts').mkdir(exist_ok=True)
+          Path('scripts/c3_top5_session_policy.py').write_text(policy)
           print('EMBEDDED_PYTHON_SYNTAX_OK')
           PY
         env:
@@ -67,10 +79,12 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
           python3 - <<'PY'
-          import os,json,csv,io,datetime,urllib.request,urllib.parse,urllib.error,collections,statistics,math,time,hashlib
+          import os,sys,json,csv,io,datetime,urllib.request,urllib.parse,urllib.error,collections,statistics,math,time,hashlib
           from pathlib import Path
           from zoneinfo import ZoneInfo
           from PIL import Image,ImageDraw,ImageFont
+          sys.path.insert(0,'scripts')
+          from c3_top5_session_policy import session_plan
           root=Path('output/c3_top5');root.mkdir(parents=True,exist_ok=True)
           receipt={'schema':'C3_TOP5_DAILY_V1','status':'HOLD','decision':'CASH','orders_enabled':False,
             'stage':'DATA_COLLECTION','user_executes_trades':True,'telegram_photos_sent':0,'candidates':[],
@@ -119,23 +133,19 @@ jobs:
           try:
             if not os.environ.get('KRX_AUTH_KEY'):raise ValueError('KRX_KEY_MISSING')
             now=datetime.datetime.now(ZoneInfo('Asia/Seoul'))
-            target=now.date()
-            # A delayed scheduled run can start the next morning. Always use the
-            # last completed weekday, not the wall-clock calendar date.
-            # KRX availability is checked below; holidays fail closed as incomplete.
-            if now.hour<21:
-              target-=datetime.timedelta(days=1)
-            while target.weekday()>4:
-              target-=datetime.timedelta(days=1)
+            manual_asof=''
             if os.environ.get('GITHUB_EVENT_NAME')=='workflow_dispatch':
               receipt['preview_source_policy']='NO_SEND_MANUAL_PREVIEW'
               manual_asof=os.environ.get('C3_MANUAL_ASOF','').strip()
               if manual_asof:
                 if len(manual_asof)!=8 or not manual_asof.isdigit():raise ValueError('INVALID_MANUAL_ASOF')
-                target=datetime.datetime.strptime(manual_asof,'%Y%m%d').date()
-                if target>now.date() or target.weekday()>4:raise ValueError('INVALID_MANUAL_ASOF_DATE')
+            plan=session_plan(now,manual_asof)
+            receipt['session_policy']=plan
+            receipt['entry_valid_until']=plan['entry_valid_until']
+            target=datetime.datetime.strptime(plan['asof'],'%Y%m%d').date()
+            print('C3_SESSION_POLICY',json.dumps(plan))
             days=[];data=collections.defaultdict(dict);names={}
-            session_coverage=[];rejected_rows=collections.Counter()
+            session_coverage=[];rejected_rows=collections.Counter();dated_rows_checked=0
             for offset in range(105):
               d=target-datetime.timedelta(days=offset)
               if d.weekday()>4:continue
@@ -148,14 +158,23 @@ jobs:
               for market,rows in (('KOSPI',a),('KOSDAQ',b)):
                 for r in rows:
                   code=str(r.get('ISU_CD','')).strip()
+                  reported_day=str(r.get('BAS_DD','') or '').strip().replace('-','')
+                  if reported_day:
+                    if reported_day!=ds:raise ValueError('KRX_ROW_DATE_MISMATCH_'+ds+'_'+market)
+                    dated_rows_checked+=1
                   o,h,l,c=[num(r.get(k)) for k in ('TDD_OPNPRC','TDD_HGPRC','TDD_LWPRC','TDD_CLSPRC')]
                   vol=num(r.get('ACC_TRDVOL'));val=num(r.get('ACC_TRDVAL'))
                   if not (len(code)==6 and code.isascii() and code.isalnum() and code==code.upper()) or None in (o,h,l,c,vol,val) or min(o,h,l,c)<=0 or vol<=0 or val<=0 or l>min(o,c) or h<max(o,c):
                     rejected_rows[market]+=1
                     continue
                   key=(market,code)
+                  if ds in data[key]:raise ValueError('DUPLICATE_KRX_TICKER_'+ds+'_'+market+'_'+code)
                   data[key][ds]=(c,h,l,vol,val,o)
-                  names[key]=str(r.get('ISU_NM',''))
+                  name=r.get('ISU_NM')
+                  if not isinstance(name,str) or not name.strip():raise ValueError('KRX_NAME_MISSING_'+code)
+                  # Collection runs newest-to-oldest: never overwrite today's
+                  # company name with a pre-rename historical name.
+                  names.setdefault(key,name.strip())
               if len(days)==60:break
               time.sleep(.12)
             if len(days)!=60 or days[0]!=target.strftime('%Y%m%d'):
@@ -176,16 +195,26 @@ jobs:
               'market_rows_min':{'KOSPI':min(x['kospi_rows'] for x in session_coverage),
                 'KOSDAQ':min(x['kosdaq_rows'] for x in session_coverage)},
               'invalid_ohlcv_rows':dict(rejected_rows),
+              'reported_date_rows_checked':dated_rows_checked,
+              'duplicate_valid_rows':0,
               'coverage_floor_policy':'KOSPI>=500,KOSDAQ>=800 per session; not official completeness certification',
               'regular_session_price_certified':False,'corporate_actions_certified':False}
             print('C3_SOURCE_PREFLIGHT',json.dumps(receipt['source_integrity'],ensure_ascii=False))
             receipt['stage']='ENTRY_CALCULATION'
-            bench=collections.defaultdict(list);eligible={}
+            bench=collections.defaultdict(list);eligible={};large_moves=[]
             for key,s in data.items():
               if not all(d in s for d in days):continue
               a=[s[d] for d in days];c=[v[0] for v in a]
+              for j in range(1,len(c)):
+                move=c[j]/c[j-1]-1
+                if abs(move)>.35:
+                  large_moves.append({'market':key[0],'code':key[1],'date':days[j],
+                    'close_change_pct':round(move*100,2)})
               eligible[key]=a
               bench[key[0]].append(c[-1]/c[-21]-1)
+            receipt['source_integrity']['large_price_moves_35pct']=large_moves
+            receipt['source_integrity']['large_move_policy']='DIAGNOSTIC_ONLY_NOT_CORPORATE_ACTION_CERTIFICATION'
+            print('C3_PRICE_DISCONTINUITY_AUDIT',json.dumps(large_moves,ensure_ascii=False))
             med={k:statistics.median(v) for k,v in bench.items() if len(v)>=100}
             if len(med)!=2:raise ValueError('MARKET_BENCHMARK_MISSING')
             pool=[]
@@ -376,7 +405,8 @@ jobs:
                          'volume':data[key][d][3],'open':data[key][d][5]} for d in days]})
             (root/'qualified_chart_pool.json').write_text(json.dumps({
               'schema':'C3_QUALIFIED_CHART_POOL_RESEARCH_V1',
-              'asof':days[-1],'candidates':research_pool},ensure_ascii=False)+'\n')
+              'asof':days[-1],'entry_valid_until':plan['entry_valid_until'],
+              'candidates':research_pool},ensure_ascii=False)+'\n')
             for x in selected:
               key=(x['market'],x['code'])
               x['chart_bars']=[{'date':d,'close':data[key][d][0],'high':data[key][d][1],
@@ -550,6 +580,7 @@ jobs:
             scripts/c3_top5_eligibility_audit.py
             scripts/c3_top5_financial_selection.py
             scripts/c3_top5_financial_preview.py
+            scripts/c3_top5_session_policy.py
             scripts/dart_financial_screen.py
             scripts/dart_interim_periods.py
           sparse-checkout-cone-mode: false
@@ -767,6 +798,10 @@ jobs:
               raise ValueError('UNSAFE_ENTRY_STOP_GEOMETRY_'+item['code'])
             if item.get('status')!=manifest['selected'][i-1].get('technical_status'):
               raise ValueError('SELECTED_ENTRY_STATUS_MISMATCH_'+item['code'])
+            if (not item.get('entry_valid_until') or
+                item['entry_valid_until']!=report.get('entry_valid_until') or
+                item['entry_valid_until']!=receipt.get('entry_valid_until')):
+              raise ValueError('ENTRY_VALIDITY_MISMATCH_'+item['code'])
             if item.get('name')!=manifest['selected'][i-1].get('name'):
               raise ValueError('SELECTED_NAME_MISMATCH_'+item['code'])
             filename=item['image']
