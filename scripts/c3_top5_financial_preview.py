@@ -3,6 +3,7 @@
 import argparse,json,math
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
+from c3_top5_financial_selection import valid_entry
 
 def render(pool,selection,out):
     if pool.get("asof")!=selection.get("asof"):
@@ -21,10 +22,12 @@ def render(pool,selection,out):
         if len(bars)<60 or not all(b.get("close",0)>0 for b in bars):
             raise ValueError("INSUFFICIENT_BARS")
         lo,hi,stop=c.get("entry_low"),c.get("entry_high"),c.get("stop_ref")
-        if not all(isinstance(v,(int,float)) and math.isfinite(v) for v in (lo,hi,stop)):
-            raise ValueError("INVALID_ENTRY_GEOMETRY")
-        if not (0<stop<lo<=hi and 0<(hi-stop)/hi<=.05):
+        if not valid_entry(c):
             raise ValueError("INVALID_RISK")
+        if (len(bars)!=60 or bars[-1].get('date')!=pool['asof'] or
+            [b.get('date') for b in bars]!=sorted(set(b.get('date') for b in bars)) or
+            bars[-1]['close']!=c.get('close')):
+            raise ValueError('CHART_SOURCE_MISMATCH')
         im=Image.new("RGB",(1400,1710),(249,248,245))
         d=ImageDraw.Draw(im)
         fontpath="/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
