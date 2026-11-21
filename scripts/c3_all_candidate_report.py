@@ -17,6 +17,7 @@ def main():
     covered={str(x['ticker']):x for x in evidence.get('researched',[])+evidence.get('excluded',[]) if isinstance(x,dict) and x.get('ticker')}
     if evidence.get('asof')!=src.get('asof'):covered={}
     candidates=src.get('candidates',[])
+    valid_until=src.get('entry_valid_until')
     selected_codes=[x['code'] for x in fin.get('selected',[]) if isinstance(x,dict) and x.get('code')]
     if fin.get('asof')!=src.get('asof') or len(selected_codes)>5 or len(set(selected_codes))!=len(selected_codes):
         selected_codes=[]
@@ -107,11 +108,14 @@ def main():
         for n,color in ((5,(63,93,132)),(20,(174,139,64)),(60,(107,141,130))):
             pts=[(px(i),py(sum(prices[i-n+1:i+1])/n)) for i in range(n-1,60)]
             if len(pts)>1:d.line(pts,fill=color,width=4)
+            elif pts:
+                xx,yy=pts[0];d.ellipse((xx-4,yy-4,xx+4,yy+4),fill=color)
         close_y=py(prices[-1])
         d.rounded_rectangle((1120,close_y-25,1340,close_y+25),radius=5,fill=ink)
         d.text((1327,close_y),f"종가 {prices[-1]:,.0f}",font=font(23,True),fill='white',anchor='rm')
         for i in (0,12,24,36,48,59):
-            d.text((px(i),985),str(bars[i]['date'])[5:].replace('-','/'),font=font(21),fill=muted,anchor='ma')
+            day=str(bars[i]['date']).replace('-','')
+            d.text((px(i),985),day[4:6]+'/'+day[6:8],font=font(21),fill=muted,anchor='ma')
         vmax=max(float(z['volume']) for z in bars) or 1
         for i,z in enumerate(bars):
             xx=px(i);v=float(z['volume']);color=red if prices[i]>=opens[i] else blue
@@ -135,7 +139,8 @@ def main():
         d.text((50,1475),f"기술 기회 {composite:.2f}점 | 전체 {rank}위 / {len(candidates)} | MA60 {sum(prices)/60:,.0f}원(마지막 값)",font=font(24),fill=muted)
         d.line((48,1540,1352,1540),fill=(220,220,216),width=2)
         d.text((50,1572),'KRX 일봉 기준 · 정규장 종가/수정주가 확인 필요',font=font(25),fill=muted)
-        d.text((50,1620),f"기준일 {src['asof']} | 유효기간 미확정 · 재확인 후 판단 | 주문은 사용자 직접",font=font(24),fill=muted)
+        expiry=valid_until[:10]+' 장종료까지' if valid_until else '미확정'
+        d.text((50,1620),f"기준 {src['asof']} | 유효 {expiry} | 매수 전 재확인 · 직접 매매",font=font(24),fill=muted)
         name=f"{rank:02d}_{x['code']}_all_candidate.png"
         im.save(out/name,optimize=True)
         rows.append({'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
@@ -149,8 +154,9 @@ def main():
           'risk_pct':x.get('risk_pct') if valid else None,
           'r1_ref':x.get('r1_ref') if valid else None,
           'r2_ref':x.get('r2_ref') if valid else None,
+          'entry_valid_until':valid_until,
           'asof_close':prices[-1]})
-    result={'schema':'C3_ALL_CANDIDATES_V2','asof':src['asof'],'candidate_count':len(rows),
+    result={'schema':'C3_ALL_CANDIDATES_V2','asof':src['asof'],'entry_valid_until':valid_until,'candidate_count':len(rows),
       'score_disclaimer':'Separate financial /30, technical strength and entry opportunity; TOP5 follows financial selection; no trade approval',
       'candidates':rows,'selected_codes':selected_codes,'trade_approved':False,
       'financial_diagnostics':{'evidence_count':sum(x['financial_points'] is not None for x in rows),

@@ -13,6 +13,8 @@ on:
       - 'scripts/c3_top5_financial_preview.py'
       - 'scripts/test_c3_top5_financial_selection.py'
       - 'scripts/test_c3_top5_pipeline.py'
+      - 'scripts/c3_top5_session_policy.py'
+      - 'scripts/test_c3_top5_session_policy.py'
       - 'scripts/c3_all_candidate_report.py'
       - 'scripts/dart_financial_screen.py'
       - 'scripts/test_dart_financial_screen.py'
@@ -37,6 +39,8 @@ jobs:
             scripts/c3_top5_financial_preview.py
             scripts/test_c3_top5_financial_selection.py
             scripts/test_c3_top5_pipeline.py
+            scripts/c3_top5_session_policy.py
+            scripts/test_c3_top5_session_policy.py
             scripts/c3_all_candidate_report.py
             scripts/dart_financial_screen.py
             scripts/test_dart_financial_screen.py
@@ -44,15 +48,19 @@ jobs:
             scripts/dart_interim_periods.py
             .github/workflows/c3_top5_daily_telegram.yml
           sparse-checkout-cone-mode: false
+      - name: Use the same Python runtime as production
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Install existing chart dependencies for offline rendering
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y fonts-nanum >/dev/null
-          python -m pip install pillow --disable-pip-version-check
+          python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
       - name: Compile research adapter and tests
         run: python -m py_compile scripts/c3_top5_dart_bridge.py scripts/test_c3_top5_dart_bridge.py scripts/c3_top5_eligibility_audit.py scripts/test_c3_top5_eligibility_audit.py scripts/c3_top5_independent_price_evidence.py scripts/test_c3_top5_independent_price_evidence.py scripts/c3_top5_financial_selection.py scripts/test_c3_top5_financial_selection.py scripts/c3_top5_financial_preview.py
       - name: Run offline fail-closed tests (no secrets or market calls)
-        run: PYTHONPATH=scripts python -m unittest -v test_c3_top5_dart_bridge test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods
+        run: PYTHONPATH=scripts python -m unittest -v test_c3_top5_dart_bridge test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence test_c3_top5_financial_selection test_c3_top5_pipeline test_c3_top5_session_policy test_dart_financial_screen test_dart_interim_periods
       - name: Check research hook contract without running Telegram
         run: |
           python - <<'PY'

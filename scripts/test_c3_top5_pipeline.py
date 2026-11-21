@@ -1,5 +1,6 @@
 """Exercise actual embedded workflow code offline; every HTTP call is forbidden or mocked."""
 import ast
+import collections
 import copy
 import json
 import os
@@ -57,7 +58,8 @@ class PipelineTests(unittest.TestCase):
         c['bars'] = [dict(date=(end-timedelta(days=59-i)).strftime('%Y%m%d'),
             open=9800, high=10100, low=9700, close=9900, volume=10000+i*500) for i in range(60)]
         codes = [str(111111+i*111111) for i in range(count)] if not empty else []
-        pool = dict(asof=ASOF, candidates=[dict(c, code=code) for code in codes])
+        expiry='2026-11-23T15:30:00+09:00'
+        pool = dict(asof=ASOF, entry_valid_until=expiry,candidates=[dict(c, code=code) for code in codes])
         geometry = dict(asof=ASOF, candidates=[candidate(code, name='검증용') for code in codes])
         financial = evidence(*(record(code) for code in codes),
                              status='FINANCIAL_RESEARCH_GATE_PASSED' if codes else 'NO_CANDIDATES')
@@ -65,7 +67,7 @@ class PipelineTests(unittest.TestCase):
         self.write('qualified_chart_pool.json', pool)
         self.write('financial_pool_gate.json', financial)
         self.write('financial_selection_research.json', selection)
-        self.write('receipt.json', dict(asof=ASOF, source_integrity=dict(
+        self.write('receipt.json', dict(asof=ASOF,entry_valid_until=expiry,source_integrity=dict(
             session_count=60, last_session=ASOF, market_rows_min=dict(KOSPI=935, KOSDAQ=1836))))
         images = render(pool, selection, self.root/'financial_preview')
         self.write('financial_preview/financial_preview_manifest.json', dict(asof=ASOF, images=images))
@@ -123,6 +125,47 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(self.result()['telegram_photos_sent'], 0)
         self.assertFalse((self.cwd/'receipts').exists())
 
+    def test_deployment_push_is_dry_run_even_on_main(self):
+        self.prepare()
+        self.env.update(GITHUB_EVENT_NAME='push',GITHUB_REF_NAME='main')
+        p=self.execute(DELIVERY)
+        self.assertEqual(p.returncode,0,p.stderr)
+        self.assertEqual(self.result()['status'],'DRY_RUN')
+        self.assertEqual(self.result()['telegram_photos_sent'],0)
+
+    def ingest(self, snapshots):
+        tree=ast.parse(embedded('Collect KRX sessions and render one classic image per stock'))
+        number=next(n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=='num')
+        loop=next(n for n in ast.walk(tree) if isinstance(n,ast.For)
+                  and isinstance(n.target,ast.Name) and n.target.id=='r'
+                  and isinstance(n.iter,ast.Name) and n.iter.id=='rows')
+        import math
+        scope=dict(math=math,data=collections.defaultdict(dict),names={},
+                   rejected_rows=collections.Counter(),dated_rows_checked=0,market='KOSPI')
+        exec(compile(ast.Module(body=[number],type_ignores=[]),'<real-number-parser>','exec'),scope)
+        code=compile(ast.Module(body=[loop],type_ignores=[]),'<real-KRX-ingestion>','exec')
+        for day,row in snapshots:
+            scope.update(ds=day,rows=[row]);exec(code,scope)
+        return scope
+
+    def row(self, day='20261120',name='현재 회사명'):
+        return dict(BAS_DD=day,ISU_CD='005930',ISU_NM=name,TDD_OPNPRC='9900',
+                    TDD_HGPRC='10100',TDD_LWPRC='9800',TDD_CLSPRC='10000',
+                    ACC_TRDVOL='1000',ACC_TRDVAL='10000000')
+
+    def test_newest_company_name_survives_historical_rename(self):
+        x=self.ingest([('20261120',self.row()),('20261119',self.row('20261119','이전 회사명'))])
+        self.assertEqual(x['names'][('KOSPI','005930')],'현재 회사명')
+        self.assertEqual(x['dated_rows_checked'],2)
+
+    def test_duplicate_source_rows_fail_instead_of_overwriting(self):
+        with self.assertRaisesRegex(ValueError,'DUPLICATE_KRX_TICKER'):
+            self.ingest([('20261120',self.row()),('20261120',self.row())])
+
+    def test_wrong_source_date_is_a_data_error(self):
+        with self.assertRaisesRegex(ValueError,'KRX_ROW_DATE_MISMATCH'):
+            self.ingest([('20261120',self.row('20261119'))])
+
     def test_empty_selection_is_normal_cash(self):
         self.prepare(empty=True)
         p = self.execute(DELIVERY)
@@ -152,7 +195,7 @@ class PipelineTests(unittest.TestCase):
         path = self.root/'all_candidate_report/manifest.json'
         original = json.loads(path.read_text())
         for change in (dict(stop_ref=9400), dict(asof_close=9790, status='NEAR_ENTRY'),
-                       dict(status='WATCH'), dict(r1_ref=9900)):
+                       dict(status='WATCH'), dict(r1_ref=9900),dict(entry_valid_until='2026-11-24')):
             report = copy.deepcopy(original)
             report['candidates'][0].update(change)
             path.write_text(json.dumps(report))
