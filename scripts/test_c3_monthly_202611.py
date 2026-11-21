@@ -67,6 +67,12 @@ class OriginalTests(unittest.TestCase):
         stream=io.BytesIO()
         with zipfile.ZipFile(stream,'w') as z:
             z.writestr('file.xbrl',instance)
+            z.writestr('file.xsd','''<schema xmlns:l="http://www.xbrl.org/2003/linkbase">
+              <l:roleType roleURI="test/IS"><l:definition>[D310000] 손익계산서 - 연결</l:definition></l:roleType>
+              </schema>''')
+            z.writestr('file_pre.xml','''<linkbase xmlns:x="http://www.w3.org/1999/xlink">
+              <presentationLink x:role="test/IS"><loc x:href="tax#ifrs-full_Revenue"/></presentationLink>
+              </linkbase>''')
             if default:
                 z.writestr('file_def.xml','''<linkbase xmlns:x="http://www.w3.org/1999/xlink"><definitionLink>
                   <loc x:label="axis" x:href="tax#ConsolidatedAndSeparateFinancialStatementsAxis"/>
@@ -88,6 +94,12 @@ class OriginalTests(unittest.TestCase):
         duplicate='<ifrs:Revenue contextRef="now" unitRef="won">999</ifrs:Revenue>'
         facts,_=parse_archive(self.original(duplicate=duplicate,default=True))
         self.assertEqual(payload_for(facts,2025,'11011','CFS','20260331000001')['list'][0]['thstrm_amount'],'')
+
+    def test_note_subtotal_does_not_conflict_with_primary_revenue(self):
+        note='<ifrs:RevenueFromContractsWithCustomers contextRef="now" unitRef="won">999</ifrs:RevenueFromContractsWithCustomers>'
+        facts,_=parse_archive(self.original(duplicate=note,default=True))
+        self.assertEqual(payload_for(facts,2025,'11011','CFS','20260331000001')['list'][0]['thstrm_amount'],
+                         '123456789012345678')
 
     def test_future_amendment_does_not_replace_original(self):
         source=monthly.Sources.__new__(monthly.Sources)

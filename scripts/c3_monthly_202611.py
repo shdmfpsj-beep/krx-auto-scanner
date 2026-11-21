@@ -72,7 +72,9 @@ def base_namespace():
 class Sources:
     def __init__(self, root, nodes):
         self.root=root;self.key=os.environ.get('DART_API_KEY','')
-        self.manifest=[];self.filing_cache={};self.archive_cache={}
+        prior=self.root/'source/source_manifest.json'
+        self.manifest=json.loads(prior.read_text()) if prior.exists() else []
+        self.filing_cache={};self.archive_cache={}
         self.namespace=base_namespace()
         exec(nodes[0],self.namespace)
 
@@ -262,6 +264,12 @@ def csv_file(path,rows,fields):
         writer=csv.DictWriter(f,fieldnames=fields,extrasaction='ignore');writer.writeheader();writer.writerows(rows)
 
 def actual_signals(root):
+    evidence=REPO/'analysis/c3_monthly_202611_actual_issued.json'
+    if evidence.exists():
+        audited=json.loads(evidence.read_text())
+        write_json(root/'actual_issued/connector_audited_provenance.json',audited)
+        write_json(root/'actual_issued/index.json',audited['records'])
+        return audited['records']
     token=os.environ.get('GH_TOKEN','');repo=os.environ.get('GITHUB_REPOSITORY','shdmfpsj-beep/krx-auto-scanner')
     def get(path,binary=False):
         req=urllib.request.Request('https://api.github.com/repos/'+repo+'/'+path,
@@ -320,7 +328,7 @@ def reports(root,daily,trades,issued,manifest):
     csv_file(root/'monthly_top5_performance.csv',trades,fields)
     csv_file(root/'daily_summary.csv',daily,['date','status','technical_candidates','geometry_qualified',
         'requested_financial','selected_count','codes','reason'])
-    csv_file(root/'actual_issued_signals.csv',issued,['signal_date','code','status','telegram_message_id',
+    csv_file(root/'actual_issued_signals.csv',issued,['signal_date','code','name','status','telegram_message_id','issued_at',
         'run_id','event','commit','workflow_conclusion','run_url','error'])
     filled=[r for r in trades if r.get('fill_price') is not None]
     eligible=[r for r in filled if r.get('current_return_pct') is not None and
@@ -337,6 +345,7 @@ def reports(root,daily,trades,issued,manifest):
         sequence_uncertain=sum(bool(r.get('sequence_uncertain')) for r in filled),
         cash_dates=[r['date'] for r in daily if r['status']=='CASH'],
         best_confirmed_peak=max(eligible,key=lambda r:r['highest_return_pct']) if eligible else None,
+        actual_issuance_audit_complete=not any(r.get('status')=='ISSUANCE_AUDIT_INCOMPLETE' for r in issued),
         actual_confirmed_issued_records=sum(r.get('status')=='CONFIRMED_ISSUED' for r in issued))
     write_json(root/'summary.json',summary);write_json(root/'analysis_manifest.json',manifest)
     lines=['# 강현AI PRO · C3 TOP5 2026년 11월 단일 분석','',
@@ -364,14 +373,26 @@ def reports(root,daily,trades,issued,manifest):
         lines.append(f"| {r['signal_date']} | {r['name']} {r['code']} | {r['entry_low']}–{r['entry_high']} | {r['stop_ref']} | {r['fill_status']} / {r.get('fill_price') or '—'} | {peak} | {r.get('current_return_pct') if r.get('current_return_pct') is not None else '—'} | {r.get('highest_day') or '—'} |")
     lines+=['','## 요약','',f"- 검증된 날짜: {summary['verified_days']}/15. 미확인 날짜: {', '.join(summary['incomplete_days']) or '없음'}.",
         f"- 선정 신호 {summary['selected_signal_count']}건, 체결 {summary['filled']}건, 손절 {summary['stopped']}건, PASS {summary['pass_signals']}건, 평가일 이후 대기 {summary['pending']}건.",
-        f"- 평균 현재수익률: {summary['mean_current_return_pct']}%, 평균 확인 최고수익률: {summary['mean_confirmed_peak_return_pct']}% (포함 관측 {summary['included_return_observations']}건).",
+        f"- 검증된 날짜의 평균 현재수익률: {summary['mean_current_return_pct']}%, 평균 확인 최고수익률: {summary['mean_confirmed_peak_return_pct']}% (포함 관측 {summary['included_return_observations']}건). 미확인 날짜가 있으면 전체 15일 평균으로 확정할 수 없다.",
         '- CASH 날짜: '+(', '.join(summary['cash_dates']) or '없음'),
-        f"- 실제 운영의 확인된 발송 기록: {summary['actual_confirmed_issued_records']}건. actual_issued_signals.csv와 원본 증거를 별도로 제공한다."]
+        f"- 현재 C3 TOP5 정규 워크플로에서 확인된 발송 기록: {summary['actual_confirmed_issued_records']}건. 조회 완료 여부: {summary['actual_issuance_audit_complete']}. actual_issued_signals.csv와 원본 근거를 별도로 제공한다.",
+        '- 과거 TOP2 등 다른 전략과 수동 테스트는 실제 TOP5 발송 목록에서 제외했다. 실제 발송 시각과 과거 재현의 가상 진입 시각이 다를 수 있으므로 두 결과를 실제 체결 성과로 혼용하지 않는다.']
     if summary['best_confirmed_peak']:
         best=summary['best_confirmed_peak'];lines.append(f"- 최고 상승: {best['name']} {best['code']}, {best['highest_return_pct']}%, 확인 최고일 {best['highest_day']}.")
     lines+=['','## 한계','',
         '당시 선택 가능했던 원본 공시를 확인한 범위만 재현했다. 회사별 원본 계정·연결/별도 문맥이 해석되지 않으면 미확인으로 남긴다. KRX 비수정 일봉의 기업행위·가격정정·실제 체결/봉 내부 순서는 독립 인증하지 않았다. 월중 중복을 포함한 단순평균을 실제 계좌 손익으로 해석하지 않는다.',
         f"실행: https://github.com/{os.environ.get('GITHUB_REPOSITORY','shdmfpsj-beep/krx-auto-scanner')}/actions/runs/{os.environ.get('GITHUB_RUN_ID','LOCAL')}" ]
+    for d in daily:
+        if d['status'] in ('CASH','TOP5'):continue
+        research=root/'replay'/d['date']/'original_financial_research.json'
+        details=json.loads(research.read_text()).get('researched',[]) if research.exists() else []
+        lines+=['', '### '+d['date']+' 미확인 재무 입력', '']
+        for item in details:
+            interim=item.get('interim_research',{})
+            if item.get('status')=='DATED_ANNUAL_RESEARCH_ONLY' and interim.get('status')=='DATED_INTERIM_YTD_RESEARCH_ONLY':continue
+            lines.append('- '+item['ticker']+' '+item.get('name','')+': '+item.get('status','UNKNOWN')+
+                '; '+interim.get('status','UNKNOWN')+'; 누락 계정 '+', '.join(item.get('missing_metric_keys',[])))
+        lines.append('이 날짜는 CASH가 아니며 전체 15거래일 성과 확정을 보류한다. 서울보증보험의 보험업 계정은 현행 일반기업 계정 추출 기준에 맞지 않고, 메가스터디교육의 연간 원본 XBRL 접수번호 20260326000491은 OpenDART가 파일 없음(014)을 반환했다. 기존 알고리즘을 유지하므로 계정 대체나 다른 연간 공시로 임의 보정하지 않았다.')
     (root/'monthly_report.md').write_text('\n'.join(lines)+'\n')
     return summary
 
@@ -416,7 +437,9 @@ def main():
         daily.append(dict(date=day,status=status,technical_candidates=g['technical_candidate_count'],
             geometry_qualified=g['qualified_count'],requested_financial=len(requested),
             selected_count=len(chosen['selected']),codes=','.join(c['code'] for c in chosen['selected']),
-            reason=f['status'] if status=='UNVERIFIED_PIT' else 'NO_QUALIFIED_CANDIDATES' if status=='CASH' else ''))
+            reason=f['status'] if status=='UNVERIFIED_PIT' else
+                'NO_ACTIONABLE_ENTRY' if status=='CASH' and not requested else
+                'FINANCIAL_RISK_GATE_REJECTED' if status=='CASH' else ''))
         lookup={c['code']:c for c in pool['candidates']}
         for rank,item in enumerate(chosen['selected'],1):
             c=lookup[item['code']]

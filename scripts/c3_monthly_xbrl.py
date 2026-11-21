@@ -30,12 +30,42 @@ def parse_archive(raw):
     if not zipfile.is_zipfile(io.BytesIO(raw)):
         raise ValueError('ORIGINAL_XBRL_NOT_ZIP')
     facts = defaultdict(set)
-    diagnostics = {'instances': [], 'contexts': [], 'defaults': [], 'facts_kept': 0}
+    diagnostics = {'instances': [], 'contexts': [], 'defaults': [], 'facts_kept': 0,
+                   'primary_statement_concepts': {}}
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         entries = archive.infolist()
         if len(entries) > 1000 or sum(e.file_size for e in entries) > 300_000_000:
             raise ValueError('ORIGINAL_XBRL_ARCHIVE_LIMIT')
         defaults = set()
+        roles = {}
+        primary = defaultdict(set)
+        for entry in entries:
+            if not entry.filename.lower().endswith('.xsd'):
+                continue
+            schema = ET.fromstring(archive.read(entry))
+            for role in schema.iter('{http://www.xbrl.org/2003/linkbase}roleType'):
+                description = role.findtext('{http://www.xbrl.org/2003/linkbase}definition') or ''
+                if not any(term in description.lower() for term in
+                           ('재무상태표', '손익계산서', 'statement of financial position',
+                            'income statement', 'statement of comprehensive income')):
+                    continue
+                if not re.match(r'^\[D(?:I)?[234][0-9]{5}\]', description):
+                    continue
+                scope = ('CFS' if ' - 연결' in description or 'consolidated financial statements' in description.lower()
+                         else 'OFS' if ' - 별도' in description or 'separate financial statements' in description.lower()
+                         else None)
+                if scope:
+                    roles[role.get('roleURI')] = scope
+        for entry in entries:
+            if not entry.filename.lower().endswith('_pre.xml'):
+                continue
+            for link in ET.fromstring(archive.read(entry)):
+                scope = roles.get(link.get('{'+XLINK+'}role'))
+                if scope:
+                    primary[scope].update(local(n.get('{'+XLINK+'}href', '').rsplit('#', 1)[-1])
+                        .split('_', 1)[-1] for n in link if local(n.tag) == 'loc')
+        diagnostics['primary_statement_concepts'] = {
+            scope: sorted(values & CONCEPTS) for scope, values in primary.items()}
         # The consolidation default must come from the actual filed linkbase,
         # not a guess based on a context name or today's financial API.
         for entry in entries:
@@ -113,6 +143,13 @@ def parse_archive(raw):
                 if (concept not in CONCEPTS or fact.get('unitRef') not in units or
                     fact.get('contextRef') not in contexts or
                     not ('ifrs' in namespace or 'dart.fss' in namespace)):
+                    continue
+                # The current API exposes primary IS/CIS/BS accounts, not a
+                # different customer-contract subtotal reported only in notes.
+                # Keep their actual presentation roles separate before using
+                # the unchanged production metric extractor.
+                scope = contexts[fact.get('contextRef')][0]
+                if concept not in primary.get(scope, set()):
                     continue
                 try:
                     number = Decimal((fact.text or '').strip().replace(',', ''))

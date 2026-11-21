@@ -33,6 +33,7 @@ jobs:
             /scripts/c3_monthly_xbrl.py
             /scripts/test_c3_monthly_202611.py
             /analysis/c3_monthly_202611_manifest.json
+            /analysis/c3_monthly_202611_actual_issued.json
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -42,6 +43,13 @@ jobs:
         env:
           PYTHONPATH: scripts
         run: python -m unittest scripts/test_c3_monthly_202611.py -v
+      - name: Reuse original cohort sources without collecting a second market dataset
+        uses: actions/download-artifact@v4
+        with:
+          name: c3-monthly-202611-single-analysis
+          run-id: 44902323758
+          github-token: ${{ github.token }}
+          path: output/c3_monthly_202611
       - name: Run fixed 15-session analysis without orders or Telegram
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
