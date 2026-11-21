@@ -150,7 +150,7 @@ jobs:
                   code=str(r.get('ISU_CD','')).strip()
                   o,h,l,c=[num(r.get(k)) for k in ('TDD_OPNPRC','TDD_HGPRC','TDD_LWPRC','TDD_CLSPRC')]
                   vol=num(r.get('ACC_TRDVOL'));val=num(r.get('ACC_TRDVAL'))
-                  if not code or None in (o,h,l,c,vol,val) or min(o,h,l,c)<=0 or vol<=0 or val<=0 or l>min(o,c) or h<max(o,c):
+                  if not (len(code)==6 and code.isascii() and code.isdigit()) or None in (o,h,l,c,vol,val) or min(o,h,l,c)<=0 or vol<=0 or val<=0 or l>min(o,c) or h<max(o,c):
                     rejected_rows[market]+=1
                     continue
                   key=(market,code)
