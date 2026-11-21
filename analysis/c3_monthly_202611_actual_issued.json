@@ -1,0 +1,71 @@
+{
+  "audit_scope": "C3 TOP5 daily workflow 420918398 scheduled production runs only; manual tests and earlier TOP2 strategies excluded",
+  "metadata_read_at": "2026-11-21",
+  "scheduled_run_ids": [
+    44859198911,
+    44664347776,
+    44408898509,
+    44190593389
+  ],
+  "records": [
+    {
+      "run_id": 44859198911,
+      "event": "schedule",
+      "commit": "47289d868c2c14777eafe9e1e5c262affbc96c44",
+      "workflow_conclusion": "failure",
+      "run_url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/44859198911",
+      "status": "ACTUAL_RUN_FAILED_NO_CONFIRMED_DELIVERY",
+      "signal_date": "20261120",
+      "job_id": 136708403787,
+      "artifact_id": 14688563081,
+      "created_at": "2026-11-21T03:04:17Z"
+    },
+    {
+      "run_id": 44664347776,
+      "event": "schedule",
+      "commit": "ca357b927d8d35d9d92d43ea5d06dc86a738d3e4",
+      "workflow_conclusion": "success",
+      "run_url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/44664347776",
+      "status": "CONFIRMED_ISSUED",
+      "signal_date": "20261119",
+      "code": "032640",
+      "name": "LG유플러스",
+      "telegram_message_id": 45,
+      "issued_at": "2026-11-20T12:13:12.987297+09:00",
+      "job_id": 136049892420,
+      "artifact_id": 14597458581,
+      "created_at": "2026-11-20T02:57:05Z"
+    },
+    {
+      "run_id": 44408898509,
+      "event": "schedule",
+      "commit": "3b6ceee291e4c3bcfae4ae6410ce6ee67f3fdd4c",
+      "workflow_conclusion": "failure",
+      "run_url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/44408898509",
+      "status": "ACTUAL_RUN_FAILED_NO_CONFIRMED_DELIVERY",
+      "signal_date": "",
+      "job_id": 135171441573,
+      "artifact_id": 14475129022,
+      "created_at": "2026-11-18T22:10:04Z"
+    },
+    {
+      "run_id": 44190593389,
+      "event": "schedule",
+      "commit": "3a63097ecff92e3c397333252668453ee8165d76",
+      "workflow_conclusion": "failure",
+      "run_url": "https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/44190593389",
+      "status": "ACTUAL_RUN_FAILED_NO_CONFIRMED_DELIVERY",
+      "signal_date": "",
+      "job_id": 134418637453,
+      "artifact_id": 14376466451,
+      "created_at": "2026-11-17T22:29:43Z"
+    }
+  ],
+  "confirmed_runtime_log_lines": [
+    "2026-11-20T03:13:12.9871934Z C3_FINAL_DELIVERY_PREFLIGHT_PASSED 20261119 1",
+    "2026-11-20T03:13:12.9872972Z C3_FINANCE_FIRST_PHOTO_SENT 1 032640 telegram_message_id 45 mode PRODUCTION",
+    "2026-11-20T03:13:12.9873446Z C3_ALL_CANDIDATES_DELIVERED 20261119 1 mode PRODUCTION"
+  ],
+  "scheduled_listing_records_checked": 621,
+  "scheduled_listing_pages_checked": 7
+}
