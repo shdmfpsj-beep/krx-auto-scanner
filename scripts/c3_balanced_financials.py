@@ -473,6 +473,7 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             company = corps.get(ticker)
             if not company:
                 raise ValueError("NO_LISTED_CORP_CODE")
+            item['corp_code']=company
             filings = {"status": "000", "list": []}
             page = 1
             while True:

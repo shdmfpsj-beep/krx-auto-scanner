@@ -33,18 +33,39 @@ jobs:
             /reports/c3_paper/paper_ledger.json
           sparse-checkout-cone-mode: false
           persist-credentials: false
+          fetch-depth: 2
+      - name: Detect executable changes and avoid repeating APIs for documentation
+        id: changes
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          python - <<'PY'
+          import os,subprocess
+          before=os.environ.get('BEFORE_SHA','')
+          execute=True
+          if before and subprocess.run(['git','cat-file','-e',before+'^{commit}'],capture_output=True).returncode==0:
+              paths=subprocess.check_output(['git','diff','--name-only',before,'HEAD']).decode().splitlines()
+              execute=any(not path.startswith('docs/') for path in paths)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write('execute='+str(execute).lower()+'\n')
+          print('C3_EXECUTABLE_VALIDATION_REQUIRED',execute)
+          PY
       - uses: actions/setup-python@v5
+        if: steps.changes.outputs.execute == 'true'
         with:
           python-version: '3.12'
       - name: Install existing chart runtime
+        if: steps.changes.outputs.execute == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y fonts-nanum >/dev/null
           python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
       - name: Offline finance, technical regression and delivery boundary tests
+        if: steps.changes.outputs.execute == 'true'
         run: |
           PYTHONPATH=scripts python -m unittest -v test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
       - name: Restore receipt-keyed financial snapshots
+        if: steps.changes.outputs.execute == 'true'
         uses: actions/cache/restore@v4
         with:
           path: output/c3_balanced_cache
@@ -52,6 +73,7 @@ jobs:
           restore-keys: |
             c3-balanced-pr-${{ github.event.pull_request.number }}-
       - name: Reuse verified KRX source artifact without another full-market collection
+        if: steps.changes.outputs.execute == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -78,6 +100,7 @@ jobs:
           print('VERIFIED_PRICE_ARTIFACT_REUSED',expected)
           PY
       - name: Validate latest KRX artifact and live OpenDART decisions without send
+        if: steps.changes.outputs.execute == 'true'
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
@@ -86,19 +109,19 @@ jobs:
         run: |
           PYTHONPATH=scripts python scripts/c3_balanced_validation.py --source output/c3_prior_validation/c3_balanced_validation/output/c3_top5 --require-latest-source --out output/c3_balanced_validation --cache output/c3_balanced_cache
       - name: Inspect official borrowing interest and liquidity note source availability
-        if: ${{ always() && hashFiles('output/c3_balanced_validation/financial_pool_gate.json') != '' }}
+        if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_validation/financial_pool_gate.json') != '' }}
         env:
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
           PYTHONPATH=scripts python scripts/c3_dart_document_evidence.py --financial output/c3_balanced_validation/financial_pool_gate.json --out output/c3_balanced_validation/document_evidence
       - name: Preserve verified snapshots when financial review remains incomplete
-        if: ${{ always() && hashFiles('output/c3_balanced_cache/*.json') != '' }}
+        if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_cache/*.json') != '' }}
         uses: actions/cache/save@v4
         with:
           path: output/c3_balanced_cache
           key: c3-balanced-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Preserve evidence even on incomplete finance or API failure
-        if: always()
+        if: ${{ always() && steps.changes.outputs.execute == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: c3-balanced-quality-validation

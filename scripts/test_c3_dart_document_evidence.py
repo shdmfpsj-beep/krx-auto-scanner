@@ -6,7 +6,8 @@ import unittest
 import zipfile
 from datetime import date
 from pathlib import Path
-from c3_dart_document_evidence import inspect_archive, probe
+from c3_dart_document_evidence import inspect_archive, probe, xbrl_facts
+from xml.etree import ElementTree as ET
 
 
 def zipped(xml):
@@ -20,6 +21,25 @@ XML='''<DOCUMENT><SECTION-2><TITLE>3. 연결재무제표 주석</TITLE>
 </SECTION-2><SECTION-2><TITLE>5. 재무제표 주석</TITLE>
 <TABLE><TR><TH>단기차입금</TH><TH>당기</TH></TR><TR><TD>은행</TD><TD>999</TD></TR></TABLE>
 </SECTION-2></DOCUMENT>'''
+
+
+def xbrl_example(member='ConsolidatedMember',year=2025,entity='00111111',unit='KRW'):
+    return ET.fromstring(f'''<x:xbrl xmlns:x="http://www.xbrl.org/2003/instance"
+        xmlns:d="http://xbrl.org/2006/xbrldi" xmlns:f="http://example.test/ifrs-full">
+      <x:unit id="money"><x:measure>iso4217:{unit}</x:measure></x:unit>
+      <x:context id="now"><x:entity><x:identifier>{entity}</x:identifier><x:segment>
+        <d:explicitMember dimension="ifrs-full:ConsolidatedAndSeparateFinancialStatementsAxis">ifrs-full:{member}</d:explicitMember>
+      </x:segment></x:entity><x:period><x:instant>{year}-12-31</x:instant></x:period></x:context>
+      <f:Assets contextRef="now" unitRef="money">250</f:Assets>
+      <f:Liabilities contextRef="now" unitRef="money">100</f:Liabilities>
+      <f:Equity contextRef="now" unitRef="money">150</f:Equity>
+      <f:CashAndCashEquivalents contextRef="now" unitRef="money">40</f:CashAndCashEquivalents>
+      <f:OtherBorrowings contextRef="now" unitRef="money">40</f:OtherBorrowings>
+      <f:BondsIssued contextRef="now" unitRef="money">60</f:BondsIssued>
+    </x:xbrl>''')
+
+
+REFERENCES={'Assets':250,'Liabilities':100,'Equity':150}
 
 
 class DocumentEvidenceTests(unittest.TestCase):
@@ -43,6 +63,37 @@ class DocumentEvidenceTests(unittest.TestCase):
         r=inspect_archive(b'<result><status>013</status></result>','CFS')
         self.assertEqual(r['state'],'API_UNAVAILABLE')
         self.assertEqual(r['api_status'],'013')
+
+    def test_api_limit_is_error_not_missing_optional_document(self):
+        self.assertEqual(inspect_archive(b'<result><status>020</status></result>','CFS')['state'],'ERROR')
+
+    def test_xbrl_exact_scope_period_currency_and_reference_anchors(self):
+        r=xbrl_facts(xbrl_example(),'CFS',2025,'00111111',REFERENCES)
+        self.assertTrue(r['reference_balance_matches'])
+        self.assertEqual(r['disclosed_totals']['loans_plus_bonds'],100)
+        self.assertEqual(r['disclosed_totals']['loans_plus_bonds_less_cash'],60)
+        self.assertFalse(r['formal_is_interest_expense_verified'])
+        self.assertFalse(r['automatic_financial_promotion'])
+
+    def test_xbrl_other_year_entity_division_or_currency_cannot_fill_facts(self):
+        for changes in [dict(year=2024),dict(entity='00999999'),dict(member='SeparateMember'),dict(unit='USD')]:
+            r=xbrl_facts(xbrl_example(**changes),'CFS',2025,'00111111',REFERENCES)
+            self.assertFalse(r['reference_balance_matches'])
+            self.assertEqual(r['disclosed_totals'],{})
+
+    def test_xbrl_mismatching_reference_balance_does_not_promote_notes(self):
+        r=xbrl_facts(xbrl_example(),'CFS',2025,'00111111',{**REFERENCES,'Equity':151})
+        self.assertFalse(r['reference_balance_matches'])
+        self.assertEqual(r['disclosed_totals'],{})
+
+    def test_xbrl_additional_dimensions_are_not_summed_into_company_debt(self):
+        root=xbrl_example()
+        segment=root.find('.//{http://www.xbrl.org/2003/instance}segment')
+        member=ET.SubElement(segment,'{http://xbrl.org/2006/xbrldi}explicitMember',dimension='entity:BusinessSegmentAxis')
+        member.text='entity:OneSubsidiaryMember'
+        r=xbrl_facts(root,'CFS',2025,'00111111',REFERENCES)
+        self.assertFalse(r['reference_balance_matches'])
+        self.assertEqual(r['disclosed_totals'],{})
 
     def test_external_entities_are_not_processed(self):
         xml='<!DOCTYPE x [<!ENTITY e SYSTEM "file:///etc/passwd">]><DOCUMENT>&e;</DOCUMENT>'

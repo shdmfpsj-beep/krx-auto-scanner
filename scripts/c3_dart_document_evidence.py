@@ -17,6 +17,7 @@ import zipfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 from xml.etree import ElementTree as ET
+from dart_financial_screen import integer
 
 API='https://opendart.fss.or.kr/api/'
 TERMS=('차입금','사채','이자비용','유동성위험','만기','우발','지급보증','프로젝트파이낸싱','미청구공사','공사손실')
@@ -31,7 +32,53 @@ def normalized(node):
     return re.sub(r'\s+',' ',''.join(node.itertext())).strip()
 
 
-def inspect_archive(binary, division):
+def xbrl_facts(root, division, year, corp_code, references):
+    """Expose exact entity/period/currency/scope facts; no dimension summation."""
+    ns='{http://www.xbrl.org/2003/instance}'
+    expected='ifrs-full:ConsolidatedMember' if division=='CFS' else 'ifrs-full:SeparateMember'
+    units={n.attrib.get('id') for n in root.findall(ns+'unit')
+           if n.findtext(ns+'measure')=='iso4217:KRW'}
+    contexts={}
+    for context in root.findall(ns+'context'):
+        identifier=context.findtext('.//'+ns+'identifier')
+        members=[(n.attrib.get('dimension'),n.text) for n in context.iter() if tag(n)=='EXPLICITMEMBER']
+        if identifier!=corp_code or members!=[('ifrs-full:ConsolidatedAndSeparateFinancialStatementsAxis',expected)]:continue
+        if any(tag(n)=='TYPEDMEMBER' for n in context.iter()):continue
+        period=context.find(ns+'period')
+        if period is None:continue
+        dates={tag(n):n.text for n in period}
+        if dates not in ({'INSTANT':f'{year}-12-31'},
+                          {'STARTDATE':f'{year}-01-01','ENDDATE':f'{year}-12-31'}):continue
+        contexts[context.attrib['id']]=dates
+    found={}
+    for fact in root:
+        context=fact.attrib.get('contextRef');name=fact.tag.split('}')[-1]
+        if context not in contexts or fact.attrib.get('unitRef') not in units:continue
+        value=integer(fact.text)
+        if value is None:continue
+        found.setdefault(name,[]).append({'value':value,'context':context,'period':contexts[context],
+            'concept':fact.tag,'unit':'KRW','entity':corp_code,'division':division})
+    def unique(name):
+        rows=[row for row in found.get(name,[]) if row['period']=={'INSTANT':f'{year}-12-31'}]
+        return rows[0]['value'] if rows and len({r['value'] for r in rows})==1 else None
+    anchors=bool(references) and all(references.get(name) is not None and unique(name)==references[name]
+                                   for name in ('Assets','Liabilities','Equity'))
+    interesting={name:rows for name,rows in found.items() if any(word in name.lower() for word in
+                 ('borrow','bondsissued','interestexpense','financecost','cashandcashequivalents'))}
+    disclosed={}
+    if anchors:
+        loans,bonds,cash=(unique(name) for name in ('OtherBorrowings','BondsIssued','CashAndCashEquivalents'))
+        if all(value is not None and value>=0 for value in (loans,bonds,cash)):
+            disclosed={'loans':loans,'bonds_total':bonds,'cash':cash,'loans_plus_bonds':loans+bonds,
+                       'loans_plus_bonds_less_cash':loans+bonds-cash,
+                       'definition':'Exact disclosed OtherBorrowings plus BondsIssued less cash; lease liabilities excluded',
+                       'qualification_use':'NOT_AUTOMATICALLY_PROMOTED; loan component classification and maturity review remain separate'}
+    return {'entity':corp_code,'fiscal_year':year,'division':division,'currency':'KRW',
+            'reference_balance_matches':anchors,'facts':interesting,'disclosed_totals':disclosed,
+            'formal_is_interest_expense_verified':False,'automatic_financial_promotion':False}
+
+
+def inspect_archive(binary, division, fiscal_year=None, corp_code=None, references=None):
     if len(binary)>MAX_BYTES:
         raise ValueError('DOCUMENT_TOO_LARGE')
     result={'state':'MANUAL_REVIEW_REQUIRED','division':division,'tables':[],
@@ -39,7 +86,8 @@ def inspect_archive(binary, division):
     if not zipfile.is_zipfile(io.BytesIO(binary)):
         # OpenDART returns XML status codes instead of ZIP on API failure.
         root=ET.fromstring(binary)
-        return {**result,'state':'API_UNAVAILABLE','api_status':root.findtext('status','UNKNOWN')}
+        status=root.findtext('status','UNKNOWN')
+        return {**result,'state':'API_UNAVAILABLE' if status in ('013','014') else 'ERROR','api_status':status}
     with zipfile.ZipFile(io.BytesIO(binary)) as archive:
         files=[f for f in archive.infolist() if f.filename.lower().endswith(('.xml','.xbrl'))]
         if len(files)>1000 or sum(f.file_size for f in files)>128*1024*1024:
@@ -59,6 +107,12 @@ def inspect_archive(binary, division):
                 try:root=ET.fromstring(raw.decode('euc-kr'))
                 except (UnicodeError,ET.ParseError):continue
             except ET.ParseError:continue
+            if tag(root)=='XBRL' and fiscal_year and corp_code:
+                evidence=xbrl_facts(root,division,fiscal_year,corp_code,references)
+                if evidence['facts']:
+                    result['xbrl_evidence']=evidence
+                    result['scope_verified']=evidence['reference_balance_matches']
+                continue
             wanted='연결재무제표주석' if division=='CFS' else '재무제표주석'
             sections=[]
             for node in root.iter():
@@ -85,6 +139,8 @@ def inspect_archive(binary, division):
                 if len(result['tables'])>=16:break
     if result['tables']:
         result['state']='SCOPED_NOTE_TABLES_LOCATED_REVIEW_REQUIRED'
+    elif result.get('xbrl_evidence',{}).get('reference_balance_matches'):
+        result['state']='SCOPED_PERIOD_CURRENCY_XBRL_FACTS_VALIDATED_SEMANTIC_REVIEW_REQUIRED'
     return result
 
 
@@ -102,7 +158,8 @@ def download_document(endpoint, receipt, report, key, fetch=None):
     return binary
 
 
-def probe(receipt, report, division, asof, key, out, download=download_document):
+def probe(receipt, report, division, asof, key, out, download=download_document,
+          fiscal_year=None,corp_code=None,references=None):
     result={'receipt_no':receipt,'report_code':report,'division':division,'routes':[],
             'observed_at':datetime.now(timezone.utc).isoformat(),'automatic_financial_promotion':False}
     try:
@@ -119,13 +176,14 @@ def probe(receipt, report, division, asof, key, out, download=download_document)
                 suffix='.zip' if zipfile.is_zipfile(io.BytesIO(binary)) else '.xml'
                 filename=receipt+'_'+endpoint.split('.')[0]+suffix
                 (out/filename).write_bytes(binary)
-                checked=inspect_archive(binary,division)
+                checked=inspect_archive(binary,division,fiscal_year,corp_code,references)
                 result['routes'].append({'endpoint':endpoint,'file':filename,'sha256':sha,
                     'bytes':len(binary),'analysis':checked})
                 if checked.get('tables'):break
             except Exception as exc:
                 result['routes'].append({'endpoint':endpoint,'state':'ERROR','error':type(exc).__name__})
-        result['state']='EVIDENCE_LOCATED_REVIEW_REQUIRED' if any(r.get('analysis',{}).get('tables') for r in result['routes']) else 'AUTOMATIC_EXTRACTION_UNVERIFIED'
+        result['state']='EVIDENCE_LOCATED_REVIEW_REQUIRED' if any(r.get('analysis',{}).get('tables') or
+            r.get('analysis',{}).get('xbrl_evidence',{}).get('reference_balance_matches') for r in result['routes']) else 'AUTOMATIC_EXTRACTION_UNVERIFIED'
     except Exception as exc:
         result.update(state='ERROR',error=str(exc) if isinstance(exc,ValueError) and re.fullmatch(r'[A-Z_]+',str(exc)) else type(exc).__name__)
     return result
@@ -144,7 +202,9 @@ def main():
     for row in rows[:3]:
         if row.get('annual_receipt_no') and row.get('statement_division'):
             results.append({'ticker':row['ticker'],**probe(row['annual_receipt_no'],'11011',
-                row['statement_division'],asof,key,args.out)})
+                row['statement_division'],asof,key,args.out,fiscal_year=row.get('annual_fiscal_year'),
+                corp_code=row.get('corp_code'),references={'Assets':row.get('decision_basis',{}).get('annual_assets_krw'),
+                    'Liabilities':row.get('liabilities_krw'),'Equity':row.get('equity_krw')})})
     args.out.mkdir(parents=True,exist_ok=True)
     (args.out/'document_evidence.json').write_text(json.dumps({'asof':financial['asof'],
         'scope':'SUPPLEMENTARY_SOURCE_DISCOVERY_NOT_A_QUALIFICATION_GATE','companies':results},
