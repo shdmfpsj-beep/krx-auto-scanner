@@ -15,9 +15,9 @@ on:
         default: false
         type: boolean
   schedule:
-    # KST 07:00 Tuesday-Saturday (previous KRX trading day); GitHub scheduling can be delayed.
-    # 22:00 UTC Monday-Friday = 07:00 KST next calendar day.
-    - cron: '0 22 * * 1-5'
+    # KST 08:00 Tuesday-Saturday (previous KRX trading day); GitHub scheduling can be delayed.
+    # 23:00 UTC Monday-Friday = 08:00 KST next calendar day.
+    - cron: '0 23 * * 1-5'
 permissions:
   contents: write
 concurrency:
