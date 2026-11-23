@@ -105,6 +105,16 @@ class DartAnnualTests(unittest.TestCase):
         r=evaluate_accounts(dict(status="000",list=rows),"CFS")
         self.assertEqual(r["status"],"BALANCE_SHEET_INCONSISTENT")
         self.assertEqual(r["financial_quality"],"UNVERIFIED")
+    def test_known_nonpositive_equity_is_risk_not_missing_data(self):
+        for equity in (0, -50):
+            with self.subTest(equity=equity):
+                rows=good_rows()
+                rows[-1]['thstrm_amount']=str(equity)
+                rows[-2]['thstrm_amount']=str(250-equity)
+                r=evaluate_accounts(dict(status='000',list=rows),'CFS')
+                self.assertEqual(r['status'],'DATED_ANNUAL_RESEARCH_ONLY')
+                self.assertEqual(r['financial_quality'],'ANNUAL_RISK_OR_SLOWDOWN')
+                self.assertEqual(r['missing_metric_keys'],[])
     def test_duplicate_revenue_conflict_fails_closed(self):
         rows=good_rows()+[row("IS","ifrs-full_Revenue",120,80)]
         r=evaluate_accounts(dict(status="000",list=rows),"CFS")

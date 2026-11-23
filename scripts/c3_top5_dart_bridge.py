@@ -15,6 +15,25 @@ from zoneinfo import ZoneInfo
 from dart_financial_screen import collect
 from c3_top5_financial_selection import finite
 
+def evidence_state(annual, interim, complete):
+    """Keep unavailable statements, transport/API failures and bad values distinct."""
+    if complete:
+        return "COMPLETE"
+    statuses = [str(annual.get("status", "")), str(interim.get("status", ""))]
+    codes = [str(x.get("source_api_status", "")) for x in (annual, interim)]
+    if any("REQUEST_FAILED" in s for s in statuses):
+        return "API_ERROR"
+    if any("API_UNAVAILABLE" in s and code not in ("013", "014")
+           for s, code in zip(statuses, codes)):
+        return "API_ERROR"
+    if any(any(word in s for word in ("INCONSISTENT", "MISMATCH", "NON_KRW", "INVALID"))
+           for s in statuses):
+        return "VALIDATION_ERROR"
+    if any(annual.get(k) is not None and not finite(annual[k])
+           for k in ("equity_krw", "liabilities_krw", "operating_profit_krw")):
+        return "VALIDATION_ERROR"
+    return "INSUFFICIENT_DATA"
+
 def bridge(receipt, key, today=None, collector=collect):
     today = today or datetime.now(ZoneInfo("Asia/Seoul")).date()
     asof = str(receipt.get("asof", ""))
@@ -22,6 +41,10 @@ def bridge(receipt, key, today=None, collector=collect):
     result = {"schema": "C3_TOP5_DART_BRIDGE_V1", "asof": asof,
               "status": "UNVERIFIED", "decision": "CASH",
               "trade_approved": False, "financial_verified": False,
+              "financial_data_complete": False,
+              "financial_review_scope": "ANNUAL_YTD_EARNINGS_AND_GENERIC_LEVERAGE_ONLY",
+              "unverified_checks": ["OPERATING_CASH_FLOW", "LIQUIDITY_RATIOS",
+                                    "SECTOR_SPECIFIC_MODELS", "HISTORICAL_PIT_SNAPSHOT"],
               "researched": [], "excluded": []}
     if not re.fullmatch(r"\d{8}", asof):
         result["status"] = "INVALID_ASOF"
@@ -117,6 +140,7 @@ def bridge(receipt, key, today=None, collector=collect):
         slowdown = bool(r.get("recent_financial_weakening_veto"))
         item = {"ticker": r["ticker"], "name": r.get("name"),
                 "financial_evidence_complete": evidence_ok,
+                "financial_evidence_state": evidence_state(r, interim, evidence_ok),
                 "annual_status": r.get("status"),
                 "interim_status": interim.get("status"),
                 "financial_quality": r.get("financial_quality"),
@@ -124,13 +148,27 @@ def bridge(receipt, key, today=None, collector=collect):
                 "financial_screen_pass": pass_,
                 "financial_risk_gate_pass": pass_,
                 "recent_slowdown_flag": slowdown,
-                "liabilities_to_equity_pct": round(liabilities/equity*100,2) if leverage_ok else None,
+                # Preserve observed risk values even when the existing 300% gate fails.
+                "equity_krw": equity, "liabilities_krw": liabilities,
+                "operating_profit_krw": operating_profit,
+                "liabilities_to_equity_pct": round(liabilities/equity*100,2)
+                    if finite(equity) and equity>0 and finite(liabilities) else None,
+                "annual_fiscal_year": r.get("annual_fiscal_year"),
+                "annual_receipt_no": r.get("receipt_no"),
+                "annual_source_api_status": r.get("source_api_status"),
+                "statement_division": r.get("division"),
+                "interim_receipt_no": interim.get("filing", {}).get("receipt_no"),
+                "interim_source_api_status": interim.get("source_api_status"),
+                "missing_annual_metrics": r.get("missing_metric_keys", []),
+                "missing_interim_metrics": interim.get("missing_cumulative_keys", []),
                 "annual_quality_screen_pass": bool(r.get("financial_screen_pass")),
                 "annual_plus_interim_growth_pass": bool(r.get("annual_plus_interim_growth_pass")),
                 "interim_quality": interim.get("quality"),
                 "interim_filing_date": interim.get("filing", {}).get("receipt_date"),
                 "exclusion_reasons": reasons if not pass_ else []}
         (result["researched"] if pass_ else result["excluded"]).append(item)
+    result["financial_data_complete"] = (not evidence_failed and
+        len(result["researched"]) + len(result["excluded"]) == len(stocks))
     if len(result["researched"]) + len(result["excluded"]) != len(stocks):
         result["status"] = "INCOMPLETE_FINANCIAL_COVERAGE"
     elif evidence_failed:

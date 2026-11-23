@@ -63,6 +63,38 @@ class BridgeTests(unittest.TestCase):
         self.assertTrue(r['researched'][0]['financial_risk_gate_pass'])
         self.assertTrue(r['researched'][0]['recent_slowdown_flag'])
 
+    def test_failed_leverage_keeps_actual_metrics_for_audit(self):
+        r = run(financial(liabilities_krw=301))
+        item = r['excluded'][0]
+        self.assertEqual(item['liabilities_to_equity_pct'], 301)
+        self.assertEqual(item['equity_krw'], 100)
+        self.assertEqual(item['liabilities_krw'], 301)
+        self.assertEqual(item['operating_profit_krw'], 10)
+
+    def test_insufficient_and_api_failed_evidence_are_distinct(self):
+        for annual, expected in [('NO_LISTED_CORP_CODE', 'INSUFFICIENT_DATA'),
+                                 ('FINANCIAL_API_UNAVAILABLE', 'API_ERROR'),
+                                 ('BALANCE_SHEET_INCONSISTENT', 'VALIDATION_ERROR')]:
+            with self.subTest(annual=annual):
+                r = run(financial(status=annual))
+                self.assertEqual(r['excluded'][0]['financial_evidence_state'], expected)
+                self.assertEqual(r['status'], 'FAILED_FINANCIAL_EVIDENCE')
+
+    def test_no_data_api_limit_and_nonfinite_values_are_distinct(self):
+        for change, expected in ((dict(status='FINANCIAL_API_UNAVAILABLE',source_api_status='013'),
+                                  'INSUFFICIENT_DATA'),
+                                 (dict(status='FINANCIAL_API_UNAVAILABLE',source_api_status='020'),
+                                  'API_ERROR'),
+                                 (dict(operating_profit_krw=float('inf')), 'VALIDATION_ERROR')):
+            with self.subTest(change=change):
+                r = run(financial(**change))
+                self.assertEqual(r['excluded'][0]['financial_evidence_state'], expected)
+                self.assertFalse(r['financial_data_complete'])
+        r = run(financial())
+        self.assertTrue(r['financial_data_complete'])
+        self.assertFalse(r['point_in_time_snapshot_verified'])
+        self.assertIn('SECTOR_SPECIFIC_MODELS',r['unverified_checks'])
+
     def test_unavailable_or_late_statements_are_not_normal_cash(self):
         for change in (dict(status='DART_REQUEST_FAILED_TimeoutError'),
                        dict(operating_profit_krw=float('inf')),

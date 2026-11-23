@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """Complete C3 candidate ranking and one PNG per detected candidate; non-trading report."""
-import argparse,json,math
+import argparse,hashlib,json,math
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
+from PIL.PngImagePlugin import PngInfo
 from c3_top5_financial_selection import classify, financial_points, valid_entry
+
+def image_identity(row, asof):
+    return {"asof": asof, **{key: row.get(key) for key in (
+        "code", "name", "asof_close", "entry_low", "entry_high", "stop_ref",
+        "r1_ref", "r2_ref", "risk_pct", "status", "entry_valid_until", "top5")}}
 
 def main():
     p=argparse.ArgumentParser()
@@ -142,8 +148,7 @@ def main():
         expiry=valid_until[:10]+' 장종료까지' if valid_until else '미확정'
         d.text((50,1620),f"기준 {src['asof']} | 유효 {expiry} | 매수 전 재확인 · 직접 매매",font=font(24),fill=muted)
         name=f"{rank:02d}_{x['code']}_all_candidate.png"
-        im.save(out/name,optimize=True)
-        rows.append({'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
+        row={'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
           'score_type':'CHARTIST_TECHNICAL_OPPORTUNITY_ONLY','status':state,'financial_selected':top5,'financial_evidence_scored':is_fin,
           'financial_flag':x['financial_flag'],'financial_points':x['financial_points'],
           'financial_eligibility':'PASS' if x['top5_eligible'] else 'WATCH_ONLY',
@@ -155,7 +160,13 @@ def main():
           'r1_ref':x.get('r1_ref') if valid else None,
           'r2_ref':x.get('r2_ref') if valid else None,
           'entry_valid_until':valid_until,
-          'asof_close':prices[-1]})
+          'asof_close':prices[-1]}
+        info=PngInfo()
+        info.add_text('c3_candidate',json.dumps(image_identity(row,src['asof']),
+                                             ensure_ascii=False,sort_keys=True))
+        im.save(out/name,optimize=True,pnginfo=info)
+        row['image_sha256']=hashlib.sha256((out/name).read_bytes()).hexdigest()
+        rows.append(row)
     result={'schema':'C3_ALL_CANDIDATES_V2','asof':src['asof'],'entry_valid_until':valid_until,'candidate_count':len(rows),
       'score_disclaimer':'Separate financial /30, technical strength and entry opportunity; TOP5 follows financial selection; no trade approval',
       'candidates':rows,'selected_codes':selected_codes,'trade_approved':False,
