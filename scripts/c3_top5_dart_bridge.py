@@ -189,16 +189,29 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--receipt", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--model", choices=("legacy", "balanced"), default="legacy")
+    p.add_argument("--cache", type=Path, default=Path("output/c3_financial_cache"))
     args = p.parse_args()
     receipt = json.loads(args.receipt.read_text(encoding="utf-8"))
     key = (os.environ.get("OPENDART_API_KEY") or
            os.environ.get("OPEN_DART_API_KEY") or os.environ.get("DART_API_KEY"))
-    result = bridge(receipt, key)
+    if args.model == "balanced":
+        from c3_balanced_financials import collect_balanced, SnapshotCache
+        day = datetime.strptime(receipt["asof"], "%Y%m%d").date()
+        stocks = [{"ticker": c["code"], "name": c.get("name", "")}
+                  for c in receipt.get("candidates", [])]
+        if len({s['ticker'] for s in stocks}) != len(stocks) or any(
+                not re.fullmatch(r"[0-9A-Z]{6}", s['ticker']) for s in stocks):
+            raise ValueError("INVALID_BALANCED_CANDIDATES")
+        result = collect_balanced(day, stocks, key,
+            datetime.now(ZoneInfo("Asia/Seoul")).date(), SnapshotCache(args.cache))
+    else:
+        result = bridge(receipt, key)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
                         encoding="utf-8")
     print("C3_TOP5_FINANCIAL_GATE", json.dumps({
-        "status": result["status"], "verified": result["financial_verified"],
+        "status": result["status"], "verified": result.get("financial_verified", False),
         "researched": len(result["researched"]),
         "excluded": len(result["excluded"]), "decision": "CASH"}))
 

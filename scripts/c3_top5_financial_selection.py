@@ -63,6 +63,10 @@ def financial_points(item):
     """Reuse the existing report's /30 annual + interim evidence score."""
     if not isinstance(item, dict):
         return None
+    if item.get("financial_model") == "BALANCED_QUALITY_TIMING_V1":
+        q = item.get("quality_100", {})
+        score = q.get("score")
+        return round(score * .3, 4) if finite(score) and 0 <= score <= 100 and q.get("comparison_signature") else None
     annual = ANNUAL_POINTS.get(item.get("financial_quality"))
     interim = INTERIM_POINTS.get(item.get("interim_quality"))
     return annual + interim if annual is not None and interim is not None else None
@@ -75,6 +79,12 @@ def classify(item, asof=None):
     # Missing/API-failed statements must never become ordinary financial CASH.
     if item.get("financial_evidence_complete") is not True:
         return "REVIEW_INSUFFICIENT_EVIDENCE"
+    if item.get("financial_model") == "BALANCED_QUALITY_TIMING_V1":
+        risk = item.get("risk_assessment", {})
+        if risk.get("state") not in ("PASS", "FAIL") or risk.get("mandatory_missing"):
+            return "REVIEW_INSUFFICIENT_EVIDENCE"
+        if (risk.get("state") == "PASS") != bool(item.get("financial_risk_gate_pass")):
+            return "REVIEW_INSUFFICIENT_EVIDENCE"
     if item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
     if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_filing_date"):
@@ -113,6 +123,14 @@ def select(geometry, financial):
     qualified = [c for c in requested_rows
                  if valid and classifications.get(c.get("code")) == "QUALIFIED_BASIC_FINANCIAL_RISK"]
     by_ticker = {x["ticker"]: x for x in evidence} if valid else {}
+    # Partial scores are comparable only for identical observed features/model.
+    # Never rank a complete /100 against a selectively observed partial /100.
+    signatures = {tuple(by_ticker[c["code"]].get("quality_100", {}).get("comparison_signature", ["LEGACY_30"]))
+                  for c in qualified}
+    comparability_error = len(signatures) > 1
+    if comparability_error:
+        valid = False
+        qualified = []
     # Preserve ENTRY_READY priority. Within each state use already-calculated
     # financial quality, then leverage, opportunity and technical strength.
     qualified.sort(key=lambda c: (
@@ -135,7 +153,7 @@ def select(geometry, financial):
                for c in selected]
     return {"schema": "C3_TOP5_FINANCE_FIRST_CONDITIONAL_SIGNAL_V3",
             "asof": asof, "status": "ERROR_ENTRY_GEOMETRY" if geometry_error else "CONDITIONAL_SIGNALS" if valid else "ERROR_FINANCIAL_EVIDENCE",
-            "financial_evidence_status": "INCOMPLETE_FINANCIAL_COVERAGE_BUDGET" if incomplete_cash else financial.get("status"),
+            "financial_evidence_status": "INCOMPARABLE_FINANCIAL_SCORE_COVERAGE" if comparability_error else "INCOMPLETE_FINANCIAL_COVERAGE_BUDGET" if incomplete_cash else financial.get("status"),
             "coverage_complete": coverage_ok and not incomplete_cash,
             "point_in_time_certification_required": False,
             "independent_price_certification_required": False,
@@ -147,6 +165,10 @@ def select(geometry, financial):
                           "technical_status": c.get("status"),
                           "financial_quality": by_ticker[c["code"]].get("financial_quality"),
                           "financial_points": financial_points(by_ticker[c["code"]]),
+                          **({"financial_model": by_ticker[c["code"]]["financial_model"],
+                              "quality_100": by_ticker[c["code"]].get("quality_100"),
+                              "risk_flags": by_ticker[c["code"]].get("risk_assessment", {}).get("risk_flags", [])}
+                             if by_ticker[c["code"]].get("financial_model") else {}),
                           "financial_flag": classifications.get(c["code"])}
                          for c in selected],
             "financial_classifications": classifications,

@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """Complete C3 candidate ranking and one PNG per detected candidate; non-trading report."""
-import argparse,hashlib,json,math
+import argparse,hashlib,json,math,os
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
 from PIL.PngImagePlugin import PngInfo
 from c3_top5_financial_selection import classify, financial_points, valid_entry
 
 def image_identity(row, asof):
-    return {"asof": asof, **{key: row.get(key) for key in (
+    identity = {"asof": asof, **{key: row.get(key) for key in (
         "code", "name", "asof_close", "entry_low", "entry_high", "stop_ref",
         "r1_ref", "r2_ref", "risk_pct", "status", "entry_valid_until", "top5")}}
+    if row.get('financial_model'):
+        identity.update({key: row.get(key) for key in ('financial_model', 'quality_100', 'risk_flags',
+            'financial_evidence_state', 'stop_execution_rule')})
+    return identity
 
 def main():
     p=argparse.ArgumentParser()
@@ -50,8 +54,9 @@ def main():
         raise ValueError('SELECTION_NAME_MISMATCH')
     if sum(x['top5_eligible'] for x in candidates)!=len(selected_codes):
         raise ValueError('SELECTION_GEOMETRY_MISMATCH')
-    regular='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
-    bold='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
+    fontdir=Path(os.environ.get('C3_FONT_DIR','/usr/share/fonts/truetype/nanum'))
+    regular=str(fontdir/'NanumGothic.ttf')
+    bold=str(fontdir/'NanumGothicBold.ttf')
     def font(n,b=False):return ImageFont.truetype(bold if b else regular,n)
     rows=[]
     for rank,x in enumerate(candidates,1):
@@ -140,13 +145,22 @@ def main():
             d.text((l+159,1280),label,font=font(24),fill=muted,anchor='ma')
             d.text((l+159,1325),value,font=font(28,True),fill=color,anchor='ma')
         risk=x.get('risk_pct') if valid else None
+        financial_item=covered.get(x['code']) or {}
+        quality=financial_item.get('quality_100')
+        quality_label=(f"{quality['score']:.1f}/100"+(' 부분' if not quality.get('complete') else '')) if quality and quality.get('score') is not None else (f"{x['financial_points']}/30" if is_fin else '미검증')
         d.text((50,1415),f"진입 {state} · 위험 "+(f"{risk:.2f}%" if isinstance(risk,(int,float)) else '미확정')+
-               f" · 기술 {score:.2f} · 재무 "+(f"{x['financial_points']}/30" if is_fin else '미검증'),font=font(31,True),fill=ink)
+               f" · 기술 {score:.2f} · 재무 "+quality_label,font=font(29,True),fill=ink)
         d.text((50,1475),f"기술 기회 {composite:.2f}점 | 전체 {rank}위 / {len(candidates)} | MA60 {sum(prices)/60:,.0f}원(마지막 값)",font=font(24),fill=muted)
-        d.line((48,1540,1352,1540),fill=(220,220,216),width=2)
-        d.text((50,1572),'KRX 일봉 기준 · 정규장 종가/수정주가 확인 필요',font=font(25),fill=muted)
+        if quality:
+            risks=financial_item.get('risk_assessment',{})
+            notice='재무 '+financial_item.get('financial_evidence_state','REVIEW_REQUIRED')+' · '+str(quality.get('available_points',0))+'/100점 항목 관측'
+            d.text((50,1515),notice,font=font(22),fill=muted)
+            codes=risks.get('risk_flags',[])+risks.get('mandatory_missing',[])+risks.get('hard_failures',[])
+            d.text((50,1548),'위험: '+(', '.join(codes)[:83] if codes else '구조화 항목 심사 통과'),font=font(18),fill=muted)
+        d.text((50,1580),'종가 < 구조손절 → 다음 거래일 직접 정리 · 미도달 PASS',font=font(24),fill=muted)
         expiry=valid_until[:10]+' 장종료까지' if valid_until else '미확정'
         d.text((50,1620),f"기준 {src['asof']} | 유효 {expiry} | 매수 전 재확인 · 직접 매매",font=font(24),fill=muted)
+        d.text((50,1661),'KRX 일봉 · 정규장 종가/수정주가 미인증 · 추세·지지 눌림 후보',font=font(21),fill=muted)
         name=f"{rank:02d}_{x['code']}_all_candidate.png"
         row={'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
           'score_type':'CHARTIST_TECHNICAL_OPPORTUNITY_ONLY','status':state,'financial_selected':top5,'financial_evidence_scored':is_fin,
@@ -161,6 +175,11 @@ def main():
           'r2_ref':x.get('r2_ref') if valid else None,
           'entry_valid_until':valid_until,
           'asof_close':prices[-1]}
+        if financial_item.get('financial_model'):
+            row.update(financial_model=financial_item['financial_model'],quality_100=quality,
+                       risk_flags=financial_item.get('risk_assessment',{}).get('risk_flags',[]),
+                       financial_evidence_state=financial_item.get('financial_evidence_state'),
+                       stop_execution_rule='CLOSE_BELOW_STRUCTURAL_STOP_EXIT_NEXT_SESSION_MANUALLY')
         info=PngInfo()
         info.add_text('c3_candidate',json.dumps(image_identity(row,src['asof']),
                                              ensure_ascii=False,sort_keys=True))

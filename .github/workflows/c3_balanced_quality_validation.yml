@@ -1,0 +1,66 @@
+name: C3 Balanced Quality isolated validation (NO SEND)
+on:
+  pull_request:
+    paths:
+      - 'scripts/c3_balanced_*.py'
+      - 'scripts/test_c3_balanced_financials.py'
+      - 'scripts/c3_top5_financial_selection.py'
+      - 'scripts/c3_top5_dart_bridge.py'
+      - 'scripts/dart_financial_screen.py'
+      - 'scripts/c3_all_candidate_report.py'
+      - '.github/workflows/c3_balanced_quality_validation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: c3-balanced-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: |
+            /scripts/*.py
+            /.github/workflows/c3_top5_daily_telegram.yml
+            /receipts/c3_top5_daily/
+            /reports/c3_paper/paper_ledger.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install existing chart runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Offline finance, technical regression and delivery boundary tests
+        run: |
+          PYTHONPATH=scripts python -m unittest -v test_c3_balanced_financials test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
+      - name: Restore receipt-keyed financial snapshots
+        uses: actions/cache@v4
+        with:
+          path: output/c3_balanced_cache
+          key: c3-balanced-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            c3-balanced-pr-${{ github.event.pull_request.number }}-
+      - name: Collect live KRX and OpenDART; validate conditional results without send
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          PYTHONPATH=scripts python scripts/c3_balanced_validation.py --live --out output/c3_balanced_validation --cache output/c3_balanced_cache
+      - name: Preserve evidence even on incomplete finance or API failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-balanced-quality-validation
+          path: |
+            output/c3_balanced_validation/
+            output/c3_balanced_cache/
+          if-no-files-found: warn
+          retention-days: 30
