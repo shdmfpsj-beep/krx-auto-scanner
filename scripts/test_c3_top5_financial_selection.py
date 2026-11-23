@@ -16,7 +16,8 @@ def candidate(code='111111', status='ENTRY_READY', **changes):
     return c
 
 def record(ticker='111111', **changes):
-    r = dict(ticker=ticker, annual_status='DATED_ANNUAL_RESEARCH_ONLY',
+    r = dict(ticker=ticker, financial_evidence_complete=True,
+             annual_status='DATED_ANNUAL_RESEARCH_ONLY',
              interim_status='DATED_INTERIM_YTD_RESEARCH_ONLY',
              filing_date='2026-03-20', interim_filing_date='2026-11-16',
              financial_risk_gate_pass=True, exclusion_reasons=[],
@@ -110,6 +111,20 @@ class SelectionTests(unittest.TestCase):
         x = select(g, evidence(status='NO_CANDIDATES'))
         self.assertEqual(x['status'], 'ERROR_ENTRY_GEOMETRY')
 
+    def test_exclusion_cannot_hide_incomplete_or_late_evidence(self):
+        g = dict(asof=ASOF, candidates=[candidate()])
+        for change in (dict(financial_evidence_complete=False),
+                       dict(annual_status='FINANCIAL_API_UNAVAILABLE'),
+                       dict(interim_filing_date='2026-11-21'),
+                       dict(financial_quality='FINANCIAL_SECTOR_SPECIAL_MODEL_REQUIRED')):
+            with self.subTest(change=change):
+                row = record(financial_risk_gate_pass=False,
+                             exclusion_reasons=['BALANCE_SHEET_LEVERAGE_OR_EQUITY_RISK'], **change)
+                x = select(g, evidence(row))
+                self.assertEqual(x['decision'], 'ERROR')
+                self.assertEqual(x['financial_classifications']['111111'],
+                                 'REVIEW_INSUFFICIENT_EVIDENCE')
+
     def test_zero_candidates_needs_no_dart_key(self):
         x = select(dict(asof=ASOF, candidates=[]), evidence(status='NO_CANDIDATES'))
         self.assertEqual(x['decision'], 'CASH')
@@ -135,6 +150,17 @@ class SelectionTests(unittest.TestCase):
                    evidence(record(), status='HISTORICAL_DISCLOSURE_DATE_FILTERED_RESEARCH_ONLY'))
         self.assertEqual(x['selected_count'], 1)
         self.assertFalse(x['historical_pit_certified'])
+
+    def test_budget_deferred_unreviewed_candidates_cannot_be_normal_cash(self):
+        g = dict(asof=ASOF,candidates=[candidate(str(100000+i)) for i in range(35)])
+        rows = [record(c['code'],financial_risk_gate_pass=False,
+                       exclusion_reasons=['BALANCE_SHEET_LEVERAGE_OR_EQUITY_RISK'])
+                for c in requested_candidates(g)]
+        x = select(g,evidence(*rows))
+        self.assertEqual(x['decision'],'ERROR')
+        self.assertFalse(x['coverage_complete'])
+        self.assertEqual(x['financial_evidence_status'],'INCOMPLETE_FINANCIAL_COVERAGE_BUDGET')
+        self.assertEqual(x['financial_budget_deferred_count'],5)
 
 if __name__ == '__main__':
     unittest.main()

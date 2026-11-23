@@ -71,8 +71,10 @@ def classify(item, asof=None):
     """Financial risk is the hard gate; earnings growth/slowdown is a score."""
     if not isinstance(item, dict):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
-    if not item.get("financial_risk_gate_pass") or item.get("exclusion_reasons"):
-        return "REVIEW_FAILED_FINANCIAL_GATE"
+    # An exclusion is meaningful only after its underlying evidence is valid.
+    # Missing/API-failed statements must never become ordinary financial CASH.
+    if item.get("financial_evidence_complete") is not True:
+        return "REVIEW_INSUFFICIENT_EVIDENCE"
     if item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
     if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_filing_date"):
@@ -87,6 +89,8 @@ def classify(item, asof=None):
                 return "REVIEW_INSUFFICIENT_EVIDENCE"
         except (ValueError, TypeError):
             return "REVIEW_INSUFFICIENT_EVIDENCE"
+    if not item.get("financial_risk_gate_pass") or item.get("exclusion_reasons"):
+        return "REVIEW_FAILED_FINANCIAL_GATE"
     return "QUALIFIED_BASIC_FINANCIAL_RISK"
 
 def select(geometry, financial):
@@ -119,14 +123,20 @@ def select(geometry, financial):
         -float(c.get("opportunity_score") or 0),
         -float(c.get("score") or 0), c["code"]))
     selected = qualified[:5]
+    deferred = max(0, sum(valid_entry(c) for c in candidates)-len(requested))
+    incomplete_cash = valid and not selected and deferred > 0
+    if incomplete_cash:
+        # The existing API budget is unchanged. Unreviewed eligible charts
+        # prevent a conclusion that the complete candidate set failed finance.
+        valid = False
     signals = [{"code": c["code"], "signal": "BUY_CONSIDER" if c.get("status") == "ENTRY_READY" else "WAIT_FOR_ENTRY",
                 "technical_status": c.get("status"),
                 "financial_flag": classifications.get(c["code"])}
                for c in selected]
     return {"schema": "C3_TOP5_FINANCE_FIRST_CONDITIONAL_SIGNAL_V3",
             "asof": asof, "status": "ERROR_ENTRY_GEOMETRY" if geometry_error else "CONDITIONAL_SIGNALS" if valid else "ERROR_FINANCIAL_EVIDENCE",
-            "financial_evidence_status": financial.get("status"),
-            "coverage_complete": coverage_ok,
+            "financial_evidence_status": "INCOMPLETE_FINANCIAL_COVERAGE_BUDGET" if incomplete_cash else financial.get("status"),
+            "coverage_complete": coverage_ok and not incomplete_cash,
             "point_in_time_certification_required": False,
             "independent_price_certification_required": False,
             "data_quality_validation_required": True,
@@ -148,7 +158,7 @@ def select(geometry, financial):
             "selection_priority": "ENTRY_STATE_FINANCIAL_QUALITY_LEVERAGE_OPPORTUNITY_STRENGTH",
             "financial_request_limit": FINANCIAL_CANDIDATE_LIMIT,
             "financial_requested_count": len(requested),
-            "financial_budget_deferred_count": max(0, sum(valid_entry(c) for c in candidates)-len(requested)),
+            "financial_budget_deferred_count": deferred,
             "historical_pit_certified": bool(financial.get("point_in_time_snapshot_verified")),
             "selected_count": len(selected)}
 

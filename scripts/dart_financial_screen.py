@@ -192,7 +192,7 @@ def evaluate_accounts(payload,division):
     if (revenue is None or previous is None or profit is None or
         previous_profit is None or revenue<=0 or previous<=0 or
         assets is None or liabilities is None or equity is None or
-        assets<=0 or equity<=0):
+        assets<=0):
         result["status"]="ANNUAL_METRICS_INCOMPLETE"
         return result
     # Check BS identities to avoid a wrong account extraction or unit mix.
@@ -204,7 +204,7 @@ def evaluate_accounts(payload,division):
     result["sales_yoy_pct"]=round((revenue/previous-1)*100,2)
     result["operating_margin_pct"]=round(profit/revenue*100,2)
     # Sector-adjusted ratios and cash flow still need separate research.
-    if profit<=0 or revenue<previous or profit<previous_profit:
+    if equity<=0 or profit<=0 or revenue<previous or profit<previous_profit:
         quality="ANNUAL_RISK_OR_SLOWDOWN"
     elif profit>previous_profit and revenue>previous and profit/revenue>=.05:
         quality="ANNUAL_GROWTH_AND_MARGIN_OBSERVED"

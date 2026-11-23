@@ -141,7 +141,8 @@ class PipelineTests(unittest.TestCase):
                   and isinstance(n.iter,ast.Name) and n.iter.id=='rows')
         import math
         scope=dict(math=math,data=collections.defaultdict(dict),names={},
-                   rejected_rows=collections.Counter(),dated_rows_checked=0,market='KOSPI')
+                   rejected_rows=collections.Counter(),dated_rows_checked=0,market='KOSPI',
+                   rejected_row_reasons=collections.defaultdict(collections.Counter))
         exec(compile(ast.Module(body=[number],type_ignores=[]),'<real-number-parser>','exec'),scope)
         code=compile(ast.Module(body=[loop],type_ignores=[]),'<real-KRX-ingestion>','exec')
         for day,row in snapshots:
@@ -165,6 +166,37 @@ class PipelineTests(unittest.TestCase):
     def test_wrong_source_date_is_a_data_error(self):
         with self.assertRaisesRegex(ValueError,'KRX_ROW_DATE_MISMATCH'):
             self.ingest([('20261120',self.row('20261119'))])
+
+    def test_zero_turnover_is_distinct_from_corrupt_ohlcv_and_never_filled(self):
+        for changes, reason in ((dict(ACC_TRDVOL='0',ACC_TRDVAL='0'),
+                                'NO_TRADING_OR_SUSPENSION_UNCONFIRMED'),
+                               (dict(TDD_HGPRC='9000'), 'INVALID_OHLCV_VALUES_OR_ORDER'),
+                               (dict(TDD_HGPRC='9000',ACC_TRDVOL='0',ACC_TRDVAL='0'),
+                                'INVALID_OHLCV_VALUES_OR_ORDER'),
+                               (dict(TDD_CLSPRC='NaN'), 'MISSING_OR_NONFINITE_VALUE')):
+            with self.subTest(changes=changes):
+                x=self.ingest([('20261120',{**self.row(),**changes})])
+                self.assertEqual(x['rejected_row_reasons']['KOSPI'][reason],1)
+                self.assertFalse(x['data'])
+
+    def test_price_discontinuities_are_excluded_before_support_calculation(self):
+        tree=ast.parse(embedded('Collect KRX sessions and render one classic image per stock'))
+        loop=next(n for n in ast.walk(tree) if isinstance(n,ast.For)
+                  and isinstance(n.target,ast.Tuple) and
+                  [getattr(x,'id',None) for x in n.target.elts]==['key','s'])
+        bars=lambda closes:{str(i):(c,c+10,c-10,100,10000,c) for i,c in enumerate(closes)}
+        import statistics
+        scope=dict(data={('KOSPI','GOOD'):bars([100,110,120]),
+                         ('KOSPI','SPLIT'):bars([100,100,50])},
+                   days=['0','1','2'],large_moves=[],eligible={},statistics=statistics,
+                   bench=collections.defaultdict(list))
+        # Use 60 actual positions, as required by the existing benchmark formula.
+        scope['days']=[str(i) for i in range(60)]
+        scope['data']={('KOSPI','GOOD'):bars([100]*60),
+                       ('KOSPI','SPLIT'):bars([100]*59+[50])}
+        exec(compile(ast.Module(body=[loop],type_ignores=[]),'<real-series-validation>','exec'),scope)
+        self.assertEqual(list(scope['eligible']),[('KOSPI','GOOD')])
+        self.assertEqual(len(scope['large_moves']),1)
 
     def test_empty_selection_is_normal_cash(self):
         self.prepare(empty=True)
@@ -208,6 +240,50 @@ class PipelineTests(unittest.TestCase):
         pool['candidates'][0]['bars'][-1]['date'] = '20261119'
         with self.assertRaisesRegex(ValueError, 'CHART_SOURCE_MISMATCH'):
             render(pool, selection, self.root/'bad-preview')
+
+    def test_valid_but_replaced_png_is_rejected(self):
+        self.prepare()
+        from PIL import Image
+        path = next((self.root/'all_candidate_report').glob('*.png'))
+        with Image.open(path) as original:
+            changed = original.copy()
+        changed.putpixel((0, 0), (123, 45, 67))
+        changed.save(path)
+        p = self.execute(DELIVERY)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn('IMAGE_HASH_MISMATCH', self.result()['error'])
+
+    def test_otherwise_valid_report_prices_must_match_rendered_png(self):
+        self.prepare()
+        path = self.root/'all_candidate_report/manifest.json'
+        report = json.loads(path.read_text())
+        report['candidates'][0].update(entry_low=9810)
+        path.write_text(json.dumps(report))
+        p = self.execute(DELIVERY)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn('IMAGE_CONTENT_MISMATCH', self.result()['error'])
+
+    def test_ok_response_without_message_id_is_never_sent(self):
+        self.prepare()
+        self.env.update(GITHUB_EVENT_NAME='schedule', GITHUB_REF_NAME='main',
+                        GITHUB_REPOSITORY='offline/example', GH_TOKEN='fake',
+                        TELEGRAM_BOT_TOKEN='fake', TELEGRAM_CHAT_ID='fake')
+        prefix = '''
+import io,json,urllib.request
+class Response(io.BytesIO):
+    def __init__(self, status, payload):
+        super().__init__(json.dumps(payload).encode()); self.status=status
+def fake(req, **kwargs):
+    if '/contents/' in req.full_url: return Response(201, {})
+    return Response(200, {'ok':True,'result':{}})
+urllib.request.urlopen=fake
+'''
+        p = self.execute(DELIVERY, prefix)
+        self.assertNotEqual(p.returncode, 0)
+        self.assertEqual(self.result()['status'], 'ERROR')
+        self.assertEqual(self.result()['stage'], 'TELEGRAM_SEND')
+        self.assertEqual(self.result()['telegram_photos_sent'], 0)
+        self.assertIn('TELEGRAM_MESSAGE_ID_MISSING', self.result()['error'])
 
     def test_caption_free_payload_and_message_receipt_offline(self):
         self.prepare()
