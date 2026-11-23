@@ -111,6 +111,11 @@ def run(root, cache_root, source=None, live=False):
                                   ('receipt', 'entry_geometry_audit', 'qualified_chart_pool')]
         if len({receipt.get('asof'), geometry.get('asof'), pool.get('asof')}) != 1:
             raise ValueError('SOURCE_ASOF_MISMATCH')
+        original_geometry={c['code']:c for c in geometry.get('candidates',[])}
+        for row in pool.get('candidates',[]):
+            source_geometry=original_geometry.get(row['code'],{})
+            row['pivot_support']=source_geometry.get('pivot_support')
+            row['technical_selection_reason']='EXISTING_C3_TREND_RS_RVOL_PULLBACK_GATE'
         integrity = receipt.get('source_integrity', {})
         if (receipt.get('status') == 'HOLD_ERROR' or integrity.get('session_count') != 60 or
             integrity.get('last_session') != pool.get('asof') or
@@ -151,6 +156,13 @@ def run(root, cache_root, source=None, live=False):
             writer = csv.DictWriter(stream, fieldnames=fields, extrasaction='ignore')
             writer.writeheader()
             writer.writerows(x for x in report['candidates'] if x['top5'])
+        with (root/'top5.csv').open(encoding='utf-8-sig') as stream:
+            csv_rows=list(csv.DictReader(stream))
+        if len(csv_rows) != count:
+            raise ValueError('CSV_IMAGE_COUNT_MISMATCH')
+        for saved,row in zip(csv_rows,(r for r in report['candidates'] if r['top5'])):
+            if any(saved[field] != (str(row.get(field)) if row.get(field) is not None else '') for field in fields):
+                raise ValueError('CSV_JSON_VALUE_MISMATCH')
         # Validate the original manifest/delivery boundary with credentials absent.
         # Its manual branch must terminate at DRY_RUN (or CASH), before reservation.
         work = root/'delivery_boundary'

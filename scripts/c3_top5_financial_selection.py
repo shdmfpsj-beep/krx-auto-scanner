@@ -123,11 +123,23 @@ def select(geometry, financial):
     qualified = [c for c in requested_rows
                  if valid and classifications.get(c.get("code")) == "QUALIFIED_BASIC_FINANCIAL_RISK"]
     by_ticker = {x["ticker"]: x for x in evidence} if valid else {}
-    # Partial scores are comparable only for identical observed features/model.
-    # Never rank a complete /100 against a selectively observed partial /100.
+    # Compare the same observed features. General quality gaps must not become
+    # a new hard risk veto; reduce to their common feature set where possible.
     signatures = {tuple(by_ticker[c["code"]].get("quality_100", {}).get("comparison_signature", ["LEGACY_30"]))
                   for c in qualified}
-    comparability_error = len(signatures) > 1
+    rank_points = {c['code']: financial_points(by_ticker[c['code']]) for c in qualified}
+    ranking_coverage = None
+    comparability_error = False
+    if len(signatures) > 1:
+        common = set.intersection(*(set(s) for s in signatures))
+        if not common or any(not common.issubset(by_ticker[c['code']].get('quality_100', {}).get('feature_scores', {})) for c in qualified):
+            comparability_error = True
+        else:
+            ranking_coverage = sorted(common)
+            for c in qualified:
+                features = by_ticker[c['code']]['quality_100']['feature_scores']
+                available = sum(features[name]['weight'] for name in common)
+                rank_points[c['code']] = round(sum(features[name]['earned'] for name in common) / available * 30, 4)
     if comparability_error:
         valid = False
         qualified = []
@@ -135,8 +147,8 @@ def select(geometry, financial):
     # financial quality, then leverage, opportunity and technical strength.
     qualified.sort(key=lambda c: (
         0 if c.get("status") == "ENTRY_READY" else 1,
-        -financial_points(by_ticker[c["code"]]),
-        by_ticker[c["code"]].get("liabilities_to_equity_pct")
+        -rank_points[c["code"]],
+        by_ticker[c["code"]].get("latest_liabilities_to_equity_pct", by_ticker[c["code"]].get("liabilities_to_equity_pct"))
         if finite(by_ticker[c["code"]].get("liabilities_to_equity_pct")) else float("inf"),
         -float(c.get("opportunity_score") or 0),
         -float(c.get("score") or 0), c["code"]))
@@ -165,6 +177,9 @@ def select(geometry, financial):
                           "technical_status": c.get("status"),
                           "financial_quality": by_ticker[c["code"]].get("financial_quality"),
                           "financial_points": financial_points(by_ticker[c["code"]]),
+                          **({"financial_ranking_score_100": round(rank_points[c['code']] / .3, 3),
+                              "financial_ranking_features": ranking_coverage}
+                             if ranking_coverage is not None else {}),
                           **({"financial_model": by_ticker[c["code"]]["financial_model"],
                               "quality_100": by_ticker[c["code"]].get("quality_100"),
                               "risk_flags": by_ticker[c["code"]].get("risk_assessment", {}).get("risk_flags", [])}

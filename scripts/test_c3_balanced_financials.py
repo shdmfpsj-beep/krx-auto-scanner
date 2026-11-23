@@ -3,13 +3,14 @@ import copy
 import json
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import c3_balanced_financials as model
 from c3_top5_financial_selection import select, financial_points
 from test_c3_top5_financial_selection import candidate, record, evidence
 from c3_balanced_validation import recent_signals, embedded
+from unittest.mock import patch
 
 DAY = date(2026, 11, 20)
 ANNUAL_RECEIPT = '20260320000001'
@@ -21,6 +22,7 @@ def statement(year=2025, report='11011', receipt=ANNUAL_RECEIPT):
         inventory=20, receivables=30, ocf=14, icf=-20, capex=20,
         interest_expense=2, net_income=10, tax_expense=2, pretax_profit=12,
         depreciation=3, amortisation=1, equity=150, revenue=100, operating_profit=12)
+    values['interest_expense_cf_adjustment']=2
     rows = []
     for name, (section, ids) in model.METRICS.items():
         now = values[name]
@@ -104,6 +106,17 @@ class BalancedFinancialTests(unittest.TestCase):
         self.assertEqual(m['operating_profit'],12)
         self.assertEqual(m['ocf'],14)
 
+    def test_recent_cash_slowdown_affects_quality_without_automatic_failure(self):
+        annual=model.evaluate_accounts(statement(),'CFS');m=model.statement_metrics(statement())
+        recent=copy.deepcopy(m);recent.update(ocf=5,previous_ocf=10,period_basis='INTERIM_YTD_CF_AND_IS_CURRENT_BS')
+        interim=dict(current_ytd_operating_profit_krw=12,previous_ytd_operating_profit_krw=8)
+        q=model.quality_score(m,annual,interim,recent)
+        self.assertEqual(q['components']['improvement']['earned'],0)
+        self.assertEqual(q['cash_quality_basis'],'INTERIM_YTD_CF_AND_IS_CURRENT_BS')
+        risk=model.assess(annual,interim,m,dict(state='PASS'),'OTHER_NONFINANCIAL',recent)
+        self.assertEqual(risk['state'],'PASS')
+        self.assertIn('RECENT_EARNINGS_CASH_FLOW_DIVERGENCE',risk['risk_flags'])
+
     def test_negative_cash_flow_is_flag_not_auto_exclusion(self):
         out=self.collect(); item=out['researched'][0]
         self.assertTrue(item['financial_risk_gate_pass'])
@@ -125,12 +138,20 @@ class BalancedFinancialTests(unittest.TestCase):
         self.assertFalse(q['complete'])
         self.assertEqual(q['components']['capital_efficiency']['available'],8)
 
-    def test_different_score_coverage_prevents_ranking(self):
+    def test_different_score_coverage_uses_common_observed_features(self):
         a=self.collect()['researched'][0];b=copy.deepcopy(a);b['ticker']='222222'
         b['quality_100']['comparison_signature'].remove('roic_pct')
+        del b['quality_100']['feature_scores']['roic_pct']
+        r=select(dict(asof='20261120',candidates=[candidate(),candidate('222222')]),evidence(a,b))
+        self.assertEqual(r['selected_count'],2)
+        self.assertNotIn('roic_pct',r['selected'][0]['financial_ranking_features'])
+        self.assertEqual(r['selected'][0]['financial_ranking_score_100'],r['selected'][1]['financial_ranking_score_100'])
+
+    def test_incomparable_or_unexplained_scores_are_not_ranked(self):
+        a=self.collect()['researched'][0];b=copy.deepcopy(a);b['ticker']='222222'
+        b['quality_100']['comparison_signature']=['UNEXPLAINED_METRIC']
         r=select(dict(asof='20261120',candidates=[candidate(),candidate('222222')]),evidence(a,b))
         self.assertEqual(r['decision'],'ERROR')
-        self.assertEqual(r['financial_evidence_status'],'INCOMPARABLE_FINANCIAL_SCORE_COVERAGE')
 
     def test_source_metadata_has_receipts_division_and_observation(self):
         r=self.collect(); x=r['researched'][0]
@@ -161,7 +182,7 @@ class BalancedFinancialTests(unittest.TestCase):
         calls=[]
         def req(*args):calls.append(args);return dict(status='000',list=[])
         for receipt in ('20260320000001','20260320000001','20260321000001'):
-            self.cache.request('fnlttSinglAcntAll.json',{},'secret',req,receipt)
+            self.cache.request('accnutAdtorNmNdAdtOpinion.json',{},'secret',req,receipt)
         self.assertEqual(len(calls),2)
         self.assertEqual(self.cache.events[1]['state'],'HIT')
 
@@ -188,6 +209,19 @@ class BalancedFinancialTests(unittest.TestCase):
         p=request('accnutAdtorNmNdAdtOpinion.json',{},'');p['list'][0]['emphs_matter']='계속기업 불확실성'
         self.assertEqual(model.audit_evidence(p,2025,ANNUAL_RECEIPT)['state'],'REVIEW_REQUIRED')
 
+    def test_actual_dart_current_audit_duplicates_and_prior_labels(self):
+        base=request('accnutAdtorNmNdAdtOpinion.json',{},'')['list'][0]
+        current={**base,'bsns_year':'제43기\n(당기)'}
+        prior={**base,'bsns_year':'제42기\n(전기)','adt_opinion':'의견거절'}
+        p=dict(status='000',list=[current,copy.deepcopy(current),prior])
+        audit=model.audit_evidence(p,2025,ANNUAL_RECEIPT)
+        self.assertEqual(audit['state'],'PASS')
+        self.assertEqual(audit['current_row_count'],2)
+        p['list'][1]['adt_opinion']='한정의견'
+        self.assertEqual(model.audit_evidence(p,2025,ANNUAL_RECEIPT)['state'],'FAIL')
+        p['list']=[prior]
+        self.assertEqual(model.audit_evidence(p,2025,ANNUAL_RECEIPT)['state'],'REVIEW_REQUIRED')
+
     def test_sector_mapping_uses_industry_not_just_company_name(self):
         for industry,expected in [('612','TELECOM'),('411','CONSTRUCTION'),('264','SEMICON_EQUIPMENT'),
             ('303','AUTO_PARTS'),('351','UTILITY'),('471','RETAIL_CONSUMER'),('211','EXCLUDED_PHARMA_BIO'),
@@ -211,6 +245,17 @@ class BalancedFinancialTests(unittest.TestCase):
         x=self.collect()['researched'][0];x['metrics']['current_ratio']=.8
         r=model.assess(dict(equity_krw=150,liabilities_krw=100,operating_profit_krw=12,assets_krw=250),{},x['metrics'],dict(state='PASS'),'OTHER_NONFINANCIAL')
         self.assertEqual(r['state'],'REVIEW_REQUIRED')
+
+    def test_turnaround_and_persistent_losses_are_different(self):
+        m=model.statement_metrics(statement())
+        annual=dict(equity_krw=150,liabilities_krw=100,assets_krw=250,
+                    operating_profit_krw=-10,previous_operating_profit_krw=-8)
+        for current,expected in [(12,'PASS'),(-2,'FAIL')]:
+            risk=model.assess(annual,dict(current_ytd_operating_profit_krw=current),m,dict(state='PASS'),'OTHER_NONFINANCIAL')
+            self.assertEqual(risk['state'],expected)
+        annual['previous_operating_profit_krw']=8
+        risk=model.assess(annual,dict(current_ytd_operating_profit_krw=-2),m,dict(state='PASS'),'OTHER_NONFINANCIAL')
+        self.assertEqual(risk['state'],'REVIEW_REQUIRED')
 
     def test_no_candidates_is_distinct_from_missing_key(self):
         r=model.collect_balanced(DAY,[],'a'*40,DAY,self.cache)
@@ -239,6 +284,33 @@ class BalancedFinancialTests(unittest.TestCase):
         code=embedded('Collect KRX sessions and render one classic image per stock')
         self.assertIn('C3_KRX_SOURCE_PREFLIGHT',code)
         self.assertNotIn('sendPhoto',code)
+
+    def test_positive_balanced_png_csv_and_real_delivery_boundary(self):
+        # Synthetic financial evidence and bars, clearly an offline contract
+        # test; never counted as actual KRX/DART or a selected operating stock.
+        from c3_balanced_validation import run, write
+        root=Path(self.tmp.name);source=root/'source';source.mkdir()
+        c=candidate()
+        end=datetime(2026,11,20)
+        c['bars']=[dict(date=(end-timedelta(days=59-i)).strftime('%Y%m%d'),
+            open=9800,high=10100,low=9700,close=9900,volume=10000+i*100) for i in range(60)]
+        expiry='2026-11-23T15:30:00+09:00'
+        write(source/'receipt.json',dict(asof='20261120',status='PRE_FINANCIAL_TECHNICAL_PREVIEW_NO_SEND',
+            entry_valid_until=expiry,source_integrity=dict(session_count=60,last_session='20261120',
+                market_rows_min=dict(KOSPI=935,KOSDAQ=1836))))
+        write(source/'entry_geometry_audit.json',dict(asof='20261120',candidates=[c]))
+        write(source/'qualified_chart_pool.json',dict(asof='20261120',entry_valid_until=expiry,candidates=[c]))
+        financial=self.collect()
+        with patch('c3_balanced_validation.collect_balanced',return_value=financial):
+            result=run(root/'result',root/'unused-cache',source=source)
+        self.assertEqual(result['status'],'COMPLETE',result)
+        self.assertEqual(result['final_png_count'],1)
+        self.assertEqual(result['delivery_status'],'DRY_RUN')
+        self.assertEqual(result['telegram_photos_sent'],0)
+        import csv
+        with (root/'result/top5.csv').open(encoding='utf-8-sig') as stream: rows=list(csv.DictReader(stream))
+        self.assertEqual(rows[0]['code'],'111111')
+        self.assertEqual(float(rows[0]['stop_ref']),9600)
 
 
 if __name__=='__main__':unittest.main()

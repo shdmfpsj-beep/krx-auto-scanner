@@ -14,6 +14,12 @@ on:
         required: false
         default: false
         type: boolean
+      financial_model:
+        description: 'Manual financial preview model; scheduled operation retains legacy until separately activated'
+        required: false
+        default: legacy
+        type: choice
+        options: [legacy, balanced]
   schedule:
     # KST 07:00 Tuesday-Saturday (previous KRX trading day); GitHub scheduling can be delayed.
     # 22:00 UTC Monday-Friday = 07:00 KST next calendar day.
@@ -35,6 +41,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       GH_TOKEN: ${{ github.token }}
+      C3_FINANCIAL_MODEL: ${{ inputs.financial_model || 'legacy' }}
     steps:
       - name: Use the validated Python runtime
         uses: actions/setup-python@v5
@@ -604,6 +611,10 @@ jobs:
             scripts/c3_top5_session_policy.py
             scripts/dart_financial_screen.py
             scripts/dart_interim_periods.py
+            scripts/c3_balanced_financials.py
+            scripts/c3_balanced_validation.py
+            receipts/c3_top5_daily/
+            reports/c3_paper/paper_ledger.json
           sparse-checkout-cone-mode: false
           persist-credentials: false
           # Preserve untracked output/c3_top5 generated before sparse checkout.
@@ -632,8 +643,21 @@ jobs:
           import json
           from pathlib import Path
           from c3_top5_financial_selection import requested_candidates
+          import os
           root=Path('output/c3_top5')
           geometry=json.loads((root/'entry_geometry_audit.json').read_text())
+          if os.environ.get('C3_FINANCIAL_MODEL')=='balanced':
+            from c3_balanced_validation import recent_signals
+            pool=json.loads((root/'qualified_chart_pool.json').read_text())
+            sessions=[b['date'] for b in pool['candidates'][0]['bars']] if pool.get('candidates') else []
+            receipts=Path('receipts/c3_top5_daily')
+            ledger=Path('reports/c3_paper/paper_ledger.json')
+            if not receipts.is_dir() or not ledger.is_file():
+              raise ValueError('BALANCED_SIGNAL_HISTORY_MISSING')
+            blocked=recent_signals(geometry['asof'],sessions,receipts,ledger)
+            geometry['candidates']=[c for c in geometry['candidates'] if c['code'] not in blocked]
+            (root/'entry_geometry_audit.json').write_text(json.dumps(geometry,ensure_ascii=False))
+            (root/'duplicate_signal_audit.json').write_text(json.dumps({'blocked_codes':sorted(blocked),'sessions':20}))
           eligible=[{'code':c['code'],'name':c.get('name','')}
                     for c in requested_candidates(geometry)]
           (root/'financial_pool_input.json').write_text(json.dumps({
@@ -641,7 +665,8 @@ jobs:
           PY
             PYTHONPATH=scripts python scripts/c3_top5_dart_bridge.py \
               --receipt output/c3_top5/financial_pool_input.json \
-              --out output/c3_top5/financial_pool_gate.json
+              --out output/c3_top5/financial_pool_gate.json \
+              --model "$C3_FINANCIAL_MODEL" --cache output/c3_top5/financial_cache
             cp output/c3_top5/financial_pool_gate.json output/c3_top5/financial_research_gate.json
           else
             echo 'FINANCIAL_RESEARCH_SKIPPED_NO_RECEIPT'

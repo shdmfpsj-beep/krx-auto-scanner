@@ -78,6 +78,8 @@ def main():
         green=(43,122,86);red=(179,74,72);blue=(54,117,170)
         d.rectangle((0,0,1400,102),fill=ink)
         d.text((48,24),'강현AI PRO | C3 TOP5',font=font(40,True),fill='white')
+        if evidence.get('model')=='BALANCED_QUALITY_TIMING_V1':
+            d.text((650,39),'Balanced Quality & Timing',font=font(23),fill=(225,215,193))
         d.text((1340,32),src['asof'],font=font(27),fill='white',anchor='ra')
         d.line((0,103,1400,103),fill=gold,width=5)
         d.text((50,136),x['name'],font=font(59,True),fill=ink)
@@ -105,6 +107,11 @@ def main():
             d.rectangle((left,ya,right,yb),fill=(235,244,237))
             for yy in (ya,yb):
                 for xx in range(left,right,21):d.line((xx,yy,min(xx+12,right),yy),fill=green,width=3)
+            for xx in (left,right):
+                for yy in range(ya,yb,18):d.line((xx,yy,xx,min(yy+10,yb)),fill=green,width=3)
+            if isinstance(x.get('pivot_support'),(int,float)):
+                support=x['pivot_support'];yy=py(support)
+                d.text((left+8,yy+8),f"지지 {support:,.0f}",font=font(19),fill=green)
         if valid:
             for k,color in (('stop_ref',red),('r1_ref',gold),('r2_ref',(128,101,159))):
                 v=x.get(k)
@@ -156,7 +163,18 @@ def main():
             notice='재무 '+financial_item.get('financial_evidence_state','REVIEW_REQUIRED')+' · '+str(quality.get('available_points',0))+'/100점 항목 관측'
             d.text((50,1515),notice,font=font(22),fill=muted)
             codes=risks.get('risk_flags',[])+risks.get('mandatory_missing',[])+risks.get('hard_failures',[])
-            d.text((50,1548),'위험: '+(', '.join(codes)[:83] if codes else '구조화 항목 심사 통과'),font=font(18),fill=muted)
+            labels={'NEGATIVE_OCF_NOT_AUTOMATIC_EXCLUSION':'영업현금흐름 음수',
+                    'RECENT_NEGATIVE_OCF_NOT_AUTOMATIC_EXCLUSION':'최근 누적현금흐름 음수',
+                    'NEGATIVE_FCF_CAPEX_OR_WORKING_CAPITAL_REVIEW':'FCF 음수·투자/운전자본 확인',
+                    'RECENT_EARNINGS_SLOWDOWN':'최근 실적 둔화',
+                    'RECENT_OCF_WEAKENING':'최근 영업현금흐름 감소',
+                    'RECENT_EARNINGS_CASH_FLOW_DIVERGENCE':'이익 증가·현금흐름 감소',
+                    'EXISTING_LEVERAGE_CEILING_300PCT':'부채비율 300% 초과',
+                    'TWO_ANNUAL_LOSSES_AND_CURRENT_YTD_LOSS':'2년 연속·최근 누적 영업손실',
+                    'ANNUAL_LOSS_CURRENT_YTD_POSITIVE':'연간 적자 후 최근 누적 흑자',
+                    'EBITDA_AND_NET_DEBT_EXCLUDE_LEASE_ADJUSTMENTS':'EBITDA·순차입금 리스 조정 미반영'}
+            hints=list(dict.fromkeys(labels.get(code,'필수 재무자료 추가 확인') for code in codes))
+            d.text((50,1548),'위험: '+(' / '.join(hints[:2]) if hints else '구조화 항목 심사 통과'),font=font(21),fill=muted)
         d.text((50,1580),'종가 < 구조손절 → 다음 거래일 직접 정리 · 미도달 PASS',font=font(24),fill=muted)
         expiry=valid_until[:10]+' 장종료까지' if valid_until else '미확정'
         d.text((50,1620),f"기준 {src['asof']} | 유효 {expiry} | 매수 전 재확인 · 직접 매매",font=font(24),fill=muted)

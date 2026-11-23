@@ -34,6 +34,7 @@ METRICS = {
     "pretax_profit": ("IS", {"ifrs-full_ProfitLossBeforeTax", "ifrs_ProfitLossBeforeTax"}),
     "depreciation": ("CF", {"ifrs-full_AdjustmentsForDepreciationExpense", "dart_AdjustmentsForDepreciationExpense"}),
     "amortisation": ("CF", {"ifrs-full_AdjustmentsForAmortisationExpense", "dart_AdjustmentsForAmortisationExpense"}),
+    "interest_expense_cf_adjustment": ("CF", {"dart_AdjustmentsForInterestExpenses"}),
     "equity": ("BS", {"ifrs-full_Equity", "ifrs_Equity"}),
     "revenue": ("IS", {"ifrs-full_Revenue", "ifrs_Revenue", "ifrs-full_RevenueFromContractsWithCustomers"}),
     "operating_profit": ("IS", {"dart_OperatingIncomeLoss"}),
@@ -80,12 +81,30 @@ class SnapshotCache:
         stamp = self.clock().isoformat()
         self.events.append({"endpoint": endpoint, "state": "FETCH", "observed_at": stamp,
                             "sha256": digest(payload), "api_status": payload.get("status")})
-        if receipt and payload.get("status") == "000":
+        if endpoint == 'fnlttSinglAcntAll.json':
+            rows=payload.get('list', [])
+            self.events[-1].update(expected_receipt=receipt,
+                returned_receipts=sorted({str(r.get('rcept_no', '')) for r in rows}),
+                payload_row_count=len(rows))
+        cacheable = (endpoint != "fnlttSinglAcntAll.json" or
+                     (isinstance(payload.get("list"), list) and payload["list"] and
+                      all(r.get("rcept_no") == receipt for r in payload["list"])))
+        if receipt and payload.get("status") == "000" and cacheable:
             self.root.mkdir(parents=True, exist_ok=True)
             record = {"identity": identity, "observed_at": stamp,
                       "sha256": digest(payload), "payload": payload}
             with path.open("x", encoding="utf-8") as stream:
                 json.dump(record, stream, ensure_ascii=False, sort_keys=True)
+        elif receipt and payload.get('status') == '000' and not cacheable:
+            # Preserve mismatching public statements as quarantined evidence,
+            # never as a reusable snapshot for the requested historical filing.
+            quarantine=self.root/'quarantine'
+            quarantine.mkdir(parents=True,exist_ok=True)
+            record={'identity':identity,'observed_at':stamp,'sha256':digest(payload),
+                    'payload':payload,'state':'RECEIPT_MISMATCH_NOT_REUSABLE'}
+            invalid=quarantine/(digest(record)+'.json')
+            with invalid.open('x',encoding='utf-8') as stream:
+                json.dump(record,stream,ensure_ascii=False,sort_keys=True)
         return payload
 
 
@@ -159,10 +178,14 @@ def statement_metrics(payload, interim=False):
     op, interest = result["operating_profit"], result["interest_expense"]
     result["interest_coverage"] = op / interest if finite(op) and finite(interest) and interest > 0 else None
     result["interest_free_verified"] = interest == 0
+    cf_interest=result.get('interest_expense_cf_adjustment')
+    result['interest_coverage_cf_proxy']=op/cf_interest if finite(op) and finite(cf_interest) and cf_interest > 0 else None
+    result['interest_coverage_cf_proxy_definition']='Operating profit / CF reconciliation interest-expense adjustment; not verified IS interest expense and never substitutes for mandatory coverage evidence'
     ca, cl = result["current_assets"], result["current_liabilities"]
     result["current_ratio"] = ca / cl if finite(ca) and finite(cl) and cl > 0 else None
     eq, peq, income = result["equity"], result["previous_equity"], result["net_income"]
     result["roe_pct"] = income / ((eq + peq) / 2) * 100 if all(finite(x) for x in (eq, peq, income)) and min(eq, peq) > 0 else None
+    result['roe_definition']='Net income for reported period / average current and previous BS equity; interim ratio is not annualized'
     tax, pretax = result["tax_expense"], result["pretax_profit"]
     tax_rate = tax / pretax if finite(tax) and finite(pretax) and pretax > 0 else None
     capital = eq + debt_total - cash if all(finite(x) for x in (eq, debt_total, cash)) else None
@@ -176,14 +199,14 @@ def statement_metrics(payload, interim=False):
     return result
 
 
-def quality_score(m, annual, interim):
+def quality_score(m, annual, interim, recent=None):
     """Explicit /100 weights; missing features reduce coverage, not earned score.
 
     A partial normalized score can rank only against the same feature signature.
     It is labelled partial and is never an eligibility threshold.
     """
     parts = {k: {"earned": 0.0, "available": 0, "maximum": v} for k, v in WEIGHTS.items()}
-    features, missing = [], []
+    features, missing, feature_scores = [], [], {}
     def add(group, name, weight, fraction):
         if fraction is None:
             missing.append(name)
@@ -191,19 +214,22 @@ def quality_score(m, annual, interim):
         features.append(name)
         parts[group]["available"] += weight
         parts[group]["earned"] += weight * max(0, min(1, fraction))
+        feature_scores[name] = {"group": group, "weight": weight,
+                               "earned": weight * max(0, min(1, fraction))}
     def positive_ratio(a, b):
         return a / b if finite(a) and finite(b) and b > 0 else None
     eq_ratio = positive_ratio(annual.get("equity_krw"), annual.get("assets_krw"))
     add("safety", "equity_ratio", 10, eq_ratio / .5 if eq_ratio is not None else None)
-    cr = m.get("current_ratio")
-    add("safety", "current_ratio", 10, cr / 2 if cr is not None else (1 if m.get("current_liabilities") == 0 else None))
+    cash_metrics=recent if recent is not None else m
+    cr = cash_metrics.get("current_ratio")
+    add("safety", "current_ratio", 10, cr / 2 if cr is not None else (1 if cash_metrics.get("current_liabilities") == 0 else None))
     ic = m.get("interest_coverage")
     add("safety", "interest_coverage", 10, ic / 5 if ic is not None else (1 if m.get("interest_free_verified") else None))
-    ocf, op = m.get("ocf"), m.get("operating_profit")
+    ocf, op = cash_metrics.get("ocf"), cash_metrics.get("operating_profit")
     add("cash_quality", "positive_ocf", 12, float(ocf > 0) if finite(ocf) else None)
     conversion = positive_ratio(ocf, op)
     add("cash_quality", "ocf_to_operating_profit", 8, conversion)
-    fcf = m.get("fcf")
+    fcf = cash_metrics.get("fcf")
     add("cash_quality", "positive_fcf", 5, float(fcf >= 0) if finite(fcf) else None)
     for name, field in (("sales_growth", "yoy_revenue_pct"), ("operating_growth", "yoy_operating_profit_pct")):
         value = interim.get(field)
@@ -216,7 +242,7 @@ def quality_score(m, annual, interim):
     for name, weight, target in (("roe_pct", 8, 15), ("roic_pct", 7, 12)):
         v = m.get(name)
         add("capital_efficiency", name, weight, v / target if finite(v) else None)
-    prev = m.get("previous_ocf")
+    prev = cash_metrics.get("previous_ocf")
     add("improvement", "ocf_improvement", 5, float(ocf >= prev) if finite(ocf) and finite(prev) else None)
     now_margin, prev_op, prev_rev = interim.get("ytd_operating_margin_pct"), interim.get("previous_ytd_operating_profit_krw"), interim.get("previous_ytd_revenue_krw")
     prev_margin = positive_ratio(prev_op, prev_rev)
@@ -227,7 +253,10 @@ def quality_score(m, annual, interim):
             "available_points": available, "maximum_points": 100,
             "score": round(earned / available * 100, 3) if available else None,
             "complete": available == 100, "missing_features": missing,
-            "comparison_signature": sorted(features), "score_is_eligibility_gate": False}
+            "comparison_signature": sorted(features), "feature_scores": feature_scores,
+            "cash_quality_basis": cash_metrics.get('period_basis','ANNUAL_FULL_YEAR'),
+            "capital_efficiency_basis": 'ANNUAL_NOT_ANNUALIZED_INTERIM',
+            "score_is_eligibility_gate": False}
 
 
 def assess(annual, interim, m, audit, sector, recent=None):
@@ -240,13 +269,25 @@ def assess(annual, interim, m, audit, sector, recent=None):
     for name in ("equity_krw", "liabilities_krw", "operating_profit_krw", "assets_krw"):
         require(name, annual.get(name))
     eq, liabilities, op = (annual.get(k) for k in ("equity_krw", "liabilities_krw", "operating_profit_krw"))
+    if finite(liabilities) and liabilities < 0:
+        missing.append("INVALID_NEGATIVE_LIABILITIES")
     if finite(eq) and eq <= 0:
         failed.append("NONPOSITIVE_EQUITY")
     if finite(eq) and eq > 0 and finite(liabilities) and liabilities / eq > 3:
         failed.append("EXISTING_LEVERAGE_CEILING_300PCT")
     if finite(op) and op <= 0:
-        # Retain the legacy annual operating-loss policy until separately validated.
-        failed.append("ANNUAL_OPERATING_LOSS_EXISTING_POLICY")
+        previous_op = annual.get('previous_operating_profit_krw',m.get('previous_operating_profit'))
+        current_op = interim.get('current_ytd_operating_profit_krw')
+        if not finite(previous_op) or not finite(current_op):
+            missing.append('LOSS_PERSISTENCE_OR_TURNAROUND_EVIDENCE')
+        elif current_op > 0:
+            flags.append('ANNUAL_LOSS_CURRENT_YTD_POSITIVE')
+        elif previous_op <= 0:
+            failed.append('TWO_ANNUAL_LOSSES_AND_CURRENT_YTD_LOSS')
+        else:
+            # One annual loss and one interim observation do not by themselves
+            # establish persistent insolvency; more recovery context is needed.
+            missing.append('LOSS_RECOVERY_CONTEXT_REVIEW')
     if recent is not None:
         for name in ("equity", "cash", "current_assets", "current_liabilities", "ocf"):
             require("recent_" + name, recent.get(name))
@@ -256,6 +297,12 @@ def assess(annual, interim, m, audit, sector, recent=None):
             missing.append("RECENT_LIQUIDITY_MITIGANTS_REVIEW")
         if finite(recent.get("ocf")) and recent["ocf"] < 0:
             flags.append("RECENT_NEGATIVE_OCF_NOT_AUTOMATIC_EXCLUSION")
+        if finite(recent.get('ocf')) and finite(recent.get('previous_ocf')) and recent['ocf'] < recent['previous_ocf']:
+            flags.append('RECENT_OCF_WEAKENING')
+            current_op=interim.get('current_ytd_operating_profit_krw')
+            previous_op=interim.get('previous_ytd_operating_profit_krw')
+            if finite(current_op) and finite(previous_op) and current_op > previous_op:
+                flags.append('RECENT_EARNINGS_CASH_FLOW_DIVERGENCE')
     for name in ("ocf", "current_assets", "current_liabilities", "cash", "interest_expense"):
         require(name, m.get(name))
     require("interest_bearing_debt_excluding_leases", m.get("interest_bearing_debt_excluding_leases"))
@@ -309,24 +356,31 @@ def assess(annual, interim, m, audit, sector, recent=None):
 def audit_evidence(payload, year, receipt):
     if payload.get("status") != "000":
         return {"state": "REVIEW_REQUIRED", "api_status": payload.get("status")}
-    rows = [r for r in payload.get("list", []) if r.get("rcept_no") == receipt and
-            (str(r.get("stlm_dt", "")).replace(".", "-").startswith(str(year)) or
-             str(r.get("bsns_year", "")) == str(year))]
-    if len(rows) != 1:
-        return {"state": "REVIEW_REQUIRED", "reason": "AUDIT_CURRENT_YEAR_NOT_UNIQUE"}
-    row = rows[0]
-    opinion = re.sub(r"\s+", "", str(row.get("adt_opinion", "")))
-    notes = " ".join(str(row.get(k) or "") for k in ("emphs_matter", "adt_reprt_spcmnt_matter"))
-    # A clean opinion alone cannot rule out material going-concern uncertainty.
-    if opinion in ("부적정의견", "의견거절", "한정의견", "부적정", "한정"):
-        return {"state": "FAIL", "opinion": opinion, "reasons": ["MODIFIED_AUDIT_OPINION"]}
-    if opinion not in ("적정", "적정의견"):
-        return {"state": "REVIEW_REQUIRED", "opinion": opinion}
-    if any(term in notes for term in ("계속기업", "계속 기업", "존속능력")):
-        return {"state": "REVIEW_REQUIRED", "opinion": opinion, "reason": "GOING_CONCERN_TEXT_REVIEW"}
-    if not notes.strip():
-        return {"state": "REVIEW_REQUIRED", "opinion": opinion, "reason": "AUDIT_NOTES_UNAVAILABLE"}
-    return {"state": "PASS", "opinion": opinion, "going_concern_basis": "STRUCTURED_EMPHASIS_SCREEN_ONLY_FULL_REPORT_NOT_REVIEWED"}
+    rows=[]
+    for row in payload.get('list',[]):
+        label=re.sub(r'\s+','',str(row.get('bsns_year','')))
+        # Actual DART responses label fiscal periods as 제43기(당기), etc.
+        # stlm_dt may be repeated for prior-year rows and cannot identify them.
+        current=label==str(year) or ('(당기)' in label and
+            str(row.get('stlm_dt','')).replace('.','-').startswith(str(year)))
+        if row.get('rcept_no')==receipt and current:
+            rows.append(row)
+    if not rows:
+        return {"state":"REVIEW_REQUIRED","reason":"AUDIT_CURRENT_YEAR_UNAVAILABLE"}
+    opinions=[re.sub(r'\s+','',str(row.get('adt_opinion',''))) for row in rows]
+    metadata={'opinions':opinions,'current_row_count':len(rows)}
+    if any(opinion in ('부적정의견','의견거절','한정의견','부적정','한정') for opinion in opinions):
+        return {**metadata,'state':'FAIL','reasons':['MODIFIED_AUDIT_OPINION']}
+    if any(opinion not in ('적정','적정의견') for opinion in opinions):
+        return {**metadata,'state':'REVIEW_REQUIRED','reason':'UNKNOWN_CURRENT_AUDIT_OPINION'}
+    for row in rows:
+        notes=' '.join(str(row.get(k) or '') for k in ('emphs_matter','adt_reprt_spcmnt_matter'))
+        if any(term in notes for term in ('계속기업','계속 기업','존속능력')):
+            return {**metadata,'state':'REVIEW_REQUIRED','reason':'GOING_CONCERN_TEXT_REVIEW'}
+        if not notes.replace('-','').strip():
+            return {**metadata,'state':'REVIEW_REQUIRED','reason':'AUDIT_NOTES_UNAVAILABLE'}
+    return {**metadata,'state':'PASS',
+        'going_concern_basis':'ALL_CURRENT_STRUCTURED_EMPHASIS_ROWS_SCREENED_FULL_REPORT_NOT_REVIEWED'}
 
 
 def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corps=corp_codes):
@@ -334,6 +388,11 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
     result = {"model": MODEL, "asof": asof.strftime("%Y%m%d"), "researched": [], "excluded": [],
               "status": "FAILED_FINANCIAL_EVIDENCE", "financial_data_complete": False,
               "financial_observed_on": today.isoformat(), "point_in_time_snapshot_verified": False,
+              "data_source": "OPENDART_OFFICIAL_PUBLIC_FILING_API",
+              "api_base": "https://opendart.fss.or.kr/api/",
+              "collection_time_utc": datetime.now(timezone.utc).isoformat(),
+              "unverified_checks": ["IMMUTABLE_HISTORICAL_PIT_AT_SELECTION", "FULL_AUDIT_REPORT_TEXT",
+                                    "CONSTRUCTION_PF_AND_CONTINGENCIES", "LEASE_ADJUSTED_NET_DEBT"],
               "historical_restatement_policy": "EXACT_RECEIPT_MATCH_REQUIRED_OBSERVATION_NOT_BACKDATED",
               "trade_approved": False}
     if asof > today:
@@ -412,7 +471,7 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                                          ("liabilities", {"ifrs-full_Liabilities", "ifrs_Liabilities"}))}
             recent_metrics.update(current_bs)
             eq_now = recent_metrics.get("equity")
-            if not all(finite(v) for v in (*current_bs.values(), eq_now)) or current_bs["assets"] <= 0 or abs(current_bs["assets"]-current_bs["liabilities"]-eq_now)/current_bs["assets"] > .01:
+            if not all(finite(v) for v in (*current_bs.values(), eq_now)) or current_bs["assets"] <= 0 or current_bs["liabilities"] < 0 or abs(current_bs["assets"]-current_bs["liabilities"]-eq_now)/current_bs["assets"] > .01:
                 raise ValueError("RECENT_BALANCE_SHEET_INCOMPLETE_OR_INCONSISTENT")
             info = cache.request("company.json", {"corp_code": company}, key, request)
             if info.get("status") != "000" or info.get("stock_code") != ticker:
@@ -426,7 +485,7 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                 risk["hard_failures"].append("RECENT_EXISTING_LEVERAGE_CEILING_300PCT")
                 if not risk["mandatory_missing"]:
                     risk["state"] = "FAIL"
-            quality = quality_score(m, annual, interim)
+            quality = quality_score(m, annual, interim, recent_metrics)
             item.update(annual_status=annual["status"], interim_status=interim["status"],
                 filing_date=received.isoformat(), annual_receipt_no=receipt,
                 interim_filing_date=interim_filing["receipt_date"], interim_receipt_no=interim_filing["receipt_no"],
@@ -435,6 +494,7 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                 equity_krw=annual.get("equity_krw"), liabilities_krw=annual.get("liabilities_krw"),
                 operating_profit_krw=annual.get("operating_profit_krw"),
                 liabilities_to_equity_pct=round(annual["liabilities_krw"] / annual["equity_krw"] * 100, 3) if annual["equity_krw"] > 0 else None,
+                latest_liabilities_to_equity_pct=round(current_bs['liabilities']/eq_now*100,3) if eq_now > 0 else None,
                 financial_evidence_complete=risk["state"] != "REVIEW_REQUIRED",
                 financial_evidence_state="COMPLETE" if risk["state"] != "REVIEW_REQUIRED" else "REVIEW_REQUIRED",
                 financial_risk_gate_pass=risk["state"] == "PASS", risk_assessment=risk,
@@ -446,6 +506,8 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             # Never print exceptions containing authenticated request URLs.
             item["error"] = str(exc) if isinstance(exc, ValueError) and re.fullmatch(r"[A-Z_]+", str(exc)) else type(exc).__name__
             item["financial_evidence_state"] = "API_ERROR" if not isinstance(exc, ValueError) or "API_ERROR" in item["error"] else "REVIEW_REQUIRED"
+            if any(word in item['error'] for word in ('MISMATCH','INCONSISTENT','FUTURE_STATEMENT','CACHE_INTEGRITY')):
+                item['financial_evidence_state']='VALIDATION_ERROR'
         item["source_observations"] = cache.events[start:]
         (result["researched"] if item["financial_risk_gate_pass"] else result["excluded"]).append(item)
     items = result["researched"] + result["excluded"]

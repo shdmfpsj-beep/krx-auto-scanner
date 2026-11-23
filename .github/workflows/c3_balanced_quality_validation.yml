@@ -42,7 +42,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python -m unittest -v test_c3_balanced_financials test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
       - name: Restore receipt-keyed financial snapshots
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: output/c3_balanced_cache
           key: c3-balanced-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -54,6 +54,12 @@ jobs:
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
           PYTHONPATH=scripts python scripts/c3_balanced_validation.py --live --out output/c3_balanced_validation --cache output/c3_balanced_cache
+      - name: Preserve verified snapshots when financial review remains incomplete
+        if: ${{ always() && hashFiles('output/c3_balanced_cache/*.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: output/c3_balanced_cache
+          key: c3-balanced-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Preserve evidence even on incomplete finance or API failure
         if: always()
         uses: actions/upload-artifact@v4
