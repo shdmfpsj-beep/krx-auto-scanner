@@ -162,7 +162,7 @@ def main():
             risks=financial_item.get('risk_assessment',{})
             notice='재무 '+financial_item.get('financial_evidence_state','REVIEW_REQUIRED')+' · '+str(quality.get('available_points',0))+'/100점 항목 관측'
             d.text((50,1515),notice,font=font(22),fill=muted)
-            codes=risks.get('risk_flags',[])+risks.get('mandatory_missing',[])+risks.get('hard_failures',[])
+            codes=risks.get('hard_failures',[])+risks.get('mandatory_missing',[])+risks.get('risk_flags',[])
             labels={'NEGATIVE_OCF_NOT_AUTOMATIC_EXCLUSION':'영업현금흐름 음수',
                     'RECENT_NEGATIVE_OCF_NOT_AUTOMATIC_EXCLUSION':'최근 누적현금흐름 음수',
                     'NEGATIVE_FCF_CAPEX_OR_WORKING_CAPITAL_REVIEW':'FCF 음수·투자/운전자본 확인',
@@ -170,6 +170,7 @@ def main():
                     'RECENT_OCF_WEAKENING':'최근 영업현금흐름 감소',
                     'RECENT_EARNINGS_CASH_FLOW_DIVERGENCE':'이익 증가·현금흐름 감소',
                     'EXISTING_LEVERAGE_CEILING_300PCT':'부채비율 300% 초과',
+                    'RECENT_EXISTING_LEVERAGE_CEILING_300PCT':'최근 부채비율 300% 초과',
                     'TWO_ANNUAL_LOSSES_AND_CURRENT_YTD_LOSS':'2년 연속·최근 누적 영업손실',
                     'ANNUAL_LOSS_CURRENT_YTD_POSITIVE':'연간 적자 후 최근 누적 흑자',
                     'EBITDA_AND_NET_DEBT_EXCLUDE_LEASE_ADJUSTMENTS':'EBITDA·순차입금 리스 조정 미반영'}

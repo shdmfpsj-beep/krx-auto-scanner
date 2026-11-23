@@ -75,6 +75,24 @@ def classify(item, asof=None):
     """Financial risk is the hard gate; earnings growth/slowdown is a score."""
     if not isinstance(item, dict):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
+    if item.get('financial_model')=='BALANCED_QUALITY_TIMING_V1' and item.get('financial_verdict'):
+        verdict=item['financial_verdict']
+        if verdict=='ERROR' or item.get('financial_evidence_state') in ('API_ERROR','VALIDATION_ERROR'):
+            return 'ERROR_FINANCIAL_EVIDENCE'
+        if verdict=='QUALIFIED' and asof:
+            try:
+                day=datetime.strptime(asof,'%Y%m%d').date()
+                if any(datetime.strptime(item[key],'%Y-%m-%d').date()>day for key in ('filing_date','interim_filing_date')):
+                    return 'ERROR_FINANCIAL_EVIDENCE'
+            except (ValueError,KeyError,TypeError):
+                return 'ERROR_FINANCIAL_EVIDENCE'
+        if verdict=='REJECTED_FINANCIAL_RISK':
+            from c3_balanced_financials import rejection_proven
+            return 'REJECTED_FINANCIAL_RISK' if rejection_proven(item,asof) else 'ERROR_FINANCIAL_EVIDENCE'
+        if verdict=='REVIEW_REQUIRED':
+            return 'REVIEW_INSUFFICIENT_EVIDENCE'
+        if verdict!='QUALIFIED':
+            return 'ERROR_FINANCIAL_EVIDENCE'
     # An exclusion is meaningful only after its underlying evidence is valid.
     # Missing/API-failed statements must never become ordinary financial CASH.
     if item.get("financial_evidence_complete") is not True:
@@ -109,13 +127,17 @@ def select(geometry, financial):
     requested_rows = requested_candidates(geometry)
     requested = {c["code"] for c in requested_rows}
     evidence = financial.get("researched", []) + financial.get("excluded", [])
+    balanced = financial.get('model')=='BALANCED_QUALITY_TIMING_V1' or any(
+        isinstance(x,dict) and x.get('financial_model')=='BALANCED_QUALITY_TIMING_V1' for x in evidence)
     covered = [x.get("ticker") for x in evidence if isinstance(x, dict)]
     coverage_ok = len(covered) == len(set(covered)) and set(covered) == requested
     valid = (financial.get("asof") == asof and (financial.get("status") in ACCEPTED
              or (not requested and financial.get("status") == "NO_CANDIDATES"))
              and coverage_ok)
-    classifications = {x["ticker"]: classify(x, asof) for x in evidence} if valid else {}
-    valid = valid and "REVIEW_INSUFFICIENT_EVIDENCE" not in classifications.values()
+    classifications = {x["ticker"]: classify(x, asof) for x in evidence} if coverage_ok and financial.get('asof')==asof else {}
+    review_pending = 'REVIEW_INSUFFICIENT_EVIDENCE' in classifications.values()
+    candidate_error = 'ERROR_FINANCIAL_EVIDENCE' in classifications.values()
+    valid = valid and not review_pending and not candidate_error
     geometry_error = any(isinstance(c, dict) and c.get("geometry_validated") and
         c.get("status") in ("ENTRY_READY", "NEAR_ENTRY") and not valid_entry(c)
         for c in candidates)
@@ -159,18 +181,20 @@ def select(geometry, financial):
         # The existing API budget is unchanged. Unreviewed eligible charts
         # prevent a conclusion that the complete candidate set failed finance.
         valid = False
+    unresolved_review = (balanced and review_pending and not candidate_error and not geometry_error and
+                         coverage_ok and financial.get('asof')==asof and financial.get('status') not in ('ERROR',))
     signals = [{"code": c["code"], "signal": "BUY_CONSIDER" if c.get("status") == "ENTRY_READY" else "WAIT_FOR_ENTRY",
                 "technical_status": c.get("status"),
                 "financial_flag": classifications.get(c["code"])}
                for c in selected]
     return {"schema": "C3_TOP5_FINANCE_FIRST_CONDITIONAL_SIGNAL_V3",
-            "asof": asof, "status": "ERROR_ENTRY_GEOMETRY" if geometry_error else "CONDITIONAL_SIGNALS" if valid else "ERROR_FINANCIAL_EVIDENCE",
+            "asof": asof, "status": "ERROR_ENTRY_GEOMETRY" if geometry_error else "CONDITIONAL_SIGNALS" if valid else "REVIEW_REQUIRED" if unresolved_review else "ERROR_FINANCIAL_EVIDENCE",
             "financial_evidence_status": "INCOMPARABLE_FINANCIAL_SCORE_COVERAGE" if comparability_error else "INCOMPLETE_FINANCIAL_COVERAGE_BUDGET" if incomplete_cash else financial.get("status"),
             "coverage_complete": coverage_ok and not incomplete_cash,
             "point_in_time_certification_required": False,
             "independent_price_certification_required": False,
             "data_quality_validation_required": True,
-            "decision": ("ERROR" if not valid else "ENTRY_READY" if any(x["signal"] == "BUY_CONSIDER" for x in signals) else ("WAIT_FOR_ENTRY" if selected else "CASH")),
+            "decision": ("REVIEW_REQUIRED" if unresolved_review else "ERROR" if not valid else "ENTRY_READY" if any(x["signal"] == "BUY_CONSIDER" for x in signals) else ("WAIT_FOR_ENTRY" if selected else "CASH")),
             "trade_approved": False, "user_executes_trades": True,
             "signals": signals,
             "selected": [{"code": c["code"], "name": c.get("name"),
@@ -188,13 +212,18 @@ def select(geometry, financial):
                          for c in selected],
             "financial_classifications": classifications,
             "review_count": sum(v.startswith("REVIEW_") for v in classifications.values()),
-            "excluded_count": sum(v == "REVIEW_FAILED_FINANCIAL_GATE" for v in classifications.values()),
+            "excluded_count": sum(v in ("REVIEW_FAILED_FINANCIAL_GATE","REJECTED_FINANCIAL_RISK") for v in classifications.values()),
+            "financial_decision_counts": {'QUALIFIED':sum(v=='QUALIFIED_BASIC_FINANCIAL_RISK' for v in classifications.values()),
+                'REJECTED_FINANCIAL_RISK':sum(v in ('REVIEW_FAILED_FINANCIAL_GATE','REJECTED_FINANCIAL_RISK') for v in classifications.values()),
+                'REVIEW_REQUIRED':sum(v=='REVIEW_INSUFFICIENT_EVIDENCE' for v in classifications.values()),
+                'ERROR':sum(v=='ERROR_FINANCIAL_EVIDENCE' for v in classifications.values())},
             "slowdown_flag_count": sum(bool(x.get("recent_slowdown_flag")) for x in by_ticker.values()),
             "watch_count": 0,
             "financial_pass_count": len(qualified),
             "selection_priority": "ENTRY_STATE_FINANCIAL_QUALITY_LEVERAGE_OPPORTUNITY_STRENGTH",
             "financial_request_limit": FINANCIAL_CANDIDATE_LIMIT,
             "financial_requested_count": len(requested),
+            "financial_unreviewed_candidate_count": len(requested-set(covered)),
             "financial_budget_deferred_count": deferred,
             "historical_pit_certified": bool(financial.get("point_in_time_snapshot_verified")),
             "selected_count": len(selected)}

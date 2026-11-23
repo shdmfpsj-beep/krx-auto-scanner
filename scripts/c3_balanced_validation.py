@@ -68,7 +68,7 @@ def recent_signals(asof, sessions, receipts, ledger):
 def verify_images(root, report):
     from PIL import Image
     selected = [r for r in report['candidates'] if r['top5']]
-    for row in selected:
+    for row in report['candidates']:
         path = root / 'all_candidate_report' / row['image']
         if hashlib.sha256(path.read_bytes()).hexdigest() != row['image_sha256']:
             raise ValueError('IMAGE_HASH_MISMATCH')
@@ -188,16 +188,19 @@ def run(root, cache_root, source=None, live=False):
             guard = "import urllib.request\ndef forbidden(*a, **k): raise ValueError('DELIVERY_NETWORK_FORBIDDEN')\nurllib.request.urlopen=forbidden\n"
             process = subprocess.run([sys.executable, '-c', guard+embedded(name)], cwd=work,
                                       env=safe_env, capture_output=True, text=True)
-            if process.returncode and selection['decision'] != 'ERROR':
+            if process.returncode and selection['decision'] not in ('ERROR','REVIEW_REQUIRED'):
                 raise ValueError('DELIVERY_BOUNDARY_FAILED')
         delivery = json.loads((target/'delivery_result.json').read_text())
         write(root/'delivery_result.json', delivery)
-        summary.update(status='ERROR' if selection['decision'] == 'ERROR' else 'COMPLETE', asof=pool['asof'],
+        summary.update(status='ERROR' if selection['decision'] == 'ERROR' else 'REVIEW_REQUIRED' if selection['decision']=='REVIEW_REQUIRED' else 'COMPLETE', asof=pool['asof'],
             decision=selection['decision'], source_integrity=integrity, technical_candidates=len(pool['candidates']),
             requested_financial=len(stocks), selected_codes=[x['code'] for x in selection['selected']],
             final_png_count=count, diagnostic_png_count=len(report['candidates']),
             delivery_status=delivery['status'], telegram_live_transport_verified=False,
-            financial_evidence_status=financial['status'])
+            financial_evidence_status=financial['status'],
+            financial_decision_counts=selection.get('financial_decision_counts',{}),
+            source_provenance={'price_artifact_sha256':os.environ.get('C3_SOURCE_ARTIFACT_SHA256'),
+                               'price_source_run_id':os.environ.get('C3_SOURCE_RUN_ID')})
     except Exception as exc:
         summary.update(status='ERROR', error=str(exc) if isinstance(exc, ValueError) else type(exc).__name__)
     write(root/'validation_result.json', summary)
@@ -211,9 +214,17 @@ def main():
     parser.add_argument('--cache', type=Path, required=True)
     parser.add_argument('--source', type=Path)
     parser.add_argument('--live', action='store_true')
+    parser.add_argument('--require-latest-source',action='store_true')
     args = parser.parse_args()
+    if args.require_latest_source and args.source:
+        from c3_top5_session_policy import session_plan
+        latest=session_plan(datetime.now(ZoneInfo('Asia/Seoul')))['asof']
+        source_day=json.loads((args.source/'receipt.json').read_text()).get('asof') if (args.source/'receipt.json').is_file() else None
+        if source_day != latest:
+            print('ARCHIVED_PRICE_NOT_LATEST_COLLECT_FRESH',source_day,latest)
+            args.source=None;args.live=True
     result = run(args.out, args.cache, args.source, args.live)
-    raise SystemExit(1 if result['status'] == 'ERROR' else 0)
+    raise SystemExit(1 if result['status'] == 'ERROR' else 2 if result['status']=='REVIEW_REQUIRED' else 0)
 
 
 if __name__ == '__main__':

@@ -175,7 +175,7 @@ class BalancedFinancialTests(unittest.TestCase):
                 for row in p['list']:row['rcept_no']='20261123000001'
             return p
         r=self.collect(changed)
-        self.assertEqual(r['status'],'FAILED_FINANCIAL_EVIDENCE')
+        self.assertEqual(r['status'],'ERROR')
         self.assertIn('RECEIPT',r['excluded'][0]['error'])
 
     def test_cache_reuses_same_receipt_and_refetches_new_receipt(self):
@@ -311,6 +311,124 @@ class BalancedFinancialTests(unittest.TestCase):
         with (root/'result/top5.csv').open(encoding='utf-8-sig') as stream: rows=list(csv.DictReader(stream))
         self.assertEqual(rows[0]['code'],'111111')
         self.assertEqual(float(rows[0]['stop_ref']),9600)
+
+    def rejected_payload(self, endpoint, params, key):
+        p=request(endpoint,params,key)
+        if endpoint=='fnlttSinglAcntAll.json':
+            for row in p['list']:
+                if row['account_id'] in model.METRICS['equity'][1]: row['thstrm_amount']='100'
+                if row['account_id']=='ifrs-full_Assets': row['thstrm_amount']='500'
+                if row['account_id']=='ifrs-full_Liabilities': row['thstrm_amount']='400'
+            p['list']=[row for row in p['list'] if row['account_id'] not in
+                set.union(*model.DEBT_IDS) | model.METRICS['interest_expense'][1]]
+        return p
+
+    def test_confirmed_rejection_with_auxiliary_gaps_produces_cash(self):
+        r=self.collect(self.rejected_payload);item=r['excluded'][0]
+        self.assertEqual(item['financial_verdict'],'REJECTED_FINANCIAL_RISK')
+        self.assertTrue(item['financial_evidence_complete'])
+        self.assertFalse(item['supplementary_data_complete'])
+        self.assertTrue(item['risk_assessment']['mandatory_missing'])
+        self.assertTrue(model.rejection_proven(item,'20261120'))
+        result=select(dict(asof='20261120',candidates=[candidate()]),r)
+        self.assertEqual(result['decision'],'CASH')
+        self.assertEqual(result['financial_decision_counts']['REJECTED_FINANCIAL_RISK'],1)
+
+    def test_rejection_does_not_require_a_quality_score(self):
+        r=self.collect(self.rejected_payload);r['excluded'][0]['quality_100']={}
+        self.assertEqual(select(dict(asof='20261120',candidates=[candidate()]),r)['decision'],'CASH')
+
+    def test_missing_decisive_debt_evidence_is_review_not_qualified(self):
+        def missing(ep,params,key):
+            p=request(ep,params,key)
+            if ep=='fnlttSinglAcntAll.json':p['list']=[row for row in p['list'] if row['account_id'] not in model.DEBT_IDS[0]]
+            return p
+        r=self.collect(missing)
+        self.assertEqual(r['excluded'][0]['financial_verdict'],'REVIEW_REQUIRED')
+        self.assertEqual(select(dict(asof='20261120',candidates=[candidate()]),r)['decision'],'REVIEW_REQUIRED')
+
+    def test_rejected_and_unreviewed_candidate_cannot_be_normal_cash(self):
+        r=self.collect(self.rejected_payload)
+        pending=copy.deepcopy(r['excluded'][0]);pending.update(ticker='222222',financial_verdict='REVIEW_REQUIRED',financial_evidence_complete=False)
+        r['excluded'].append(pending);r['status']='REVIEW_REQUIRED'
+        result=select(dict(asof='20261120',candidates=[candidate(),candidate('222222')]),r)
+        self.assertEqual(result['decision'],'REVIEW_REQUIRED')
+        self.assertEqual(result['financial_decision_counts']['REJECTED_FINANCIAL_RISK'],1)
+        self.assertEqual(result['financial_decision_counts']['REVIEW_REQUIRED'],1)
+
+    def test_rejection_proof_tampering_or_future_filing_remains_error(self):
+        base=self.collect(self.rejected_payload)
+        for change in ({'filing_date':'2026-11-21'},{'liabilities_krw':100},{'statement_division':'OFS'},
+                       {'decision_basis':{}},{'financial_risk_gate_pass':True}):
+            r=copy.deepcopy(base);r['excluded'][0].update(change)
+            with self.subTest(change=change):
+                self.assertEqual(select(dict(asof='20261120',candidates=[candidate()]),r)['decision'],'ERROR')
+
+    def test_bad_source_receipt_cannot_hide_behind_known_leverage(self):
+        def broken(ep,params,key):
+            p=self.rejected_payload(ep,params,key)
+            if ep=='fnlttSinglAcntAll.json':p['list'][0]['rcept_no']='20261123000001'
+            return p
+        r=self.collect(broken)
+        self.assertEqual(r['excluded'][0]['financial_verdict'],'ERROR')
+        self.assertEqual(select(dict(asof='20261120',candidates=[candidate()]),r)['decision'],'ERROR')
+
+    def test_audit_api_failure_is_error_even_when_ratio_is_high(self):
+        def broken(ep,params,key):
+            return dict(status='020') if ep=='accnutAdtorNmNdAdtOpinion.json' else self.rejected_payload(ep,params,key)
+        r=self.collect(broken)
+        self.assertEqual(r['excluded'][0]['financial_verdict'],'ERROR')
+        self.assertEqual(select(dict(asof='20261120',candidates=[candidate()]),r)['decision'],'ERROR')
+
+    def test_absent_optional_audit_record_does_not_reverse_proven_rejection(self):
+        def absent(ep,params,key):
+            return dict(status='013') if ep=='accnutAdtorNmNdAdtOpinion.json' else self.rejected_payload(ep,params,key)
+        r=self.collect(absent)
+        self.assertEqual(r['excluded'][0]['financial_verdict'],'REJECTED_FINANCIAL_RISK')
+        self.assertEqual(select(dict(asof='20261120',candidates=[candidate()]),r)['decision'],'CASH')
+
+    def test_qualified_with_future_filing_is_error_not_business_review(self):
+        r=self.collect();r['researched'][0]['interim_filing_date']='2026-11-21'
+        self.assertEqual(select(dict(asof='20261120',candidates=[candidate()]),r)['decision'],'ERROR')
+
+    def test_sector_optional_quality_gaps_do_not_veto_healthy_issuers(self):
+        m=model.statement_metrics(statement());annual=model.evaluate_accounts(statement(),'CFS')
+        for name in ('inventory','previous_inventory','receivables','previous_receivables','capex','fcf','ebitda_proxy','net_debt_to_ebitda_proxy'):m[name]=None
+        for sector in ('MANUFACTURING','AUTO_PARTS','SEMICON_EQUIPMENT','TELECOM','UTILITY'):
+            with self.subTest(sector=sector):
+                self.assertEqual(model.assess(annual,{},m,dict(state='PASS'),sector)['state'],'PASS')
+        for sector in ('CONSTRUCTION','FINANCIAL_SPECIAL_MODEL_REQUIRED'):
+            self.assertEqual(model.assess(annual,{},m,dict(state='PASS'),sector)['state'],'REVIEW_REQUIRED')
+
+    def test_financial_sector_is_not_rejected_by_generic_300pct_rule(self):
+        m=model.statement_metrics(statement())
+        annual=dict(equity_krw=100,liabilities_krw=900,assets_krw=1000,operating_profit_krw=12)
+        r=model.assess(annual,{},m,dict(state='PASS'),'FINANCIAL_SPECIAL_MODEL_REQUIRED')
+        self.assertEqual(r['state'],'REVIEW_REQUIRED')
+        self.assertNotIn('EXISTING_LEVERAGE_CEILING_300PCT',r['hard_failures'])
+
+    def test_custom_direct_accounts_are_extracted_without_using_proxies(self):
+        p=statement()
+        for row in p['list']:
+            for ids,labels in zip(model.DEBT_IDS,model.DEBT_LABELS):
+                if row['account_id'] in ids:row.update(account_id='-표준계정코드 미사용-',account_nm=sorted(labels)[0])
+            if row['account_id'] in model.METRICS['interest_expense'][1]:row.update(account_id='entity_InterestExpense',account_nm='이자비용')
+        m=model.statement_metrics(p)
+        self.assertEqual(m['interest_bearing_debt_excluding_leases'],40)
+        self.assertEqual(m['interest_expense'],2)
+        self.assertEqual(m['interest_coverage'],6)
+
+    def test_other_financial_liabilities_and_finance_costs_never_substitute(self):
+        rows=[dict(sj_div='BS',account_id='ifrs-full_OtherCurrentFinancialLiabilities',account_nm='기타금융부채',thstrm_amount='100'),
+              dict(sj_div='IS',account_id='ifrs-full_FinanceCosts',account_nm='금융원가',thstrm_amount='10')]
+        self.assertIsNone(model.direct_account(rows,model.DEBT_IDS[0],'BS','thstrm_amount',{'단기차입금'})['value'])
+        self.assertIsNone(model.direct_account(rows,model.METRICS['interest_expense'][1],'IS','thstrm_amount',{'이자비용'})['value'])
+
+    def test_conflicting_custom_and_standard_accounts_are_integrity_error(self):
+        p=statement();p['list'].append(dict(sj_div='IS',account_id='entity_InterestExpense',account_nm='이자비용',thstrm_amount='999'))
+        m=model.statement_metrics(p)
+        self.assertIsNone(m['interest_expense'])
+        self.assertIn('interest_expense',m['account_validation_errors'])
 
 
 if __name__=='__main__':unittest.main()

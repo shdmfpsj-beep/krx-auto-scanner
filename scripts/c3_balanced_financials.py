@@ -46,6 +46,37 @@ DEBT_IDS = (
     {"dart_LongTermBorrowingsGross", "ifrs-full_LongtermBorrowings"},
     {"dart_BondsIssued", "ifrs-full_BondsIssued"},
 )
+DEBT_LABELS = ({'단기차입금'}, {'유동성장기차입금'},
+               {'장기차입금'}, {'사채'})
+
+
+def direct_account(rows, ids, section, field, labels):
+    """Exact direct-account fallback for issuer extension tags, never proxies.
+
+    Do not reinterpret total financial liabilities, finance costs, interest paid
+    or CF add-backs as borrowings/IS interest. A conflicting direct value is an
+    integrity error, not an opportunity to select a favourable alias.
+    """
+    options=[section] if section!='IS' else ['IS','CIS']
+    for statement in options:
+        selected=[]
+        for row in rows:
+            if row.get('sj_div')!=statement or str(row.get('account_detail') or '').strip() not in ('','-'):
+                continue
+            tag=str(row.get('account_id') or '')
+            label=re.sub(r'\s+','',str(row.get('account_nm') or ''))
+            custom=not tag.startswith(('ifrs_','ifrs-full_','dart_'))
+            if tag in ids or (custom and label in labels):
+                value=integer(row.get(field))
+                if value is not None:
+                    selected.append({'account_id':tag,'account_name':row.get('account_nm'),
+                                     'statement':statement,'field':field,'value':value})
+        if selected:
+            values={row['value'] for row in selected}
+            state='VALID' if len(values)==1 and min(values)>=0 else 'CONFLICT_OR_INVALID_SIGN'
+            return {'value':selected[0]['value'] if state=='VALID' else None,
+                    'state':state,'sources':selected}
+    return {'value':None,'state':'UNAVAILABLE','sources':[]}
 
 
 def digest(value):
@@ -165,7 +196,18 @@ def statement_metrics(payload, interim=False):
     result["period_basis"] = "INTERIM_YTD_CF_AND_IS_CURRENT_BS" if interim else "ANNUAL_FULL_YEAR"
     # A missing borrowing category may mean an omitted zero or an unrecognised
     # custom XBRL tag. Never silently treat it as zero.
-    debt = [extract_metric(rows, ids, "BS", "thstrm_amount") for ids in DEBT_IDS]
+    debt_evidence=[direct_account(rows,ids,'BS','thstrm_amount',labels)
+                   for ids,labels in zip(DEBT_IDS,DEBT_LABELS)]
+    debt=[source['value'] for source in debt_evidence]
+    interest_field='thstrm_add_amount' if interim else 'thstrm_amount'
+    interest=direct_account(rows,METRICS['interest_expense'][1],'IS',interest_field,{'이자비용'})
+    result['interest_expense']=interest['value']
+    result['direct_account_evidence']={'short_term_borrowings':debt_evidence[0],
+        'current_portion_long_term_borrowings':debt_evidence[1],
+        'long_term_borrowings':debt_evidence[2],'bonds_issued':debt_evidence[3],
+        'interest_expense':interest}
+    result['account_validation_errors']=[name for name,source in result['direct_account_evidence'].items()
+        if source['state']=='CONFLICT_OR_INVALID_SIGN']
     result["interest_bearing_debt_excluding_leases"] = sum(debt) if all(finite(x) and x >= 0 for x in debt) else None
     result["debt_components"] = debt
     capex = result["capex"]
@@ -273,7 +315,8 @@ def assess(annual, interim, m, audit, sector, recent=None):
         missing.append("INVALID_NEGATIVE_LIABILITIES")
     if finite(eq) and eq <= 0:
         failed.append("NONPOSITIVE_EQUITY")
-    if finite(eq) and eq > 0 and finite(liabilities) and liabilities / eq > 3:
+    generic_leverage = sector not in ('UNKNOWN', 'FINANCIAL_SPECIAL_MODEL_REQUIRED')
+    if generic_leverage and finite(eq) and eq > 0 and finite(liabilities) and liabilities / eq > 3:
         failed.append("EXISTING_LEVERAGE_CEILING_300PCT")
     if finite(op) and op <= 0:
         previous_op = annual.get('previous_operating_profit_krw',m.get('previous_operating_profit'))
@@ -293,6 +336,9 @@ def assess(annual, interim, m, audit, sector, recent=None):
             require("recent_" + name, recent.get(name))
         if finite(recent.get("equity")) and recent["equity"] <= 0:
             failed.append("RECENT_NONPOSITIVE_EQUITY")
+        if (generic_leverage and finite(recent.get('equity')) and recent['equity'] > 0 and
+            finite(recent.get('liabilities')) and recent['liabilities']/recent['equity'] > 3):
+            failed.append('RECENT_EXISTING_LEVERAGE_CEILING_300PCT')
         if recent.get("current_ratio") is not None and recent["current_ratio"] < 1:
             missing.append("RECENT_LIQUIDITY_MITIGANTS_REVIEW")
         if finite(recent.get("ocf")) and recent["ocf"] < 0:
@@ -310,7 +356,8 @@ def assess(annual, interim, m, audit, sector, recent=None):
         missing.append("INVALID_NEGATIVE_BALANCE_OR_INTEREST")
     if m.get("current_ratio") is not None and m["current_ratio"] < 1:
         flags.append("CURRENT_RATIO_BELOW_ONE_REVIEW")
-        missing.append("LIQUIDITY_MITIGANTS_OR_DEBT_MATURITY_REVIEW")
+        if recent is None:
+            missing.append("LIQUIDITY_MITIGANTS_OR_DEBT_MATURITY_REVIEW")
     if m.get("interest_coverage") is not None and m["interest_coverage"] < 1:
         flags.append("INTEREST_COVERAGE_BELOW_ONE_REVIEW")
         missing.append("DEBT_SERVICE_MITIGANTS_REVIEW")
@@ -334,21 +381,28 @@ def assess(annual, interim, m, audit, sector, recent=None):
                         "LOSS_PROVISIONS_AND_ORDER_BACKLOG_QUALITY"])
     if sector in ("MANUFACTURING", "AUTO_PARTS", "SEMICON_EQUIPMENT", "RETAIL_CONSUMER"):
         for name in ("inventory", "previous_inventory", "receivables", "previous_receivables"):
-            require(name, m.get(name))
+            if not finite(m.get(name)):
+                flags.append('SUPPLEMENTARY_' + name.upper() + '_UNAVAILABLE')
         sales_growth = annual.get("sales_yoy_pct")
         for name in ("inventory", "receivables"):
             now, prev = m.get(name), m.get("previous_" + name)
             if finite(now) and finite(prev) and prev > 0 and finite(sales_growth) and (now / prev - 1) * 100 > sales_growth + 20:
                 flags.append(name.upper() + "_GROWTH_EXCEEDS_SALES")
     if sector in ("TELECOM", "UTILITY"):
-        for name in ("capex", "fcf", "net_debt_excluding_leases"):
-            require(name, m.get(name))
+        require('net_debt_excluding_leases',m.get('net_debt_excluding_leases'))
+        for name in ('capex','fcf'):
+            if not finite(m.get(name)):
+                flags.append('SUPPLEMENTARY_' + name.upper() + '_UNAVAILABLE')
         if sector == "TELECOM":
             for name in ("ebitda_proxy", "net_debt_to_ebitda_proxy"):
-                require(name, m.get(name))
+                if not finite(m.get(name)):
+                    flags.append('SUPPLEMENTARY_' + name.upper() + '_UNAVAILABLE')
             flags.append("EBITDA_AND_NET_DEBT_EXCLUDE_LEASE_ADJUSTMENTS")
-    return {"state": "REVIEW_REQUIRED" if missing else "FAIL" if failed else "PASS",
+    # This function receives validated source accounts. A decisive exclusion is
+    # not cancelled by unavailable indicators that cannot reverse that finding.
+    return {"state": "FAIL" if failed else "REVIEW_REQUIRED" if missing else "PASS",
             "mandatory_missing": sorted(set(missing)), "hard_failures": failed,
+            "additional_checks_not_required_for_rejection": sorted(set(missing)) if failed else [],
             "risk_flags": flags, "sector_profile": sector,
             "leverage_ceiling_pct": 300, "leverage_policy_changed": False}
 
@@ -457,6 +511,8 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             if annual is None:
                 raise ValueError("ANNUAL_UNAVAILABLE")
             m = statement_metrics(payload)
+            if m['account_validation_errors']:
+                raise ValueError('DIRECT_FINANCIAL_ACCOUNT_CONFLICT_OR_SIGN')
             interim_payload = cache.request("fnlttSinglAcntAll.json", {"corp_code": company,
                 "bsns_year": str(interim_filing["fiscal_year"]), "reprt_code": interim_filing["report_code"],
                 "fs_div": division}, key, request, interim_filing["receipt_no"])
@@ -466,6 +522,8 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             if interim["status"] != "DATED_INTERIM_YTD_RESEARCH_ONLY":
                 raise ValueError("INTERIM_" + interim["status"])
             recent_metrics = statement_metrics(interim_payload, interim=True)
+            if recent_metrics['account_validation_errors']:
+                raise ValueError('RECENT_DIRECT_FINANCIAL_ACCOUNT_CONFLICT_OR_SIGN')
             current_bs = {k: extract_metric(interim_payload["list"], ids, "BS", "thstrm_amount")
                           for k, ids in (("assets", {"ifrs-full_Assets", "ifrs_Assets"}),
                                          ("liabilities", {"ifrs-full_Liabilities", "ifrs_Liabilities"}))}
@@ -479,12 +537,12 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             profile = sector_profile(info.get("induty_code"), name)
             audit_payload = cache.request("accnutAdtorNmNdAdtOpinion.json", {"corp_code": company,
                 "bsns_year": str(year), "reprt_code": "11011"}, key, request, receipt)
+            if audit_payload.get('status') not in ('000','013','014'):
+                raise ValueError('AUDIT_API_ERROR')
+            if audit_payload.get('status') == '000' and not any(r.get('rcept_no') == receipt for r in audit_payload.get('list',[])):
+                raise ValueError('AUDIT_RECEIPT_MISMATCH')
             audit = audit_evidence(audit_payload, year, receipt)
             risk = assess(annual, interim, m, audit, profile, recent_metrics)
-            if eq_now > 0 and current_bs["liabilities"] / eq_now > 3:
-                risk["hard_failures"].append("RECENT_EXISTING_LEVERAGE_CEILING_300PCT")
-                if not risk["mandatory_missing"]:
-                    risk["state"] = "FAIL"
             quality = quality_score(m, annual, interim, recent_metrics)
             item.update(annual_status=annual["status"], interim_status=interim["status"],
                 filing_date=received.isoformat(), annual_receipt_no=receipt,
@@ -496,7 +554,17 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                 liabilities_to_equity_pct=round(annual["liabilities_krw"] / annual["equity_krw"] * 100, 3) if annual["equity_krw"] > 0 else None,
                 latest_liabilities_to_equity_pct=round(current_bs['liabilities']/eq_now*100,3) if eq_now > 0 else None,
                 financial_evidence_complete=risk["state"] != "REVIEW_REQUIRED",
-                financial_evidence_state="COMPLETE" if risk["state"] != "REVIEW_REQUIRED" else "REVIEW_REQUIRED",
+                financial_evidence_state=('REJECTED_FINANCIAL_RISK' if risk['state']=='FAIL' else
+                                          'COMPLETE' if risk['state']=='PASS' else 'REVIEW_REQUIRED'),
+                financial_verdict=('REJECTED_FINANCIAL_RISK' if risk['state']=='FAIL' else
+                                   'QUALIFIED' if risk['state']=='PASS' else 'REVIEW_REQUIRED'),
+                decision_basis={'source_validated':True,'statement_division':division,
+                    'annual_sha256':digest(payload),'interim_sha256':digest(interim_payload),
+                    'annual_assets_krw':annual['assets_krw'],
+                    'recent_assets_krw':current_bs['assets'],
+                    'recent_liabilities_krw':current_bs['liabilities'],
+                    'sector_profile':profile,'industry_code':info.get('induty_code')},
+                supplementary_data_complete=not bool(risk['mandatory_missing']),
                 financial_risk_gate_pass=risk["state"] == "PASS", risk_assessment=risk,
                 exclusion_reasons=risk["hard_failures"], quality_100=quality, metrics=m,
                 audit=audit, recent_metrics=recent_metrics, annual_trend={k: m.get(k) for k in ("revenue", "previous_revenue", "before_previous_revenue",
@@ -508,10 +576,66 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             item["financial_evidence_state"] = "API_ERROR" if not isinstance(exc, ValueError) or "API_ERROR" in item["error"] else "REVIEW_REQUIRED"
             if any(word in item['error'] for word in ('MISMATCH','INCONSISTENT','FUTURE_STATEMENT','CACHE_INTEGRITY')):
                 item['financial_evidence_state']='VALIDATION_ERROR'
+            unavailable=('NO_LISTED_CORP_CODE','NO_DATED_ANNUAL','CURRENT_INTERIM_UNAVAILABLE_REVIEW',
+                         'DART_NO_DATA','EMPTY_STATEMENT','ANNUAL_UNAVAILABLE')
+            item['financial_verdict']='REVIEW_REQUIRED' if item['error'] in unavailable or 'INCOMPLETE' in item['error'] else 'ERROR'
+            if item['financial_evidence_state'] in ('API_ERROR','VALIDATION_ERROR'):
+                item['financial_verdict']='ERROR'
         item["source_observations"] = cache.events[start:]
         (result["researched"] if item["financial_risk_gate_pass"] else result["excluded"]).append(item)
     items = result["researched"] + result["excluded"]
-    result["financial_data_complete"] = all(x["financial_evidence_complete"] for x in items)
+    result['decision_counts']={state:sum(x.get('financial_verdict')==state for x in items)
+        for state in ('QUALIFIED','REJECTED_FINANCIAL_RISK','REVIEW_REQUIRED','ERROR')}
+    result["financial_data_complete"] = all(x.get('financial_verdict') in ('QUALIFIED','REJECTED_FINANCIAL_RISK') for x in items)
+    result['decision_evidence_complete']=result['financial_data_complete']
     if result["financial_data_complete"]:
         result["status"] = "PARTIAL_OR_FAILED_FINANCIAL_GATE" if result["excluded"] else "FINANCIAL_RESEARCH_GATE_PASSED"
+    elif result['decision_counts']['ERROR']:
+        result['status']='ERROR'
+    else:
+        result['status']='REVIEW_REQUIRED'
     return result
+
+
+def rejection_proven(item, asof):
+    """Check the decisive evidence, independent of supplementary score coverage."""
+    basis=item.get('decision_basis',{})
+    if (item.get('annual_status')!='DATED_ANNUAL_RESEARCH_ONLY' or
+        item.get('interim_status')!='DATED_INTERIM_YTD_RESEARCH_ONLY' or
+        item.get('financial_risk_gate_pass') is not False or
+        item.get('risk_assessment',{}).get('state')!='FAIL' or
+        item.get('exclusion_reasons') != item.get('risk_assessment',{}).get('hard_failures')):
+        return False
+    if (basis.get('source_validated') is not True or basis.get('statement_division') not in ('CFS','OFS') or
+        basis.get('statement_division') != item.get('statement_division') or
+        any(not re.fullmatch(r'[a-f0-9]{64}',str(basis.get(k,''))) for k in ('annual_sha256','interim_sha256'))):
+        return False
+    try:
+        day=datetime.strptime(asof,'%Y%m%d').date()
+        for receipt_key,date_key in (('annual_receipt_no','filing_date'),('interim_receipt_no','interim_filing_date')):
+            receipt=item[receipt_key];received=date.fromisoformat(item[date_key])
+            if not re.fullmatch(r'\d{14}',receipt) or received>day or receipt[:8] != received.strftime('%Y%m%d'):
+                return False
+    except (KeyError,TypeError,ValueError):
+        return False
+    def balance_valid(a,l,e):
+        return all(finite(v) for v in (a,l,e)) and a>0 and l>=0 and abs(a-l-e)/a<=.01
+    a,l,e=basis.get('annual_assets_krw'),item.get('liabilities_krw'),item.get('equity_krw')
+    ra,rl,re_=basis.get('recent_assets_krw'),basis.get('recent_liabilities_krw'),item.get('recent_metrics',{}).get('equity')
+    if not balance_valid(a,l,e) or not balance_valid(ra,rl,re_):
+        return False
+    profile=basis.get('sector_profile')
+    if profile != sector_profile(basis.get('industry_code'),item.get('name','')):
+        return False
+    generic=profile not in ('UNKNOWN','FINANCIAL_SPECIAL_MODEL_REQUIRED')
+    metrics=item.get('metrics',{});recent=item.get('recent_metrics',{})
+    checks={'NONPOSITIVE_EQUITY':e<=0,'RECENT_NONPOSITIVE_EQUITY':re_<=0,
+        'EXISTING_LEVERAGE_CEILING_300PCT':generic and e>0 and l/e>3,
+        'RECENT_EXISTING_LEVERAGE_CEILING_300PCT':generic and re_>0 and rl/re_>3,
+        'TWO_ANNUAL_LOSSES_AND_CURRENT_YTD_LOSS':all(finite(v) and v<=0 for v in
+            (item.get('operating_profit_krw'),metrics.get('previous_operating_profit'),recent.get('operating_profit'))),
+        'MODIFIED_AUDIT_OPINION':item.get('audit',{}).get('state')=='FAIL' and any(
+            opinion in ('부적정의견','의견거절','한정의견','부적정','한정') for opinion in item.get('audit',{}).get('opinions',[])),
+        'PHARMA_BIO_EXCLUDED':profile=='EXCLUDED_PHARMA_BIO'}
+    reasons=item.get('risk_assessment',{}).get('hard_failures',[])
+    return bool(reasons) and all(checks.get(reason) is True for reason in reasons)

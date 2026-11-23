@@ -8,9 +8,12 @@ on:
       - 'scripts/c3_top5_dart_bridge.py'
       - 'scripts/dart_financial_screen.py'
       - 'scripts/c3_all_candidate_report.py'
+      - 'scripts/c3_dart_document_evidence.py'
+      - 'scripts/test_c3_dart_document_evidence.py'
       - '.github/workflows/c3_balanced_quality_validation.yml'
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: c3-balanced-validation-${{ github.event.pull_request.number }}
   cancel-in-progress: false
@@ -40,7 +43,7 @@ jobs:
           python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
       - name: Offline finance, technical regression and delivery boundary tests
         run: |
-          PYTHONPATH=scripts python -m unittest -v test_c3_balanced_financials test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
+          PYTHONPATH=scripts python -m unittest -v test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
       - name: Restore receipt-keyed financial snapshots
         uses: actions/cache/restore@v4
         with:
@@ -48,12 +51,46 @@ jobs:
           key: c3-balanced-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             c3-balanced-pr-${{ github.event.pull_request.number }}-
-      - name: Collect live KRX and OpenDART; validate conditional results without send
+      - name: Reuse verified KRX source artifact without another full-market collection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/c3_prior_validation
+          if gh api repos/${{ github.repository }}/actions/artifacts/14792036967/zip > output/c3_prior_validation.zip; then
+            echo 'PREVIOUS_ARTIFACT_DOWNLOAD_COMPLETE'
+          else
+            rm -f output/c3_prior_validation.zip
+            echo 'PREVIOUS_ARTIFACT_UNAVAILABLE_FRESH_SOURCE_REQUIRED'
+          fi
+          python - <<'PY'
+          import hashlib,zipfile,shutil
+          from pathlib import Path
+          archive=Path('output/c3_prior_validation.zip')
+          if not archive.is_file():
+              raise SystemExit(0)
+          expected='35d49dbb0da3f40a3151942bfc209de4b9a64b4cab8ea9cabe1cb599cb5c5f5d'
+          if hashlib.sha256(archive.read_bytes()).hexdigest()!=expected:
+              raise ValueError('PREVIOUS_SOURCE_ARTIFACT_HASH_MISMATCH')
+          with zipfile.ZipFile(archive) as source:
+              source.extractall('output/c3_prior_validation')
+          shutil.copytree('output/c3_prior_validation/c3_balanced_cache',
+                          'output/c3_balanced_cache',dirs_exist_ok=True)
+          print('VERIFIED_PRICE_ARTIFACT_REUSED',expected)
+          PY
+      - name: Validate latest KRX artifact and live OpenDART decisions without send
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+          C3_SOURCE_ARTIFACT_SHA256: '35d49dbb0da3f40a3151942bfc209de4b9a64b4cab8ea9cabe1cb599cb5c5f5d'
+          C3_SOURCE_RUN_ID: '45115946924'
         run: |
-          PYTHONPATH=scripts python scripts/c3_balanced_validation.py --live --out output/c3_balanced_validation --cache output/c3_balanced_cache
+          PYTHONPATH=scripts python scripts/c3_balanced_validation.py --source output/c3_prior_validation/c3_balanced_validation/output/c3_top5 --require-latest-source --out output/c3_balanced_validation --cache output/c3_balanced_cache
+      - name: Inspect official borrowing interest and liquidity note source availability
+        if: ${{ always() && hashFiles('output/c3_balanced_validation/financial_pool_gate.json') != '' }}
+        env:
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          PYTHONPATH=scripts python scripts/c3_dart_document_evidence.py --financial output/c3_balanced_validation/financial_pool_gate.json --out output/c3_balanced_validation/document_evidence
       - name: Preserve verified snapshots when financial review remains incomplete
         if: ${{ always() && hashFiles('output/c3_balanced_cache/*.json') != '' }}
         uses: actions/cache/save@v4
