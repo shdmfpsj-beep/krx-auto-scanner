@@ -126,6 +126,13 @@ jobs:
                 if not isinstance(z,dict):raise ValueError('NON_OBJECT_JSON')
                 a=z.get('OutBlock_1')
                 if not isinstance(a,list):raise ValueError('MISSING_OUTBLOCK')
+                if os.environ.get('C3_KRX_CAPTURE_DIR'):
+                  captured=Path(os.environ['C3_KRX_CAPTURE_DIR']);captured.mkdir(parents=True,exist_ok=True)
+                  name=endpoint+'_'+day+'.json';(captured/name).write_bytes(raw)
+                  (captured/(endpoint+'_'+day+'.meta.json')).write_text(json.dumps({
+                    'file':name,'source_url':u,'asof':day,'endpoint':endpoint,'rows':len(a),
+                    'sha256':hashlib.sha256(raw).hexdigest(),
+                    'observed_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()}))
                 return a
               except (json.JSONDecodeError,ValueError) as ex:
                 kind=type(ex).__name__ if isinstance(ex,json.JSONDecodeError) else str(ex)
@@ -417,6 +424,8 @@ jobs:
                 'r2_ref':x['r2_ref'] if x['geometry_validated'] else None,
                 'risk_pct':x['entry_risk_pct'] if x['geometry_validated'] else None,
                 'close':x['close'],'ma5':x['ma5'],'ma20':x['ma20'],'ma60':x['ma60'],
+                'rvol':x['rvol'],'rs20pp':x['rs20pp'],'return20_pct':x['return20_pct'],
+                'ma20_distance_pct':x['ma20_distance_pct'],
                 'bars':[{'date':d,'close':data[key][d][0],
                          'high':data[key][d][1],'low':data[key][d][2],
                          'volume':data[key][d][3],'open':data[key][d][5]} for d in days]})

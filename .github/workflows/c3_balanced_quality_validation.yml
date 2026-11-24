@@ -120,7 +120,7 @@ jobs:
               with zipfile.ZipFile(path) as z:
                   z.extractall('output/recovery_seed_'+str(i))
           PY
-      - name: Validate latest KRX artifact and live OpenDART decisions without send
+      - name: Recollect fixed 20261123 KRX full market and validate live OpenDART without send
         if: steps.changes.outputs.execute == 'true'
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
@@ -128,13 +128,29 @@ jobs:
           C3_SOURCE_ARTIFACT_SHA256: '692d1732a7395989842f5b330167b6610921293df35096889bf7ecf18bac35a7'
           C3_SOURCE_RUN_ID: '45294238532'
         run: |
-          PYTHONPATH=scripts python scripts/c3_balanced_validation.py --source output/c3_prior_validation --require-latest-source --out output/c3_balanced_validation --cache output/c3_balanced_cache --operational-exit-codes
-      - name: Inspect official borrowing interest and liquidity note source availability
+          PYTHONPATH=scripts python scripts/c3_balanced_validation.py --live --asof 20261123 --out output/c3_balanced_validation --cache output/c3_balanced_cache --operational-exit-codes
+      - name: Investigate financial evidence only for executable pending candidates
         if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_validation/financial_pool_gate.json') != '' }}
         env:
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
-          PYTHONPATH=scripts python scripts/c3_balanced_source_probe.py --financial output/c3_balanced_validation/financial_pool_gate.json --cache output/c3_balanced_cache --out output/c3_balanced_validation/source_recovery --seed output/recovery_seed_0/c3_balanced_validation/document_evidence --seed output/recovery_seed_1/c3_balanced_validation/document_evidence
+          PYTHONPATH=scripts python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from c3_balanced_source_probe import capture
+          from c3_balanced_financials import SnapshotCache
+          root=Path('output/c3_balanced_validation')
+          financial=json.loads((root/'financial_pool_gate.json').read_text())
+          selected=json.loads((root/'financial_selection_research.json').read_text())
+          pending=set(selected.get('approval_required_codes',[])) & {
+              code for code,status in selected.get('financial_verdicts',{}).items() if status in ('REVIEW_REQUIRED','ERROR')}
+          if pending:
+              partial={**financial,'researched':[r for r in financial.get('researched',[]) if r['ticker'] in pending],
+                  'excluded':[r for r in financial.get('excluded',[]) if r['ticker'] in pending]}
+              capture(partial,SnapshotCache('output/c3_balanced_cache'),root/'source_recovery',os.environ['DART_API_KEY'])
+          else:
+              print('NO_EXECUTABLE_PENDING_FINANCE_ADDITIONAL_PROBE_SKIPPED')
+          PY
       - name: Preserve verified snapshots when financial review remains incomplete
         if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_cache/*.json') != '' }}
         uses: actions/cache/save@v4

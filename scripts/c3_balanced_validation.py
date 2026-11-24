@@ -81,23 +81,33 @@ def verify_images(root, report):
     return len(selected)
 
 
-def run(root, cache_root, source=None, live=False):
+def collection_environment(root, asof=None):
+    if asof is not None:
+        try:
+            if not isinstance(asof,str) or len(asof)!=8 or datetime.strptime(asof,'%Y%m%d').strftime('%Y%m%d')!=asof:
+                raise ValueError()
+        except (ValueError,TypeError):raise ValueError('INVALID_FIXED_ASOF') from None
+    env={k:v for k,v in os.environ.items() if k not in ('TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID')}
+    env.update(GITHUB_EVENT_NAME='workflow_dispatch',C3_TEST_SEND_TELEGRAM='false',
+        C3_MANUAL_ASOF=asof or '',C3_KRX_CAPTURE_DIR=str(root/'krx_source'),PYTHONPATH=str(REPO/'scripts'))
+    return env
+
+
+def run(root, cache_root, source=None, live=False, asof=None):
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)
     # Guard against accidentally overwriting the existing working outputs.
     if root == REPO / 'output/c3_top5' or root == REPO:
         raise ValueError('ISOLATED_OUTPUT_REQUIRED')
     summary = {'status': 'RUNNING', 'live_krx_collection': live, 'telegram_photos_sent': 0,
-               'orders_enabled': False, 'main_or_ledger_writes': False}
+               'orders_enabled': False, 'main_or_ledger_writes': False,'requested_asof':asof,
+               'price_execution_mode':'DIRECT_KRX_FULL_MARKET_RESCAN' if live else 'ARCHIVED_CANDIDATE_REPLAY'}
     write(root/'validation_result.json', summary)
     try:
         if live:
             if source is not None:
                 raise ValueError('LIVE_REPLAY_MUTUALLY_EXCLUSIVE')
-            env = {k: v for k, v in os.environ.items() if k not in
-                   ('TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID')}
-            env.update(GITHUB_EVENT_NAME='workflow_dispatch', C3_TEST_SEND_TELEGRAM='false',
-                       C3_MANUAL_ASOF='', PYTHONPATH=str(REPO/'scripts'))
+            env = collection_environment(root,asof)
             code = embedded('Collect KRX sessions and render one classic image per stock')
             script = root / 'production_technical_collection.py'
             script.write_text(code)
@@ -113,6 +123,21 @@ def run(root, cache_root, source=None, live=False):
                                   ('receipt', 'entry_geometry_audit', 'qualified_chart_pool')]
         if len({receipt.get('asof'), geometry.get('asof'), pool.get('asof')}) != 1:
             raise ValueError('SOURCE_ASOF_MISMATCH')
+        if asof is not None:
+            collection_environment(root,asof)
+            if receipt.get('asof')!=asof:raise ValueError('SOURCE_FIXED_ASOF_MISMATCH')
+        if live:
+            captured=[]
+            for meta_path in sorted((root/'krx_source').glob('*.meta.json')):
+                meta=json.loads(meta_path.read_text());binary=(root/'krx_source'/meta['file']).read_bytes()
+                if hashlib.sha256(binary).hexdigest()!=meta['sha256']:raise ValueError('SOURCE_CAPTURE_HASH_MISMATCH')
+                if meta['asof']>receipt['asof']:raise ValueError('SOURCE_CAPTURE_FUTURE_PRICE')
+                captured.append(meta)
+            write(root/'krx_source_manifest.json',dict(asof=receipt['asof'],responses=captured,
+                response_count=len(captured),source='KRX_OPEN_API_DIRECT',
+                collected_rows=sum(x['rows'] for x in captured),capture_is_current_observation=True))
+            summary['krx_captured_response_count']=len(captured)
+            summary['krx_captured_rows']=sum(x['rows'] for x in captured)
         geometry = {**geometry, 'candidates': [sanitize_archived_geometry(c) for c in geometry.get('candidates', [])]}
         geometry['entry_valid_until'] = pool.get('entry_valid_until')
         original_geometry={c['code']:c for c in geometry.get('candidates',[])}
@@ -133,6 +158,11 @@ def run(root, cache_root, source=None, live=False):
         pool_by_code = {c['code']:c for c in pool.get('candidates',[])}
         if len(pool_by_code)!=len(pool.get('candidates',[])) or set(pool_by_code)!=set(original_geometry):
             raise ValueError('SOURCE_CANDIDATE_SET_MISMATCH')
+        for row in pool.get('candidates',[]):
+            dates=[b.get('date') for b in row.get('bars',[])]
+            if (len(dates)!=60 or any(not isinstance(d,str) or len(d)!=8 or not d.isdigit() for d in dates)
+                or len(set(dates))!=60 or dates!=sorted(dates) or dates[-1]!=pool['asof']):
+                raise ValueError('SOURCE_BAR_DATE_MISMATCH')
         # Legacy offline fixtures lack pivot/ATR evidence. Actual KRX audits
         # always carry it; the live/archive branch must validate those values.
         zone_audits = [audit_archived_zone(c, pool_by_code[c['code']]['bars'])
@@ -239,8 +269,11 @@ def run(root, cache_root, source=None, live=False):
             approval_financial_complete=selection.get('approval_financial_complete'),
             nonblocking_financial_unverified_codes=selection.get('nonblocking_financial_unverified_codes',[]),
             comparison_conservative_operational_status=selection.get('comparison_conservative_operational_status'),
-            source_provenance={'price_artifact_sha256':os.environ.get('C3_SOURCE_ARTIFACT_SHA256'),
-                               'price_source_run_id':os.environ.get('C3_SOURCE_RUN_ID')})
+            source_provenance={'price_artifact_sha256':None if live else os.environ.get('C3_SOURCE_ARTIFACT_SHA256'),
+                'price_source_run_id':os.environ.get('GITHUB_RUN_ID') if live else os.environ.get('C3_SOURCE_RUN_ID'),
+                'price_mode':'DIRECT_KRX_COLLECTION' if live else 'VERIFIED_ARCHIVE',
+                'krx_source_manifest_sha256':hashlib.sha256((root/'krx_source_manifest.json').read_bytes()).hexdigest()
+                    if live else None})
     except Exception as exc:
         summary.update(status='ERROR', error=str(exc) if isinstance(exc, ValueError) else type(exc).__name__)
         summary['operational_status'] = ('HOLD_DATA_INCOMPLETE' if isinstance(exc, ValueError) and
@@ -266,10 +299,12 @@ def main():
     parser.add_argument('--cache', type=Path, required=True)
     parser.add_argument('--source', type=Path)
     parser.add_argument('--live', action='store_true')
+    parser.add_argument('--asof',help='Fixed KRX YYYYMMDD; never switch to another date or use later prices')
     parser.add_argument('--require-latest-source',action='store_true')
     parser.add_argument('--operational-exit-codes',action='store_true',
         help='Completed HOLD is exit 0 with an explicit outcome; ERROR stays nonzero. Default keeps exit 2.')
     args = parser.parse_args()
+    if args.asof and args.require_latest_source:parser.error('--asof cannot be combined with --require-latest-source')
     if args.require_latest_source and args.source:
         from c3_top5_session_policy import session_plan
         latest=session_plan(datetime.now(ZoneInfo('Asia/Seoul')))['asof']
@@ -277,7 +312,7 @@ def main():
         if source_day != latest:
             print('ARCHIVED_PRICE_NOT_LATEST_COLLECT_FRESH',source_day,latest)
             args.source=None;args.live=True
-    result = run(args.out, args.cache, args.source, args.live)
+    result = run(args.out, args.cache, args.source, args.live,asof=args.asof)
     outcome=dict(operational_status=result.get('operational_status'),
         program_status='ERROR' if exit_code(result,True)==1 else 'COMPLETED',
         exit_code=exit_code(result,args.operational_exit_codes),compatibility_exit_code=exit_code(result),

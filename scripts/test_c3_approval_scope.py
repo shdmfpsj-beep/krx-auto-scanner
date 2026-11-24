@@ -202,4 +202,76 @@ class ApprovalScopeTests(unittest.TestCase):
         finally:t.doCleanups()
 
 
+class FixedAsOfReplayTests(unittest.TestCase):
+    def test_fixed_collection_environment_pins_date_and_removes_send_credentials(self):
+        from c3_balanced_validation import collection_environment
+        with patch.dict('os.environ',dict(TELEGRAM_BOT_TOKEN='private',TELEGRAM_CHAT_ID='private',C3_MANUAL_ASOF='20990101')):
+            env=collection_environment(Path('/isolated'),'20261123')
+        self.assertEqual(env['C3_MANUAL_ASOF'],'20261123');self.assertEqual(env['C3_TEST_SEND_TELEGRAM'],'false')
+        self.assertEqual(env['GITHUB_EVENT_NAME'],'workflow_dispatch')
+        self.assertNotIn('TELEGRAM_BOT_TOKEN',env);self.assertNotIn('TELEGRAM_CHAT_ID',env)
+
+    def test_invalid_fixed_date_fails_before_collection(self):
+        from c3_balanced_validation import collection_environment
+        for day in ('2026112','20261131','2026-11-23',True):
+            with self.assertRaisesRegex(ValueError,'INVALID_FIXED_ASOF'):
+                collection_environment(Path('/isolated'),day)
+
+    def test_invalid_fixed_configuration_is_error_not_successful_hold(self):
+        with tempfile.TemporaryDirectory() as tmp,patch('c3_balanced_validation.subprocess.run') as child:
+            r=run(Path(tmp)/'out',Path(tmp)/'cache',live=True,asof='not-a-date')
+            self.assertEqual(r['operational_status'],'ERROR');self.assertEqual(exit_code(r,True),1)
+            child.assert_not_called()
+
+    def test_fixed_date_cannot_silently_accept_other_source_day(self):
+        from test_c3_top5_pipeline import PipelineTests
+        t=PipelineTests();t.setUp()
+        try:
+            t.prepare(empty=True)
+            t.write('entry_geometry_audit.json',dict(asof=ASOF,candidates=[]))
+            with tempfile.TemporaryDirectory() as tmp,patch('c3_balanced_validation.collect_balanced') as fetch:
+                r=run(Path(tmp)/'out',Path(tmp)/'cache',t.root,asof='20261119')
+                self.assertEqual(r['error'],'SOURCE_FIXED_ASOF_MISMATCH');fetch.assert_not_called()
+        finally:t.doCleanups()
+
+    def test_future_or_duplicate_bar_cannot_enter_fixed_day_selection(self):
+        from test_c3_top5_pipeline import PipelineTests
+        t=PipelineTests();t.setUp()
+        try:
+            pool,_=t.prepare();pool['candidates'][0]['bars'][-1]['date']='20261121'
+            t.write('qualified_chart_pool.json',pool)
+            t.write('entry_geometry_audit.json',dict(asof=ASOF,candidates=[candidate(name='검증용')]))
+            with tempfile.TemporaryDirectory() as tmp,patch('c3_balanced_validation.collect_balanced') as fetch:
+                r=run(Path(tmp)/'out',Path(tmp)/'cache',t.root,asof=ASOF)
+                self.assertEqual(r['error'],'SOURCE_BAR_DATE_MISMATCH');fetch.assert_not_called()
+        finally:t.doCleanups()
+
+    def test_fixed_asof_and_latest_switch_cannot_be_combined(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        from c3_balanced_validation import main
+        with patch('sys.argv',['validation','--asof','20261123','--require-latest-source','--out','out','--cache','cache']), \
+             redirect_stderr(StringIO()),patch('c3_balanced_validation.run') as fetch:
+            with self.assertRaises(SystemExit) as raised:main()
+            self.assertEqual(raised.exception.code,2);fetch.assert_not_called()
+
+    def test_krx_original_response_capture_has_exact_hash_and_no_auth_header(self):
+        import ast,os,hashlib,time,datetime,urllib.request,urllib.error,urllib.parse
+        from unittest.mock import MagicMock
+        from c3_balanced_validation import embedded
+        node=next(n for n in ast.parse(embedded('Collect KRX sessions and render one classic image per stock')).body
+                  if isinstance(n,ast.FunctionDef) and n.name=='fetch')
+        scope=dict(os=os,Path=Path,json=json,hashlib=hashlib,datetime=datetime,urllib=urllib,time=time)
+        exec(compile(ast.Module(body=[node],type_ignores=[]),'<unchanged-krx-fetch-with-capture>','exec'),scope)
+        raw=b'{"OutBlock_1":[{"BAS_DD":"20261123","ISU_CD":"111111"}]}'
+        response=MagicMock();response.__enter__.return_value=response;response.read.return_value=raw
+        with tempfile.TemporaryDirectory() as tmp,patch.dict(os.environ,dict(KRX_AUTH_KEY='NEVER_WRITE_THIS_AUTH_KEY',C3_KRX_CAPTURE_DIR=tmp)), \
+             patch('urllib.request.urlopen',return_value=response):
+            self.assertEqual(len(scope['fetch']('20261123','stk_bydd_trd')),1)
+            payload=Path(tmp)/'stk_bydd_trd_20261123.json';self.assertEqual(payload.read_bytes(),raw)
+            meta=json.loads((Path(tmp)/'stk_bydd_trd_20261123.meta.json').read_text())
+            self.assertEqual(meta['sha256'],hashlib.sha256(raw).hexdigest());self.assertEqual(meta['rows'],1)
+            for file in Path(tmp).iterdir():self.assertNotIn('NEVER_WRITE_THIS_AUTH_KEY',file.read_text())
+
+
 if __name__=='__main__':unittest.main()
