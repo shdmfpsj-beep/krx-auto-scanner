@@ -966,6 +966,36 @@ jobs:
           save_delivery('SENT',asof=date,stage='COMPLETE')
           print('C3_ALL_CANDIDATES_DELIVERED',date,len(validated),'mode','TEST' if is_test else 'PRODUCTION')
           PY
+      - name: Publish operational outcome without sending
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path('output/c3_top5');root.mkdir(parents=True,exist_ok=True)
+          try:
+            selection=json.loads((root/'financial_selection_research.json').read_text())
+            delivery=json.loads((root/'delivery_result.json').read_text())
+            state=selection.get('operational_status','ERROR')
+            allowed={'TOP5_READY':{'SENT','DRY_RUN'},'CASH_NO_ELIGIBLE':{'CASH'},
+              'HOLD_FINANCIAL_UNVERIFIED':{'HOLD'},'HOLD_DATA_INCOMPLETE':{'HOLD'}}
+            if delivery.get('status') not in allowed.get(state,set()):state='ERROR'
+            outcome={'asof':selection.get('asof'),'operational_status':state,
+              'program_status':'ERROR' if state=='ERROR' else 'COMPLETED',
+              'delivery_status':delivery.get('status'),'telegram_photos_sent':delivery.get('telegram_photos_sent',0),
+              'selected_count':selection.get('selected_count',0),
+              'financial_decision_counts':selection.get('financial_decision_counts',{}),
+              'approval_required_count':selection.get('approval_required_count'),
+              'nonblocking_financial_unverified_codes':selection.get('nonblocking_financial_unverified_codes',[])}
+          except (OSError,ValueError,TypeError,AttributeError):
+            outcome={'operational_status':'ERROR','program_status':'ERROR','error':'OPERATING_RESULT_UNAVAILABLE'}
+          (root/'execution_outcome.json').write_text(json.dumps(outcome,ensure_ascii=False,indent=2)+'\n')
+          print('C3_EXECUTION_OUTCOME',json.dumps(outcome,ensure_ascii=False))
+          if os.environ.get('GITHUB_STEP_SUMMARY'):
+            with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('### C3 operational outcome\n\n'+json.dumps(outcome,ensure_ascii=False)+'\n')
+          raise SystemExit(1 if outcome['operational_status']=='ERROR' else 0)
+          PY
       - name: Upload individual classic images and audit receipt
         if: always()
         uses: actions/upload-artifact@v4

@@ -187,5 +187,19 @@ class ApprovalScopeTests(unittest.TestCase):
                 (source/(name+'.json')).write_text(json.dumps(data))
             self.assertEqual(run(root/'out',root/'cache',source)['operational_status'],'HOLD_DATA_INCOMPLETE')
 
+    def test_daily_action_summary_distinguishes_cash_top5_holds_and_error(self):
+        from test_c3_top5_pipeline import PipelineTests
+        t=PipelineTests();t.setUp()
+        try:
+            for state,delivery,expected in [('CASH_NO_ELIGIBLE','CASH',0),('TOP5_READY','DRY_RUN',0),
+                ('HOLD_FINANCIAL_UNVERIFIED','HOLD',0),('HOLD_DATA_INCOMPLETE','HOLD',0),('TOP5_READY','ERROR',1)]:
+                t.write('financial_selection_research.json',dict(asof=ASOF,operational_status=state))
+                t.write('delivery_result.json',dict(status=delivery,telegram_photos_sent=0))
+                result=t.execute('Publish operational outcome without sending');self.assertEqual(result.returncode,expected,result.stderr)
+                outcome=json.loads((t.root/'execution_outcome.json').read_text())
+                self.assertEqual(outcome['program_status'],'ERROR' if expected else 'COMPLETED')
+                self.assertFalse((t.cwd/'receipts').exists())
+        finally:t.doCleanups()
+
 
 if __name__=='__main__':unittest.main()
