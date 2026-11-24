@@ -125,3 +125,13 @@ normal `always()` step condition. This repair is submitted through a separate
 normal PR, with no forced push/merge. The final closeout uses its successful
 checks and repaired-main validation; the earlier invalid-definition run is not
 reported as a successful operating execution.
+
+
+The fixed-date November24 live check is restricted to the explicitly titled
+initial #203 release merge, so future delivery edits do not repeatedly collect
+that historical date. The first main check reached HOLD_DATA_INCOMPLETE at KRX
+collection; it did not manufacture a November24 result or send Telegram. The
+repair validates the unchanged engine with the verified artifact and does not
+retry unavailable data automatically. On a new delivery-only PR, the existing
+change detector falls back to the actual PR base SHA when event.before is absent;
+financial/technical/config changes still require its normal validation.
