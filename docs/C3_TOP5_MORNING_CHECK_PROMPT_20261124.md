@@ -1,7 +1,6 @@
-# 기존 08:45 운영 확인 본문 교체안
+# C3 TOP5 + WATCH5 · 기존 08:45 운영 확인 본문
 
-대상: 기존 ‘강현AI C3 TOP5 · 오전 운영 확인’ 알람.
-**2026-11-24 18:44:55 KST에 기존 알람 본문으로 적용 완료.** Task `6ae53e1be3848191b8bdc818036ed09c`의 월~금 08:45 KST 일정·활성 상태·제목을 유지하고 본문만 아래 내용으로 교체했다. 다음 확인은 2026-11-25 08:45 KST다. 새 알람은 만들지 않았다.
+Task `6ae53e1be3848191b8bdc818036ed09c`에 2026-11-24 21:55:44 KST 적용 완료. 기존 제목·월~금 08:45 KST 일정·활성 상태를 유지하고 본문만 보강했다. 다음 확인은 2026-11-25 08:45 KST다. 새 알람 없음.
 
 ---
 
@@ -29,3 +28,11 @@ Telegram은 delivery_result.json의 status/stage/telegram_photos_sent/photos 종
 최종 적격 종목이 있을 때만 종목명/코드/기준 종가/매수 하단·상단/구조손절/R1·R2/위험률/ENTRY_READY·NEAR_ENTRY/유효기간을 실제 Artifact 값으로 짧게 제시한다. 진단 PNG와 최종 TOP5 PNG를 구분한다. 범위 미도달 PASS, 종가가 구조손절 미만이면 다음 거래일 사용자가 직접 정리하는 규칙을 유지한다.
 
 보고에는 기준일, main SHA와 run SHA, 실제 event와 실행 시각, 프로그램/선정/전달 상태, 관심 후보·재무 판정 수·승인 필수 수·TOP5 수, PNG·실발송 수, 실제 Actions/Artifact 링크와 남은 확인만 간결히 적는다. 새 정기 실행이 아직 없으면 ‘정기 실행 관찰 대기’를 명시한다.
+
+추가 WATCH5 운영 확인: 정식 TOP5와 WATCH5를 분리해 실제 동일 기준일 Artifact의 watch_delivery_result.json, watch5/manifest.json 및 별도 receipts/c3_watch5_daily/{asof}.json을 확인한다. candidate_decisions.json/CSV, financial_selection_research.json, entry_geometry_audit.json, all_candidate_report/manifest.json과 교차 대조한다. WATCH 전용 결과가 없는 과거 실행은 미실행으로 보고하고, 기존 통합 CI 성공을 WATCH5 실행 성공으로 추정하지 않는다.
+
+WATCH5는 실제 재무 PASS, 기존 WATCH 및 valid_entry(allow_watch=True), 유효한 매수범위·구조손절, 정확한 위험5%이내, (기준일종가-매수범위상단)/기준일종가×100 이격률2%초과~5%이하, 기존 기술·과열·중복 제한이 모두 증명된 종목만 최대5개다. financial_eligibility=WATCH_ONLY는 재무 탈락을 뜻하지 않으므로 실제 financial_verdict와 원본 재무 근거를 확인한다. composite_score 내림차순, 동점은 이격률 오름차순·코드 순이다. 정식 TOP5와 중복 금지, WATCH는 매수 승인·정식 선정 이력·매매 원장 기록이 아니다.
+
+정상 CASH_NO_ELIGIBLE에서도 적격 WATCH5는 별도 관찰 결과로 보고한다. HOLD/ERROR/upstream 실패는 WATCH 발송 차단 상태를 확인한다. 정식 TOP5 0~5장과 WATCH5 0~5장, 전체최대10장 및 실제 PNG 해시·메타데이터·종목·기준일·유효기간 일치를 각각 확인한다. 각 WATCH의 종목명/코드/종가/매수범위/구조손절/R1/R2/위험률/이격률/기준일/유효기간을 실제 값으로 보고하고, 원본에 없는 R2 등은 미확정으로 표시한다. 검증된 WATCH PNG 또는 실제 열 수 있는 링크를 첨부하며 반드시 ‘WATCH5 관찰용 — 매수 승인 아님’을 명시한다.
+
+TOP5 delivery_result.json과 WATCH watch_delivery_result.json의 전송 결과를 각각 보고한다. WATCH status/stage/selected_count/telegram_photos_sent/photos의 실제 telegram_message_id, 목적 채팅 일치 여부 및 이미지 해시를 별도 WATCH 예약과 대조한다. SENT와 실제 유효한 message_id가 확인돼야 전송 성공이며 DRY_RUN·EMPTY·BLOCKED·NOT_APPLICABLE·ERROR·PARTIAL_ERROR는 구분한다. 부분 실패는 확인된 성공 수/ID와 실패·불확실 단계·사유를 기록하며 자동 재전송을 요구하거나 수행하지 않는다. GitHub 실행이 초록이어도 WATCH 결과가 실패일 수 있으므로 별도 결과를 반드시 읽는다. 기존 TOP5 영수증과 WATCH 예약을 혼합하지 않는다. 이 알람은 계속 읽기 전용이며 코드·원장·영수증 변경, 재실행, Telegram 전송/재전송, 새 알람을 수행하지 않는다.
