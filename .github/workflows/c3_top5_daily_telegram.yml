@@ -603,6 +603,7 @@ jobs:
           sparse-checkout: |
             scripts/c3_top5_dart_bridge.py
             scripts/c3_all_candidate_report.py
+            scripts/c3_watch5_delivery.py
             scripts/c3_top5_eligibility_audit.py
             scripts/c3_top5_financial_selection.py
             scripts/c3_top5_financial_preview.py
@@ -1005,6 +1006,9 @@ jobs:
               f.write('### C3 operational outcome\n\n'+json.dumps(outcome,ensure_ascii=False)+'\n')
           raise SystemExit(1 if outcome['operational_status']=='ERROR' else 0)
           PY
+      - name: Deliver separate WATCH5 observation images
+        if: success()
+        run: PYTHONPATH=scripts python scripts/c3_watch5_delivery.py
       - name: Upload individual classic images and audit receipt
         if: always()
         uses: actions/upload-artifact@v4
