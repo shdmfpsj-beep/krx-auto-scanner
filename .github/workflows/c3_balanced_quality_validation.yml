@@ -6,6 +6,7 @@ on:
       - 'scripts/c3_entry_geometry.py'
       - 'scripts/c3_candidate_decisions.py'
       - 'scripts/test_c3_operational_integration.py'
+      - 'scripts/test_c3_dart_normalization.py'
       - '.github/workflows/c3_top5_daily_telegram.yml'
       - 'scripts/test_c3_balanced_financials.py'
       - 'scripts/c3_top5_financial_selection.py'
@@ -67,7 +68,7 @@ jobs:
       - name: Offline finance, technical regression and delivery boundary tests
         if: steps.changes.outputs.execute == 'true'
         run: |
-          PYTHONPATH=scripts python -m unittest -v test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
+          PYTHONPATH=scripts python -m unittest -v test_c3_dart_normalization test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
       - name: Retain synthetic Balanced TOP5 image and Telegram DRY_RUN proof
         if: steps.changes.outputs.execute == 'true'
         run: |
@@ -105,6 +106,18 @@ jobs:
               source.extractall('output/c3_prior_validation')
           print('VERIFIED_PRICE_ARTIFACT_REUSED',expected)
           PY
+          gh api repos/${{ github.repository }}/actions/artifacts/14880042291/zip > output/recovery_seed_0.zip
+          gh api repos/${{ github.repository }}/actions/artifacts/14879546970/zip > output/recovery_seed_1.zip
+          python - <<'PY'
+          import hashlib,zipfile
+          for i,expected in enumerate(('11edf8cd46d178d5c8700d386c772a74aa828e69f053d8fee7b5f0ef2bcf917b',
+                                      '4526dd174f34c6746c9f5217795932495027afb0e590016c2543460f3a738f65')):
+              path='output/recovery_seed_'+str(i)+'.zip'
+              if hashlib.sha256(open(path,'rb').read()).hexdigest()!=expected:
+                  raise ValueError('RECOVERY_SEED_ARTIFACT_HASH_MISMATCH')
+              with zipfile.ZipFile(path) as z:
+                  z.extractall('output/recovery_seed_'+str(i))
+          PY
       - name: Validate latest KRX artifact and live OpenDART decisions without send
         if: steps.changes.outputs.execute == 'true'
         env:
@@ -119,7 +132,7 @@ jobs:
         env:
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
-          PYTHONPATH=scripts python scripts/c3_dart_document_evidence.py --financial output/c3_balanced_validation/financial_pool_gate.json --geometry output/c3_balanced_validation/entry_geometry_audit.json --out output/c3_balanced_validation/document_evidence
+          PYTHONPATH=scripts python scripts/c3_balanced_source_probe.py --financial output/c3_balanced_validation/financial_pool_gate.json --cache output/c3_balanced_cache --out output/c3_balanced_validation/source_recovery --seed output/recovery_seed_0/c3_balanced_validation/document_evidence --seed output/recovery_seed_1/c3_balanced_validation/document_evidence
       - name: Preserve verified snapshots when financial review remains incomplete
         if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_cache/*.json') != '' }}
         uses: actions/cache/save@v4

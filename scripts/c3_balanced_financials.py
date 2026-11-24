@@ -10,6 +10,8 @@ import json
 import re
 import time
 import urllib.error
+import os
+import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -119,6 +121,32 @@ class SnapshotCache:
         self.root = Path(root)
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.events = []
+        self.session_id = os.environ.get('GITHUB_RUN_ID') or uuid.uuid4().hex
+
+    def observe(self, identity, payload, source_observed_at=None):
+        """Preserve public API responses, scoped to one run; no cross-run list reuse."""
+        record=dict(identity=identity,payload=payload,sha256=digest(payload),
+            observed_at=self.clock().isoformat(),source_observed_at=source_observed_at,
+            run_id=self.session_id)
+        folder=self.root/'observations'/self.session_id
+        folder.mkdir(parents=True,exist_ok=True)
+        path=folder/(digest(identity)+'_'+digest(record)+'.json')
+        path.write_text(json.dumps(record,ensure_ascii=False,sort_keys=True))
+
+    def observed_or_request(self, endpoint, params, key, request, receipt=None):
+        """Reuse a response only within this run's already-fresh observation."""
+        identity=dict(endpoint=endpoint,params=params,receipt=receipt)
+        folder=self.root/'observations'/self.session_id
+        records=[]
+        for path in folder.glob(digest(identity)+'_*.json'):
+            record=json.loads(path.read_text())
+            if (record.get('identity')!=identity or record.get('run_id')!=self.session_id or
+                digest(record.get('payload'))!=record.get('sha256')):
+                raise ValueError('OBSERVATION_INTEGRITY_ERROR')
+            records.append(record)
+        if records:
+            return max(records,key=lambda r:r['observed_at'])['payload']
+        return self.request(endpoint,params,key,request,receipt)
 
     def listed_corps(self, key, fetch):
         """24-hour routing-only cache, independently checked by company.json.
@@ -156,6 +184,7 @@ class SnapshotCache:
                 raise ValueError("CACHE_INTEGRITY_ERROR")
             self.events.append({"endpoint": endpoint, "state": "HIT", "sha256": record["sha256"],
                                 "observed_at": record["observed_at"]})
+            self.observe(identity,record['payload'],record['observed_at'])
             return record["payload"]
         try:
             payload = retry_network(lambda:request(endpoint, params, key))
@@ -166,6 +195,7 @@ class SnapshotCache:
             raise
         if not isinstance(payload, dict):
             raise ValueError("INVALID_DART_RESPONSE")
+        self.observe(identity,payload)
         stamp = self.clock().isoformat()
         self.events.append({"endpoint": endpoint, "state": "FETCH", "observed_at": stamp,
                             "sha256": digest(payload), "api_status": payload.get("status")})
