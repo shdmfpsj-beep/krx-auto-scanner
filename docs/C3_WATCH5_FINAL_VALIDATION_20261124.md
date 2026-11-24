@@ -63,7 +63,7 @@ its existing structural-risk rejection remains authoritative.
 
 ## Tests and CI evidence
 
-The original264 regressions are retained. Thirty WATCH5 tests cover the required
+The original264 regressions are retained. Thirty-one WATCH5 tests cover the required
 selection matrix, score/distance/code sorting, maximum5+5, real classic rendering,
 metadata/date/hash/source mismatches, legacy isolation, HOLD/ERROR, upstream
 failure, stale production data, mocked create-only duplicate reservation,
@@ -78,6 +78,12 @@ technical and existing workflow steps are unchanged; delivery-only changes have
 their own full regression/execution job. Other engine/config changes still
 require its previous validation. Existing integration success alone is not
 counted as WATCH5 verification.
+
+The first WATCH5-specific CI succeeded, but the delivery-only comparison in the
+separate Balanced CI initially raised FileNotFoundError for its own sparse-
+excluded YAML. It now reads both versions with git show. A regression executes
+the real detector inside a sparse Git checkout and proves both delivery-only
+skipping and required validation after a real configuration change.
 
 After merge, the same new CI runs against main and attempts fixed November24
 actual KRX/OpenDART collection with the unchanged21:00 policy and manual DRY_RUN

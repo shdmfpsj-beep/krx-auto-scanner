@@ -290,6 +290,36 @@ class WatchPipelineTests(unittest.TestCase):
         self.assertIn('continue-on-error: true',watch)
         self.assertIn('if: always()',watch);self.assertIn('C3_WATCH_UPSTREAM_SUCCESS: ${{ success() }}',watch)
         self.assertLess(workflow.index('Publish operational outcome without sending'),workflow.index('Deliver separate WATCH5'))
+    def test_balanced_change_detector_works_when_its_own_file_is_sparse_excluded(self):
+        name='.github/workflows/c3_balanced_quality_validation.yml'
+        path=REPO/name
+        workflow=path.read_text() if path.is_file() else subprocess.check_output(['git','-C',str(REPO),'show','HEAD:'+name],text=True)
+        lines=workflow.splitlines();start=next(i for i,s in enumerate(lines) if s.strip()=="python - <<'PY'")+1
+        end=next(i for i in range(start,len(lines)) if lines[i].strip()=='PY')
+        code='\n'.join(s[10:] for s in lines[start:end])
+        with tempfile.TemporaryDirectory() as tmp:
+            repo=Path(tmp)
+            def git(*args):return subprocess.check_output(['git','-C',str(repo),*args],stderr=subprocess.STDOUT,text=True).strip()
+            git('init');git('config','user.name','WATCH5 test');git('config','user.email','watch5-test@example.invalid')
+            daily=repo/'.github/workflows/c3_top5_daily_telegram.yml';daily.parent.mkdir(parents=True)
+            daily.write_text('name: unchanged\n')
+            control=repo/name
+            control.write_text('name: control\n      - name: Detect executable changes and avoid repeating APIs for documentation\n        run: old\n      - uses: actions/setup-python@v5\n')
+            git('add','.');git('commit','-m','before');before=git('rev-parse','HEAD')
+            daily.write_text(daily.read_text()+'            scripts/c3_watch5_delivery.py\n')
+            control.write_text(control.read_text().replace('run: old','run: new'))
+            git('add','.');git('commit','-m','watch only')
+            git('sparse-checkout','init','--no-cone')
+            git('sparse-checkout','set','/.github/workflows/c3_top5_daily_telegram.yml')
+            self.assertFalse(control.exists())
+            output=repo/'decision.txt'
+            env={**os.environ,'BEFORE_SHA':before,'GITHUB_OUTPUT':str(output)}
+            process=subprocess.run([sys.executable,'-c',code],cwd=repo,env=env,capture_output=True,text=True)
+            self.assertEqual(process.returncode,0,process.stderr);self.assertIn('execute=false',output.read_text())
+            daily.write_text(daily.read_text().replace('unchanged','changed engine setting'))
+            git('add','.github/workflows/c3_top5_daily_telegram.yml');git('commit','-m','core change');output.unlink()
+            process=subprocess.run([sys.executable,'-c',code],cwd=repo,env=env,capture_output=True,text=True)
+            self.assertEqual(process.returncode,0,process.stderr);self.assertIn('execute=true',output.read_text())
 
 
 def positive_fixture(root):

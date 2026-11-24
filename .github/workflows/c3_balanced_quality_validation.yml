@@ -70,7 +70,8 @@ jobs:
                   if path.startswith('docs/') or path in delivery:continue
                   if path in ('.github/workflows/c3_top5_daily_telegram.yml','.github/workflows/c3_balanced_quality_validation.yml'):
                       old=subprocess.run(['git','show',before+':'+path],capture_output=True,text=True)
-                      if old.returncode==0 and normalized(path,old.stdout)==normalized(path,open(path).read()):continue
+                      current=subprocess.run(['git','show','HEAD:'+path],capture_output=True,text=True)
+                      if old.returncode==current.returncode==0 and normalized(path,old.stdout)==normalized(path,current.stdout):continue
                   execute=True
           with open(os.environ['GITHUB_OUTPUT'],'a') as out:
               out.write('execute='+str(execute).lower()+'\n')
