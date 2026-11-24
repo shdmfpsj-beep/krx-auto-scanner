@@ -158,9 +158,11 @@ def run(root, cache_root, source=None, live=False):
         write(root/'financial_pool_input.json', {'asof':pool['asof'], 'request_scope':REVIEW_SCOPE,
             'candidates':[{'code':s['ticker'],'name':s['name']} for s in stocks]})
         selection = select(geometry, financial)
+        synthetic = pool.get('fixture_kind')=='SYNTHETIC_NOT_MARKET_SELECTION'
         selection.update(system_name='강현AI PRO · C3 TOP5 — Balanced Quality & Timing',
             stop_execution_rule='CLOSE_BELOW_STRUCTURAL_STOP_EXIT_NEXT_SESSION_MANUALLY',
-            source_mode='LIVE' if live else 'ARCHIVED_PRICE_REPLAY_LIVE_FINANCIAL_OBSERVATION')
+            source_mode='SYNTHETIC_PIPELINE_FIXTURE' if synthetic else
+                        'LIVE' if live else 'ARCHIVED_PRICE_REPLAY_LIVE_FINANCIAL_OBSERVATION')
         for name, value in (('receipt', receipt), ('qualified_chart_pool', pool),
                             ('entry_geometry_audit', geometry), ('financial_pool_gate', financial),
                             ('financial_selection_research', selection)):
@@ -222,6 +224,8 @@ def run(root, cache_root, source=None, live=False):
         write(root/'delivery_result.json', delivery)
         shutil.copy2(target/'finance_first_delivery_manifest.json', root/'finance_first_delivery_manifest.json')
         summary.update(status='ERROR' if selection['decision'] == 'ERROR' else 'REVIEW_REQUIRED' if selection['decision']=='REVIEW_REQUIRED' else 'COMPLETE', asof=pool['asof'],
+            input_kind='SYNTHETIC_NOT_MARKET_SELECTION' if synthetic else 'ACTUAL_KRX_AND_OPENDART',
+            live_dart_observation=not synthetic,
             decision=selection['decision'], source_integrity=integrity, technical_candidates=len(pool['candidates']),
             requested_financial=len(stocks), selected_codes=[x['code'] for x in selection['selected']],
             final_png_count=count, diagnostic_png_count=len(report['candidates']),

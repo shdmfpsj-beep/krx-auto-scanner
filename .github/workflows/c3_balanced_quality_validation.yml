@@ -20,7 +20,7 @@ permissions:
   actions: read
 concurrency:
   group: c3-balanced-validation-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   validate:
     if: github.event.pull_request.head.repo.full_name == github.repository

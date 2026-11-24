@@ -262,6 +262,7 @@ def positive_fixture(out):
             with patch('c3_balanced_validation.collect_balanced',return_value=f):
                 result=run(out,Path(cache),source=t.root)
         assert result['status']=='COMPLETE' and len(result['selected_codes'])==5,result
+        assert result['input_kind']=='SYNTHETIC_NOT_MARKET_SELECTION' and not result['live_dart_observation']
         assert result['delivery_status']=='DRY_RUN' and result['telegram_photos_sent']==0
         r=json.loads((out/'all_candidate_report/manifest.json').read_text())
         assert verify_images(out,r)==5
