@@ -11,6 +11,8 @@ ACCEPTED = {"FINANCIAL_RESEARCH_GATE_PASSED",
             "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED",
             "HISTORICAL_DISCLOSURE_DATE_FILTERED_RESEARCH_ONLY"}
 FINANCIAL_CANDIDATE_LIMIT = 30
+REVIEW_SCOPE = 'TECHNICAL_INTEREST_POOL_V1'
+APPROVAL_POLICY = 'EXECUTABLE_FINANCIAL_APPROVAL_V1'
 ANNUAL_POINTS = {"ANNUAL_GROWTH_AND_MARGIN_OBSERVED": 16,
                  "ANNUAL_POSITIVE_MIXED": 11, "ANNUAL_RISK_OR_SLOWDOWN": 5}
 INTERIM_POINTS = {"INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED": 14,
@@ -26,7 +28,7 @@ def entry_state(low, high, close):
         return "ENTRY_READY"
     return "NEAR_ENTRY" if close > high and (close-high)/close*100 <= 2.0 else "WATCH"
 
-def valid_entry(c):
+def valid_entry(c, allow_watch=False):
     """Recompute from executable prices; rounded risk labels are never authority."""
     if not isinstance(c, dict) or not c.get("geometry_validated"):
         return False
@@ -50,19 +52,36 @@ def valid_entry(c):
     actual_risk = (high-stop)/high*100
     return (1.5 <= actual_risk <= 5 and abs(actual_risk-risk) <= .011 and
             c.get("status", c.get("entry_status")) == entry_state(low, high, close) and
-            entry_state(low, high, close) in ("ENTRY_READY", "NEAR_ENTRY"))
+            entry_state(low, high, close) in (("ENTRY_READY", "NEAR_ENTRY", "WATCH")
+                                              if allow_watch else ("ENTRY_READY", "NEAR_ENTRY")))
 
 def requested_candidates(geometry):
-    # Invalid/WATCH charts must not consume the bounded OpenDART call budget.
+    # Legacy executable-entry scope remains available for compatibility.
     candidates = [c for c in geometry.get("candidates", []) if valid_entry(c)]
     candidates.sort(key=lambda c: (0 if c["status"] == "ENTRY_READY" else 1,
         -float(c.get("opportunity_score") or 0), -float(c.get("score") or 0), c["code"]))
+    return candidates[:FINANCIAL_CANDIDATE_LIMIT]
+
+def financial_review_candidates(geometry):
+    """Review technical interest independently of whether an entry exists today.
+
+    Keep the existing API budget and prefer actionable entries before WATCH.
+    Geometry failures still cannot enter TOP5 after a financial PASS.
+    """
+    candidates = list(geometry.get('candidates', []))
+    candidates.sort(key=lambda c: (0 if valid_entry(c) and c.get('entry_status')=='ENTRY_READY'
+        else 1 if valid_entry(c) else 2, -float(c.get('opportunity_score') or 0),
+        -float(c.get('score') or 0), c['code']))
     return candidates[:FINANCIAL_CANDIDATE_LIMIT]
 
 def financial_points(item):
     """Reuse the existing report's /30 annual + interim evidence score."""
     if not isinstance(item, dict):
         return None
+    if item.get("financial_model") == "BALANCED_QUALITY_TIMING_V1":
+        q = item.get("quality_100", {})
+        score = q.get("score")
+        return round(score * .3, 4) if finite(score) and 0 <= score <= 100 and q.get("comparison_signature") else None
     annual = ANNUAL_POINTS.get(item.get("financial_quality"))
     interim = INTERIM_POINTS.get(item.get("interim_quality"))
     return annual + interim if annual is not None and interim is not None else None
@@ -71,10 +90,34 @@ def classify(item, asof=None):
     """Financial risk is the hard gate; earnings growth/slowdown is a score."""
     if not isinstance(item, dict):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
+    if item.get('financial_model')=='BALANCED_QUALITY_TIMING_V1' and item.get('financial_verdict'):
+        verdict=item['financial_verdict']
+        if verdict=='ERROR' or item.get('financial_evidence_state') in ('API_ERROR','VALIDATION_ERROR'):
+            return 'ERROR_FINANCIAL_EVIDENCE'
+        if verdict=='QUALIFIED' and asof:
+            try:
+                day=datetime.strptime(asof,'%Y%m%d').date()
+                if any(datetime.strptime(item[key],'%Y-%m-%d').date()>day for key in ('filing_date','interim_filing_date')):
+                    return 'ERROR_FINANCIAL_EVIDENCE'
+            except (ValueError,KeyError,TypeError):
+                return 'ERROR_FINANCIAL_EVIDENCE'
+        if verdict=='REJECTED_FINANCIAL_RISK':
+            from c3_balanced_financials import rejection_proven
+            return 'REJECTED_FINANCIAL_RISK' if rejection_proven(item,asof) else 'ERROR_FINANCIAL_EVIDENCE'
+        if verdict=='REVIEW_REQUIRED':
+            return 'REVIEW_INSUFFICIENT_EVIDENCE'
+        if verdict!='QUALIFIED':
+            return 'ERROR_FINANCIAL_EVIDENCE'
     # An exclusion is meaningful only after its underlying evidence is valid.
     # Missing/API-failed statements must never become ordinary financial CASH.
     if item.get("financial_evidence_complete") is not True:
         return "REVIEW_INSUFFICIENT_EVIDENCE"
+    if item.get("financial_model") == "BALANCED_QUALITY_TIMING_V1":
+        risk = item.get("risk_assessment", {})
+        if risk.get("state") not in ("PASS", "FAIL") or risk.get("mandatory_missing"):
+            return "REVIEW_INSUFFICIENT_EVIDENCE"
+        if (risk.get("state") == "PASS") != bool(item.get("financial_risk_gate_pass")):
+            return "REVIEW_INSUFFICIENT_EVIDENCE"
     if item.get("annual_status") != "DATED_ANNUAL_RESEARCH_ONLY" or not item.get("filing_date"):
         return "REVIEW_INSUFFICIENT_EVIDENCE"
     if item.get("interim_status") != "DATED_INTERIM_YTD_RESEARCH_ONLY" or not item.get("interim_filing_date"):
@@ -93,72 +136,233 @@ def classify(item, asof=None):
         return "REVIEW_FAILED_FINANCIAL_GATE"
     return "QUALIFIED_BASIC_FINANCIAL_RISK"
 
+def approval_scope(c):
+    """Prove today's non-entry from prices; an uncomputed chart is not CASH.
+
+    This never changes a range, stop or proximity threshold. Rejected-stop
+    evidence is the existing executable structural stop, retained for audit.
+    """
+    if valid_entry(c):return dict(required=True,verified=True,reason='EXECUTABLE_ENTRY')
+    if valid_entry(c,allow_watch=True):
+        return dict(required=False,verified=True,reason='WATCH_OUTSIDE_EXISTING_ENTRY_GATE')
+    result=dict(required=False,verified=False,reason='TECHNICAL_DISQUALIFICATION_UNVERIFIED')
+    if not isinstance(c,dict) or not finite(c.get('close')) or c['close']<=0:return result
+    if c.get('geometry_validated') is not False or c.get('status') not in ('PASS_RISK_GEOMETRY','REJECTED'):
+        return result
+    reasons=c.get('rejection_reasons',[])
+    low=c.get('attempted_entry_low',c.get('entry_low'))
+    high=c.get('attempted_entry_high',c.get('entry_high'))
+    if ('EMPTY_ENTRY_INTERSECTION' in reasons or 'NO_EXECUTABLE_TICK_INTERVAL' in reasons) and all(
+        finite(p) and p>0 for p in (low,high)) and low>=high:
+        return dict(required=False,verified=True,reason='EMPTY_EXECUTABLE_ENTRY_INTERVAL',low=low,high=high)
+    low,high=c.get('entry_low'),c.get('entry_high')
+    stop=c.get('rejected_structural_stop_ref',c.get('stop_ref'))
+    if ('RISK_ABOVE_5PCT' in reasons and all(finite(p) and p>0 for p in (low,high,stop)) and
+        stop<low<high and finite(c.get('risk_pct'))):
+        from c3_entry_geometry import tick
+        risk=(high-stop)/high*100
+        if all(p%tick(p)==0 for p in (low,high,stop)) and risk>5 and abs(risk-c['risk_pct'])<=.011:
+            return dict(required=False,verified=True,reason='EXACT_STRUCTURAL_RISK_ABOVE_5PCT',
+                        high=high,structural_stop=stop,risk_pct=risk)
+    return result
+
+
+def select_approval_scoped(geometry, financial):
+    """Observe the full interest pool; require financial PASS only to buy.
+
+    Use the unchanged selector/ranking on the executable subset, preserve every
+    observed financial verdict, and retain the former conservative comparison.
+    """
+    previous={**financial,'aggregate_policy':'ISOLATED_ISSUER_FAILURES_V1'}
+    baseline=select(geometry,previous)
+    candidates=geometry.get('candidates',[])
+    scope={c['code']:approval_scope(c) for c in candidates if isinstance(c,dict) and c.get('code')}
+    required={code for code,s in scope.items() if s['required']}
+    unknown=[code for code,s in scope.items() if not s['verified']]
+    rows=financial.get('researched',[])+financial.get('excluded',[])
+    requested={c['code'] for c in financial_review_candidates(geometry)}
+    covered=[r.get('ticker') for r in rows if isinstance(r,dict)]
+    coverage_ok=len(covered)==len(set(covered)) and set(covered)==requested
+    integrity_error=any(r.get('financial_model')!='BALANCED_QUALITY_TIMING_V1' or
+        r.get('financial_evidence_state')=='VALIDATION_ERROR' or
+        any(term in str(r.get('error','')) for term in ('MISMATCH','INTEGRITY','CORRUPT','FUTURE','CONFLICT')) or
+        r.get('error') in ('TypeError','KeyError','AttributeError','IndexError','NameError','RuntimeError') or
+        any(e.get('http_status') in (401,403,429) for e in r.get('source_observations',[])) for r in rows)
+    integrity_error=integrity_error or any(baseline.get('financial_classifications',{}).get(r.get('ticker'))==
+        'ERROR_FINANCIAL_EVIDENCE' and r.get('financial_verdict')!='ERROR' for r in rows)
+    system_error=(baseline.get('shared_system_error') or integrity_error or not coverage_ok or
+        financial.get('asof')!=geometry.get('asof') or baseline.get('status')=='ERROR_ENTRY_GEOMETRY')
+    effective={**previous,'researched':[r for r in financial.get('researched',[]) if r.get('ticker') in required],
+               'excluded':[r for r in financial.get('excluded',[]) if r.get('ticker') in required]}
+    classes=baseline.get('financial_classifications',{})
+    relevant=[classes.get(code) for code in required]
+    effective['status']=('NO_CANDIDATES' if not required else 'ERROR' if 'ERROR_FINANCIAL_EVIDENCE' in relevant
+        else 'REVIEW_REQUIRED' if any(x in (None,'REVIEW_INSUFFICIENT_EVIDENCE') for x in relevant)
+        else 'PARTIAL_OR_FAILED_FINANCIAL_GATE' if any(x!='QUALIFIED_BASIC_FINANCIAL_RISK' for x in relevant)
+        else 'FINANCIAL_RESEARCH_GATE_PASSED')
+    result=select({**geometry,'candidates':[c for c in candidates if c['code'] in required]},effective)
+    # Root/API/identity failures remain global, including on a rejected chart.
+    override=('ERROR' if system_error else 'HOLD_DATA_INCOMPLETE' if unknown else
+              'HOLD_FINANCIAL_UNVERIFIED' if required-set(covered) else None)
+    if override:
+        result.update(operational_status=override,status='ERROR_FINANCIAL_EVIDENCE' if override=='ERROR' else 'REVIEW_REQUIRED',
+            decision='ERROR' if override=='ERROR' else 'REVIEW_REQUIRED',selected=[],signals=[],selected_count=0,
+            coverage_complete=False)
+    for key in ('financial_classifications','financial_verdicts','financial_decision_counts','financial_pass_count',
+                'review_count','excluded_count','issuer_error_codes','all_interest_financial_complete',
+                'financial_requested_count','financial_unreviewed_candidate_count','financial_interest_budget_deferred_count',
+                'financial_budget_deferred_count','watch_count'):
+        result[key]=baseline[key]
+    pending={code for code,value in classes.items() if value in ('REVIEW_INSUFFICIENT_EVIDENCE','ERROR_FINANCIAL_EVIDENCE')}
+    result.update(aggregate_policy=APPROVAL_POLICY,technical_approval_scope=scope,
+        approval_required_codes=sorted(required),approval_required_count=len(required),
+        approval_financial_complete=not bool((required & pending)|(required-set(covered))) and not system_error and not unknown
+            and result.get('operational_status')!='ERROR',
+        approval_financial_evidence_status=effective['status'],
+        financial_evidence_status=financial.get('status'),financial_observation_coverage_complete=coverage_ok,
+        nonblocking_financial_unverified_codes=sorted(pending-required) if not system_error else [],
+        technical_scope_unverified_codes=unknown,shared_system_error=bool(system_error),
+        comparison_conservative_operational_status=baseline['operational_status'])
+    return result
+
+
 def select(geometry, financial):
+    if financial.get('model')=='BALANCED_QUALITY_TIMING_V1' and financial.get('aggregate_policy')==APPROVAL_POLICY:
+        return select_approval_scoped(geometry,financial)
     asof = geometry.get("asof")
     candidates = geometry.get("candidates", [])
-    requested_rows = requested_candidates(geometry)
+    broad = financial.get('request_scope') == REVIEW_SCOPE
+    requested_rows = financial_review_candidates(geometry) if broad else requested_candidates(geometry)
     requested = {c["code"] for c in requested_rows}
     evidence = financial.get("researched", []) + financial.get("excluded", [])
+    balanced = financial.get('model')=='BALANCED_QUALITY_TIMING_V1' or any(
+        isinstance(x,dict) and x.get('financial_model')=='BALANCED_QUALITY_TIMING_V1' for x in evidence)
     covered = [x.get("ticker") for x in evidence if isinstance(x, dict)]
     coverage_ok = len(covered) == len(set(covered)) and set(covered) == requested
     valid = (financial.get("asof") == asof and (financial.get("status") in ACCEPTED
              or (not requested and financial.get("status") == "NO_CANDIDATES"))
              and coverage_ok)
-    classifications = {x["ticker"]: classify(x, asof) for x in evidence} if valid else {}
-    valid = valid and "REVIEW_INSUFFICIENT_EVIDENCE" not in classifications.values()
+    classifications = {x["ticker"]: classify(x, asof) for x in evidence} if coverage_ok and financial.get('asof')==asof else {}
+    isolated = balanced and financial.get('aggregate_policy')=='ISOLATED_ISSUER_FAILURES_V1'
+    shared_codes={'010','011','012','020','800','900','901'}
+    shared_error=bool(financial.get('error')) or any(
+        str(event.get('api_status')) in shared_codes for item in evidence
+        for event in item.get('source_observations',[])) or any(
+        any(word in str(item.get('error','')) for word in ('CACHE_INTEGRITY','OBSERVATION_INTEGRITY')) for item in evidence)
+    if evidence and all(item.get('financial_evidence_state')=='API_ERROR' for item in evidence):shared_error=True
+    review_pending = 'REVIEW_INSUFFICIENT_EVIDENCE' in classifications.values()
+    candidate_error = 'ERROR_FINANCIAL_EVIDENCE' in classifications.values()
+    valid = valid and not review_pending and not candidate_error
     geometry_error = any(isinstance(c, dict) and c.get("geometry_validated") and
         c.get("status") in ("ENTRY_READY", "NEAR_ENTRY") and not valid_entry(c)
         for c in candidates)
+    codes = [c.get('code') for c in candidates if isinstance(c, dict)]
+    geometry_error = geometry_error or len(codes) != len(candidates) or len(set(codes)) != len(codes)
     valid = valid and not geometry_error
     qualified = [c for c in requested_rows
-                 if valid and classifications.get(c.get("code")) == "QUALIFIED_BASIC_FINANCIAL_RISK"]
+                 if valid and valid_entry(c) and classifications.get(c.get("code")) == "QUALIFIED_BASIC_FINANCIAL_RISK"]
     by_ticker = {x["ticker"]: x for x in evidence} if valid else {}
+    # Compare the same observed features. General quality gaps must not become
+    # a new hard risk veto; reduce to their common feature set where possible.
+    signatures = {tuple(by_ticker[c["code"]].get("quality_100", {}).get("comparison_signature", ["LEGACY_30"]))
+                  for c in qualified}
+    rank_points = {c['code']: financial_points(by_ticker[c['code']]) for c in qualified}
+    ranking_coverage = None
+    comparability_error = False
+    if len(signatures) > 1:
+        common = set.intersection(*(set(s) for s in signatures))
+        if not common or any(not common.issubset(by_ticker[c['code']].get('quality_100', {}).get('feature_scores', {})) for c in qualified):
+            comparability_error = True
+        else:
+            ranking_coverage = sorted(common)
+            for c in qualified:
+                features = by_ticker[c['code']]['quality_100']['feature_scores']
+                available = sum(features[name]['weight'] for name in common)
+                rank_points[c['code']] = round(sum(features[name]['earned'] for name in common) / available * 30, 4)
+    if comparability_error:
+        valid = False
+        qualified = []
     # Preserve ENTRY_READY priority. Within each state use already-calculated
     # financial quality, then leverage, opportunity and technical strength.
     qualified.sort(key=lambda c: (
         0 if c.get("status") == "ENTRY_READY" else 1,
-        -financial_points(by_ticker[c["code"]]),
-        by_ticker[c["code"]].get("liabilities_to_equity_pct")
+        -rank_points[c["code"]],
+        by_ticker[c["code"]].get("latest_liabilities_to_equity_pct", by_ticker[c["code"]].get("liabilities_to_equity_pct"))
         if finite(by_ticker[c["code"]].get("liabilities_to_equity_pct")) else float("inf"),
         -float(c.get("opportunity_score") or 0),
         -float(c.get("score") or 0), c["code"]))
     selected = qualified[:5]
-    deferred = max(0, sum(valid_entry(c) for c in candidates)-len(requested))
-    incomplete_cash = valid and not selected and deferred > 0
+    deferred = sum(valid_entry(c) and c['code'] not in requested for c in candidates)
+    interest_deferred = max(0, len(candidates)-len(requested)) if broad else 0
+    incomplete_cash = valid and ((not selected and deferred > 0) or interest_deferred > 0)
     if incomplete_cash:
         # The existing API budget is unchanged. Unreviewed eligible charts
         # prevent a conclusion that the complete candidate set failed finance.
         valid = False
+        selected = []
+    unresolved_review = (balanced and (review_pending or isolated and candidate_error) and
+                         (not candidate_error or isolated) and not geometry_error and not shared_error and
+                         coverage_ok and financial.get('asof')==asof and
+                         (financial.get('status')!='ERROR' or isolated))
+    unresolved_review = unresolved_review or (broad and incomplete_cash)
     signals = [{"code": c["code"], "signal": "BUY_CONSIDER" if c.get("status") == "ENTRY_READY" else "WAIT_FOR_ENTRY",
                 "technical_status": c.get("status"),
                 "financial_flag": classifications.get(c["code"])}
                for c in selected]
+    operational_status = ('ERROR' if shared_error or (candidate_error and not isolated) or geometry_error or not coverage_ok or
+        (financial.get('status') == 'ERROR' and not isolated) else 'HOLD_FINANCIAL_UNVERIFIED'
+        if unresolved_review or incomplete_cash else 'ERROR' if not valid else 'TOP5_READY' if selected else 'CASH_NO_ELIGIBLE')
     return {"schema": "C3_TOP5_FINANCE_FIRST_CONDITIONAL_SIGNAL_V3",
-            "asof": asof, "status": "ERROR_ENTRY_GEOMETRY" if geometry_error else "CONDITIONAL_SIGNALS" if valid else "ERROR_FINANCIAL_EVIDENCE",
-            "financial_evidence_status": "INCOMPLETE_FINANCIAL_COVERAGE_BUDGET" if incomplete_cash else financial.get("status"),
+            "operational_status": operational_status,
+            "financial_request_scope": REVIEW_SCOPE if broad else 'EXECUTABLE_ENTRIES',
+            "aggregate_policy": financial.get('aggregate_policy','STRICT_LEGACY_COMPATIBILITY'),
+            "issuer_error_codes": [code for code,state in classifications.items() if state=='ERROR_FINANCIAL_EVIDENCE'],
+            "shared_system_error": shared_error,
+            "all_interest_financial_complete": not review_pending and not candidate_error and coverage_ok,
+            "asof": asof, "status": "ERROR_ENTRY_GEOMETRY" if geometry_error else "CONDITIONAL_SIGNALS" if valid else "REVIEW_REQUIRED" if unresolved_review else "ERROR_FINANCIAL_EVIDENCE",
+            "financial_evidence_status": "INCOMPARABLE_FINANCIAL_SCORE_COVERAGE" if comparability_error else "INCOMPLETE_FINANCIAL_COVERAGE_BUDGET" if incomplete_cash else financial.get("status"),
             "coverage_complete": coverage_ok and not incomplete_cash,
             "point_in_time_certification_required": False,
             "independent_price_certification_required": False,
             "data_quality_validation_required": True,
-            "decision": ("ERROR" if not valid else "ENTRY_READY" if any(x["signal"] == "BUY_CONSIDER" for x in signals) else ("WAIT_FOR_ENTRY" if selected else "CASH")),
+            "decision": ("REVIEW_REQUIRED" if unresolved_review else "ERROR" if not valid else "ENTRY_READY" if any(x["signal"] == "BUY_CONSIDER" for x in signals) else ("WAIT_FOR_ENTRY" if selected else "CASH")),
             "trade_approved": False, "user_executes_trades": True,
             "signals": signals,
             "selected": [{"code": c["code"], "name": c.get("name"),
                           "technical_status": c.get("status"),
+                          **{k:c.get(k) for k in ('entry_low','entry_high','stop_ref','risk_pct','r1_ref','r2_ref')},
+                          "asof_close": c.get('close'), "entry_valid_until": geometry.get('entry_valid_until'),
                           "financial_quality": by_ticker[c["code"]].get("financial_quality"),
                           "financial_points": financial_points(by_ticker[c["code"]]),
+                          **({"financial_ranking_score_100": round(rank_points[c['code']] / .3, 3),
+                              "financial_ranking_features": ranking_coverage}
+                             if ranking_coverage is not None else {}),
+                          **({"financial_model": by_ticker[c["code"]]["financial_model"],
+                              "quality_100": by_ticker[c["code"]].get("quality_100"),
+                              "risk_flags": by_ticker[c["code"]].get("risk_assessment", {}).get("risk_flags", [])}
+                             if by_ticker[c["code"]].get("financial_model") else {}),
                           "financial_flag": classifications.get(c["code"])}
                          for c in selected],
             "financial_classifications": classifications,
+            "financial_verdicts": {code: ('PASS' if state=='QUALIFIED_BASIC_FINANCIAL_RISK' else
+                'REJECTED_FINANCIAL_RISK' if state in ('REVIEW_FAILED_FINANCIAL_GATE','REJECTED_FINANCIAL_RISK')
+                else 'ERROR' if state=='ERROR_FINANCIAL_EVIDENCE' else 'REVIEW_REQUIRED')
+                for code,state in classifications.items()},
             "review_count": sum(v.startswith("REVIEW_") for v in classifications.values()),
-            "excluded_count": sum(v == "REVIEW_FAILED_FINANCIAL_GATE" for v in classifications.values()),
+            "excluded_count": sum(v in ("REVIEW_FAILED_FINANCIAL_GATE","REJECTED_FINANCIAL_RISK") for v in classifications.values()),
+            "financial_decision_counts": {'QUALIFIED':sum(v=='QUALIFIED_BASIC_FINANCIAL_RISK' for v in classifications.values()),
+                'REJECTED_FINANCIAL_RISK':sum(v in ('REVIEW_FAILED_FINANCIAL_GATE','REJECTED_FINANCIAL_RISK') for v in classifications.values()),
+                'REVIEW_REQUIRED':sum(v=='REVIEW_INSUFFICIENT_EVIDENCE' for v in classifications.values()),
+                'ERROR':sum(v=='ERROR_FINANCIAL_EVIDENCE' for v in classifications.values())},
             "slowdown_flag_count": sum(bool(x.get("recent_slowdown_flag")) for x in by_ticker.values()),
-            "watch_count": 0,
-            "financial_pass_count": len(qualified),
+            "watch_count": sum(not valid_entry(c) and c.get('geometry_validated') is True for c in candidates),
+            "financial_pass_count": sum(v=='QUALIFIED_BASIC_FINANCIAL_RISK' for v in classifications.values()),
             "selection_priority": "ENTRY_STATE_FINANCIAL_QUALITY_LEVERAGE_OPPORTUNITY_STRENGTH",
             "financial_request_limit": FINANCIAL_CANDIDATE_LIMIT,
             "financial_requested_count": len(requested),
+            "financial_unreviewed_candidate_count": len((set(codes) if broad else requested)-set(covered)),
             "financial_budget_deferred_count": deferred,
+            "financial_interest_budget_deferred_count": interest_deferred,
             "historical_pit_certified": bool(financial.get("point_in_time_snapshot_verified")),
             "selected_count": len(selected)}
 

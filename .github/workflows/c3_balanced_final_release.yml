@@ -1,0 +1,68 @@
+name: C3 Balanced final release verification
+on:
+  pull_request:
+    paths:
+      - 'scripts/c3_release_connection_check.py'
+      - 'scripts/test_c3_release_connection_check.py'
+      - '.github/workflows/c3_balanced_final_release.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c3_balanced_final_release.yml'
+permissions:
+  contents: read
+concurrency:
+  group: c3-balanced-final-release-20261124
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'C3 approved final release 20261124 (#202)'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            /scripts/*.py
+            /.github/workflows/c3_top5_daily_telegram.yml
+            /receipts/c3_top5_daily/
+            /reports/c3_paper/paper_ledger.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install existing runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Preserve all 258 regressions and validate the release test boundary
+        run: |
+          mkdir -p output/c3_final_release
+          set -o pipefail
+          PYTHONPATH=scripts python -m unittest -v test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_final_release/regression.log
+      - name: Verify the positive image, CSV, JSON and Telegram DRY_RUN path
+        run: PYTHONPATH=scripts python scripts/test_c3_operational_integration.py --write-positive-fixture output/c3_positive_fixture
+      - name: Send one explicitly approved connection test after production merge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: PYTHONPATH=scripts python scripts/c3_release_connection_check.py
+      - name: Publish release evidence without rescheduling daily operations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-balanced-final-release
+          path: |
+            output/c3_final_release/
+            output/c3_positive_fixture/
+          if-no-files-found: error
+          retention-days: 30

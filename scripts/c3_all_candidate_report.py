@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """Complete C3 candidate ranking and one PNG per detected candidate; non-trading report."""
-import argparse,hashlib,json,math
+import argparse,hashlib,json,math,os
 from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
 from PIL.PngImagePlugin import PngInfo
 from c3_top5_financial_selection import classify, financial_points, valid_entry
 
 def image_identity(row, asof):
-    return {"asof": asof, **{key: row.get(key) for key in (
+    identity = {"asof": asof, **{key: row.get(key) for key in (
         "code", "name", "asof_close", "entry_low", "entry_high", "stop_ref",
-        "r1_ref", "r2_ref", "risk_pct", "status", "entry_valid_until", "top5")}}
+        "r1_ref", "r2_ref", "risk_pct", "status", "entry_valid_until", "top5",
+        "ma5", "ma20", "ma60", "volume", "support", "financial_verdict", "rejection_reasons")}}
+    if row.get('financial_model'):
+        identity.update({key: row.get(key) for key in ('financial_model', 'quality_100', 'risk_flags',
+            'financial_evidence_state', 'stop_execution_rule')})
+    return identity
 
 def main():
     p=argparse.ArgumentParser()
@@ -50,13 +55,16 @@ def main():
         raise ValueError('SELECTION_NAME_MISMATCH')
     if sum(x['top5_eligible'] for x in candidates)!=len(selected_codes):
         raise ValueError('SELECTION_GEOMETRY_MISMATCH')
-    regular='/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
-    bold='/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf'
+    fontdir=Path(os.environ.get('C3_FONT_DIR','/usr/share/fonts/truetype/nanum'))
+    regular=str(fontdir/'NanumGothic.ttf')
+    bold=str(fontdir/'NanumGothicBold.ttf')
     def font(n,b=False):return ImageFont.truetype(bold if b else regular,n)
     rows=[]
     for rank,x in enumerate(candidates,1):
         valid=bool(x.get('geometry_validated'))
-        state=x.get('entry_status','WATCH') if valid else 'WATCH'
+        verdict=fin.get('financial_verdicts', {}).get(x['code'])
+        state=('ERROR' if verdict=='ERROR' else 'REJECTED' if verdict=='REJECTED_FINANCIAL_RISK' or not valid
+               else 'REVIEW_REQUIRED' if verdict=='REVIEW_REQUIRED' else x.get('entry_status','WATCH'))
         is_fin=x['financial_points'] is not None
         score=round(float(x.get('opportunity_score',x.get('score',0))),2)
         composite=x['composite_score'];top5=x['code'] in approved_top5
@@ -73,6 +81,8 @@ def main():
         green=(43,122,86);red=(179,74,72);blue=(54,117,170)
         d.rectangle((0,0,1400,102),fill=ink)
         d.text((48,24),'강현AI PRO | C3 TOP5',font=font(40,True),fill='white')
+        if evidence.get('model')=='BALANCED_QUALITY_TIMING_V1':
+            d.text((650,39),'Balanced Quality & Timing',font=font(23),fill=(225,215,193))
         d.text((1340,32),src['asof'],font=font(27),fill='white',anchor='ra')
         d.line((0,103,1400,103),fill=gold,width=5)
         d.text((50,136),x['name'],font=font(59,True),fill=ink)
@@ -81,7 +91,8 @@ def main():
         d.rectangle((46,271,1354,318),fill=(239,235,224))
         d.text((700,281),'매수 범위 도달 시에만 관찰 · 미도달 PASS · 직접 매매',font=font(25),fill=(122,97,57),anchor='ma')
         d.rounded_rectangle((42,342,1358,1158),radius=15,fill='white',outline=(216,216,212),width=2)
-        d.text((70,359),'실제 일봉 60거래일 · 거래량',font=font(30,True),fill=ink)
+        synthetic=src.get('fixture_kind')=='SYNTHETIC_NOT_MARKET_SELECTION'
+        d.text((70,359),'합성 검증 60봉 · 실제 선정 아님' if synthetic else '실제 일봉 60거래일 · 거래량',font=font(30,True),fill=ink)
         d.text((1320,364),'MA5 · MA20 · MA60(마지막 값만)',font=font(22),fill=muted,anchor='ra')
         left,right,top,bottom=150,1100,440,957
         highs=[float(z['high']) for z in bars];lows=[float(z['low']) for z in bars]
@@ -100,6 +111,11 @@ def main():
             d.rectangle((left,ya,right,yb),fill=(235,244,237))
             for yy in (ya,yb):
                 for xx in range(left,right,21):d.line((xx,yy,min(xx+12,right),yy),fill=green,width=3)
+            for xx in (left,right):
+                for yy in range(ya,yb,18):d.line((xx,yy,xx,min(yy+10,yb)),fill=green,width=3)
+            if isinstance(x.get('pivot_support'),(int,float)):
+                support=x['pivot_support'];yy=py(support)
+                d.text((left+8,yy+8),f"지지 {support:,.0f}",font=font(19),fill=green)
         if valid:
             for k,color in (('stop_ref',red),('r1_ref',gold),('r2_ref',(128,101,159))):
                 v=x.get(k)
@@ -140,13 +156,35 @@ def main():
             d.text((l+159,1280),label,font=font(24),fill=muted,anchor='ma')
             d.text((l+159,1325),value,font=font(28,True),fill=color,anchor='ma')
         risk=x.get('risk_pct') if valid else None
+        financial_item=covered.get(x['code']) or {}
+        quality=financial_item.get('quality_100')
+        quality_label=(f"{quality['score']:.1f}/100"+(' 부분' if not quality.get('complete') else '')) if quality and quality.get('score') is not None else (f"{x['financial_points']}/30" if is_fin else '미검증')
         d.text((50,1415),f"진입 {state} · 위험 "+(f"{risk:.2f}%" if isinstance(risk,(int,float)) else '미확정')+
-               f" · 기술 {score:.2f} · 재무 "+(f"{x['financial_points']}/30" if is_fin else '미검증'),font=font(31,True),fill=ink)
-        d.text((50,1475),f"기술 기회 {composite:.2f}점 | 전체 {rank}위 / {len(candidates)} | MA60 {sum(prices)/60:,.0f}원(마지막 값)",font=font(24),fill=muted)
-        d.line((48,1540,1352,1540),fill=(220,220,216),width=2)
-        d.text((50,1572),'KRX 일봉 기준 · 정규장 종가/수정주가 확인 필요',font=font(25),fill=muted)
+               f" · 기술 {score:.2f} · 재무 "+quality_label,font=font(29,True),fill=ink)
+        d.text((50,1475),f"MA5 {sum(prices[-5:])/5:,.0f} · MA20 {sum(prices[-20:])/20:,.0f} · MA60 {sum(prices)/60:,.0f} | 거래량 {bars[-1]['volume']:,.0f}",font=font(24),fill=muted)
+        if quality:
+            risks=financial_item.get('risk_assessment',{})
+            notice='재무 '+financial_item.get('financial_evidence_state','REVIEW_REQUIRED')+' · '+str(quality.get('available_points',0))+'/100점 항목 관측'
+            d.text((50,1515),notice,font=font(22),fill=muted)
+            codes=risks.get('hard_failures',[])+risks.get('mandatory_missing',[])+risks.get('risk_flags',[])
+            labels={'NEGATIVE_OCF_NOT_AUTOMATIC_EXCLUSION':'영업현금흐름 음수',
+                    'RECENT_NEGATIVE_OCF_NOT_AUTOMATIC_EXCLUSION':'최근 누적현금흐름 음수',
+                    'NEGATIVE_FCF_CAPEX_OR_WORKING_CAPITAL_REVIEW':'FCF 음수·투자/운전자본 확인',
+                    'RECENT_EARNINGS_SLOWDOWN':'최근 실적 둔화',
+                    'RECENT_OCF_WEAKENING':'최근 영업현금흐름 감소',
+                    'RECENT_EARNINGS_CASH_FLOW_DIVERGENCE':'이익 증가·현금흐름 감소',
+                    'EXISTING_LEVERAGE_CEILING_300PCT':'부채비율 300% 초과',
+                    'RECENT_EXISTING_LEVERAGE_CEILING_300PCT':'최근 부채비율 300% 초과',
+                    'TWO_ANNUAL_LOSSES_AND_CURRENT_YTD_LOSS':'2년 연속·최근 누적 영업손실',
+                    'ANNUAL_LOSS_CURRENT_YTD_POSITIVE':'연간 적자 후 최근 누적 흑자',
+                    'EBITDA_AND_NET_DEBT_EXCLUDE_LEASE_ADJUSTMENTS':'EBITDA·순차입금 리스 조정 미반영'}
+            hints=list(dict.fromkeys(labels.get(code,'필수 재무자료 추가 확인') for code in codes))
+            d.text((50,1548),'위험: '+(' / '.join(hints[:2]) if hints else '구조화 항목 심사 통과'),font=font(21),fill=muted)
+        d.text((50,1580),'종가 < 구조손절 → 다음 거래일 직접 정리 · 미도달 PASS',font=font(24),fill=muted)
         expiry=valid_until[:10]+' 장종료까지' if valid_until else '미확정'
         d.text((50,1620),f"기준 {src['asof']} | 유효 {expiry} | 매수 전 재확인 · 직접 매매",font=font(24),fill=muted)
+        d.text((50,1661),'합성 검증 자료 · 실제 시장 선정 또는 매매용 신호 아님' if synthetic else
+               'KRX 일봉 · 정규장 종가/수정주가 미인증 · 추세·지지 눌림 후보',font=font(21),fill=muted)
         name=f"{rank:02d}_{x['code']}_all_candidate.png"
         row={'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
           'score_type':'CHARTIST_TECHNICAL_OPPORTUNITY_ONLY','status':state,'financial_selected':top5,'financial_evidence_scored':is_fin,
@@ -160,7 +198,15 @@ def main():
           'r1_ref':x.get('r1_ref') if valid else None,
           'r2_ref':x.get('r2_ref') if valid else None,
           'entry_valid_until':valid_until,
+          'ma5':sum(prices[-5:])/5,'ma20':sum(prices[-20:])/20,'ma60':sum(prices)/60,
+          'volume':bars[-1]['volume'],'support':x.get('pivot_support'),
+          'financial_verdict':verdict,'rejection_reasons':x.get('rejection_reasons',[]),
           'asof_close':prices[-1]}
+        if financial_item.get('financial_model'):
+            row.update(financial_model=financial_item['financial_model'],quality_100=quality,
+                       risk_flags=financial_item.get('risk_assessment',{}).get('risk_flags',[]),
+                       financial_evidence_state=financial_item.get('financial_evidence_state'),
+                       stop_execution_rule='CLOSE_BELOW_STRUCTURAL_STOP_EXIT_NEXT_SESSION_MANUALLY')
         info=PngInfo()
         info.add_text('c3_candidate',json.dumps(image_identity(row,src['asof']),
                                              ensure_ascii=False,sort_keys=True))

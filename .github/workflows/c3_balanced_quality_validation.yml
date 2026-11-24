@@ -1,0 +1,170 @@
+name: C3 Balanced Quality isolated validation (NO SEND)
+on:
+  pull_request:
+    paths:
+      - 'scripts/c3_balanced_*.py'
+      - 'scripts/c3_entry_geometry.py'
+      - 'scripts/c3_candidate_decisions.py'
+      - 'scripts/test_c3_operational_integration.py'
+      - 'scripts/test_c3_approval_scope.py'
+      - 'scripts/test_c3_dart_normalization.py'
+      - '.github/workflows/c3_top5_daily_telegram.yml'
+      - 'scripts/test_c3_balanced_financials.py'
+      - 'scripts/c3_top5_financial_selection.py'
+      - 'scripts/c3_top5_dart_bridge.py'
+      - 'scripts/dart_financial_screen.py'
+      - 'scripts/c3_all_candidate_report.py'
+      - 'scripts/c3_dart_document_evidence.py'
+      - 'scripts/c3_dart_normalization.py'
+      - 'scripts/test_c3_dart_document_evidence.py'
+      - '.github/workflows/c3_balanced_quality_validation.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-balanced-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: |
+            /scripts/*.py
+            /.github/workflows/c3_top5_daily_telegram.yml
+            /receipts/c3_top5_daily/
+            /reports/c3_paper/paper_ledger.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Detect executable changes and avoid repeating APIs for documentation
+        id: changes
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          python - <<'PY'
+          import os,subprocess
+          before=os.environ.get('BEFORE_SHA','')
+          execute=True
+          if before and subprocess.run(['git','cat-file','-e',before+'^{commit}'],capture_output=True).returncode==0:
+              paths=subprocess.check_output(['git','diff','--name-only',before,'HEAD']).decode().splitlines()
+              execute=any(not path.startswith('docs/') for path in paths)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write('execute='+str(execute).lower()+'\n')
+          print('C3_EXECUTABLE_VALIDATION_REQUIRED',execute)
+          PY
+      - uses: actions/setup-python@v5
+        if: steps.changes.outputs.execute == 'true'
+        with:
+          python-version: '3.12'
+      - name: Install existing chart runtime
+        if: steps.changes.outputs.execute == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Offline finance, technical regression and delivery boundary tests
+        if: steps.changes.outputs.execute == 'true'
+        run: |
+          PYTHONPATH=scripts python -m unittest -v test_c3_approval_scope test_c3_dart_normalization test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
+      - name: Retain synthetic Balanced TOP5 image and Telegram DRY_RUN proof
+        if: steps.changes.outputs.execute == 'true'
+        run: |
+          PYTHONPATH=scripts python scripts/test_c3_operational_integration.py --write-positive-fixture output/c3_positive_fixture
+      - name: Restore receipt-keyed financial snapshots
+        if: steps.changes.outputs.execute == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: output/c3_balanced_cache
+          key: c3-balanced-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            c3-balanced-pr-${{ github.event.pull_request.number }}-
+      - name: Reuse verified KRX source artifact without another full-market collection
+        if: steps.changes.outputs.execute == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p output/c3_prior_validation
+          if gh api repos/${{ github.repository }}/actions/artifacts/14874774941/zip > output/c3_prior_validation.zip; then
+            echo 'PREVIOUS_ARTIFACT_DOWNLOAD_COMPLETE'
+          else
+            rm -f output/c3_prior_validation.zip
+            echo 'PREVIOUS_ARTIFACT_UNAVAILABLE_FRESH_SOURCE_REQUIRED'
+          fi
+          python - <<'PY'
+          import hashlib,zipfile,shutil
+          from pathlib import Path
+          archive=Path('output/c3_prior_validation.zip')
+          if not archive.is_file():
+              raise SystemExit(0)
+          expected='692d1732a7395989842f5b330167b6610921293df35096889bf7ecf18bac35a7'
+          if hashlib.sha256(archive.read_bytes()).hexdigest()!=expected:
+              raise ValueError('PREVIOUS_SOURCE_ARTIFACT_HASH_MISMATCH')
+          with zipfile.ZipFile(archive) as source:
+              source.extractall('output/c3_prior_validation')
+          print('VERIFIED_PRICE_ARTIFACT_REUSED',expected)
+          PY
+          gh api repos/${{ github.repository }}/actions/artifacts/14880042291/zip > output/recovery_seed_0.zip
+          gh api repos/${{ github.repository }}/actions/artifacts/14879546970/zip > output/recovery_seed_1.zip
+          python - <<'PY'
+          import hashlib,zipfile
+          for i,expected in enumerate(('11edf8cd46d178d5c8700d386c772a74aa828e69f053d8fee7b5f0ef2bcf917b',
+                                      '4526dd174f34c6746c9f5217795932495027afb0e590016c2543460f3a738f65')):
+              path='output/recovery_seed_'+str(i)+'.zip'
+              if hashlib.sha256(open(path,'rb').read()).hexdigest()!=expected:
+                  raise ValueError('RECOVERY_SEED_ARTIFACT_HASH_MISMATCH')
+              with zipfile.ZipFile(path) as z:
+                  z.extractall('output/recovery_seed_'+str(i))
+          PY
+      - name: Recollect fixed 20261123 KRX full market and validate live OpenDART without send
+        if: steps.changes.outputs.execute == 'true'
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+          C3_SOURCE_ARTIFACT_SHA256: '692d1732a7395989842f5b330167b6610921293df35096889bf7ecf18bac35a7'
+          C3_SOURCE_RUN_ID: '45294238532'
+        run: |
+          PYTHONPATH=scripts python scripts/c3_balanced_validation.py --live --asof 20261123 --out output/c3_balanced_validation --cache output/c3_balanced_cache --operational-exit-codes
+      - name: Investigate financial evidence only for executable pending candidates
+        if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_validation/financial_pool_gate.json') != '' }}
+        env:
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from c3_balanced_source_probe import capture
+          from c3_balanced_financials import SnapshotCache
+          root=Path('output/c3_balanced_validation')
+          financial=json.loads((root/'financial_pool_gate.json').read_text())
+          selected=json.loads((root/'financial_selection_research.json').read_text())
+          pending=set(selected.get('approval_required_codes',[])) & {
+              code for code,status in selected.get('financial_verdicts',{}).items() if status in ('REVIEW_REQUIRED','ERROR')}
+          if pending:
+              partial={**financial,'researched':[r for r in financial.get('researched',[]) if r['ticker'] in pending],
+                  'excluded':[r for r in financial.get('excluded',[]) if r['ticker'] in pending]}
+              capture(partial,SnapshotCache('output/c3_balanced_cache'),root/'source_recovery',os.environ['DART_API_KEY'])
+          else:
+              print('NO_EXECUTABLE_PENDING_FINANCE_ADDITIONAL_PROBE_SKIPPED')
+          PY
+      - name: Preserve verified snapshots when financial review remains incomplete
+        if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_cache/*.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: output/c3_balanced_cache
+          key: c3-balanced-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Preserve evidence even on incomplete finance or API failure
+        if: ${{ always() && steps.changes.outputs.execute == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-balanced-quality-validation
+          path: |
+            output/c3_balanced_validation/
+            output/c3_balanced_cache/
+            output/c3_positive_fixture/
+          if-no-files-found: warn
+          retention-days: 30

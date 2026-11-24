@@ -40,6 +40,7 @@ class PipelineTests(unittest.TestCase):
         self.root = self.cwd/'output/c3_top5'
         self.root.mkdir(parents=True)
         self.env = {'PATH':os.environ.get('PATH', ''), 'PYTHONPATH':str(REPO/'scripts'),
+                    **({'C3_FONT_DIR':os.environ['C3_FONT_DIR']} if 'C3_FONT_DIR' in os.environ else {}),
                     'GITHUB_EVENT_NAME':'workflow_dispatch', 'GITHUB_REF_NAME':'audit-test',
                     'GITHUB_RUN_ID':'offline', 'C3_TEST_SEND_TELEGRAM':'false'}
 

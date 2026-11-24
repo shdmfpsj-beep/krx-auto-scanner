@@ -40,7 +40,8 @@ def integer(value):
 
 def api_json(endpoint,params,key,fetch=None):
     """Restrict all remote reads to literal OpenDART official endpoints."""
-    if endpoint not in ("list.json","fnlttSinglAcntAll.json"):
+    if endpoint not in ("list.json","fnlttSinglAcntAll.json", "fnlttSinglAcnt.json", "company.json",
+                        "accnutAdtorNmNdAdtOpinion.json"):
         raise ValueError("UNSUPPORTED_DART_ENDPOINT")
     args=urllib.parse.urlencode({"crtfc_key":key,**params})
     request=urllib.request.Request(API+endpoint+"?"+args,

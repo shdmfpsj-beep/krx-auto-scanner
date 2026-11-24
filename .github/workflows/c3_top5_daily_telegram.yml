@@ -14,6 +14,12 @@ on:
         required: false
         default: false
         type: boolean
+      financial_model:
+        description: 'Financial model; balanced reviews the technical interest pool, legacy remains available'
+        required: false
+        default: balanced
+        type: choice
+        options: [legacy, balanced]
   schedule:
     # KST 08:00 Tuesday-Saturday (previous KRX trading day); GitHub scheduling can be delayed.
     # 23:00 UTC Monday-Friday = 08:00 KST next calendar day.
@@ -35,6 +41,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       GH_TOKEN: ${{ github.token }}
+      C3_FINANCIAL_MODEL: ${{ inputs.financial_model || 'balanced' }}
     steps:
       - name: Use the validated Python runtime
         uses: actions/setup-python@v5
@@ -66,12 +73,13 @@ jobs:
           end=next(i for i in range(start,len(lines)) if lines[i].strip()=='PY')
           code='\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end])
           ast.parse(code,filename='c3_top5_embedded.py')
-          policy_url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/scripts/c3_top5_session_policy.py?ref='+os.environ['GITHUB_SHA']
-          req=urllib.request.Request(policy_url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
-          with urllib.request.urlopen(req,timeout=20) as r:policy=base64.b64decode(json.load(r)['content']).decode()
-          ast.parse(policy,filename='c3_top5_session_policy.py')
           Path('scripts').mkdir(exist_ok=True)
-          Path('scripts/c3_top5_session_policy.py').write_text(policy)
+          for module in ('c3_top5_session_policy.py','c3_entry_geometry.py'):
+            url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/scripts/'+module+'?ref='+os.environ['GITHUB_SHA']
+            req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+            with urllib.request.urlopen(req,timeout=20) as r:module_code=base64.b64decode(json.load(r)['content']).decode()
+            ast.parse(module_code,filename=module)
+            Path('scripts',module).write_text(module_code)
           print('EMBEDDED_PYTHON_SYNTAX_OK')
           PY
         env:
@@ -118,6 +126,13 @@ jobs:
                 if not isinstance(z,dict):raise ValueError('NON_OBJECT_JSON')
                 a=z.get('OutBlock_1')
                 if not isinstance(a,list):raise ValueError('MISSING_OUTBLOCK')
+                if os.environ.get('C3_KRX_CAPTURE_DIR'):
+                  captured=Path(os.environ['C3_KRX_CAPTURE_DIR']);captured.mkdir(parents=True,exist_ok=True)
+                  name=endpoint+'_'+day+'.json';(captured/name).write_bytes(raw)
+                  (captured/(endpoint+'_'+day+'.meta.json')).write_text(json.dumps({
+                    'file':name,'source_url':u,'asof':day,'endpoint':endpoint,'rows':len(a),
+                    'sha256':hashlib.sha256(raw).hexdigest(),
+                    'observed_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat()}))
                 return a
               except (json.JSONDecodeError,ValueError) as ex:
                 kind=type(ex).__name__ if isinstance(ex,json.JSONDecodeError) else str(ex)
@@ -267,27 +282,10 @@ jobs:
               # No valid support -> no invented entry/stop.
               # Exchange tick ladder for ordinary KOSPI/KOSDAQ shares.
               # Rounding is directional: do not raise entry ceiling or lower stop.
-              def tick(p):
-                return (1 if p<2000 else 5 if p<5000 else 10 if p<20000
-                  else 50 if p<50000 else 100 if p<200000 else 500 if p<500000 else 1000)
-              def executable(p,direction):
-                if p is None:return None
-                import decimal
-                v=decimal.Decimal(str(p))
-                # Iterate to respect tick changes at price-band boundaries.
-                unit=tick(float(v))
-                mode=decimal.ROUND_CEILING if direction=='up' else decimal.ROUND_FLOOR
-                q=int((v/decimal.Decimal(unit)).to_integral_value(rounding=mode))*unit
-                while tick(q)!=unit:
-                  unit=tick(q)
-                  q=int((v/decimal.Decimal(unit)).to_integral_value(rounding=mode))*unit
-                return q
-              raw_lo=max(support,ma20-.5*atr14) if support is not None else None
-              raw_hi=min(ma20+.25*atr14,raw_lo+.6*atr14) if raw_lo is not None else None
-              raw_stop=support-.5*atr14 if support is not None else None
-              entry_lo=executable(raw_lo,'up')
-              entry_hi=executable(raw_hi,'down')
-              stop=executable(raw_stop,'up')
+              from c3_entry_geometry import entry_zone, executable
+              zone=entry_zone(support,ma20,atr14)
+              raw_lo,raw_hi,raw_stop=zone['raw_low'],zone['raw_high'],zone['raw_stop']
+              entry_lo,entry_hi,stop=zone['entry_low'],zone['entry_high'],zone['structural_stop']
               high=max(x[1] for x in a[-20:])
               # Prior resistance must be above entry; use only completed sessions.
               r1=executable(high,'down') if entry_hi is not None and high>entry_hi else None
@@ -316,7 +314,7 @@ jobs:
               # All risk, proximity, RR and selection decisions above use executable prices.
               # Independent rejection reasons; preserve raw metrics for audits.
               reasons=[]
-              if support is None:reasons.append('NO_NEARBY_CONFIRMED_SUPPORT')
+              if zone['rejection_reason']:reasons.append(zone['rejection_reason'])
               if entry_lo is None or entry_hi is None or entry_lo>=entry_hi:reasons.append('INVALID_ENTRY_ZONE')
               if stop is None or entry_lo is None or stop>=entry_lo:reasons.append('INVALID_STOP_STRUCTURE')
               if risk_at_entry is None:reasons.append('RISK_NOT_COMPUTABLE')
@@ -346,9 +344,11 @@ jobs:
                 'close':round(last),'ma20':round(ma20),'low10':round(low),'high20':round(high),
                 'rvol':round(rvol,2),'rs20pp':round(rs*100,2),'stop_distance_pct':round(risk*100,2),
                 'entry_watch_low':entry_lo,'entry_watch_high':entry_hi,
+                'attempted_entry_low':zone['attempted_low'],'attempted_entry_high':zone['attempted_high'],
                 'raw_entry_low':round(raw_lo) if raw_lo is not None else None,
                 'raw_entry_high':round(raw_hi) if raw_hi is not None else None,
                 'raw_structural_stop':round(raw_stop) if raw_stop is not None else None,
+                'rejected_structural_stop_ref':zone['structural_stop'],
                 'price_tick_policy':'KRX_EQUITY_DIRECTIONAL_V1',
                 'entry_method':'CONFIRMED_PIVOT_ATR_ZONE_V1',
                 'entry_gap_pct':round(entry_gap_pct,2) if entry_gap_pct is not None else None,
@@ -380,7 +380,7 @@ jobs:
             far_watch=[x for x in qualified if x['entry_status']=='WATCH']
             selected=(ready_watch+near_watch)[:5]
             # Diagnostic evidence even when zero candidates qualify.
-            audit={'schema':'C3_ENTRY_GEOMETRY_AUDIT_V1','asof':days[-1],
+            audit={'schema':'C3_ENTRY_GEOMETRY_AUDIT_V1','asof':days[-1],'entry_valid_until':plan['entry_valid_until'],
               'technical_candidate_count':len(pool),'qualified_count':len(qualified),
               'entry_ready_count':len(ready_watch),'near_entry_count':len(near_watch),'far_entry_count':len(far_watch),
               'rules':{'risk_min_pct':1.5,'risk_max_pct':5,'rr_min':None,'rr_policy':'REFERENCE_ONLY',
@@ -391,6 +391,9 @@ jobs:
                 'financial_quality_status':x['financial_quality_status'],
                 'status':x['status'],'rejection_reasons':x['rejection_reasons'],
                 'entry_low':x['entry_watch_low'],'entry_high':x['entry_watch_high'],
+                'attempted_entry_low':x['attempted_entry_low'],'attempted_entry_high':x['attempted_entry_high'],
+                'structural_stop_diagnostic':x['raw_structural_stop'],
+                'rejected_structural_stop_ref':x['rejected_structural_stop_ref'],
                 'close':x['close'],'r1_ref':x['r1_ref'],'r2_ref':x['r2_ref'],
                 'geometry_validated':x['geometry_validated'],
                 'pivot_support':x['pivot_support'],'atr14':x['atr14'],
@@ -421,6 +424,8 @@ jobs:
                 'r2_ref':x['r2_ref'] if x['geometry_validated'] else None,
                 'risk_pct':x['entry_risk_pct'] if x['geometry_validated'] else None,
                 'close':x['close'],'ma5':x['ma5'],'ma20':x['ma20'],'ma60':x['ma60'],
+                'rvol':x['rvol'],'rs20pp':x['rs20pp'],'return20_pct':x['return20_pct'],
+                'ma20_distance_pct':x['ma20_distance_pct'],
                 'bars':[{'date':d,'close':data[key][d][0],
                          'high':data[key][d][1],'low':data[key][d][2],
                          'volume':data[key][d][3],'open':data[key][d][5]} for d in days]})
@@ -602,8 +607,17 @@ jobs:
             scripts/c3_top5_financial_selection.py
             scripts/c3_top5_financial_preview.py
             scripts/c3_top5_session_policy.py
+            scripts/c3_entry_geometry.py
+            scripts/c3_candidate_decisions.py
             scripts/dart_financial_screen.py
             scripts/dart_interim_periods.py
+            scripts/c3_balanced_financials.py
+            scripts/c3_dart_document_evidence.py
+            scripts/c3_dart_normalization.py
+            scripts/c3_balanced_source_probe.py
+            scripts/c3_balanced_validation.py
+            receipts/c3_top5_daily/
+            reports/c3_paper/paper_ledger.json
           sparse-checkout-cone-mode: false
           persist-credentials: false
           # Preserve untracked output/c3_top5 generated before sparse checkout.
@@ -620,6 +634,14 @@ jobs:
           else
             echo 'C3_OUTPUT_NOT_PRESERVED'
           fi
+      - name: Restore validated Balanced financial snapshots
+        if: ${{ env.C3_FINANCIAL_MODEL == 'balanced' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: output/c3_top5/financial_cache
+          key: c3-balanced-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            c3-balanced-main-v1-
       - name: Evaluate dated OpenDART evidence for selected TOP5 (research only)
         if: always()
         continue-on-error: true
@@ -631,21 +653,43 @@ jobs:
             PYTHONPATH=scripts python - <<'PY'
           import json
           from pathlib import Path
-          from c3_top5_financial_selection import requested_candidates
+          from c3_top5_financial_selection import requested_candidates, financial_review_candidates, REVIEW_SCOPE
+          import os
           root=Path('output/c3_top5')
           geometry=json.loads((root/'entry_geometry_audit.json').read_text())
+          if os.environ.get('C3_FINANCIAL_MODEL')=='balanced':
+            from c3_balanced_validation import recent_signals
+            pool=json.loads((root/'qualified_chart_pool.json').read_text())
+            sessions=[b['date'] for b in pool['candidates'][0]['bars']] if pool.get('candidates') else []
+            receipts=Path('receipts/c3_top5_daily')
+            ledger=Path('reports/c3_paper/paper_ledger.json')
+            if not receipts.is_dir() or not ledger.is_file():
+              raise ValueError('BALANCED_SIGNAL_HISTORY_MISSING')
+            blocked=recent_signals(geometry['asof'],sessions,receipts,ledger)
+            geometry['candidates']=[c for c in geometry['candidates'] if c['code'] not in blocked]
+            (root/'entry_geometry_audit.json').write_text(json.dumps(geometry,ensure_ascii=False))
+            (root/'duplicate_signal_audit.json').write_text(json.dumps({'blocked_codes':sorted(blocked),'sessions':20}))
+          broad=os.environ.get('C3_FINANCIAL_MODEL')=='balanced'
           eligible=[{'code':c['code'],'name':c.get('name','')}
-                    for c in requested_candidates(geometry)]
+                    for c in (financial_review_candidates(geometry) if broad else requested_candidates(geometry))]
           (root/'financial_pool_input.json').write_text(json.dumps({
-              'asof':geometry['asof'],'candidates':eligible},ensure_ascii=False))
+              'asof':geometry['asof'],'candidates':eligible,
+              'request_scope':REVIEW_SCOPE if broad else 'EXECUTABLE_ENTRIES'},ensure_ascii=False))
           PY
             PYTHONPATH=scripts python scripts/c3_top5_dart_bridge.py \
               --receipt output/c3_top5/financial_pool_input.json \
-              --out output/c3_top5/financial_pool_gate.json
+              --out output/c3_top5/financial_pool_gate.json \
+              --model "$C3_FINANCIAL_MODEL" --cache output/c3_top5/financial_cache
             cp output/c3_top5/financial_pool_gate.json output/c3_top5/financial_research_gate.json
           else
             echo 'FINANCIAL_RESEARCH_SKIPPED_NO_RECEIPT'
           fi
+      - name: Preserve receipt-keyed Balanced financial snapshots
+        if: ${{ always() && env.C3_FINANCIAL_MODEL == 'balanced' && hashFiles('output/c3_top5/financial_cache/*.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: output/c3_top5/financial_cache
+          key: c3-balanced-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Record non-authorizing TOP5 eligibility audit
         if: always()
         continue-on-error: true
@@ -678,6 +722,10 @@ jobs:
           else
             echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
+      - name: Explain finance and entry decisions for every technical candidate
+        if: ${{ always() && hashFiles('output/c3_top5/financial_selection_research.json') != '' }}
+        run: |
+          PYTHONPATH=scripts python scripts/c3_candidate_decisions.py --root output/c3_top5
       - name: Rank every detected candidate and render every candidate image
         if: ${{ always() && hashFiles('output/c3_top5/qualified_chart_pool.json') != '' && hashFiles('output/c3_top5/financial_pool_gate.json') != '' }}
         run: |
@@ -698,6 +746,14 @@ jobs:
           try:
             selection=json.loads((root/'financial_selection_research.json').read_text())
             receipt=json.loads((root/'receipt.json').read_text())
+            result['operational_status']=selection.get('operational_status')
+            result['financial_decision_counts']=selection.get('financial_decision_counts',{})
+            if selection.get('status')=='REVIEW_REQUIRED' and selection.get('operational_status') in ('HOLD_FINANCIAL_UNVERIFIED','HOLD_DATA_INCOMPLETE'):
+              if selection.get('selected') or selection.get('signals') or selection.get('selected_count',0)!=0:
+                raise ValueError('HOLD_WITH_BUY_SIGNALS_FORBIDDEN')
+              result.update(status=selection['operational_status'],asof=receipt.get('asof'),decision='REVIEW_REQUIRED',
+                            signals=[],financial_coverage_complete=False)
+              raise StopIteration('FINANCIAL_REVIEW_REQUIRED_NO_SEND')
             if selection.get('status')=='ERROR_FINANCIAL_EVIDENCE':
               result.update(status='ERROR_FINANCIAL_EVIDENCE',asof=receipt.get('asof'),
                             financial_evidence_status=selection.get('financial_evidence_status'),
@@ -778,6 +834,7 @@ jobs:
           sys.excepthook=record_failure
           save_delivery()
           manifest=json.loads((root/'finance_first_delivery_manifest.json').read_text())
+          delivery['operational_status']=manifest.get('operational_status')
           if manifest.get('status')=='ERROR_FINANCIAL_EVIDENCE':
             delivery['stage']='FINANCIAL_VERIFICATION'
             raise ValueError('FINANCIAL_EVIDENCE_FAILED_'+str(manifest.get('financial_evidence_status')))
@@ -791,6 +848,14 @@ jobs:
             raise ValueError('SOURCE_DATE_OR_SESSION_MISMATCH')
           if source.get('market_rows_min',{}).get('KOSPI',0)<500 or source.get('market_rows_min',{}).get('KOSDAQ',0)<800:
             raise ValueError('MARKET_COVERAGE_BELOW_FLOOR')
+          if manifest.get('status') in ('HOLD_FINANCIAL_UNVERIFIED','HOLD_DATA_INCOMPLETE'):
+            if (manifest.get('asof')!=report.get('asof') or manifest.get('decision')!='REVIEW_REQUIRED'
+                or manifest.get('selected') or manifest.get('images') or manifest.get('signals')
+                or any(row.get('top5') for row in report.get('candidates',[]))):
+              raise ValueError('INVALID_HOLD_DELIVERY_MANIFEST')
+            save_delivery('HOLD',stage='FINANCIAL_VERIFICATION',operational_status=manifest['status'])
+            print('C3_FINANCIAL_HOLD_NO_SEND')
+            raise SystemExit(0)
           if manifest.get('status') not in ('FINANCE_FIRST_PREVIEW_READY_NO_SEND','CASH_NO_FINANCIAL_CANDIDATES'):
             raise ValueError('FINANCE_FIRST_MANIFEST_NOT_VALID')
           if manifest.get('asof')!=report.get('asof') or not manifest.get('financial_coverage_complete'):
@@ -909,6 +974,36 @@ jobs:
             print('C3_FINANCE_FIRST_PHOTO_SENT',i,item['code'],'telegram_message_id',answer.get('result',{}).get('message_id'),'mode','TEST' if is_test else 'PRODUCTION')
           save_delivery('SENT',asof=date,stage='COMPLETE')
           print('C3_ALL_CANDIDATES_DELIVERED',date,len(validated),'mode','TEST' if is_test else 'PRODUCTION')
+          PY
+      - name: Publish operational outcome without sending
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path('output/c3_top5');root.mkdir(parents=True,exist_ok=True)
+          try:
+            selection=json.loads((root/'financial_selection_research.json').read_text())
+            delivery=json.loads((root/'delivery_result.json').read_text())
+            state=selection.get('operational_status','ERROR')
+            allowed={'TOP5_READY':{'SENT','DRY_RUN'},'CASH_NO_ELIGIBLE':{'CASH'},
+              'HOLD_FINANCIAL_UNVERIFIED':{'HOLD'},'HOLD_DATA_INCOMPLETE':{'HOLD'}}
+            if delivery.get('status') not in allowed.get(state,set()):state='ERROR'
+            outcome={'asof':selection.get('asof'),'operational_status':state,
+              'program_status':'ERROR' if state=='ERROR' else 'COMPLETED',
+              'delivery_status':delivery.get('status'),'telegram_photos_sent':delivery.get('telegram_photos_sent',0),
+              'selected_count':selection.get('selected_count',0),
+              'financial_decision_counts':selection.get('financial_decision_counts',{}),
+              'approval_required_count':selection.get('approval_required_count'),
+              'nonblocking_financial_unverified_codes':selection.get('nonblocking_financial_unverified_codes',[])}
+          except (OSError,ValueError,TypeError,AttributeError):
+            outcome={'operational_status':'ERROR','program_status':'ERROR','error':'OPERATING_RESULT_UNAVAILABLE'}
+          (root/'execution_outcome.json').write_text(json.dumps(outcome,ensure_ascii=False,indent=2)+'\n')
+          print('C3_EXECUTION_OUTCOME',json.dumps(outcome,ensure_ascii=False))
+          if os.environ.get('GITHUB_STEP_SUMMARY'):
+            with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('### C3 operational outcome\n\n'+json.dumps(outcome,ensure_ascii=False)+'\n')
+          raise SystemExit(1 if outcome['operational_status']=='ERROR' else 0)
           PY
       - name: Upload individual classic images and audit receipt
         if: always()

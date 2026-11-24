@@ -1,0 +1,737 @@
+{
+  "asof": "20261123",
+  "kind": "ACTUAL_DIRECT_KRX_AND_LIVE_DART_VALIDATION",
+  "run_id": "45351271747",
+  "code_sha": "85ec123033c2249e81fc3a98a09677355e03d686",
+  "artifact_id": "14900018369",
+  "artifact_sha256": "1e52c335bbd07f59869c85293a042e95e50f69d8434eb614aafad56c24626372",
+  "baseline_run": "45347327876",
+  "baseline_artifact": "14899265498",
+  "current_summary": {
+    "status": "COMPLETE",
+    "live_krx_collection": true,
+    "telegram_photos_sent": 0,
+    "orders_enabled": false,
+    "main_or_ledger_writes": false,
+    "requested_asof": "20261123",
+    "price_execution_mode": "DIRECT_KRX_FULL_MARKET_RESCAN",
+    "krx_captured_response_count": 128,
+    "krx_captured_rows": 165932,
+    "asof": "20261123",
+    "input_kind": "ACTUAL_KRX_AND_OPENDART",
+    "live_dart_observation": true,
+    "decision": "CASH",
+    "source_integrity": {
+      "schema": "C3_KRX_SOURCE_PREFLIGHT_V1",
+      "session_count": 60,
+      "first_session": "20260826",
+      "last_session": "20261123",
+      "market_rows_latest": {
+        "date": "20261123",
+        "kospi_rows": 935,
+        "kosdaq_rows": 1836
+      },
+      "market_rows_min": {
+        "KOSPI": 935,
+        "KOSDAQ": 1818
+      },
+      "invalid_ohlcv_rows": {
+        "KOSPI": 1641,
+        "KOSDAQ": 5209
+      },
+      "invalid_ohlcv_reasons": {
+        "KOSPI": {
+          "NO_TRADING_OR_SUSPENSION_UNCONFIRMED": 1641
+        },
+        "KOSDAQ": {
+          "NO_TRADING_OR_SUSPENSION_UNCONFIRMED": 5209
+        }
+      },
+      "invalid_row_policy": "Excluded; incomplete 60-session series cannot enter selection; zero turnover is not official suspension proof",
+      "reported_date_rows_checked": 165932,
+      "duplicate_valid_rows": 0,
+      "coverage_floor_policy": "KOSPI>=500,KOSDAQ>=800 per session; not official completeness certification",
+      "regular_session_price_certified": false,
+      "corporate_actions_certified": false,
+      "large_price_moves_35pct": [
+        {
+          "market": "KOSPI",
+          "code": "023150",
+          "date": "20261019",
+          "close_change_pct": -49.83
+        },
+        {
+          "market": "KOSPI",
+          "code": "009140",
+          "date": "20261020",
+          "close_change_pct": -53.62
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "475460",
+          "date": "20260916",
+          "close_change_pct": -68.52
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "117670",
+          "date": "20261021",
+          "close_change_pct": -49.78
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "290650",
+          "date": "20261026",
+          "close_change_pct": -58.5
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "052400",
+          "date": "20261029",
+          "close_change_pct": -39.32
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "303360",
+          "date": "20261013",
+          "close_change_pct": -35.34
+        }
+      ],
+      "large_move_policy": "EXCLUDE_FLAGGED_60_SESSION_SERIES_NOT_CORPORATE_ACTION_CERTIFICATION"
+    },
+    "technical_candidates": 9,
+    "requested_financial": 9,
+    "selected_codes": [],
+    "final_png_count": 0,
+    "diagnostic_png_count": 9,
+    "delivery_status": "CASH",
+    "telegram_live_transport_verified": false,
+    "financial_evidence_status": "REVIEW_REQUIRED",
+    "financial_decision_counts": {
+      "QUALIFIED": 3,
+      "REJECTED_FINANCIAL_RISK": 2,
+      "REVIEW_REQUIRED": 4,
+      "ERROR": 0
+    },
+    "operational_status": "CASH_NO_ELIGIBLE",
+    "candidate_summary": {
+      "market_symbols": 2771,
+      "valid_60_session_symbols": 2488,
+      "technical_candidates": 9,
+      "financial_requested": 9,
+      "financial_processed": 9,
+      "financial_collection_error": null,
+      "financial_decisions": {
+        "PASS": 3,
+        "REJECTED_FINANCIAL_RISK": 2,
+        "REVIEW_REQUIRED": 4,
+        "ERROR": 0
+      },
+      "invalid_entry_zone": 3,
+      "risk_above_5pct": 4,
+      "entry_ready": 0,
+      "near_entry": 0,
+      "watch": 2,
+      "rejected": 7,
+      "review_required": 0,
+      "error": 0,
+      "technical_watch": 2,
+      "final_top5": 0,
+      "approval_required": 0,
+      "approval_financial_complete": true,
+      "nonblocking_financial_unverified": 4,
+      "comparison_conservative_operational_status": "HOLD_FINANCIAL_UNVERIFIED"
+    },
+    "approval_required_count": 0,
+    "approval_financial_complete": true,
+    "nonblocking_financial_unverified_codes": [
+      "000400",
+      "004100",
+      "012750",
+      "215200"
+    ],
+    "comparison_conservative_operational_status": "HOLD_FINANCIAL_UNVERIFIED",
+    "source_provenance": {
+      "price_artifact_sha256": null,
+      "price_source_run_id": "45351271747",
+      "price_mode": "DIRECT_KRX_COLLECTION",
+      "krx_source_manifest_sha256": "feae0962534931370d9ad71a222fe67ad9b276c63d5a5216659a06ba612c825e"
+    }
+  },
+  "previous_summary": {
+    "status": "COMPLETE",
+    "live_krx_collection": false,
+    "telegram_photos_sent": 0,
+    "orders_enabled": false,
+    "main_or_ledger_writes": false,
+    "asof": "20261123",
+    "input_kind": "ACTUAL_KRX_AND_OPENDART",
+    "live_dart_observation": true,
+    "decision": "CASH",
+    "source_integrity": {
+      "schema": "C3_KRX_SOURCE_PREFLIGHT_V1",
+      "session_count": 60,
+      "first_session": "20260826",
+      "last_session": "20261123",
+      "market_rows_latest": {
+        "date": "20261123",
+        "kospi_rows": 935,
+        "kosdaq_rows": 1836
+      },
+      "market_rows_min": {
+        "KOSPI": 935,
+        "KOSDAQ": 1818
+      },
+      "invalid_ohlcv_rows": {
+        "KOSPI": 1641,
+        "KOSDAQ": 5209
+      },
+      "invalid_ohlcv_reasons": {
+        "KOSPI": {
+          "NO_TRADING_OR_SUSPENSION_UNCONFIRMED": 1641
+        },
+        "KOSDAQ": {
+          "NO_TRADING_OR_SUSPENSION_UNCONFIRMED": 5209
+        }
+      },
+      "invalid_row_policy": "Excluded; incomplete 60-session series cannot enter selection; zero turnover is not official suspension proof",
+      "reported_date_rows_checked": 165932,
+      "duplicate_valid_rows": 0,
+      "coverage_floor_policy": "KOSPI>=500,KOSDAQ>=800 per session; not official completeness certification",
+      "regular_session_price_certified": false,
+      "corporate_actions_certified": false,
+      "large_price_moves_35pct": [
+        {
+          "market": "KOSPI",
+          "code": "023150",
+          "date": "20261019",
+          "close_change_pct": -49.83
+        },
+        {
+          "market": "KOSPI",
+          "code": "009140",
+          "date": "20261020",
+          "close_change_pct": -53.62
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "475460",
+          "date": "20260916",
+          "close_change_pct": -68.52
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "117670",
+          "date": "20261021",
+          "close_change_pct": -49.78
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "290650",
+          "date": "20261026",
+          "close_change_pct": -58.5
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "052400",
+          "date": "20261029",
+          "close_change_pct": -39.32
+        },
+        {
+          "market": "KOSDAQ",
+          "code": "303360",
+          "date": "20261013",
+          "close_change_pct": -35.34
+        }
+      ],
+      "large_move_policy": "EXCLUDE_FLAGGED_60_SESSION_SERIES_NOT_CORPORATE_ACTION_CERTIFICATION"
+    },
+    "technical_candidates": 9,
+    "requested_financial": 9,
+    "selected_codes": [],
+    "final_png_count": 0,
+    "diagnostic_png_count": 9,
+    "delivery_status": "CASH",
+    "telegram_live_transport_verified": false,
+    "financial_evidence_status": "REVIEW_REQUIRED",
+    "financial_decision_counts": {
+      "QUALIFIED": 3,
+      "REJECTED_FINANCIAL_RISK": 2,
+      "REVIEW_REQUIRED": 4,
+      "ERROR": 0
+    },
+    "operational_status": "CASH_NO_ELIGIBLE",
+    "candidate_summary": {
+      "market_symbols": 2771,
+      "valid_60_session_symbols": 2488,
+      "technical_candidates": 9,
+      "financial_requested": 9,
+      "financial_processed": 9,
+      "financial_collection_error": null,
+      "financial_decisions": {
+        "PASS": 3,
+        "REJECTED_FINANCIAL_RISK": 2,
+        "REVIEW_REQUIRED": 4,
+        "ERROR": 0
+      },
+      "invalid_entry_zone": 3,
+      "risk_above_5pct": 4,
+      "entry_ready": 0,
+      "near_entry": 0,
+      "watch": 2,
+      "rejected": 7,
+      "review_required": 0,
+      "error": 0,
+      "technical_watch": 2,
+      "final_top5": 0,
+      "approval_required": 0,
+      "approval_financial_complete": true,
+      "nonblocking_financial_unverified": 4,
+      "comparison_conservative_operational_status": "HOLD_FINANCIAL_UNVERIFIED"
+    },
+    "approval_required_count": 0,
+    "approval_financial_complete": true,
+    "nonblocking_financial_unverified_codes": [
+      "000400",
+      "004100",
+      "012750",
+      "215200"
+    ],
+    "comparison_conservative_operational_status": "HOLD_FINANCIAL_UNVERIFIED",
+    "source_provenance": {
+      "price_artifact_sha256": "692d1732a7395989842f5b330167b6610921293df35096889bf7ecf18bac35a7",
+      "price_source_run_id": "45294238532"
+    }
+  },
+  "comparison": {
+    "candidate_codes_identical": true,
+    "candidate_60_bars_identical": true,
+    "financial_decisions_identical": true,
+    "final_operational_status_identical": true,
+    "full_market_capture_offline_replay_identical": true,
+    "offline_replay_network_enabled": false,
+    "raw_previous_full_market_bytes_available": false,
+    "diagnostic_differences": [
+      {
+        "code": "003490",
+        "differences": {
+          "opportunity_score": {
+            "previous": 86.86,
+            "reexecuted": 87.52
+          },
+          "entry_gap_pct": {
+            "previous": 0.33,
+            "reexecuted": null
+          },
+          "r1_ref": {
+            "previous": 32950,
+            "reexecuted": null
+          },
+          "rejection_reasons": {
+            "previous": [
+              "INVALID_ENTRY_ZONE",
+              "EMPTY_ENTRY_INTERSECTION"
+            ],
+            "reexecuted": [
+              "EMPTY_ENTRY_INTERSECTION",
+              "INVALID_ENTRY_ZONE",
+              "INVALID_STOP_STRUCTURE",
+              "RISK_NOT_COMPUTABLE",
+              "NO_VALID_R1_ABOVE_CLOSE_AND_ENTRY",
+              "RR_NOT_COMPUTABLE"
+            ]
+          }
+        }
+      },
+      {
+        "code": "020560",
+        "differences": {
+          "opportunity_score": {
+            "previous": 85.91,
+            "reexecuted": 87.38
+          },
+          "entry_gap_pct": {
+            "previous": 0.73,
+            "reexecuted": null
+          },
+          "r1_ref": {
+            "previous": 8990,
+            "reexecuted": null
+          },
+          "rejection_reasons": {
+            "previous": [
+              "INVALID_ENTRY_ZONE",
+              "EMPTY_ENTRY_INTERSECTION"
+            ],
+            "reexecuted": [
+              "EMPTY_ENTRY_INTERSECTION",
+              "INVALID_ENTRY_ZONE",
+              "INVALID_STOP_STRUCTURE",
+              "RISK_NOT_COMPUTABLE",
+              "NO_VALID_R1_ABOVE_CLOSE_AND_ENTRY",
+              "RR_NOT_COMPUTABLE"
+            ]
+          }
+        }
+      },
+      {
+        "code": "215200",
+        "differences": {
+          "opportunity_score": {
+            "previous": 74.98,
+            "reexecuted": 76.24
+          },
+          "entry_gap_pct": {
+            "previous": 0.63,
+            "reexecuted": null
+          },
+          "r1_ref": {
+            "previous": 42000,
+            "reexecuted": null
+          },
+          "rejection_reasons": {
+            "previous": [
+              "INVALID_ENTRY_ZONE",
+              "EMPTY_ENTRY_INTERSECTION"
+            ],
+            "reexecuted": [
+              "EMPTY_ENTRY_INTERSECTION",
+              "INVALID_ENTRY_ZONE",
+              "INVALID_STOP_STRUCTURE",
+              "RISK_NOT_COMPUTABLE",
+              "NO_VALID_R1_ABOVE_CLOSE_AND_ENTRY",
+              "RR_NOT_COMPUTABLE"
+            ]
+          }
+        }
+      }
+    ],
+    "difference_reason": "Current unchanged entry-zone code suppresses empty ranges before computing gap and R1; previous archived candidates retained diagnostic values from before sanitization. Three invalid candidates have no approval impact."
+  },
+  "candidates": [
+    {
+      "name": "대한항공",
+      "code": "003490",
+      "financial_decision": "REJECTED_FINANCIAL_RISK",
+      "technical_decision": "REJECTED",
+      "close": 30300,
+      "entry_low": null,
+      "entry_high": null,
+      "attempted_entry_low": 30350,
+      "attempted_entry_high": 30200,
+      "structural_stop_diagnostic": 29600,
+      "risk_pct_diagnostic": null,
+      "entry_gap_pct": null,
+      "selected": false,
+      "exclusion_reason": "EMPTY_EXECUTABLE_ENTRY_INTERVAL",
+      "ma5": 31480.0,
+      "ma10": 31625.0,
+      "ma20": 29855.0,
+      "ma60": 29496.666666666668,
+      "atr14": 1571.4285714285713,
+      "rvol": 0.68,
+      "rs20pp": 28.39,
+      "r1_diagnostic": null,
+      "r2_diagnostic": null,
+      "corp_code": "00113526",
+      "annual_receipt": "20260318001125",
+      "interim_receipt": "20261113001034",
+      "division": "CFS",
+      "annual_filing_date": "2026-03-18",
+      "interim_filing_date": "2026-11-13",
+      "financial_missing": [
+        "AUDIT_OPINION_AND_GOING_CONCERN_REVIEW",
+        "RECENT_LIQUIDITY_MITIGANTS_REVIEW",
+        "interest_bearing_debt_excluding_leases",
+        "interest_expense"
+      ],
+      "value_use": "HISTORICAL_DIAGNOSTIC_NOT_BUY_SIGNAL"
+    },
+    {
+      "name": "아시아나항공",
+      "code": "020560",
+      "financial_decision": "REJECTED_FINANCIAL_RISK",
+      "technical_decision": "REJECTED",
+      "close": 8170,
+      "entry_low": null,
+      "entry_high": null,
+      "attempted_entry_low": 8180,
+      "attempted_entry_high": 8110,
+      "structural_stop_diagnostic": 7950,
+      "risk_pct_diagnostic": null,
+      "entry_gap_pct": null,
+      "selected": false,
+      "exclusion_reason": "EMPTY_EXECUTABLE_ENTRY_INTERVAL",
+      "ma5": 8468.0,
+      "ma10": 8490.0,
+      "ma20": 8004.5,
+      "ma60": 7890.0,
+      "atr14": 460.0,
+      "rvol": 0.42,
+      "rs20pp": 28.53,
+      "r1_diagnostic": null,
+      "r2_diagnostic": null,
+      "corp_code": "00138792",
+      "annual_receipt": "20260318001045",
+      "interim_receipt": "20261112000628",
+      "division": "CFS",
+      "annual_filing_date": "2026-03-18",
+      "interim_filing_date": "2026-11-12",
+      "financial_missing": [
+        "AUDIT_OPINION_AND_GOING_CONCERN_REVIEW",
+        "LOSS_RECOVERY_CONTEXT_REVIEW",
+        "RECENT_LIQUIDITY_MITIGANTS_REVIEW",
+        "interest_expense"
+      ],
+      "value_use": "HISTORICAL_DIAGNOSTIC_NOT_BUY_SIGNAL"
+    },
+    {
+      "name": "윈스테크넷",
+      "code": "136540",
+      "financial_decision": "PASS",
+      "technical_decision": "REJECTED",
+      "close": 11930,
+      "entry_low": 11560,
+      "entry_high": 11870,
+      "attempted_entry_low": 11560,
+      "attempted_entry_high": 11870,
+      "structural_stop_diagnostic": 11170,
+      "risk_pct_diagnostic": 5.8972198820556025,
+      "entry_gap_pct": 0.5,
+      "selected": false,
+      "exclusion_reason": "EXACT_STRUCTURAL_RISK_ABOVE_5PCT",
+      "ma5": 12096.0,
+      "ma10": 12029.0,
+      "ma20": 11674.0,
+      "ma60": 11099.333333333334,
+      "atr14": 785.7142857142857,
+      "rvol": 0.61,
+      "rs20pp": 19.05,
+      "r1_diagnostic": 13380,
+      "r2_diagnostic": null,
+      "corp_code": "00868705",
+      "annual_receipt": "20260312000862",
+      "interim_receipt": "20261113001351",
+      "division": "CFS",
+      "annual_filing_date": "2026-03-12",
+      "interim_filing_date": "2026-11-13",
+      "financial_missing": [],
+      "value_use": "HISTORICAL_DIAGNOSTIC_NOT_BUY_SIGNAL"
+    },
+    {
+      "name": "메가스터디교육",
+      "code": "215200",
+      "financial_decision": "REVIEW_REQUIRED",
+      "technical_decision": "REJECTED",
+      "close": 39800,
+      "entry_low": null,
+      "entry_high": null,
+      "attempted_entry_low": 40050,
+      "attempted_entry_high": 40000,
+      "structural_stop_diagnostic": 39300,
+      "risk_pct_diagnostic": null,
+      "entry_gap_pct": null,
+      "selected": false,
+      "exclusion_reason": "EMPTY_EXECUTABLE_ENTRY_INTERVAL",
+      "ma5": 40540.0,
+      "ma10": 40635.0,
+      "ma20": 39635.0,
+      "ma60": 37695.0,
+      "atr14": 1550.0,
+      "rvol": 1.07,
+      "rs20pp": 14.02,
+      "r1_diagnostic": null,
+      "r2_diagnostic": null,
+      "corp_code": "01074862",
+      "annual_receipt": "20260318000849",
+      "interim_receipt": "20261116001240",
+      "division": "CFS",
+      "annual_filing_date": "2026-03-18",
+      "interim_filing_date": "2026-11-16",
+      "financial_missing": [
+        "ATTACHMENT_AMENDMENT_CONTENT_REVIEW",
+        "AUDIT_OPINION_AND_GOING_CONCERN_REVIEW",
+        "RECENT_LIQUIDITY_MITIGANTS_REVIEW",
+        "interest_bearing_debt_excluding_leases",
+        "interest_expense"
+      ],
+      "value_use": "HISTORICAL_DIAGNOSTIC_NOT_BUY_SIGNAL"
+    },
+    {
+      "name": "롯데손해보험",
+      "code": "000400",
+      "financial_decision": "REVIEW_REQUIRED",
+      "technical_decision": "REJECTED",
+      "close": 2520,
+      "entry_low": 2415,
+      "entry_high": 2470,
+      "attempted_entry_low": 2415,
+      "attempted_entry_high": 2470,
+      "structural_stop_diagnostic": 2295,
+      "risk_pct_diagnostic": 7.08502024291498,
+      "entry_gap_pct": 1.98,
+      "selected": false,
+      "exclusion_reason": "EXACT_STRUCTURAL_RISK_ABOVE_5PCT",
+      "ma5": 2499.0,
+      "ma10": 2500.0,
+      "ma20": 2461.5,
+      "ma60": 2290.5833333333335,
+      "atr14": 93.21428571428571,
+      "rvol": 1.65,
+      "rs20pp": 12.89,
+      "r1_diagnostic": 2635,
+      "r2_diagnostic": 2835,
+      "corp_code": "00113562",
+      "annual_receipt": "20260331004266",
+      "interim_receipt": "20261116001945",
+      "division": null,
+      "annual_filing_date": "2026-03-31",
+      "interim_filing_date": "2026-11-16",
+      "financial_missing": [
+        "SECTOR_MODEL_REQUIRED",
+        "CURRENT_KICS_NOT_PUBLISHED"
+      ],
+      "value_use": "HISTORICAL_DIAGNOSTIC_NOT_BUY_SIGNAL"
+    },
+    {
+      "name": "화천기계",
+      "code": "010660",
+      "financial_decision": "PASS",
+      "technical_decision": "WATCH",
+      "close": 3605,
+      "entry_low": 3475,
+      "entry_high": 3500,
+      "attempted_entry_low": 3475,
+      "attempted_entry_high": 3500,
+      "structural_stop_diagnostic": 3365,
+      "risk_pct_diagnostic": 3.8571428571428568,
+      "entry_gap_pct": 2.91,
+      "selected": false,
+      "exclusion_reason": "WATCH_OUTSIDE_EXISTING_ENTRY_GATE",
+      "ma5": 3585.0,
+      "ma10": 3565.5,
+      "ma20": 3444.5,
+      "ma60": 3179.75,
+      "atr14": 227.14285714285714,
+      "rvol": 0.49,
+      "rs20pp": 28.64,
+      "r1_diagnostic": 3845,
+      "r2_diagnostic": null,
+      "corp_code": "00166500",
+      "annual_receipt": "20260318001051",
+      "interim_receipt": "20261116000844",
+      "division": "OFS",
+      "annual_filing_date": "2026-03-18",
+      "interim_filing_date": "2026-11-16",
+      "financial_missing": [],
+      "value_use": "HISTORICAL_DIAGNOSTIC_NOT_BUY_SIGNAL"
+    },
+    {
+      "name": "아모레퍼시픽홀딩스",
+      "code": "002790",
+      "financial_decision": "PASS",
+      "technical_decision": "WATCH",
+      "close": 27350,
+      "entry_low": 25850,
+      "entry_high": 26450,
+      "attempted_entry_low": 25850,
+      "attempted_entry_high": 26450,
+      "structural_stop_diagnostic": 25250,
+      "risk_pct_diagnostic": 4.536862003780719,
+      "entry_gap_pct": 3.29,
+      "selected": false,
+      "exclusion_reason": "WATCH_OUTSIDE_EXISTING_ENTRY_GATE",
+      "ma5": 27420.0,
+      "ma10": 27010.0,
+      "ma20": 26362.5,
+      "ma60": 26115.0,
+      "atr14": 1035.7142857142858,
+      "rvol": 0.84,
+      "rs20pp": 21.87,
+      "r1_diagnostic": 28300,
+      "r2_diagnostic": null,
+      "corp_code": "00154462",
+      "annual_receipt": "20260318000825",
+      "interim_receipt": "20261116001591",
+      "division": "CFS",
+      "annual_filing_date": "2026-03-18",
+      "interim_filing_date": "2026-11-16",
+      "financial_missing": [],
+      "value_use": "HISTORICAL_DIAGNOSTIC_NOT_BUY_SIGNAL"
+    },
+    {
+      "name": "에스원",
+      "code": "012750",
+      "financial_decision": "REVIEW_REQUIRED",
+      "technical_decision": "REJECTED",
+      "close": 103000,
+      "entry_low": 98200,
+      "entry_high": 99700,
+      "attempted_entry_low": 98200,
+      "attempted_entry_high": 99700,
+      "structural_stop_diagnostic": 94400,
+      "risk_pct_diagnostic": 5.315947843530592,
+      "entry_gap_pct": 3.2,
+      "selected": false,
+      "exclusion_reason": "EXACT_STRUCTURAL_RISK_ABOVE_5PCT",
+      "ma5": 103720.0,
+      "ma10": 101690.0,
+      "ma20": 99440.0,
+      "ma60": 90223.33333333333,
+      "atr14": 2614.285714285714,
+      "rvol": 0.74,
+      "rs20pp": 18.07,
+      "r1_diagnostic": 107600,
+      "r2_diagnostic": null,
+      "corp_code": "00158501",
+      "annual_receipt": "20260311004583",
+      "interim_receipt": "20261116001584",
+      "division": "CFS",
+      "annual_filing_date": "2026-03-11",
+      "interim_filing_date": "2026-11-16",
+      "financial_missing": [
+        "interest_bearing_debt_excluding_leases"
+      ],
+      "value_use": "HISTORICAL_DIAGNOSTIC_NOT_BUY_SIGNAL"
+    },
+    {
+      "name": "태양금속",
+      "code": "004100",
+      "financial_decision": "REVIEW_REQUIRED",
+      "technical_decision": "REJECTED",
+      "close": 3030,
+      "entry_low": 2870,
+      "entry_high": 2985,
+      "attempted_entry_low": 2870,
+      "attempted_entry_high": 2985,
+      "structural_stop_diagnostic": 2610,
+      "risk_pct_diagnostic": 12.562814070351758,
+      "entry_gap_pct": 1.49,
+      "selected": false,
+      "exclusion_reason": "EXACT_STRUCTURAL_RISK_ABOVE_5PCT",
+      "ma5": 3096.0,
+      "ma10": 3094.5,
+      "ma20": 2967.5,
+      "ma60": 2947.8333333333335,
+      "atr14": 203.92857142857142,
+      "rvol": 0.7,
+      "rs20pp": 11.79,
+      "r1_diagnostic": 3335,
+      "r2_diagnostic": 3375,
+      "corp_code": "00153755",
+      "annual_receipt": "20260324000742",
+      "interim_receipt": "20261116001930",
+      "division": "CFS",
+      "annual_filing_date": "2026-03-24",
+      "interim_filing_date": "2026-11-16",
+      "financial_missing": [
+        "RECENT_LIQUIDITY_MITIGANTS_REVIEW"
+      ],
+      "value_use": "HISTORICAL_DIAGNOSTIC_NOT_BUY_SIGNAL"
+    }
+  ],
+  "telegram_sent": 0,
+  "orders_enabled": false,
+  "main_merged": false,
+  "baseline_artifact_sha256": "907eef80fec8fae087fbd2364c9e17a4ef5513fe899b203168910deaa5b4862d"
+}
