@@ -1,0 +1,91 @@
+name: C3 WATCH5 execution and delivery boundary verification (NO SEND)
+on:
+  pull_request:
+    paths:
+      - 'scripts/c3_watch5_*.py'
+      - 'scripts/test_c3_watch5_delivery.py'
+      - '.github/workflows/c3_top5_daily_telegram.yml'
+      - '.github/workflows/c3_watch5_validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_watch5_*.py'
+      - 'scripts/test_c3_watch5_delivery.py'
+      - '.github/workflows/c3_watch5_validation.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-watch5-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            /scripts/*.py
+            /.github/workflows/c3_top5_daily_telegram.yml
+            /receipts/c3_top5_daily/
+            /reports/c3_paper/paper_ledger.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install existing chart runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Run all existing 264 regressions plus WATCH5 selection and mocked sender tests
+        run: |
+          mkdir -p output/c3_watch5_checks
+          set -o pipefail
+          PYTHONPATH=scripts python -m unittest -v test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_watch5_checks/regression.log
+      - name: Verify the separate synthetic TOP5 five plus WATCH5 five path
+        run: PYTHONPATH=scripts python scripts/test_c3_watch5_delivery.py --write-positive-fixture output/c3_watch5_positive
+      - name: Download the existing verified November 23 source without recollecting KRX
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/artifacts/14913270782/zip > output/c3_watch5_source.zip
+          python - <<'PY'
+          import hashlib,zipfile
+          from pathlib import Path
+          p=Path('output/c3_watch5_source.zip')
+          expected='270d3685a7e59345e2bed2b745e81a395b0dca872474627837d8b087c2a4192e'
+          assert hashlib.sha256(p.read_bytes()).hexdigest()==expected,'WATCH_SOURCE_ARTIFACT_HASH_MISMATCH'
+          with zipfile.ZipFile(p) as source:
+              assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in source.namelist())
+              source.extractall('output/c3_watch5_source')
+          PY
+      - name: Execute WATCH5 on actual November 23 source with all transport forbidden
+        run: |
+          PYTHONPATH=scripts python scripts/c3_watch5_validation.py --source output/c3_watch5_source/c3_balanced_validation --out output/c3_watch5_replay --asof 20261123
+      - name: Run November 24 actual KRX and OpenDART on merged main under manual DRY_RUN boundary
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
+        run: |
+          cp -a output/c3_watch5_source/c3_balanced_cache output/c3_watch5_live_cache
+          PYTHONPATH=scripts python scripts/c3_balanced_validation.py --live --asof 20261124 --out output/c3_watch5_live_market --cache output/c3_watch5_live_cache --operational-exit-codes
+          PYTHONPATH=scripts python scripts/c3_watch5_validation.py --source output/c3_watch5_live_market --out output/c3_watch5_live_delivery --asof 20261124 --source-kind live-output
+      - name: Preserve WATCH5 evidence and partial results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-watch5-validated
+          path: |
+            output/c3_watch5_checks/
+            output/c3_watch5_positive/
+            output/c3_watch5_replay/
+            output/c3_watch5_live_market/
+            output/c3_watch5_live_delivery/
+          if-no-files-found: error
+          retention-days: 30
