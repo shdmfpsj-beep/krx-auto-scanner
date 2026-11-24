@@ -10,7 +10,7 @@ import os
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
-from c3_balanced_financials import SnapshotCache, retry_network, digest
+from c3_balanced_financials import SnapshotCache, retry_network, digest, annual_statement_version
 from dart_financial_screen import api_json, annual_receipt, latest_interim_filing
 from c3_dart_document_evidence import download_document, inspect_archive
 
@@ -91,10 +91,12 @@ def capture(financial, cache, out, key):
                 page+=1
                 if page>10:raise ValueError('FILING_PAGINATION_BUDGET_EXCEEDED')
             item['catalogue_pages']=pages
-            years=[(y,annual_receipt(dict(status='000',list=catalog),y,asof)) for y in (asof.year-1,asof.year-2)]
-            year,selected=max((y,r) for y,r in years if r)
-            day,receipt=selected
+            years=[(y,annual_statement_version(dict(status='000',list=catalog),y,asof,corp,row['ticker'])) for y in (asof.year-1,asof.year-2)]
+            year,version=max(((y,r) for y,r in years if r),key=lambda r:r[0])
+            day=datetime.strptime(version['financial_filing_date'],'%Y%m%d').date()
+            receipt=version['financial_receipt']
             item.update(selected_annual_receipt=receipt,selected_annual_filing_date=day.isoformat(),year=year,
+                disclosure_version=version,
                 same_year_filings=[r for r in catalog if f'({year}.12)' in str(r.get('report_nm','')).replace(' ','')])
             major=get('fnlttSinglAcnt.json',dict(corp_code=corp,bsns_year=str(year),reprt_code='11011'))
             item['major_accounts']=save_json('major',major)
@@ -107,8 +109,10 @@ def capture(financial, cache, out, key):
                 returned_receipts=sorted({r.get('rcept_no') for r in payload.get('list',[]) if r.get('rcept_no')}))
             if row.get('financial_verdict')=='REJECTED_FINANCIAL_RISK':continue
             targets=[(receipt,'11011',year)]
+            targets += [(r['rcept_no'],'11011',year) for r in version['attachment_amendments']]
             targets += [(r,'11011',year) for r in item['returned_receipts'] if r!=receipt and any(f.get('rcept_no')==r for f in catalog)]
-            if row.get('sector_profile')=='FINANCIAL_SPECIAL_MODEL_REQUIRED':
+            missing=row.get('risk_assessment',{}).get('mandatory_missing',[])
+            if row.get('sector_profile')=='FINANCIAL_SPECIAL_MODEL_REQUIRED' or any('LIQUIDITY' in name for name in missing):
                 interim=latest_interim_filing(dict(status='000',list=catalog),asof)
                 if interim:targets.append((interim['receipt_no'],interim['report_code'],interim['fiscal_year']))
             for actual,report,fy in targets:

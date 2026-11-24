@@ -155,6 +155,7 @@ def run(root, cache_root, source=None, live=False):
         stocks = [{'ticker': c['code'], 'name': c.get('name', '')} for c in financial_review_candidates(geometry)]
         financial = collect_balanced(asof, stocks, key, datetime.now(ZoneInfo('Asia/Seoul')).date(), SnapshotCache(cache_root))
         financial['request_scope'] = REVIEW_SCOPE
+        financial['aggregate_policy']='ISOLATED_ISSUER_FAILURES_V1'
         write(root/'financial_pool_input.json', {'asof':pool['asof'], 'request_scope':REVIEW_SCOPE,
             'candidates':[{'code':s['ticker'],'name':s['name']} for s in stocks]})
         selection = select(geometry, financial)

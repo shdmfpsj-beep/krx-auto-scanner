@@ -601,6 +601,9 @@ jobs:
             scripts/dart_financial_screen.py
             scripts/dart_interim_periods.py
             scripts/c3_balanced_financials.py
+            scripts/c3_dart_document_evidence.py
+            scripts/c3_dart_normalization.py
+            scripts/c3_balanced_source_probe.py
             scripts/c3_balanced_validation.py
             receipts/c3_top5_daily/
             reports/c3_paper/paper_ledger.json
@@ -734,6 +737,12 @@ jobs:
             receipt=json.loads((root/'receipt.json').read_text())
             result['operational_status']=selection.get('operational_status')
             result['financial_decision_counts']=selection.get('financial_decision_counts',{})
+            if selection.get('status')=='REVIEW_REQUIRED' and selection.get('operational_status')=='HOLD_FINANCIAL_UNVERIFIED':
+              if selection.get('selected') or selection.get('signals') or selection.get('selected_count',0)!=0:
+                raise ValueError('HOLD_WITH_BUY_SIGNALS_FORBIDDEN')
+              result.update(status='HOLD_FINANCIAL_UNVERIFIED',asof=receipt.get('asof'),decision='REVIEW_REQUIRED',
+                            signals=[],financial_coverage_complete=False)
+              raise StopIteration('FINANCIAL_REVIEW_REQUIRED_NO_SEND')
             if selection.get('status')=='ERROR_FINANCIAL_EVIDENCE':
               result.update(status='ERROR_FINANCIAL_EVIDENCE',asof=receipt.get('asof'),
                             financial_evidence_status=selection.get('financial_evidence_status'),
@@ -828,6 +837,14 @@ jobs:
             raise ValueError('SOURCE_DATE_OR_SESSION_MISMATCH')
           if source.get('market_rows_min',{}).get('KOSPI',0)<500 or source.get('market_rows_min',{}).get('KOSDAQ',0)<800:
             raise ValueError('MARKET_COVERAGE_BELOW_FLOOR')
+          if manifest.get('status')=='HOLD_FINANCIAL_UNVERIFIED':
+            if (manifest.get('asof')!=report.get('asof') or manifest.get('decision')!='REVIEW_REQUIRED'
+                or manifest.get('selected') or manifest.get('images') or manifest.get('signals')
+                or any(row.get('top5') for row in report.get('candidates',[]))):
+              raise ValueError('INVALID_HOLD_DELIVERY_MANIFEST')
+            save_delivery('HOLD',stage='FINANCIAL_VERIFICATION',operational_status='HOLD_FINANCIAL_UNVERIFIED')
+            print('C3_FINANCIAL_HOLD_NO_SEND')
+            raise SystemExit(0)
           if manifest.get('status') not in ('FINANCE_FIRST_PREVIEW_READY_NO_SEND','CASH_NO_FINANCIAL_CANDIDATES'):
             raise ValueError('FINANCE_FIRST_MANIFEST_NOT_VALID')
           if manifest.get('asof')!=report.get('asof') or not manifest.get('financial_coverage_complete'):

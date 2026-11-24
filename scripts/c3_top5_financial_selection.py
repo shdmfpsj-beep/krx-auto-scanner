@@ -149,6 +149,13 @@ def select(geometry, financial):
              or (not requested and financial.get("status") == "NO_CANDIDATES"))
              and coverage_ok)
     classifications = {x["ticker"]: classify(x, asof) for x in evidence} if coverage_ok and financial.get('asof')==asof else {}
+    isolated = balanced and financial.get('aggregate_policy')=='ISOLATED_ISSUER_FAILURES_V1'
+    shared_codes={'010','011','012','020','800','900','901'}
+    shared_error=bool(financial.get('error')) or any(
+        str(event.get('api_status')) in shared_codes for item in evidence
+        for event in item.get('source_observations',[])) or any(
+        any(word in str(item.get('error','')) for word in ('CACHE_INTEGRITY','OBSERVATION_INTEGRITY')) for item in evidence)
+    if evidence and all(item.get('financial_evidence_state')=='API_ERROR' for item in evidence):shared_error=True
     review_pending = 'REVIEW_INSUFFICIENT_EVIDENCE' in classifications.values()
     candidate_error = 'ERROR_FINANCIAL_EVIDENCE' in classifications.values()
     valid = valid and not review_pending and not candidate_error
@@ -199,19 +206,25 @@ def select(geometry, financial):
         # prevent a conclusion that the complete candidate set failed finance.
         valid = False
         selected = []
-    unresolved_review = (balanced and review_pending and not candidate_error and not geometry_error and
-                         coverage_ok and financial.get('asof')==asof and financial.get('status') not in ('ERROR',))
+    unresolved_review = (balanced and (review_pending or isolated and candidate_error) and
+                         (not candidate_error or isolated) and not geometry_error and not shared_error and
+                         coverage_ok and financial.get('asof')==asof and
+                         (financial.get('status')!='ERROR' or isolated))
     unresolved_review = unresolved_review or (broad and incomplete_cash)
     signals = [{"code": c["code"], "signal": "BUY_CONSIDER" if c.get("status") == "ENTRY_READY" else "WAIT_FOR_ENTRY",
                 "technical_status": c.get("status"),
                 "financial_flag": classifications.get(c["code"])}
                for c in selected]
-    operational_status = ('ERROR' if candidate_error or geometry_error or not coverage_ok or
-        financial.get('status') == 'ERROR' else 'HOLD_FINANCIAL_UNVERIFIED'
+    operational_status = ('ERROR' if shared_error or (candidate_error and not isolated) or geometry_error or not coverage_ok or
+        (financial.get('status') == 'ERROR' and not isolated) else 'HOLD_FINANCIAL_UNVERIFIED'
         if unresolved_review or incomplete_cash else 'ERROR' if not valid else 'TOP5_READY' if selected else 'CASH_NO_ELIGIBLE')
     return {"schema": "C3_TOP5_FINANCE_FIRST_CONDITIONAL_SIGNAL_V3",
             "operational_status": operational_status,
             "financial_request_scope": REVIEW_SCOPE if broad else 'EXECUTABLE_ENTRIES',
+            "aggregate_policy": financial.get('aggregate_policy','STRICT_LEGACY_COMPATIBILITY'),
+            "issuer_error_codes": [code for code,state in classifications.items() if state=='ERROR_FINANCIAL_EVIDENCE'],
+            "shared_system_error": shared_error,
+            "all_interest_financial_complete": not review_pending and not candidate_error and coverage_ok,
             "asof": asof, "status": "ERROR_ENTRY_GEOMETRY" if geometry_error else "CONDITIONAL_SIGNALS" if valid else "REVIEW_REQUIRED" if unresolved_review else "ERROR_FINANCIAL_EVIDENCE",
             "financial_evidence_status": "INCOMPARABLE_FINANCIAL_SCORE_COVERAGE" if comparability_error else "INCOMPLETE_FINANCIAL_COVERAGE_BUDGET" if incomplete_cash else financial.get("status"),
             "coverage_complete": coverage_ok and not incomplete_cash,

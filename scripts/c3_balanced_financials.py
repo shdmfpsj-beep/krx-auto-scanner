@@ -23,6 +23,37 @@ from c3_top5_financial_selection import finite
 MODEL = "BALANCED_QUALITY_TIMING_V1"
 WEIGHTS = {"safety": 30, "cash_quality": 25, "growth": 20,
            "capital_efficiency": 15, "improvement": 10}
+
+
+def annual_statement_version(payload, year, asof, corp_code=None, ticker=None):
+    """Separate body corrections from attachment-only correction receipts.
+
+    OpenDART explicitly defines [첨부정정]/[첨부추가] as attachment changes.
+    They remain visible and require review; they are not primary XBRL IDs.
+    Body corrections are never skipped in favour of an older financial report.
+    """
+    eligible=[]
+    for row in payload.get('list',[]):
+        title=str(row.get('report_nm','')).replace(' ','')
+        if '사업보고서' not in title or f'({year}.12)' not in title:continue
+        receipt=str(row.get('rcept_no',''));received=str(row.get('rcept_dt',''))
+        if not re.fullmatch(r'\d{14}',receipt) or received!=receipt[:8]:
+            raise ValueError('FILING_RECEIPT_DATE_MISMATCH')
+        if received>asof.strftime('%Y%m%d'):continue
+        if (corp_code and row.get('corp_code') not in (None,'',corp_code) or
+            ticker and row.get('stock_code') not in (None,'',ticker)):
+            raise ValueError('FILING_COMPANY_MISMATCH')
+        eligible.append(row)
+    bodies=[r for r in eligible if not re.match(r'^\[(첨부정정|첨부추가)\]',str(r.get('report_nm','')).replace(' ',''))]
+    if not bodies:return None
+    selected=max(bodies,key=lambda r:(r['rcept_dt'],r['rcept_no']))
+    if '철' in str(selected.get('rm','')):raise ValueError('WITHDRAWN_ANNUAL_FILING_REVIEW')
+    amendments=[r for r in eligible if r not in bodies and r['rcept_no']>selected['rcept_no']]
+    return dict(financial_receipt=selected['rcept_no'],financial_filing_date=selected['rcept_dt'],
+        selected_body=selected,latest_disclosure=max(eligible,key=lambda r:r['rcept_no']),
+        attachment_amendments=sorted(amendments,key=lambda r:r['rcept_no']),
+        attachment_review_required=bool(amendments),
+        policy='PRIMARY_BODY_XBRL_WITH_SEPARATE_ATTACHMENT_REVIEW')
 METRICS = {
     "cash": ("BS", {"ifrs-full_CashAndCashEquivalents", "ifrs_CashAndCashEquivalents"}),
     "current_assets": ("BS", {"ifrs-full_CurrentAssets", "ifrs_CurrentAssets"}),
@@ -252,13 +283,15 @@ def sector_profile(industry, name=""):
     return "OTHER_NONFINANCIAL"
 
 
-def validate_payload(payload, division, year, report, receipt, asof):
+def validate_payload(payload, division, year, report, receipt, asof, corp_code=None):
     """Reject restatements/other periods before assigning a filing date to values."""
     if payload.get("status") != "000" or not isinstance(payload.get("list"), list):
         raise ValueError("DART_NO_DATA" if payload.get("status") in ("013", "014") else "DART_API_ERROR")
     if not payload["list"]:
         raise ValueError("EMPTY_STATEMENT")
     for row in payload["list"]:
+        if corp_code and row.get('corp_code')!=corp_code:
+            raise ValueError('STATEMENT_COMPANY_MISMATCH')
         actual = str(row.get("rcept_no", ""))
         if actual != receipt or not re.fullmatch(r"\d{14}", actual):
             raise ValueError("STATEMENT_RECEIPT_MISMATCH_OR_RESTATEMENT")
@@ -270,9 +303,10 @@ def validate_payload(payload, division, year, report, receipt, asof):
             raise ValueError("STATEMENT_DIVISION_OR_CURRENCY_MISMATCH")
 
 
-def statement_metrics(payload, interim=False):
+def statement_metrics(payload, interim=False, ticker=None, division=None):
     rows = payload["list"]
     result = {}
+    sources={};payload_sha=digest(payload)
     for name, (section, ids) in METRICS.items():
         for prefix, field in (("", "thstrm_amount"), ("previous_", "frmtrm_amount"),
                               ("before_previous_", "bfefrmtrm_amount")):
@@ -280,6 +314,18 @@ def statement_metrics(payload, interim=False):
                 field = {"thstrm_amount": "thstrm_add_amount", "frmtrm_amount": "frmtrm_add_amount",
                          "bfefrmtrm_amount": "bfefrmtrm_add_amount"}[field]
             result[prefix + name] = extract_metric(rows, ids, section, field)
+            matched=[r for r in rows if r.get('account_id') in ids and
+                     r.get('sj_div') in ([section] if section!='IS' else ['IS','CIS']) and integer(r.get(field)) is not None]
+            sources[prefix+name]=dict(source_type='OPENDART_STATEMENT_API',payload_sha256=payload_sha,
+                verification_state='API_VALUE_AVAILABLE' if result[prefix+name] is not None else 'UNAVAILABLE_OR_AMBIGUOUS',
+                accounts=[dict(ticker=ticker,corp_code=r.get('corp_code'),receipt_no=r.get('rcept_no'),
+                    filing_date=str(r.get('rcept_no',''))[:8],fiscal_year=r.get('bsns_year'),report_code=r.get('reprt_code'),
+                    division=r.get('fs_div') or division,statement=r.get('sj_div'),account_id=r.get('account_id'),
+                    account_name=r.get('account_nm'),field=field,raw_value=r.get(field),value_krw=integer(r.get(field)),
+                    unit=r.get('currency','KRW')) for r in matched])
+    result['metric_sources']=sources
+    result['finance_costs']=extract_metric(rows,{'ifrs-full_FinanceCosts','ifrs_FinanceCosts'},'IS',
+                                         'thstrm_add_amount' if interim else 'thstrm_amount')
     result["period_basis"] = "INTERIM_YTD_CF_AND_IS_CURRENT_BS" if interim else "ANNUAL_FULL_YEAR"
     # A missing borrowing category may mean an omitted zero or an unrecognised
     # custom XBRL tag. Never silently treat it as zero.
@@ -297,6 +343,12 @@ def statement_metrics(payload, interim=False):
         'interest_expense':interest,'current_portion_bonds':current_bonds}
     result['account_validation_errors']=[name for name,source in result['direct_account_evidence'].items()
         if source['state']=='CONFLICT_OR_INVALID_SIGN']
+    first=rows[0] if rows else {}
+    source_identity=dict(ticker=ticker,corp_code=first.get('corp_code'),receipt_no=first.get('rcept_no'),
+        filing_date=str(first.get('rcept_no',''))[:8],fiscal_year=first.get('bsns_year'),
+        report_code=first.get('reprt_code'),division=first.get('fs_div') or division,unit='KRW',
+        period_basis=result['period_basis'],payload_sha256=payload_sha)
+    sources['interest_expense']=dict(**source_identity,source_type='OPENDART_DIRECT_IS_ACCOUNT',**interest)
     bond_tags={r['account_id'] for r in debt_evidence[3]['sources']}
     noncurrent_bonds=bool(bond_tags & NONCURRENT_BOND_IDS)
     bond_scope_ok=(current_bonds['value'] is not None if noncurrent_bonds else current_bonds['value'] in (None,0))
@@ -317,6 +369,15 @@ def statement_metrics(payload, interim=False):
         sum(debt)+(current_bonds['value'] if noncurrent_bonds else 0)
         if all(finite(x) and x>=0 for x in debt) and bond_scope_ok and not unresolved else None)
     result["debt_components"] = debt
+    sources['interest_bearing_debt_excluding_leases']=dict(**source_identity,
+        source_type='DISJOINT_DIRECT_BS_COMPONENTS',value=result['interest_bearing_debt_excluding_leases'],
+        verification_state='VALID' if result['interest_bearing_debt_excluding_leases'] is not None else 'REVIEW_REQUIRED',
+        components=result['direct_account_evidence'],scope=result['debt_scope_state'])
+    return derived_metrics(result)
+
+
+def derived_metrics(result):
+    """Recompute the unchanged ratios after an independently verified note fill."""
     capex = result["capex"]
     # The standard Purchase... tag denotes an outflow. Negative net cash flow
     # lines or custom net-capex tags are not assumed to be a gross acquisition.
@@ -544,7 +605,21 @@ def audit_evidence(payload, year, receipt):
         'going_concern_basis':'ALL_CURRENT_STRUCTURED_EMPHASIS_ROWS_SCREENED_FULL_REPORT_NOT_REVIEWED'}
 
 
-def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corps=corp_codes):
+def related_audit_receipt(payload, version):
+    """Use only a catalogue-verified body or its attachment amendment.
+
+    This does not verify the amended attachment's contents or clear its review
+    requirement. An arbitrary API receipt remains a source mismatch.
+    """
+    primary=version['financial_receipt']
+    if payload.get('status')!='000':return primary
+    allowed={primary}|{r['rcept_no'] for r in version['attachment_amendments']}
+    returned={str(r.get('rcept_no','')) for r in payload.get('list',[])}
+    if not returned & allowed:raise ValueError('AUDIT_RECEIPT_MISMATCH')
+    return max(returned & allowed)
+
+
+def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corps=corp_codes, document_fetch=None):
     """Read only filings <= signal date; API rows must match selected receipts."""
     result = {"model": MODEL, "asof": asof.strftime("%Y%m%d"), "researched": [], "excluded": [],
               "status": "FAILED_FINANCIAL_EVIDENCE", "financial_data_complete": False,
@@ -602,11 +677,14 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                 if page >= total:
                     break
                 page += 1
-            annuals = [(y, annual_receipt(filings, y, asof)) for y in (asof.year-1, asof.year-2)]
+            annuals = [(y, annual_statement_version(filings, y, asof, company, ticker)) for y in (asof.year-1, asof.year-2)]
             annuals = [(y, r) for y, r in annuals if r]
             if not annuals:
                 raise ValueError("NO_DATED_ANNUAL")
-            year, (received, receipt) = max(annuals)
+            year, version = max(annuals,key=lambda r:r[0])
+            received=datetime.strptime(version['financial_filing_date'],'%Y%m%d').date()
+            receipt=version['financial_receipt']
+            item['disclosure_version']=version
             interim_filing = latest_interim_filing(filings, asof)
             if not interim_filing or interim_filing["fiscal_year"] <= year:
                 raise ValueError("CURRENT_INTERIM_UNAVAILABLE_REVIEW")
@@ -615,6 +693,21 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             if profile=='FINANCIAL_SPECIAL_MODEL_REQUIRED':
                 item['risk_assessment']={'state':'REVIEW_REQUIRED','mandatory_missing':['SECTOR_MODEL_REQUIRED'],
                     'hard_failures':[],'risk_flags':[],'sector_profile':profile}
+                if request is api_json or document_fetch is not None:
+                    from c3_balanced_source_probe import DocumentCache
+                    from c3_dart_document_evidence import download_document
+                    from c3_dart_normalization import insurance_capital_disclosure
+                    documents=DocumentCache(cache.root/'documents')
+                    try:
+                        binary=documents.get('document.xml',interim_filing['receipt_no'],interim_filing['report_code'],
+                            key,document_fetch or download_document)
+                        capital=insurance_capital_disclosure(binary,dict(ticker=ticker,corp_code=company,
+                            receipt_no=interim_filing['receipt_no'],fiscal_year=interim_filing['fiscal_year'],
+                            report_code=interim_filing['report_code'],filing_date=interim_filing['receipt_date']))
+                        item['insurance_capital_evidence']=capital
+                        item['risk_assessment']['mandatory_missing'].append(capital['reason'])
+                    finally:
+                        cache.events.extend(documents.events)
                 raise ValueError('FINANCIAL_SECTOR_MODEL_REQUIRED')
             annual = None
             for division in ("CFS", "OFS"):
@@ -623,7 +716,7 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                 payload = cache.request("fnlttSinglAcntAll.json", params, key, request, receipt)
                 if payload.get("status") in ("013", "014") and division == "CFS":
                     continue
-                validate_payload(payload, division, year, "11011", receipt, asof)
+                validate_payload(payload, division, year, "11011", receipt, asof, company)
                 annual = evaluate_accounts(payload, division)
                 # Invalid CFS evidence is never replaced with a convenient OFS pass.
                 if annual.get("status") != "DATED_ANNUAL_RESEARCH_ONLY":
@@ -631,18 +724,18 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                 break
             if annual is None:
                 raise ValueError("ANNUAL_UNAVAILABLE")
-            m = statement_metrics(payload)
+            m = statement_metrics(payload,ticker=ticker,division=division)
             if m['account_validation_errors']:
                 raise ValueError('DIRECT_FINANCIAL_ACCOUNT_CONFLICT_OR_SIGN')
             interim_payload = cache.request("fnlttSinglAcntAll.json", {"corp_code": company,
                 "bsns_year": str(interim_filing["fiscal_year"]), "reprt_code": interim_filing["report_code"],
                 "fs_div": division}, key, request, interim_filing["receipt_no"])
             validate_payload(interim_payload, division, interim_filing["fiscal_year"],
-                             interim_filing["report_code"], interim_filing["receipt_no"], asof)
+                             interim_filing["report_code"], interim_filing["receipt_no"], asof, company)
             interim = evaluate_interim(interim_payload, division, interim_filing)
             if interim["status"] != "DATED_INTERIM_YTD_RESEARCH_ONLY":
                 raise ValueError("INTERIM_" + interim["status"])
-            recent_metrics = statement_metrics(interim_payload, interim=True)
+            recent_metrics = statement_metrics(interim_payload, interim=True,ticker=ticker,division=division)
             if recent_metrics['account_validation_errors']:
                 raise ValueError('RECENT_DIRECT_FINANCIAL_ACCOUNT_CONFLICT_OR_SIGN')
             current_bs = {k: extract_metric(interim_payload["list"], ids, "BS", "thstrm_amount")
@@ -656,10 +749,33 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                 "bsns_year": str(year), "reprt_code": "11011"}, key, request, receipt)
             if audit_payload.get('status') not in ('000','013','014'):
                 raise ValueError('AUDIT_API_ERROR')
-            if audit_payload.get('status') == '000' and not any(r.get('rcept_no') == receipt for r in audit_payload.get('list',[])):
-                raise ValueError('AUDIT_RECEIPT_MISMATCH')
-            audit = audit_evidence(audit_payload, year, receipt)
+            audit_receipt=related_audit_receipt(audit_payload,version)
+            audit = audit_evidence(audit_payload, year, audit_receipt)
+            audit['source_receipt_no']=audit_receipt
+            # Source enrichment never replaces already-valid direct metrics or
+            # an adverse audit opinion. A transport failure remains an error.
+            needs_notes=any(m.get(k) is None for k in ('interest_expense','interest_bearing_debt_excluding_leases')) or audit.get('state')=='REVIEW_REQUIRED'
+            decisive=assess(annual,interim,m,audit,profile,recent_metrics)['state']=='FAIL'
+            if needs_notes and not decisive and (request is api_json or document_fetch is not None):
+                from c3_dart_normalization import enrich_financial_notes
+                enriched=enrich_financial_notes(cache,key,dict(ticker=ticker,corp_code=company,
+                    receipt_no=receipt,fiscal_year=year,report_code='11011',division=division,
+                    filing_date=received.isoformat()),dict(Assets=annual['assets_krw'],
+                    Liabilities=annual['liabilities_krw'],Equity=annual['equity_krw']),m,audit,document_fetch)
+                item['note_normalization']=enriched
+                derived_metrics(m)
             risk = assess(annual, interim, m, audit, profile, recent_metrics)
+            interest_source=m.get('metric_sources',{}).get('interest_expense',{})
+            uncertainty=interest_source.get('reconciliation',{}).get('maximum_rounding_error_krw',0)
+            if uncertainty and finite(m.get('interest_expense')) and m['interest_expense']>0:
+                lower=m['operating_profit']/(m['interest_expense']+uncertainty)
+                m['interest_coverage_min_verified']=lower
+                if lower<1 and risk['state']!='FAIL':
+                    risk['mandatory_missing']=sorted(set(risk['mandatory_missing']+['INTEREST_COVERAGE_ROUNDING_REVIEW']))
+                    risk['state']='REVIEW_REQUIRED'
+            if version['attachment_review_required']:
+                risk['mandatory_missing']=sorted(set(risk['mandatory_missing']+['ATTACHMENT_AMENDMENT_CONTENT_REVIEW']))
+                if risk['state']!='FAIL':risk['state']='REVIEW_REQUIRED'
             quality = quality_score(m, annual, interim, recent_metrics)
             item.update(annual_status=annual["status"], interim_status=interim["status"],
                 filing_date=received.isoformat(), annual_receipt_no=receipt,
@@ -689,15 +805,18 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                 recent_slowdown_flag=interim.get("quality") == "INTERIM_PROFIT_OR_SALES_WEAKENING")
         except Exception as exc:
             # Never print exceptions containing authenticated request URLs.
-            item["error"] = str(exc) if isinstance(exc, ValueError) and re.fullmatch(r"[A-Z_]+", str(exc)) else type(exc).__name__
+            item["error"] = str(exc) if isinstance(exc, ValueError) and re.fullmatch(r"[A-Z0-9_]+", str(exc)) else type(exc).__name__
             item["financial_evidence_state"] = "API_ERROR" if not isinstance(exc, ValueError) or "API_ERROR" in item["error"] else "REVIEW_REQUIRED"
             if any(word in item['error'] for word in ('MISMATCH','INCONSISTENT','FUTURE_STATEMENT','CACHE_INTEGRITY')):
                 item['financial_evidence_state']='VALIDATION_ERROR'
             unavailable=('NO_LISTED_CORP_CODE','NO_DATED_ANNUAL','CURRENT_INTERIM_UNAVAILABLE_REVIEW',
-                         'DART_NO_DATA','EMPTY_STATEMENT','ANNUAL_UNAVAILABLE','FINANCIAL_SECTOR_MODEL_REQUIRED')
+                         'DART_NO_DATA','EMPTY_STATEMENT','ANNUAL_UNAVAILABLE','FINANCIAL_SECTOR_MODEL_REQUIRED',
+                         'WITHDRAWN_ANNUAL_FILING_REVIEW')
             item['financial_verdict']='REVIEW_REQUIRED' if item['error'] in unavailable or 'INCOMPLETE' in item['error'] else 'ERROR'
             if item['financial_evidence_state'] in ('API_ERROR','VALIDATION_ERROR'):
                 item['financial_verdict']='ERROR'
+        # Add the public PASS spelling without changing legacy QUALIFIED fields.
+        item['financial_decision']='PASS' if item.get('financial_verdict')=='QUALIFIED' else item.get('financial_verdict')
         item["source_observations"] = cache.events[start:]
         (result["researched"] if item["financial_risk_gate_pass"] else result["excluded"]).append(item)
     items = result["researched"] + result["excluded"]

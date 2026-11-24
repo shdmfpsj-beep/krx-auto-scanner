@@ -30,13 +30,13 @@ def statement(year=2025, report='11011', receipt=ANNUAL_RECEIPT):
         rows.append(dict(sj_div=section, account_id=sorted(ids)[0],
             thstrm_amount=str(now), frmtrm_amount=str(prev), bfefrmtrm_amount=str(prev),
             thstrm_add_amount=str(now), frmtrm_add_amount=str(prev),
-            rcept_no=receipt, bsns_year=str(year), reprt_code=report, fs_div='CFS', currency='KRW'))
+            rcept_no=receipt, corp_code='00111111', bsns_year=str(year), reprt_code=report, fs_div='CFS', currency='KRW'))
     for name, val in [('ifrs-full_Assets', 250), ('ifrs-full_Liabilities', 100)]:
         rows.append(dict(sj_div='BS',account_id=name,thstrm_amount=str(val),
-            frmtrm_amount=str(val),rcept_no=receipt,bsns_year=str(year),reprt_code=report,fs_div='CFS',currency='KRW'))
+            frmtrm_amount=str(val),rcept_no=receipt,corp_code='00111111',bsns_year=str(year),reprt_code=report,fs_div='CFS',currency='KRW'))
     for ids, value in zip(model.DEBT_IDS, [20, 0, 20, 0]):
         rows.append(dict(sj_div='BS',account_id=sorted(ids)[0],thstrm_amount=str(value),
-            rcept_no=receipt,bsns_year=str(year),reprt_code=report,fs_div='CFS',currency='KRW'))
+            rcept_no=receipt,corp_code='00111111',bsns_year=str(year),reprt_code=report,fs_div='CFS',currency='KRW'))
     return dict(status='000',list=rows)
 
 
@@ -50,9 +50,9 @@ def request(endpoint, params, key):
     if endpoint == 'accnutAdtorNmNdAdtOpinion.json':
         return dict(status='000', list=[dict(rcept_no=ANNUAL_RECEIPT, stlm_dt='2025-12-31',
             bsns_year='2025', adt_opinion='적정', emphs_matter='해당사항 없음')])
-    if params['reprt_code'] == '11011':
-        return statement()
-    return statement(2026, '11014', INTERIM_RECEIPT)
+    payload=statement() if params['reprt_code']=='11011' else statement(2026,'11014',INTERIM_RECEIPT)
+    for row in payload['list']:row['corp_code']=params['corp_code']
+    return payload
 
 
 class BalancedFinancialTests(unittest.TestCase):
