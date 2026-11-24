@@ -52,7 +52,26 @@ jobs:
           execute=True
           if before and subprocess.run(['git','cat-file','-e',before+'^{commit}'],capture_output=True).returncode==0:
               paths=subprocess.check_output(['git','diff','--name-only',before,'HEAD']).decode().splitlines()
-              execute=any(not path.startswith('docs/') for path in paths)
+              # WATCH delivery changes have their own full regression/artifact
+              # execution workflow. Reuse the existing actual KRX evidence when
+              # every financial/technical engine and existing workflow step is unchanged.
+              import re
+              delivery={'scripts/c3_watch5_delivery.py','scripts/c3_watch5_validation.py',
+                        'scripts/test_c3_watch5_delivery.py','.github/workflows/c3_watch5_validation.yml'}
+              def normalized(path,body):
+                  if path.endswith('c3_top5_daily_telegram.yml'):
+                      body=re.sub(r'^            scripts/c3_watch5_delivery.py\n','',body,flags=re.M)
+                      body=re.sub(r'^      - name: Deliver separate WATCH5 observation images\n.*?(?=^      - name: |\Z)','',body,flags=re.M|re.S)
+                  elif path.endswith('c3_balanced_quality_validation.yml'):
+                      body=re.sub(r'^      - name: Detect executable changes and avoid repeating APIs for documentation\n.*?(?=^      - uses: actions/setup-python)','',body,flags=re.M|re.S)
+                  return body
+              execute=False
+              for path in paths:
+                  if path.startswith('docs/') or path in delivery:continue
+                  if path in ('.github/workflows/c3_top5_daily_telegram.yml','.github/workflows/c3_balanced_quality_validation.yml'):
+                      old=subprocess.run(['git','show',before+':'+path],capture_output=True,text=True)
+                      if old.returncode==0 and normalized(path,old.stdout)==normalized(path,open(path).read()):continue
+                  execute=True
           with open(os.environ['GITHUB_OUTPUT'],'a') as out:
               out.write('execute='+str(execute).lower()+'\n')
           print('C3_EXECUTABLE_VALIDATION_REQUIRED',execute)

@@ -1007,7 +1007,10 @@ jobs:
           raise SystemExit(1 if outcome['operational_status']=='ERROR' else 0)
           PY
       - name: Deliver separate WATCH5 observation images
-        if: success()
+        if: always()
+        continue-on-error: true
+        env:
+          C3_WATCH_UPSTREAM_SUCCESS: ${{ success() }}
         run: PYTHONPATH=scripts python scripts/c3_watch5_delivery.py
       - name: Upload individual classic images and audit receipt
         if: always()
