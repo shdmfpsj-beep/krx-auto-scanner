@@ -1,107 +1,112 @@
-# C3 TOP5 최종 운영 통합 검증 — 2026-11-24
+# C3 TOP5 최종 고정일 전 과정 재실행 검증 — 2026-11-24
 
-판정: **PRODUCTION_READY_WITH_LIMITATIONS** — 검증한 PR 코드의 정상 CASH·조건부 TOP5·HOLD·ERROR 경로는 통과했다. **운영 main에는 병합하지 않았으며 실제 Telegram 전송과 새 08:00 예약 첫 실행은 미검증**이다. 아래 제한을 포함해 배포 여부를 판단해야 한다.
+**PRODUCTION_READY_WITH_LIMITATIONS** — 2026-11-23 KRX 직접 전수 수집 → 기존 전체 시장 기술 스크리닝 → OpenDART 판정 → 정상 CASH → 이미지/CSV/JSON/전달 경계까지 실제 재실행에 성공했다. **운영 main 병합과 실제 Telegram 발송은 수행하지 않았다.**
 
-## 코드와 변경 범위
+## A. 최종 개발 상태
 
-- PR [#202](https://github.com/shdmfpsj-beep/krx-auto-scanner/pull/202), 브랜치 `feat/c3-balanced-quality-timing-20261123`.
-- 시작 HEAD `54fe6f3550c7119ecc783738c5e6eef28eab75c5`. 최종 검증 코드 **`ee9ac0cd4ed510aec306d116b80c52c9c111fb93`**. 중간 정책 코드 `4dbe4829873df0758ed1ad80fc6f0bd363297255`.
-- 변경 전후 main **`ab1ca30bfe24f0e7cbc197e1db9468d6807f1f6a`**, PR #201 반영 상태 보존. 현재 main의 legacy와 PR의 Balanced 검증을 혼동하지 않는다.
-- 수정: `scripts/c3_top5_financial_selection.py`, `scripts/c3_balanced_validation.py`, `scripts/c3_top5_dart_bridge.py`, `scripts/c3_candidate_decisions.py`, `scripts/c3_balanced_financials.py`(HTTP 상태 기록 1줄), `scripts/test_c3_approval_scope.py`(신규), `.github/workflows/c3_top5_daily_telegram.yml`, `.github/workflows/c3_balanced_quality_validation.yml`, 이 문서.
-- 재무 수집/정규화 엔진·100점 배점·300% 기준·현금흐름/업종 모델을 다시 개발하지 않았다. 매수범위/구조손절 계산, 호가 단위, 위험 상한 5%, 기존 2% NEAR_ENTRY, 손익비 자동 탈락 없음, WATCH 비승격을 보존했다.
-- 기술 계산 `c3_entry_geometry.py`와 세션 정책 파일은 변경하지 않았다. workflow의 기존 계산식도 그대로이며, 탈락 종목의 **기존 호가 단위 구조손절 계산값을 진단 필드에 추가 보존**했다. 손절을 이동하거나 구간을 확대하지 않았다.
+- main: `ab1ca30bfe24f0e7cbc197e1db9468d6807f1f6a` (변경 없음).
+- 시작 PR HEAD: `b21fd1d6587080db99350361284beb7f4762cf03`.
+- 검증 코드: **`85ec123033c2249e81fc3a98a09677355e03d686`**, PR [#202](https://github.com/shdmfpsj-beep/krx-auto-scanner/pull/202), 브랜치 `feat/c3-balanced-quality-timing-20261123`.
+- 실제 실행 [45351271747](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45351271747): **pull_request / success**, 11/24 **16:51:45~16:56:17 KST**, 약 **4분 32초**.
+- [Artifact 14900018369](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45351271747/artifacts/14900018369): 다운로드·압축해제 후 ZIP SHA-256 **`1e52c335bbd07f59869c85293a042e95e50f69d8434eb614aafad56c24626372`** 재검증.
+- [별도 legacy CI 45351271571](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45351271571)도 success. 중복 테스트 수는 합산하지 않는다.
+- **기존 251개 유지 + 신규 7개 = 258개 통과, 실패 0개.**
+- 수정 코드: `scripts/c3_balanced_validation.py`(고정 기준일·원본 manifest·미래/혼합일 차단·직접 수집 출처), `scripts/test_c3_approval_scope.py`(7개 회귀), `.github/workflows/c3_top5_daily_telegram.yml`(선택적 원본 보존·기존 RS/RVOL 진단 출력), `.github/workflows/c3_balanced_quality_validation.yml`(11/23 직접 수집 실행 및 실행 가능 미확인 기업만 추가 조사).
+- 문서/근거: 이 보고서, [실제 비교 JSON](C3_20261123_END_TO_END_REEXECUTION.json), [후보 상세 CSV](C3_20261123_CANDIDATE_DETAILS.csv), [기존 08:45 본문 교체안](C3_TOP5_MORNING_CHECK_PROMPT_20261124.md).
+- 신규 테스트: 고정일 환경/무전송, 잘못된 날짜 차단, 다른 기준일 차단, 미래·중복 봉 차단, 고정일과 최신일 자동 전환 충돌 금지, 잘못된 설정 ERROR 유지, KRX 원본 해시·인증키 비저장.
+- 재무 선정 엔진·정규화·100점 배점·기술 계산 파일·승인 정책 `EXECUTABLE_FINANCIAL_APPROVAL_V1`은 변경하지 않았다. 실제 기술 점수/진입 계산 루프 AST가 시작 코드와 동일함을 확인했다.
+- PR은 **open / mergeable**, 조회한 제출 review는 **0개**다. 사용자 보호 조건에 따라 별도의 main 병합 승인이 확인되지 않아 미병합이다.
 
-## 재무 관찰과 매수 승인 범위 분리
+## B. 11월 23일 실제 전 과정 결과
 
-새 정책 `EXECUTABLE_FINANCIAL_APPROVAL_V1`은 Balanced에서만 명시적으로 사용한다. legacy 및 이전 `ISOLATED_ISSUER_FAILURES_V1`의 계약과 테스트는 유지한다.
-
-1. **관찰 범위**: 기존 기술 관심 후보 전체를 기존 30개 예산 안에서 요청·기록한다. 이번 실제 9개는 모두 재무 심사됐다.
-2. **승인 필수 범위**: 기존 `valid_entry`가 승인하는 ENTRY_READY·NEAR_ENTRY의 재무 판정을 반드시 완료한다. PASS 외에는 TOP5에 들어갈 수 없다. 한 후보라도 미확인이 선정의 완전성에 영향을 주면 전체 HOLD하며 검증된 일부만 먼저 보내지 않는다.
-3. **당일 비승인 범위**: 명시적 공집합과 실제 시도 가격, 정확한 기존 구조손절과 계산 위험 5% 초과, 또는 모든 기존 기하조건이 유효하지만 진입 거리 밖인 WATCH를 수치로 확인한다. 이 범위의 재무 미확인은 관찰 정보로 남으며 PASS로 바꾸지 않는다.
-4. 탈락 사유 문자열만 있거나 구조손절/가격 근거가 없으면 정상 CASH로 만들지 않고 **HOLD_DATA_INCOMPLETE**다.
-5. 인증·요청 제한·전체 API 장애·원본/캐시/기업/기간 무결성·잘못된 모델·미래 적격 근거·코드 예외는 비승인 종목에서도 **ERROR**를 유지한다. 필수 후보 미심사/중복 자료도 차단한다.
-6. 기존 API 예산 밖에 실행 가능한 후보가 남으면 HOLD한다. 상태는 매 거래일 다시 계산하며 **특정 4개 종목을 영구 제외하거나 면제하는 목록은 없다**.
-
-선정 JSON과 후보별 JSON/CSV에 `technical_approval_scope`, `approval_required_codes/count`, `approval_financial_complete`, `nonblocking_financial_unverified_codes`, 이전 정책 결과를 추가했다. 관찰 전체의 미완료 상태 `all_interest_financial_complete=false`도 보존한다. `approval_financial_complete=true`는 승인 필수 범위에 관한 것으로 전체 기업 재무 완결을 뜻하지 않는다.
-
-## 실제 2026-11-23 결과
-
-원본은 [KRX 실행 45294238532](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45294238532)의 Artifact 14874774941, SHA-256 `692d1732a7395989842f5b330167b6610921293df35096889bf7ecf18bac35a7`을 확인해 재사용했다. 이번 세션에서 60거래일 전수 가격을 새로 수집한 것으로 표시하지 않는다. 실제 OpenDART 공시목록을 재조회하고 동일 접수번호의 검증 스냅샷·원문은 재사용했다.
-
-| 항목 | 결과 |
+| 항목 | 실제 재실행 |
 |---|---:|
-| KOSPI / KOSDAQ / 합계 | 935 / 1,836 / **2,771** |
-| 유효 60거래일 종목 | **2,488** |
-| 기술적 관심 후보 / 재무 요청·처리 | **9 / 9·9** |
+| 기준 거래일 | **2026-11-23 고정** |
+| KRX 출처 | **기존 KRX Open API 직접 재수집** |
+| 응답 수 / 원본 행 수 | **128 / 165,932** |
+| 60거래일 범위 | **2026-08-26~2026-11-23** |
+| KOSPI / KOSDAQ / 합계 | **935 / 1,836 / 2,771** |
+| 유효 60거래일·연속성 통과 종목 | **2,488** |
+| 기술 관심 후보 | **9** |
+| 재무 요청 / 처리 | **9 / 9** |
 | 재무 PASS / 확정 탈락 / 검토 / ERROR | **3 / 2 / 4 / 0** |
-| ENTRY_READY / NEAR_ENTRY / 기술 WATCH | **0 / 0 / 2** |
-| 승인 필수 후보 / 승인 범위 재무 완결 | **0 / true** |
-| 비차단 재무 미확인 | **4** |
+| ENTRY_READY / NEAR_ENTRY / WATCH | **0 / 0 / 2** |
+| 승인 필수 후보 | **0** |
 | 최종 TOP5 | **0** |
-| 이전 보수적 정책 | HOLD_FINANCIAL_UNVERIFIED |
-| 새 정책 / 전달 / 프로그램 | **CASH_NO_ELIGIBLE / CASH / COMPLETED** |
+| 최종 상태 | **CASH_NO_ELIGIBLE** |
+| 프로그램 / 종료 코드 / 전달 | **COMPLETED / 0 / CASH** |
 
-재무 판정은 이전과 동일하다. **관찰 자료 미확인 4개를 PASS시키거나 재무 검증을 건너뛰어 CASH를 만든 것이 아니다.** 현재 매수 가능한 후보가 없다는 독립적인 기술 근거가 아래와 같이 모두 확인됐다.
+이번 실행은 이전 후보 9개를 불러와 재평가한 결과와 구분된다. 고정 `--live --asof 20261123`로 **공식 KRX 60일 전체 응답에서 기술 후보를 다시 계산**했다. 비교용 이전 Artifact는 실제 가격 입력으로 사용하지 않았다.
 
-| 종목 / 코드 | 재무 판정 | 현재 매수 불가 근거 | 승인 필수 |
-|---|---|---|---|
-| 대한항공 / 003490 | 확정 탈락 | 시도 매수구간 **30,350 > 30,200**, 공집합 | 아니오 |
-| 아시아나항공 / 020560 | 확정 탈락 | **8,180 > 8,110**, 공집합 | 아니오 |
-| 윈스테크넷 / 136540 | PASS | 상단 11,870 / 구조손절 11,170 → **5.8972%** | 아니오 |
-| 메가스터디교육 / 215200 | REVIEW_REQUIRED | **40,050 > 40,000**, 공집합 | 아니오 |
-| 롯데손해보험 / 000400 | REVIEW_REQUIRED | 상단 2,470 / 구조손절 2,295 → **7.0850%** | 아니오 |
-| 화천기계 / 010660 | PASS | 유효 구간 3,475~3,500, 종가 3,605 → 거리 **2.9126%**, WATCH | 아니오 |
-| 아모레퍼시픽홀딩스 / 002790 | PASS | 유효 구간 25,850~26,450, 종가 27,350 → 거리 **3.2907%**, WATCH | 아니오 |
-| 에스원 / 012750 | REVIEW_REQUIRED | 상단 99,700 / 구조손절 94,400 → **5.3159%** | 아니오 |
-| 태양금속 / 004100 | REVIEW_REQUIRED | 상단 2,985 / 구조손절 2,610 → **12.5628%** | 아니오 |
+### 가격 원본 검증
 
-구조손절 위험은 (매수범위 상단−기존 구조손절)/상단이다. WATCH 거리는 (종가−상단)/종가이며 기존 2% 기준을 유지한다. 원래 60봉으로 MA·ATR·지지점·호가 단위 기하조건을 다시 대조했다. 표시용 반올림 숫자로 손절을 맞추지 않았다.
+- 각 시장/일자 응답의 원문·공개 URL·조회시각·해시·행 수를 `krx_source/`와 `krx_source_manifest.json`에 보존했다. 인증키/헤더는 보존하지 않는다.
+- manifest SHA-256: `feae0962534931370d9ad71a222fe67ad9b276c63d5a5216659a06ba612c825e`.
+- 다운로드 후 **128개 응답 전부 해시 대조**, 총 **165,932행**, 실제 비어 있지 않은 **60세션**, **BAS_DD 누락 0**, 행 날짜 불일치 0, 동일 시장/날짜 중복 종목 0을 확인했다. 조회일은 모두 기준일 이하다.
+- 전체 원본 중 무거래/거래정지 미확정 행은 KOSPI 1,641 + KOSDAQ 5,209 = **6,850행**이며 기존 방식으로 제외했다. 누락을 채우거나 공식 거래정지로 단정하지 않는다.
+- 35% 초과 가격 불연속 7개 시리즈를 기존 방식으로 제외했다. 정규장/기업행위 독립 인증은 기존 `false` 표시를 유지하며 수정주가 인증으로 주장하지 않는다.
+- **전체 원본을 네트워크 없이 다시 재생**해 기존 수집·스크리닝 코드를 실행했고 `entry_geometry_audit.json`, `qualified_chart_pool.json`이 직접 실행 결과와 **완전히 동일**했다. 이 검증은 새로운 API 수집이나 수익률 백테스트가 아니다.
+- 제약·바이오 제외와 20거래일 중복 제한을 유지했다. 실제 중복 이력에서 `026960 / 032640 / 271560`을 차단 대상으로 읽었고, 이번 후보 9개와 겹치지 않았다. 원장/영수증을 수정하지 않았다.
 
-4개 기업의 재무 미확인 사유는 그대로다: 메가의 첨부 정정·차입·이자·감사/유동성, 롯데의 최신 지급여력 산출 중 및 금융 모델, 에스원의 차입 총액, 태양금속의 최근 유동성 보완 근거. 추후 ENTRY_READY·NEAR_ENTRY가 되면 필수 검토가 끝날 때까지 HOLD한다. [직전 재무 복구 보고서의 기업별 접수번호·금액·원문 근거](https://github.com/shdmfpsj-beep/krx-auto-scanner/blob/54fe6f3550c7119ecc783738c5e6eef28eab75c5/docs/C3_BALANCED_QUALITY_TIMING_VALIDATION_20261124.md)는 당시 보수적 정책의 역사적 기록이다.
+### OpenDART와 과거 기준시점
 
-이번 실행의 거래일은 **11/23**이다. 11/24 종가 자료의 추가 전수 실행은 하지 않았다. 기존 21:00 KST 수집 cutoff를 보존한 실행 시점의 운영 기준일이 11/23이었으며, 이를 11/24 최신 종가 검증으로 표현하지 않는다.
+- 9개 기업의 종목코드/기업코드/공시목록을 조회하고, 공시일 ≤ 11/23과 접수번호·기간·CFS/OFS·원본 해시를 기존 엔진으로 검증했다. 동일 접수번호의 검증된 재무 스냅샷·원문은 재사용했다.
+- PASS 3개만 필수 적격 증거를 통과했다. 확정 탈락 2개는 검증된 부채비율 초과 근거로 탈락했으며 보조 지표 부족으로 판정을 취소하지 않았다. 미확인 4개는 **그대로 REVIEW_REQUIRED**다.
+- 자료 미확인을 0 또는 PASS로 바꾸거나 금융업을 제조업 기준으로 승인하지 않았다.
+- 자료 관측은 11/24다. 불변 과거 PIT 완전 재현·사후 수정 전 원본 전체의 인증을 주장하지 않는다. 미래 접수번호·다른 기업·혼합 기간/연결·별도 자료는 차단한다.
+- 실제 실행 가능한 미확인 후보가 **0개**여서 추가 주석 조사 단계는 `NO_EXECUTABLE_PENDING_FINANCE_ADDITIONAL_PROBE_SKIPPED`로 종료했다. 기술적으로 진입 불가능한 4개를 완벽히 수집하려고 반복 개발하지 않았다.
 
-## 실행 상태와 전달 경계
+## C. 후보별 실제 결과
 
-- TOP5: 재무 PASS와 기술 적격의 교집합만 기존 순위로 최대 5개, ENTRY_READY 우선.
-- CASH: 필요한 당일 승인 검증이 완료됐고 실행 가능한 후보가 없음.
-- HOLD_FINANCIAL_UNVERIFIED: 실행 가능한 후보의 재무 검토 미완료.
-- HOLD_DATA_INCOMPLETE: 필수 가격/진입 근거를 확인할 수 없음.
-- ERROR: 인증·무결성·코드 등 시스템 실패.
+아래는 **과거 진단값**이다. 최종 매수 승인 종목은 0개다. 진단 범위/손절은 유효한 현재 매수 신호가 아니며, 공집합에는 위험률·진입 거리를 만들지 않았다.
 
-저장소 호출 경로를 조사한 결과, validation CLI의 종료 코드 2는 격리 검증에서 사용되고 있었다. 외부 사용 가능성을 보존해 **기본 종료 코드 계약은 그대로** 유지했다. 새 격리 workflow만 `--operational-exit-codes`를 사용해 정상 처리된 HOLD를 종료 0과 명시적 HOLD 결과로 구분한다. ERROR는 비정상 종료다. main daily도 sender 이후 read-only 결과 요약을 추가해 프로그램 상태, 선정 상태, 전달 상태, 승인 대상 수와 미확인을 표시하며 전송 실패/불일치는 ERROR다.
+| 종목 / 코드 | 재무 | 기술 | 구간 또는 진단 범위 | 구조손절 진단 | 위험 % | 거리 % | 제외 근거 |
+|---|---|---|---:|---:|---:|---:|---|
+| 대한항공 / 003490 | 확정 탈락 | REJECTED | 공집합: 30,350 > 30,200 | 29,600 | — | — | 구간 무효·재무 위험 |
+| 아시아나항공 / 020560 | 확정 탈락 | REJECTED | 공집합: 8,180 > 8,110 | 7,950 | — | — | 구간 무효·재무 위험 |
+| 윈스테크넷 / 136540 | PASS | REJECTED | 11,560~11,870 | 11,170 | **5.8972** | 0.50 | 위험 5% 초과 |
+| 메가스터디교육 / 215200 | REVIEW_REQUIRED | REJECTED | 공집합: 40,050 > 40,000 | 39,300 | — | — | 구간 무효 |
+| 롯데손해보험 / 000400 | REVIEW_REQUIRED | REJECTED | 2,415~2,470 | 2,295 | **7.0850** | 1.98 | 위험 5% 초과 |
+| 화천기계 / 010660 | PASS | WATCH | 3,475~3,500 | 3,365 | 3.8571 | **2.91** | 기존 2% 거리 밖 |
+| 아모레퍼시픽홀딩스 / 002790 | PASS | WATCH | 25,850~26,450 | 25,250 | 4.5369 | **3.29** | 기존 2% 거리 밖 |
+| 에스원 / 012750 | REVIEW_REQUIRED | REJECTED | 98,200~99,700 | 94,400 | **5.3159** | 3.20 | 위험 5% 초과 |
+| 태양금속 / 004100 | REVIEW_REQUIRED | REJECTED | 2,870~2,985 | 2,610 | **12.5628** | 1.49 | 위험 5% 초과 |
 
-`execution_outcome.json`, 로그 `C3_EXECUTION_OUTCOME`, GitHub Step Summary를 생성한다. HOLD가 초록이어도 Telegram 승인으로 쓰이지 않으며 기존 HOLD 차단 경로가 예약/네트워크 전 종료한다. 기존 실제 전송·중복 예약·승인·message_id·영수증 기록 코드는 유지했다.
+MA5/10/20/60·ATR·RS·RVOL·기술 점수·R1/R2·현재/연간 접수번호·공시일·CFS/OFS·미확인 항목은 [비교 JSON](C3_20261123_END_TO_END_REEXECUTION.json)과 원본 Artifact에 보존했다. 재무 PASS와 기술 적격의 교집합만 승인하는 원칙, ENTRY_READY 우선·NEAR_ENTRY 구분·WATCH 비승격·5% 상한·공집합 금지·손익비 자동 탈락 없음은 유지된다.
 
-## 테스트와 Artifact 증거
+### 기존 실행과 차이
 
-- 기존 **226개 유지 + 신규 25개 = 251개 통과, 0개 실패**.
-- 새 회귀: PASS/미확인과 실행 적격·부적격 조합, WATCH 비승격, 공집합·정확한 5% 초과 증거, 미확인 ENTRY_READY/NEAR_ENTRY HOLD, 공통 인증/API 장애, 원본 무결성/미래 자료, 데이터 HOLD, 필수 요청 누락·API 예산, 확인된 재무 탈락 CASH, 최대 TOP5, 원본 입력 불변, 종료 코드 호환, HOLD 무전송 및 daily 결과 요약.
-- 기존 기술·OpenDART 원본·PNG·CSV·JSON·Telegram 중복/영수증·legacy 회귀도 그대로 통과했다.
-- [최종 실행 45347327876](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45347327876): **pull_request / success**, 코드 `ee9ac0c`, 2026-11-24 **16:21:11~16:22:47 KST**, 약 **1분 36초**. 가격 재사용 검증의 시간이며 신규 60일 전수 수집 시간으로 일반화하지 않는다.
-- [최종 Artifact 14899265498](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45347327876/artifacts/14899265498): 다운로드·압축해제 후 SHA-256 **`907eef80fec8fae087fbd2364c9e17a4ef5513fe899b203168910deaa5b4862d`** 재검증.
-- 실제: 진단 PNG **9장**, 최종 PNG **0장**, CSV **0행**, 전달 **CASH**, 실발송 **0건**.
-- 별도 합성: TOP5 **5개 → PNG 5장·CSV 5행·JSON/이미지 값·메타데이터·해시 대조 → DRY_RUN** 통과. 합성 표시는 유지하며 실제 선정 결과로 표시하지 않는다.
-- 최종 Artifact를 로컬에서도 실제/합성 각각 이미지와 CSV 개수·메타데이터·해시로 대조했고 운영 영수증/예약 생성이 없음을 확인했다.
-- 실제 Telegram API 응답·SENT·message_id는 **실발송을 하지 않아 미검증**이다. 기존 승인 경계와 운영 중복 방지를 우회하지 않았다.
+이전 [45347327876 / Artifact 14899265498](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45347327876/artifacts/14899265498)의 ZIP SHA-256 `907eef80fec8fae087fbd2364c9e17a4ef5513fe899b203168910deaa5b4862d`도 재검증했다.
 
-## 정기 실행과 08:45 확인
+- 시장·유효 종목·후보 9개·후보별 60봉·재무 판정 3/2/4/0·최종 CASH는 동일하다.
+- **진단값 차이 3개**: 기존 Archive는 공집합 3개에 예전 거리와 R1을 보존하고 있었다. 현재 이미 구현된 구간 차단 코드를 전수 실행하면 공집합은 계산 단계에서 null이므로 거리/R1도 null이다.
+- 해당 기회점수는 대한항공 **86.86→87.52**, 아시아나 **85.91→87.38**, 메가 **74.98→76.24**다. 유효하지 않은 거리의 감점이 없어지면서 진단 점수만 달라졌다. 셋 모두 확정 기술 탈락이므로 승인·순위 선정에는 영향이 없다.
+- 결과를 기존 값에 맞추려고 알고리즘을 수정하지 않았다. 실제 기술/진입 계산 루프 AST는 시작 코드와 동일하다.
+- 과거 전 시장 원시 응답은 기존 Artifact에 없어 전 종목 원시 바이트의 과거 동일성은 비교하지 않았다. 이번에는 전체 원문을 보존했고 전체 시장 재생 일치를 확인했다.
 
-- 최신 main의 `cron: '0 23 * * 1-5'` = KST 화~토 **08:00**. permissions·concurrency(cancel-in-progress false)·35분 timeout·예약 설정을 변경하지 않았다.
-- schedule 이벤트 100개(2026-11-19~24)를 확인했다. 대상 workflow의 과거 [11/20 성공 44664347776](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/44664347776)과 [11/21 실패 44859198911](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/44859198911)을 확인했다.
-- 11/21 실행은 KST **12:04:17 생성**, 약 7분 뒤 전달 검사에서 `FINANCE_FIRST_MANIFEST_NOT_VALID`로 실패했다. KRX 수집 성공과 최종 전달 실패를 구분한다. 지연 생성은 관찰했지만 GitHub 내부의 특정 지연/누락 원인은 확인할 수 없었다.
-- 새 08:00 설정 반영 후 첫 예정 실행은 **11/25 08:00 KST**, 아직 관찰 전이다. 이번 PR 수동 성격의 격리 검증 성공을 schedule 성공으로 간주하지 않는다.
-- 기존 08:45 운영 확인은 **활성**, 다음 **11/25 08:45 KST**, 월~금 읽기 전용이다. 일정·활성 상태·프롬프트를 변경하지 않았다.
-- **알람 본문에는 예전 07:00 설명이 남아 있다.** 또한 새 승인 범위 필드가 아직 명시돼 있지 않다. 운영 보호 범위 때문에 이 세션에서 알람을 수정하지 않았다. 운영 확인 시 최신 main의 cron과 `operational_status`, `approval_required_count`, `approval_financial_complete`, `nonblocking_financial_unverified_codes`, `delivery_result.json`을 우선해야 한다. 시간 경과만으로 완료/전송을 추정하면 안 된다.
-- 08:00부터 08:45까지 완료를 보장할 수는 없다. 지연/미완료이면 관찰 대기로 표시하며 자동 재발송·신규 예약을 추가하지 않는다.
+## D. 산출물과 실제 전달 경계
 
-## 보호와 남은 작업
+- 실제 최종 PNG **0장**, 진단 PNG **9장**, TOP5 CSV **0행**, 선정 JSON `selected=[] / selected_count=0 / CASH_NO_ELIGIBLE`.
+- 진단 이미지의 종목·기준일·가격·손절·상태 메타데이터와 해시를 JSON과 대조했다. 임의의 매수 PNG를 만들거나 과거 결과를 현재 채팅에 보내지 않았다.
+- 별도 **합성** TOP5 5개는 PNG **5장**·CSV **5행**·JSON/PNG 값·해시 일치와 Telegram **DRY_RUN**을 통과했다. 실제 종목 선정 결과와 분리한다.
+- 실제 전달 상태 **CASH**, 실제 Telegram **0건**, 운영 전송 영수증/예약 생성 **0건**. 실제 API 응답·message_id·SENT는 **미검증**이다.
+- 기존 승인·중복 전송 방지·영수증 보호 회귀도 통과했다. HOLD/ERROR는 매수 이미지 발송 전에 차단하며, 정상 HOLD와 시스템 오류의 기존 운영 결과 계약을 보존한다.
 
-main·운영 원장·모든 기존 receipts 파일 변경 없음. 원장 SHA-256 `c6f7cae01241f50e21443b66957115aed4ae711409e7ee67bf8a621a66ee9270`, 기존 20261119 영수증 `9fb797c04cb374d9e3c76607daffc5e7b1df20a94c73f5bdf3fdc9e54f972792`, 기술 계산 파일 `bd527819f2958faa1d59f08f79c384712a0f2bc981e34802600c5934fc066ea2`, 세션 정책 `5b90931ef2767af4f1be0105e4b6c4ac9735943859bcec110bcd1cad76f54fc6` 보존을 확인했다.
+## E. 운영 적용 준비와 일정
 
-1. **필수 기능 오류**: 이번 실제 11/23 경로에서 미해결 차단 오류 없음. 운영 main 적용은 별도 승인과 배포 판단이 남아 있어 수행하지 않았다.
-2. **운영 제한/후속 확인**: 새 08:00 실제 schedule 관찰, 승인된 경로의 실제 Telegram 전송, 08:45 본문의 구시각 및 새 정책 정합성, 11/24 이후 실제 자료. 4개 관찰 기업은 향후 진입 후보가 될 때 재무 검토를 완료해야 한다.
-3. **유지한 자료 한계**: 수집 시각을 과거 공시일로 소급하지 않으며 불변 PIT 완전 재현을 주장하지 않는다. 기존 정규장·기업행위 독립 인증 미검증 플래그를 유지하고 가격 이상/불완전 시리즈를 제외한다.
-4. **현재 불필요**: 전 재무 엔진 재개발, 모든 업종 주석 완전 자동화, 새 유료 API·서버·키움 연결, 수익률 백테스트·가상매매·자동 주문. 추가하지 않았다.
+판정은 검증한 PR 코드 기준 **PRODUCTION_READY_WITH_LIMITATIONS**다. main 배포 완료 또는 실제 전송 검증 완료를 뜻하지 않는다.
 
-검증한 PR 코드의 판정은 **PRODUCTION_READY_WITH_LIMITATIONS**다. 실제 main 배포 완료나 Telegram 실발송 검증 완료를 뜻하지 않는다.
+- 최신 main의 `cron: '0 23 * * 1-5'` = KST 화~토 **08:00**, 기존 concurrency(cancel-in-progress false)·35분 timeout·권한·Secret 경계를 유지했다.
+- 새 08:00 실제 schedule은 **11/25 첫 관찰 대기**다. 이번 실행의 event는 **pull_request**이며 schedule 성공으로 표시하지 않는다.
+- 최근 schedule 100개에서 대상 workflow는 [11/20 성공 44664347776](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/44664347776)과 [11/21 실패 44859198911](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/44859198911)을 확인했다. 11/21은 KST 12:04 생성 후 전달 manifest 검사에서 실패했다. GitHub 내부 지연/누락 원인은 확정하지 못했다.
+- 08:45 확인은 **활성 / 월~금 / 다음 11/25 08:45 KST**다. 기존 본문의 구 07:00 설명을 확인했다. 일정·활성·본문을 이 세션에서 변경하지 않았다.
+- [본문 교체안](C3_TOP5_MORNING_CHECK_PROMPT_20261124.md)을 실제 검토 가능한 형태로 준비했다. 기존 알람 한 개의 본문만 수정하고 시간/활성 상태를 유지하는 안이다. 새 `operational_status`, `approval_required_count`, `approval_financial_complete`, `nonblocking_financial_unverified_codes`, `delivery_result.json`을 읽도록 명시한다.
+- 다음 운영일에는 main/run SHA·실제 schedule 생성/완료·기준일·시장/60봉·승인 필수 범위·최종 상태·전달/영수증·Artifact를 확인해야 한다. 08:45까지 생성/완료가 없으면 관찰 대기로 처리하고 자동 재전송하지 않는다.
+
+## F. 남은 작업 구분
+
+1. **운영 적용 전**: PR #202 최종 검증 코드/HEAD에 대한 **main 병합 승인**이 필요하다. 08:45 본문 교체안 반영도 기존 운영 설정 변경이므로 명시적 승인 후 적용한다. 현재 둘 다 수행하지 않았다. 이번 실제 경로의 미해결 코드 차단 오류는 없다.
+2. **운영하며 확인**: 새 08:00 schedule의 실제 실행, 승인된 시험 경로의 Telegram 실응답/영수증, 11/24 이후 데이터. 미확인 4개 기업은 향후 진입 후보가 될 때 필수 심사 완료 전 HOLD한다. 기존 21:00 KST 기준일 정책을 보존해 이번 세션에서 11/24 종가 추가 수집은 하지 않았다.
+3. **현재 불필요**: 모든 비승인 기업의 재무 완벽 수집, 재무/기술 알고리즘 전면 재개발, 새 유료 API·서버·키움 연결, 수익률 백테스트·가상매매·자동 주문·새 알람. 수행하지 않았다.
+
+main·원장·기존 receipts 파일 변경 없음. 원장 SHA-256 `c6f7cae01241f50e21443b66957115aed4ae711409e7ee67bf8a621a66ee9270`, 기존 20261119 영수증 `9fb797c04cb374d9e3c76607daffc5e7b1df20a94c73f5bdf3fdc9e54f972792`를 유지했다. 기술 계산·재무 엔진·정규화·승인 정책·세션 정책 파일은 시작 코드와 동일하다.
