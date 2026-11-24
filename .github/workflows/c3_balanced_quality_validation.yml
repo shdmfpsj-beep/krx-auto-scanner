@@ -44,7 +44,7 @@ jobs:
       - name: Detect executable changes and avoid repeating APIs for documentation
         id: changes
         env:
-          BEFORE_SHA: ${{ github.event.before }}
+          BEFORE_SHA: ${{ github.event.before || github.event.pull_request.base.sha }}
         run: |
           python - <<'PY'
           import os,subprocess

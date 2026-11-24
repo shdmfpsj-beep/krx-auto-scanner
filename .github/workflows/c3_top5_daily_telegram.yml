@@ -1010,7 +1010,7 @@ jobs:
         if: always()
         continue-on-error: true
         env:
-          C3_WATCH_UPSTREAM_SUCCESS: ${{ success() }}
+          C3_WATCH_UPSTREAM_SUCCESS: ${{ job.status == 'success' }}
         run: PYTHONPATH=scripts python scripts/c3_watch5_delivery.py
       - name: Upload individual classic images and audit receipt
         if: always()

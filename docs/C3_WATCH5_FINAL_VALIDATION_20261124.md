@@ -105,3 +105,33 @@ alerts are added. Next scheduled run is November25 08:00 KST, expected target
 November24; actual GitHub scheduling can be delayed. First actual scheduled WATCH
 photo/message ID remains an operational observation. The earlier connection TEST
 is not repeated. No new selection algorithm, API, backtest or order logic is added.
+
+
+## Post-merge operating definition repair
+
+PR #203 merged as `8487de1f93ce01403a6fc266bb9cce5fb1057ee1`. Its isolated WATCH
+execution and295 regressions succeeded, but the actual operating workflow parser
+rejected the newly added status function in a step environment. The observed
+[run45398139084](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45398139084)
+annotation was:
+
+`(Line: 1013, Col: 38): Unrecognized function: 'success'. Located at position 1 within expression: success()`
+
+No operating job started and no Telegram send or reservation occurred. The
+minimal repair changes only the environment expression to
+`job.status == 'success'`. The existing regression now also rejects status-check
+functions in env mappings, where GitHub disallows them, while preserving the
+normal `always()` step condition. This repair is submitted through a separate
+normal PR, with no forced push/merge. The final closeout uses its successful
+checks and repaired-main validation; the earlier invalid-definition run is not
+reported as a successful operating execution.
+
+
+The fixed-date November24 live check is restricted to the explicitly titled
+initial #203 release merge, so future delivery edits do not repeatedly collect
+that historical date. The first main check reached HOLD_DATA_INCOMPLETE at KRX
+collection; it did not manufacture a November24 result or send Telegram. The
+repair validates the unchanged engine with the verified artifact and does not
+retry unavailable data automatically. On a new delivery-only PR, the existing
+change detector falls back to the actual PR base SHA when event.before is absent;
+financial/technical/config changes still require its normal validation.

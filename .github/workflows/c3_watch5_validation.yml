@@ -68,7 +68,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python scripts/c3_watch5_validation.py --source output/c3_watch5_source/c3_balanced_validation --out output/c3_watch5_replay --asof 20261123
       - name: Run November 24 actual KRX and OpenDART on merged main under manual DRY_RUN boundary
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'C3 TOP5 + WATCH5 final validated production release')
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
