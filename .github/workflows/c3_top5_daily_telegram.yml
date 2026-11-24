@@ -341,6 +341,7 @@ jobs:
                 'raw_entry_low':round(raw_lo) if raw_lo is not None else None,
                 'raw_entry_high':round(raw_hi) if raw_hi is not None else None,
                 'raw_structural_stop':round(raw_stop) if raw_stop is not None else None,
+                'rejected_structural_stop_ref':zone['structural_stop'],
                 'price_tick_policy':'KRX_EQUITY_DIRECTIONAL_V1',
                 'entry_method':'CONFIRMED_PIVOT_ATR_ZONE_V1',
                 'entry_gap_pct':round(entry_gap_pct,2) if entry_gap_pct is not None else None,
@@ -385,6 +386,7 @@ jobs:
                 'entry_low':x['entry_watch_low'],'entry_high':x['entry_watch_high'],
                 'attempted_entry_low':x['attempted_entry_low'],'attempted_entry_high':x['attempted_entry_high'],
                 'structural_stop_diagnostic':x['raw_structural_stop'],
+                'rejected_structural_stop_ref':x['rejected_structural_stop_ref'],
                 'close':x['close'],'r1_ref':x['r1_ref'],'r2_ref':x['r2_ref'],
                 'geometry_validated':x['geometry_validated'],
                 'pivot_support':x['pivot_support'],'atr14':x['atr14'],
@@ -737,10 +739,10 @@ jobs:
             receipt=json.loads((root/'receipt.json').read_text())
             result['operational_status']=selection.get('operational_status')
             result['financial_decision_counts']=selection.get('financial_decision_counts',{})
-            if selection.get('status')=='REVIEW_REQUIRED' and selection.get('operational_status')=='HOLD_FINANCIAL_UNVERIFIED':
+            if selection.get('status')=='REVIEW_REQUIRED' and selection.get('operational_status') in ('HOLD_FINANCIAL_UNVERIFIED','HOLD_DATA_INCOMPLETE'):
               if selection.get('selected') or selection.get('signals') or selection.get('selected_count',0)!=0:
                 raise ValueError('HOLD_WITH_BUY_SIGNALS_FORBIDDEN')
-              result.update(status='HOLD_FINANCIAL_UNVERIFIED',asof=receipt.get('asof'),decision='REVIEW_REQUIRED',
+              result.update(status=selection['operational_status'],asof=receipt.get('asof'),decision='REVIEW_REQUIRED',
                             signals=[],financial_coverage_complete=False)
               raise StopIteration('FINANCIAL_REVIEW_REQUIRED_NO_SEND')
             if selection.get('status')=='ERROR_FINANCIAL_EVIDENCE':
@@ -837,12 +839,12 @@ jobs:
             raise ValueError('SOURCE_DATE_OR_SESSION_MISMATCH')
           if source.get('market_rows_min',{}).get('KOSPI',0)<500 or source.get('market_rows_min',{}).get('KOSDAQ',0)<800:
             raise ValueError('MARKET_COVERAGE_BELOW_FLOOR')
-          if manifest.get('status')=='HOLD_FINANCIAL_UNVERIFIED':
+          if manifest.get('status') in ('HOLD_FINANCIAL_UNVERIFIED','HOLD_DATA_INCOMPLETE'):
             if (manifest.get('asof')!=report.get('asof') or manifest.get('decision')!='REVIEW_REQUIRED'
                 or manifest.get('selected') or manifest.get('images') or manifest.get('signals')
                 or any(row.get('top5') for row in report.get('candidates',[]))):
               raise ValueError('INVALID_HOLD_DELIVERY_MANIFEST')
-            save_delivery('HOLD',stage='FINANCIAL_VERIFICATION',operational_status='HOLD_FINANCIAL_UNVERIFIED')
+            save_delivery('HOLD',stage='FINANCIAL_VERIFICATION',operational_status=manifest['status'])
             print('C3_FINANCIAL_HOLD_NO_SEND')
             raise SystemExit(0)
           if manifest.get('status') not in ('FINANCE_FIRST_PREVIEW_READY_NO_SEND','CASH_NO_FINANCIAL_CANDIDATES'):

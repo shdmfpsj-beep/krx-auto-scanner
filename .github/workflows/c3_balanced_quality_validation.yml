@@ -6,6 +6,7 @@ on:
       - 'scripts/c3_entry_geometry.py'
       - 'scripts/c3_candidate_decisions.py'
       - 'scripts/test_c3_operational_integration.py'
+      - 'scripts/test_c3_approval_scope.py'
       - 'scripts/test_c3_dart_normalization.py'
       - '.github/workflows/c3_top5_daily_telegram.yml'
       - 'scripts/test_c3_balanced_financials.py'
@@ -69,7 +70,7 @@ jobs:
       - name: Offline finance, technical regression and delivery boundary tests
         if: steps.changes.outputs.execute == 'true'
         run: |
-          PYTHONPATH=scripts python -m unittest -v test_c3_dart_normalization test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
+          PYTHONPATH=scripts python -m unittest -v test_c3_approval_scope test_c3_dart_normalization test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence
       - name: Retain synthetic Balanced TOP5 image and Telegram DRY_RUN proof
         if: steps.changes.outputs.execute == 'true'
         run: |
@@ -127,7 +128,7 @@ jobs:
           C3_SOURCE_ARTIFACT_SHA256: '692d1732a7395989842f5b330167b6610921293df35096889bf7ecf18bac35a7'
           C3_SOURCE_RUN_ID: '45294238532'
         run: |
-          PYTHONPATH=scripts python scripts/c3_balanced_validation.py --source output/c3_prior_validation --require-latest-source --out output/c3_balanced_validation --cache output/c3_balanced_cache
+          PYTHONPATH=scripts python scripts/c3_balanced_validation.py --source output/c3_prior_validation --require-latest-source --out output/c3_balanced_validation --cache output/c3_balanced_cache --operational-exit-codes
       - name: Inspect official borrowing interest and liquidity note source availability
         if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_validation/financial_pool_gate.json') != '' }}
         env:

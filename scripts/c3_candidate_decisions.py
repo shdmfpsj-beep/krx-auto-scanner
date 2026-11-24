@@ -18,6 +18,7 @@ def report(receipt, geometry, selection, financial):
             verdict = 'ERROR'
         reasons = list(c.get('rejection_reasons', []))
         risk = item.get('risk_assessment', {})
+        scope=selection.get('technical_approval_scope',{}).get(c['code'],{})
         reasons += item.get('exclusion_reasons', [])
         reasons += risk.get('mandatory_missing', [])
         if item.get('error'):
@@ -52,6 +53,9 @@ def report(receipt, geometry, selection, financial):
             attempted_entry_high=c.get('attempted_entry_high', c.get('entry_high')),
             structural_stop_diagnostic=c.get('structural_stop_diagnostic'),
             technical_status=c.get('entry_status'), status=state,
+            approval_scope='REQUIRED' if scope.get('required') else 'NOT_REQUIRED' if scope.get('verified') else 'UNVERIFIED',
+            financial_blocks_execution=c['code'] in selection.get('approval_required_codes',[]) and verdict in ('ERROR','REVIEW_REQUIRED'),
+            approval_scope_reason=scope.get('reason'),
             top5=any(x['code']==c['code'] for x in selection.get('selected', [])),
             reasons=list(dict.fromkeys(reasons))))
     integrity = receipt.get('source_integrity', {})
@@ -70,6 +74,10 @@ def report(receipt, geometry, selection, financial):
         technical_watch=sum(c.get('geometry_validated') and c.get('entry_status')=='WATCH'
                             for c in geometry.get('candidates', [])),
         final_top5=selection.get('selected_count', 0))
+    summary.update(approval_required=selection.get('approval_required_count'),
+        approval_financial_complete=selection.get('approval_financial_complete'),
+        nonblocking_financial_unverified=len(selection.get('nonblocking_financial_unverified_codes',[])),
+        comparison_conservative_operational_status=selection.get('comparison_conservative_operational_status'))
     outcome = selection.get('operational_status', 'ERROR')
     reason = ('NO_FINANCIAL_AND_TECHNICAL_ENTRY_INTERSECTION' if outcome=='CASH_NO_ELIGIBLE'
               else 'MANDATORY_FINANCIAL_EVIDENCE_PENDING' if outcome=='HOLD_FINANCIAL_UNVERIFIED'
@@ -84,7 +92,7 @@ def save(root, result):
     (root/'candidate_decisions.json').write_text(json.dumps(result, ensure_ascii=False, indent=2)+'\n')
     fields = ['name','code','technical_score','financial_verdict','financial_quality_score',
               'entry_low','entry_high','stop_ref','risk_pct','status','top5','reasons',
-              'annual_filing_date','interim_filing_date']
+              'annual_filing_date','interim_filing_date','approval_scope','financial_blocks_execution','approval_scope_reason']
     with (root/'candidate_decisions.csv').open('w', newline='', encoding='utf-8-sig') as stream:
         writer = csv.DictWriter(stream, fieldnames=fields, extrasaction='ignore')
         writer.writeheader()

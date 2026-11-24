@@ -206,7 +206,8 @@ def main():
         result = collect_balanced(day, stocks, key,
             datetime.now(ZoneInfo("Asia/Seoul")).date(), SnapshotCache(args.cache))
         result['request_scope'] = receipt.get('request_scope', 'EXECUTABLE_ENTRIES')
-        result['aggregate_policy']='ISOLATED_ISSUER_FAILURES_V1'
+        from c3_top5_financial_selection import APPROVAL_POLICY
+        result['aggregate_policy']=APPROVAL_POLICY
     else:
         result = bridge(receipt, key)
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -17,7 +17,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from c3_balanced_financials import collect_balanced, SnapshotCache
-from c3_top5_financial_selection import financial_review_candidates, REVIEW_SCOPE, select
+from c3_top5_financial_selection import financial_review_candidates, REVIEW_SCOPE, APPROVAL_POLICY, select
 from c3_all_candidate_report import image_identity
 from c3_entry_geometry import sanitize_archived_geometry, audit_archived_zone
 from c3_candidate_decisions import report as decision_report, save as save_decisions
@@ -143,6 +143,7 @@ def run(root, cache_root, source=None, live=False):
             check = next((z for z in zone_audits if z['code']==c['code']),None)
             if check:
                 c['structural_stop_diagnostic']=check['structural_stop']
+                c['rejected_structural_stop_ref']=check['structural_stop']
         if not (REPO/'receipts/c3_top5_daily').is_dir() or not (REPO/'reports/c3_paper/paper_ledger.json').is_file():
             raise ValueError('SIGNAL_HISTORY_SOURCE_MISSING')
         blocked = recent_signals(pool['asof'], sessions, REPO/'receipts/c3_top5_daily',
@@ -155,7 +156,7 @@ def run(root, cache_root, source=None, live=False):
         stocks = [{'ticker': c['code'], 'name': c.get('name', '')} for c in financial_review_candidates(geometry)]
         financial = collect_balanced(asof, stocks, key, datetime.now(ZoneInfo('Asia/Seoul')).date(), SnapshotCache(cache_root))
         financial['request_scope'] = REVIEW_SCOPE
-        financial['aggregate_policy']='ISOLATED_ISSUER_FAILURES_V1'
+        financial['aggregate_policy']=APPROVAL_POLICY
         write(root/'financial_pool_input.json', {'asof':pool['asof'], 'request_scope':REVIEW_SCOPE,
             'candidates':[{'code':s['ticker'],'name':s['name']} for s in stocks]})
         selection = select(geometry, financial)
@@ -234,6 +235,10 @@ def run(root, cache_root, source=None, live=False):
             financial_evidence_status=financial['status'],
             financial_decision_counts=selection.get('financial_decision_counts',{}),
             operational_status=selection.get('operational_status'), candidate_summary=decisions['summary'],
+            approval_required_count=selection.get('approval_required_count'),
+            approval_financial_complete=selection.get('approval_financial_complete'),
+            nonblocking_financial_unverified_codes=selection.get('nonblocking_financial_unverified_codes',[]),
+            comparison_conservative_operational_status=selection.get('comparison_conservative_operational_status'),
             source_provenance={'price_artifact_sha256':os.environ.get('C3_SOURCE_ARTIFACT_SHA256'),
                                'price_source_run_id':os.environ.get('C3_SOURCE_RUN_ID')})
     except Exception as exc:
@@ -245,6 +250,16 @@ def run(root, cache_root, source=None, live=False):
     return summary
 
 
+def exit_code(result, operational=False):
+    # Preserve the old exit-2 contract for existing external callers.
+    if not operational:
+        return 1 if result.get('status')=='ERROR' else 2 if result.get('status')=='REVIEW_REQUIRED' else 0
+    if result.get('operational_status')=='ERROR' or (result.get('status')=='ERROR' and
+        result.get('operational_status')!='HOLD_DATA_INCOMPLETE'):return 1
+    holding=str(result.get('operational_status','')).startswith('HOLD_') or result.get('status')=='REVIEW_REQUIRED'
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--out', type=Path, required=True)
@@ -252,6 +267,8 @@ def main():
     parser.add_argument('--source', type=Path)
     parser.add_argument('--live', action='store_true')
     parser.add_argument('--require-latest-source',action='store_true')
+    parser.add_argument('--operational-exit-codes',action='store_true',
+        help='Completed HOLD is exit 0 with an explicit outcome; ERROR stays nonzero. Default keeps exit 2.')
     args = parser.parse_args()
     if args.require_latest_source and args.source:
         from c3_top5_session_policy import session_plan
@@ -261,7 +278,17 @@ def main():
             print('ARCHIVED_PRICE_NOT_LATEST_COLLECT_FRESH',source_day,latest)
             args.source=None;args.live=True
     result = run(args.out, args.cache, args.source, args.live)
-    raise SystemExit(1 if result['status'] == 'ERROR' else 2 if result['status']=='REVIEW_REQUIRED' else 0)
+    outcome=dict(operational_status=result.get('operational_status'),
+        program_status='ERROR' if exit_code(result,True)==1 else 'COMPLETED',
+        exit_code=exit_code(result,args.operational_exit_codes),compatibility_exit_code=exit_code(result),
+        telegram_photos_sent=result.get('telegram_photos_sent',0),
+        delivery_permitted=result.get('operational_status')=='TOP5_READY')
+    write(args.out/'execution_outcome.json',outcome)
+    print('C3_EXECUTION_OUTCOME',json.dumps(outcome,ensure_ascii=False))
+    if os.environ.get('GITHUB_STEP_SUMMARY'):
+        with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+            f.write('### C3 operational outcome\n\n'+json.dumps(outcome,ensure_ascii=False)+'\n')
+    raise SystemExit(outcome['exit_code'])
 
 
 if __name__ == '__main__':

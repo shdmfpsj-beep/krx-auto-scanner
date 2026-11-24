@@ -223,6 +223,7 @@ class SnapshotCache:
             self.events.append({'endpoint':endpoint,'state':'ERROR','expected_receipt':receipt,
                 'observed_at':self.clock().isoformat(),'error_class':type(exc).__name__,
                 'transport_reason_class':type(getattr(exc,'reason',None)).__name__})
+            self.events[-1]['http_status']=getattr(exc,'code',None)
             raise
         if not isinstance(payload, dict):
             raise ValueError("INVALID_DART_RESPONSE")
