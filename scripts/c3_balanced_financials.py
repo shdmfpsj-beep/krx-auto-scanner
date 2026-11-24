@@ -8,6 +8,8 @@ Snapshots are keyed by actual filing receipt and statement division, not ticker.
 import hashlib
 import json
 import re
+import time
+import urllib.error
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -48,6 +50,24 @@ DEBT_IDS = (
 )
 DEBT_LABELS = ({'단기차입금'}, {'유동성장기차입금'},
                {'장기차입금'}, {'사채'})
+
+
+def retry_network(operation, pause=time.sleep):
+    """Retry transient transport failures only; never retry invalid evidence.
+
+    Do not log authenticated request URLs or use an older successful statement
+    to conceal a failed current request.
+    """
+    for attempt in range(3):
+        try:
+            return operation()
+        except urllib.error.HTTPError as exc:
+            if exc.code not in (408, 429, 500, 502, 503, 504) or attempt==2:
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt==2:
+                raise
+        pause(attempt+1)
 
 
 def direct_account(rows, ids, section, field, labels):
@@ -96,6 +116,33 @@ class SnapshotCache:
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.events = []
 
+    def listed_corps(self, key, fetch):
+        """24-hour routing-only cache, independently checked by company.json.
+
+        Corporate-code routing is not dated financial evidence. Never backdate
+        its observation time. Expired maps are refreshed, with no stale fallback.
+        """
+        path = self.root/'listed_corp_codes.json'
+        now = self.clock()
+        if path.is_file():
+            record = json.loads(path.read_text())
+            if record.get('endpoint')!='corpCode.xml' or digest(record.get('mapping'))!=record.get('sha256'):
+                raise ValueError('CORPCODE_CACHE_INTEGRITY_ERROR')
+            age = (now-datetime.fromisoformat(record['observed_at'])).total_seconds()
+            if 0<=age<86400:
+                self.events.append({'endpoint':'corpCode.xml','state':'HIT','observed_at':record['observed_at'],
+                                    'sha256':record['sha256']})
+                return record['mapping']
+        mapping = retry_network(lambda:fetch(key))
+        if not mapping or not isinstance(mapping,dict) or any(
+            not re.fullmatch(r'[0-9A-Z]{6}',str(k)) or not re.fullmatch(r'\d{8}',str(v)) for k,v in mapping.items()):
+            raise ValueError('INVALID_CORPCODE_MAP')
+        self.root.mkdir(parents=True, exist_ok=True)
+        record = dict(endpoint='corpCode.xml',observed_at=now.isoformat(),sha256=digest(mapping),mapping=mapping)
+        path.write_text(json.dumps(record, ensure_ascii=False, sort_keys=True))
+        self.events.append({k:v for k,v in {**record,'state':'FETCH'}.items() if k!='mapping'})
+        return mapping
+
     def request(self, endpoint, params, key, request, receipt=None):
         identity = {"endpoint": endpoint, "params": params, "receipt": receipt}
         path = self.root / (digest(identity) + ".json")
@@ -106,7 +153,7 @@ class SnapshotCache:
             self.events.append({"endpoint": endpoint, "state": "HIT", "sha256": record["sha256"],
                                 "observed_at": record["observed_at"]})
             return record["payload"]
-        payload = request(endpoint, params, key)
+        payload = retry_network(lambda:request(endpoint, params, key))
         if not isinstance(payload, dict):
             raise ValueError("INVALID_DART_RESPONSE")
         stamp = self.clock().isoformat()
@@ -459,7 +506,7 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
         result["error"] = "INVALID_DATE_OR_DART_KEY"
         return result
     try:
-        corps = get_corps(key)
+        corps = cache.listed_corps(key, get_corps)
     except Exception as exc:
         result["error"] = "CORPCODE_" + type(exc).__name__
         return result

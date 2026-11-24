@@ -8,10 +8,45 @@ from datetime import date
 from c3_entry_geometry import entry_zone, executable, sanitize_archived_geometry
 from c3_top5_financial_selection import select, financial_review_candidates, REVIEW_SCOPE
 from c3_candidate_decisions import report, save
+from c3_balanced_financials import retry_network, SnapshotCache
+from datetime import datetime, timezone, timedelta
+from urllib.error import URLError, HTTPError
 from test_c3_top5_financial_selection import candidate, record, evidence, ASOF
 
 
 class OperationalTests(unittest.TestCase):
+    def test_transient_network_failure_retries_but_not_bad_evidence(self):
+        calls=[]
+        def transport():
+            calls.append(1)
+            if len(calls)<3: raise URLError('temporary')
+            return 'success'
+        pauses=[]
+        self.assertEqual(retry_network(transport,pauses.append),'success')
+        self.assertEqual(pauses,[1,2])
+        def invalid(): raise ValueError('RECEIPT_MISMATCH')
+        with self.assertRaises(ValueError):retry_network(invalid,pauses.append)
+        def denied():raise HTTPError('redacted',403,'denied',{},None)
+        with self.assertRaises(HTTPError):retry_network(denied,pauses.append)
+        self.assertEqual(pauses,[1,2])
+
+    def test_corporate_map_cache_hash_ttl_and_failure_boundaries(self):
+        with TemporaryDirectory() as tmp:
+            now=datetime(2026,11,24,tzinfo=timezone.utc)
+            cache=SnapshotCache(tmp,clock=lambda:now)
+            calls=[]
+            def fetch(key):calls.append(1);return {'111111':'00000001'}
+            self.assertEqual(cache.listed_corps('redacted',fetch),{'111111':'00000001'})
+            self.assertEqual(cache.listed_corps('redacted',fetch),{'111111':'00000001'})
+            self.assertEqual(len(calls),1)
+            cache.clock=lambda:now+timedelta(days=2)
+            cache.listed_corps('redacted',fetch)
+            self.assertEqual(len(calls),2)
+            path=Path(tmp)/'listed_corp_codes.json'
+            r=json.loads(path.read_text());r['mapping']['111111']='00000002';path.write_text(json.dumps(r))
+            with self.assertRaisesRegex(ValueError,'CACHE_INTEGRITY'):
+                cache.listed_corps('redacted',fetch)
+
     def test_actual_airline_support_conflicts_with_ceiling(self):
         # Observed 11/23 rounded bounds: 30,350 > 30,200 and 8,180 > 8,110.
         for support, ma20, atr in ((30350, 29856, 1571.43), (8180, 8004, 460)):
