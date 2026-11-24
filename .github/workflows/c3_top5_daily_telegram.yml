@@ -15,15 +15,15 @@ on:
         default: false
         type: boolean
       financial_model:
-        description: 'Manual financial preview model; scheduled operation retains legacy until separately activated'
+        description: 'Financial model; balanced reviews the technical interest pool, legacy remains available'
         required: false
-        default: legacy
+        default: balanced
         type: choice
         options: [legacy, balanced]
   schedule:
-    # KST 07:00 Tuesday-Saturday (previous KRX trading day); GitHub scheduling can be delayed.
-    # 22:00 UTC Monday-Friday = 07:00 KST next calendar day.
-    - cron: '0 22 * * 1-5'
+    # KST 08:00 Tuesday-Saturday (previous KRX trading day); GitHub scheduling can be delayed.
+    # 23:00 UTC Monday-Friday = 08:00 KST next calendar day.
+    - cron: '0 23 * * 1-5'
 permissions:
   contents: write
 concurrency:
@@ -41,7 +41,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       GH_TOKEN: ${{ github.token }}
-      C3_FINANCIAL_MODEL: ${{ inputs.financial_model || 'legacy' }}
+      C3_FINANCIAL_MODEL: ${{ inputs.financial_model || 'balanced' }}
     steps:
       - name: Use the validated Python runtime
         uses: actions/setup-python@v5
@@ -73,12 +73,13 @@ jobs:
           end=next(i for i in range(start,len(lines)) if lines[i].strip()=='PY')
           code='\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end])
           ast.parse(code,filename='c3_top5_embedded.py')
-          policy_url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/scripts/c3_top5_session_policy.py?ref='+os.environ['GITHUB_SHA']
-          req=urllib.request.Request(policy_url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
-          with urllib.request.urlopen(req,timeout=20) as r:policy=base64.b64decode(json.load(r)['content']).decode()
-          ast.parse(policy,filename='c3_top5_session_policy.py')
           Path('scripts').mkdir(exist_ok=True)
-          Path('scripts/c3_top5_session_policy.py').write_text(policy)
+          for module in ('c3_top5_session_policy.py','c3_entry_geometry.py'):
+            url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/contents/scripts/'+module+'?ref='+os.environ['GITHUB_SHA']
+            req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+            with urllib.request.urlopen(req,timeout=20) as r:module_code=base64.b64decode(json.load(r)['content']).decode()
+            ast.parse(module_code,filename=module)
+            Path('scripts',module).write_text(module_code)
           print('EMBEDDED_PYTHON_SYNTAX_OK')
           PY
         env:
@@ -274,27 +275,10 @@ jobs:
               # No valid support -> no invented entry/stop.
               # Exchange tick ladder for ordinary KOSPI/KOSDAQ shares.
               # Rounding is directional: do not raise entry ceiling or lower stop.
-              def tick(p):
-                return (1 if p<2000 else 5 if p<5000 else 10 if p<20000
-                  else 50 if p<50000 else 100 if p<200000 else 500 if p<500000 else 1000)
-              def executable(p,direction):
-                if p is None:return None
-                import decimal
-                v=decimal.Decimal(str(p))
-                # Iterate to respect tick changes at price-band boundaries.
-                unit=tick(float(v))
-                mode=decimal.ROUND_CEILING if direction=='up' else decimal.ROUND_FLOOR
-                q=int((v/decimal.Decimal(unit)).to_integral_value(rounding=mode))*unit
-                while tick(q)!=unit:
-                  unit=tick(q)
-                  q=int((v/decimal.Decimal(unit)).to_integral_value(rounding=mode))*unit
-                return q
-              raw_lo=max(support,ma20-.5*atr14) if support is not None else None
-              raw_hi=min(ma20+.25*atr14,raw_lo+.6*atr14) if raw_lo is not None else None
-              raw_stop=support-.5*atr14 if support is not None else None
-              entry_lo=executable(raw_lo,'up')
-              entry_hi=executable(raw_hi,'down')
-              stop=executable(raw_stop,'up')
+              from c3_entry_geometry import entry_zone, executable
+              zone=entry_zone(support,ma20,atr14)
+              raw_lo,raw_hi,raw_stop=zone['raw_low'],zone['raw_high'],zone['raw_stop']
+              entry_lo,entry_hi,stop=zone['entry_low'],zone['entry_high'],zone['structural_stop']
               high=max(x[1] for x in a[-20:])
               # Prior resistance must be above entry; use only completed sessions.
               r1=executable(high,'down') if entry_hi is not None and high>entry_hi else None
@@ -323,7 +307,7 @@ jobs:
               # All risk, proximity, RR and selection decisions above use executable prices.
               # Independent rejection reasons; preserve raw metrics for audits.
               reasons=[]
-              if support is None:reasons.append('NO_NEARBY_CONFIRMED_SUPPORT')
+              if zone['rejection_reason']:reasons.append(zone['rejection_reason'])
               if entry_lo is None or entry_hi is None or entry_lo>=entry_hi:reasons.append('INVALID_ENTRY_ZONE')
               if stop is None or entry_lo is None or stop>=entry_lo:reasons.append('INVALID_STOP_STRUCTURE')
               if risk_at_entry is None:reasons.append('RISK_NOT_COMPUTABLE')
@@ -353,6 +337,7 @@ jobs:
                 'close':round(last),'ma20':round(ma20),'low10':round(low),'high20':round(high),
                 'rvol':round(rvol,2),'rs20pp':round(rs*100,2),'stop_distance_pct':round(risk*100,2),
                 'entry_watch_low':entry_lo,'entry_watch_high':entry_hi,
+                'attempted_entry_low':zone['attempted_low'],'attempted_entry_high':zone['attempted_high'],
                 'raw_entry_low':round(raw_lo) if raw_lo is not None else None,
                 'raw_entry_high':round(raw_hi) if raw_hi is not None else None,
                 'raw_structural_stop':round(raw_stop) if raw_stop is not None else None,
@@ -398,6 +383,8 @@ jobs:
                 'financial_quality_status':x['financial_quality_status'],
                 'status':x['status'],'rejection_reasons':x['rejection_reasons'],
                 'entry_low':x['entry_watch_low'],'entry_high':x['entry_watch_high'],
+                'attempted_entry_low':x['attempted_entry_low'],'attempted_entry_high':x['attempted_entry_high'],
+                'structural_stop_diagnostic':x['raw_structural_stop'],
                 'close':x['close'],'r1_ref':x['r1_ref'],'r2_ref':x['r2_ref'],
                 'geometry_validated':x['geometry_validated'],
                 'pivot_support':x['pivot_support'],'atr14':x['atr14'],
@@ -609,6 +596,8 @@ jobs:
             scripts/c3_top5_financial_selection.py
             scripts/c3_top5_financial_preview.py
             scripts/c3_top5_session_policy.py
+            scripts/c3_entry_geometry.py
+            scripts/c3_candidate_decisions.py
             scripts/dart_financial_screen.py
             scripts/dart_interim_periods.py
             scripts/c3_balanced_financials.py
@@ -642,7 +631,7 @@ jobs:
             PYTHONPATH=scripts python - <<'PY'
           import json
           from pathlib import Path
-          from c3_top5_financial_selection import requested_candidates
+          from c3_top5_financial_selection import requested_candidates, financial_review_candidates, REVIEW_SCOPE
           import os
           root=Path('output/c3_top5')
           geometry=json.loads((root/'entry_geometry_audit.json').read_text())
@@ -658,10 +647,12 @@ jobs:
             geometry['candidates']=[c for c in geometry['candidates'] if c['code'] not in blocked]
             (root/'entry_geometry_audit.json').write_text(json.dumps(geometry,ensure_ascii=False))
             (root/'duplicate_signal_audit.json').write_text(json.dumps({'blocked_codes':sorted(blocked),'sessions':20}))
+          broad=os.environ.get('C3_FINANCIAL_MODEL')=='balanced'
           eligible=[{'code':c['code'],'name':c.get('name','')}
-                    for c in requested_candidates(geometry)]
+                    for c in (financial_review_candidates(geometry) if broad else requested_candidates(geometry))]
           (root/'financial_pool_input.json').write_text(json.dumps({
-              'asof':geometry['asof'],'candidates':eligible},ensure_ascii=False))
+              'asof':geometry['asof'],'candidates':eligible,
+              'request_scope':REVIEW_SCOPE if broad else 'EXECUTABLE_ENTRIES'},ensure_ascii=False))
           PY
             PYTHONPATH=scripts python scripts/c3_top5_dart_bridge.py \
               --receipt output/c3_top5/financial_pool_input.json \
@@ -703,6 +694,10 @@ jobs:
           else
             echo 'FINANCIAL_SELECTION_SKIPPED_NO_GEOMETRY'
           fi
+      - name: Explain finance and entry decisions for every technical candidate
+        if: ${{ always() && hashFiles('output/c3_top5/financial_selection_research.json') != '' }}
+        run: |
+          PYTHONPATH=scripts python scripts/c3_candidate_decisions.py --root output/c3_top5
       - name: Rank every detected candidate and render every candidate image
         if: ${{ always() && hashFiles('output/c3_top5/qualified_chart_pool.json') != '' && hashFiles('output/c3_top5/financial_pool_gate.json') != '' }}
         run: |
@@ -723,6 +718,8 @@ jobs:
           try:
             selection=json.loads((root/'financial_selection_research.json').read_text())
             receipt=json.loads((root/'receipt.json').read_text())
+            result['operational_status']=selection.get('operational_status')
+            result['financial_decision_counts']=selection.get('financial_decision_counts',{})
             if selection.get('status')=='ERROR_FINANCIAL_EVIDENCE':
               result.update(status='ERROR_FINANCIAL_EVIDENCE',asof=receipt.get('asof'),
                             financial_evidence_status=selection.get('financial_evidence_status'),

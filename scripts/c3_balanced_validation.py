@@ -17,8 +17,10 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from c3_balanced_financials import collect_balanced, SnapshotCache
-from c3_top5_financial_selection import requested_candidates, select
+from c3_top5_financial_selection import financial_review_candidates, REVIEW_SCOPE, select
 from c3_all_candidate_report import image_identity
+from c3_entry_geometry import sanitize_archived_geometry
+from c3_candidate_decisions import report as decision_report, save as save_decisions
 
 REPO = Path(__file__).resolve().parents[1]
 WORKFLOW = REPO / '.github/workflows/c3_top5_daily_telegram.yml'
@@ -111,10 +113,12 @@ def run(root, cache_root, source=None, live=False):
                                   ('receipt', 'entry_geometry_audit', 'qualified_chart_pool')]
         if len({receipt.get('asof'), geometry.get('asof'), pool.get('asof')}) != 1:
             raise ValueError('SOURCE_ASOF_MISMATCH')
+        geometry = {**geometry, 'candidates': [sanitize_archived_geometry(c) for c in geometry.get('candidates', [])]}
         original_geometry={c['code']:c for c in geometry.get('candidates',[])}
         for row in pool.get('candidates',[]):
             source_geometry=original_geometry.get(row['code'],{})
             row['pivot_support']=source_geometry.get('pivot_support')
+            row['rejection_reasons']=source_geometry.get('rejection_reasons', [])
             row['technical_selection_reason']='EXISTING_C3_TREND_RS_RVOL_PULLBACK_GATE'
         integrity = receipt.get('source_integrity', {})
         if (receipt.get('status') == 'HOLD_ERROR' or integrity.get('session_count') != 60 or
@@ -134,8 +138,11 @@ def run(root, cache_root, source=None, live=False):
             'policy': 'READ_ONLY_EXISTING_RESERVATIONS_AND_LEDGER'})
         asof = datetime.strptime(pool['asof'], '%Y%m%d').date()
         key = os.environ.get('OPENDART_API_KEY') or os.environ.get('OPEN_DART_API_KEY') or os.environ.get('DART_API_KEY')
-        stocks = [{'ticker': c['code'], 'name': c.get('name', '')} for c in requested_candidates(geometry)]
+        stocks = [{'ticker': c['code'], 'name': c.get('name', '')} for c in financial_review_candidates(geometry)]
         financial = collect_balanced(asof, stocks, key, datetime.now(ZoneInfo('Asia/Seoul')).date(), SnapshotCache(cache_root))
+        financial['request_scope'] = REVIEW_SCOPE
+        write(root/'financial_pool_input.json', {'asof':pool['asof'], 'request_scope':REVIEW_SCOPE,
+            'candidates':[{'code':s['ticker'],'name':s['name']} for s in stocks]})
         selection = select(geometry, financial)
         selection.update(system_name='강현AI PRO · C3 TOP5 — Balanced Quality & Timing',
             stop_execution_rule='CLOSE_BELOW_STRUCTURAL_STOP_EXIT_NEXT_SESSION_MANUALLY',
@@ -144,6 +151,8 @@ def run(root, cache_root, source=None, live=False):
                             ('entry_geometry_audit', geometry), ('financial_pool_gate', financial),
                             ('financial_selection_research', selection)):
             write(root/(name+'.json'), value)
+        decisions = decision_report(receipt, geometry, selection, financial)
+        save_decisions(root, decisions)
         # Produce diagnostics even when finance is incomplete; no send is possible.
         args = [sys.executable, str(REPO/'scripts/c3_all_candidate_report.py'), '--pool', str(root/'qualified_chart_pool.json'),
                 '--selection', str(root/'financial_selection_research.json'), '--financial', str(root/'financial_pool_gate.json'),
@@ -192,6 +201,7 @@ def run(root, cache_root, source=None, live=False):
                 raise ValueError('DELIVERY_BOUNDARY_FAILED')
         delivery = json.loads((target/'delivery_result.json').read_text())
         write(root/'delivery_result.json', delivery)
+        shutil.copy2(target/'finance_first_delivery_manifest.json', root/'finance_first_delivery_manifest.json')
         summary.update(status='ERROR' if selection['decision'] == 'ERROR' else 'REVIEW_REQUIRED' if selection['decision']=='REVIEW_REQUIRED' else 'COMPLETE', asof=pool['asof'],
             decision=selection['decision'], source_integrity=integrity, technical_candidates=len(pool['candidates']),
             requested_financial=len(stocks), selected_codes=[x['code'] for x in selection['selected']],
@@ -199,10 +209,13 @@ def run(root, cache_root, source=None, live=False):
             delivery_status=delivery['status'], telegram_live_transport_verified=False,
             financial_evidence_status=financial['status'],
             financial_decision_counts=selection.get('financial_decision_counts',{}),
+            operational_status=selection.get('operational_status'), candidate_summary=decisions['summary'],
             source_provenance={'price_artifact_sha256':os.environ.get('C3_SOURCE_ARTIFACT_SHA256'),
                                'price_source_run_id':os.environ.get('C3_SOURCE_RUN_ID')})
     except Exception as exc:
         summary.update(status='ERROR', error=str(exc) if isinstance(exc, ValueError) else type(exc).__name__)
+        summary['operational_status'] = ('HOLD_DATA_INCOMPLETE' if isinstance(exc, ValueError) and
+            str(exc).startswith(('SOURCE_', 'SIGNAL_', 'LIVE_KRX_')) else 'ERROR')
     write(root/'validation_result.json', summary)
     print(json.dumps(summary, ensure_ascii=False))
     return summary

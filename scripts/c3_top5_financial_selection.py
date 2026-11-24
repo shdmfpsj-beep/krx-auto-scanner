@@ -11,6 +11,7 @@ ACCEPTED = {"FINANCIAL_RESEARCH_GATE_PASSED",
             "NEXT_DAY_FINANCIAL_RESEARCH_NOT_PIT_CERTIFIED",
             "HISTORICAL_DISCLOSURE_DATE_FILTERED_RESEARCH_ONLY"}
 FINANCIAL_CANDIDATE_LIMIT = 30
+REVIEW_SCOPE = 'TECHNICAL_INTEREST_POOL_V1'
 ANNUAL_POINTS = {"ANNUAL_GROWTH_AND_MARGIN_OBSERVED": 16,
                  "ANNUAL_POSITIVE_MIXED": 11, "ANNUAL_RISK_OR_SLOWDOWN": 5}
 INTERIM_POINTS = {"INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED": 14,
@@ -53,10 +54,22 @@ def valid_entry(c):
             entry_state(low, high, close) in ("ENTRY_READY", "NEAR_ENTRY"))
 
 def requested_candidates(geometry):
-    # Invalid/WATCH charts must not consume the bounded OpenDART call budget.
+    # Legacy executable-entry scope remains available for compatibility.
     candidates = [c for c in geometry.get("candidates", []) if valid_entry(c)]
     candidates.sort(key=lambda c: (0 if c["status"] == "ENTRY_READY" else 1,
         -float(c.get("opportunity_score") or 0), -float(c.get("score") or 0), c["code"]))
+    return candidates[:FINANCIAL_CANDIDATE_LIMIT]
+
+def financial_review_candidates(geometry):
+    """Review technical interest independently of whether an entry exists today.
+
+    Keep the existing API budget and prefer actionable entries before WATCH.
+    Geometry failures still cannot enter TOP5 after a financial PASS.
+    """
+    candidates = list(geometry.get('candidates', []))
+    candidates.sort(key=lambda c: (0 if valid_entry(c) and c.get('entry_status')=='ENTRY_READY'
+        else 1 if valid_entry(c) else 2, -float(c.get('opportunity_score') or 0),
+        -float(c.get('score') or 0), c['code']))
     return candidates[:FINANCIAL_CANDIDATE_LIMIT]
 
 def financial_points(item):
@@ -124,7 +137,8 @@ def classify(item, asof=None):
 def select(geometry, financial):
     asof = geometry.get("asof")
     candidates = geometry.get("candidates", [])
-    requested_rows = requested_candidates(geometry)
+    broad = financial.get('request_scope') == REVIEW_SCOPE
+    requested_rows = financial_review_candidates(geometry) if broad else requested_candidates(geometry)
     requested = {c["code"] for c in requested_rows}
     evidence = financial.get("researched", []) + financial.get("excluded", [])
     balanced = financial.get('model')=='BALANCED_QUALITY_TIMING_V1' or any(
@@ -141,9 +155,11 @@ def select(geometry, financial):
     geometry_error = any(isinstance(c, dict) and c.get("geometry_validated") and
         c.get("status") in ("ENTRY_READY", "NEAR_ENTRY") and not valid_entry(c)
         for c in candidates)
+    codes = [c.get('code') for c in candidates if isinstance(c, dict)]
+    geometry_error = geometry_error or len(codes) != len(candidates) or len(set(codes)) != len(codes)
     valid = valid and not geometry_error
     qualified = [c for c in requested_rows
-                 if valid and classifications.get(c.get("code")) == "QUALIFIED_BASIC_FINANCIAL_RISK"]
+                 if valid and valid_entry(c) and classifications.get(c.get("code")) == "QUALIFIED_BASIC_FINANCIAL_RISK"]
     by_ticker = {x["ticker"]: x for x in evidence} if valid else {}
     # Compare the same observed features. General quality gaps must not become
     # a new hard risk veto; reduce to their common feature set where possible.
@@ -175,8 +191,9 @@ def select(geometry, financial):
         -float(c.get("opportunity_score") or 0),
         -float(c.get("score") or 0), c["code"]))
     selected = qualified[:5]
-    deferred = max(0, sum(valid_entry(c) for c in candidates)-len(requested))
-    incomplete_cash = valid and not selected and deferred > 0
+    deferred = sum(valid_entry(c) and c['code'] not in requested for c in candidates)
+    interest_deferred = max(0, len(candidates)-len(requested)) if broad else 0
+    incomplete_cash = valid and not selected and (deferred > 0 or interest_deferred > 0)
     if incomplete_cash:
         # The existing API budget is unchanged. Unreviewed eligible charts
         # prevent a conclusion that the complete candidate set failed finance.
@@ -187,7 +204,12 @@ def select(geometry, financial):
                 "technical_status": c.get("status"),
                 "financial_flag": classifications.get(c["code"])}
                for c in selected]
+    operational_status = ('ERROR' if candidate_error or geometry_error or not coverage_ok or
+        financial.get('status') == 'ERROR' else 'HOLD_FINANCIAL_UNVERIFIED'
+        if unresolved_review or incomplete_cash else 'ERROR' if not valid else 'TOP5_READY' if selected else 'CASH_NO_ELIGIBLE')
     return {"schema": "C3_TOP5_FINANCE_FIRST_CONDITIONAL_SIGNAL_V3",
+            "operational_status": operational_status,
+            "financial_request_scope": REVIEW_SCOPE if broad else 'EXECUTABLE_ENTRIES',
             "asof": asof, "status": "ERROR_ENTRY_GEOMETRY" if geometry_error else "CONDITIONAL_SIGNALS" if valid else "REVIEW_REQUIRED" if unresolved_review else "ERROR_FINANCIAL_EVIDENCE",
             "financial_evidence_status": "INCOMPARABLE_FINANCIAL_SCORE_COVERAGE" if comparability_error else "INCOMPLETE_FINANCIAL_COVERAGE_BUDGET" if incomplete_cash else financial.get("status"),
             "coverage_complete": coverage_ok and not incomplete_cash,
@@ -211,6 +233,10 @@ def select(geometry, financial):
                           "financial_flag": classifications.get(c["code"])}
                          for c in selected],
             "financial_classifications": classifications,
+            "financial_verdicts": {code: ('PASS' if state=='QUALIFIED_BASIC_FINANCIAL_RISK' else
+                'REJECTED_FINANCIAL_RISK' if state in ('REVIEW_FAILED_FINANCIAL_GATE','REJECTED_FINANCIAL_RISK')
+                else 'ERROR' if state=='ERROR_FINANCIAL_EVIDENCE' else 'REVIEW_REQUIRED')
+                for code,state in classifications.items()},
             "review_count": sum(v.startswith("REVIEW_") for v in classifications.values()),
             "excluded_count": sum(v in ("REVIEW_FAILED_FINANCIAL_GATE","REJECTED_FINANCIAL_RISK") for v in classifications.values()),
             "financial_decision_counts": {'QUALIFIED':sum(v=='QUALIFIED_BASIC_FINANCIAL_RISK' for v in classifications.values()),
@@ -218,13 +244,14 @@ def select(geometry, financial):
                 'REVIEW_REQUIRED':sum(v=='REVIEW_INSUFFICIENT_EVIDENCE' for v in classifications.values()),
                 'ERROR':sum(v=='ERROR_FINANCIAL_EVIDENCE' for v in classifications.values())},
             "slowdown_flag_count": sum(bool(x.get("recent_slowdown_flag")) for x in by_ticker.values()),
-            "watch_count": 0,
-            "financial_pass_count": len(qualified),
+            "watch_count": sum(not valid_entry(c) and c.get('geometry_validated') is True for c in candidates),
+            "financial_pass_count": sum(v=='QUALIFIED_BASIC_FINANCIAL_RISK' for v in classifications.values()),
             "selection_priority": "ENTRY_STATE_FINANCIAL_QUALITY_LEVERAGE_OPPORTUNITY_STRENGTH",
             "financial_request_limit": FINANCIAL_CANDIDATE_LIMIT,
             "financial_requested_count": len(requested),
-            "financial_unreviewed_candidate_count": len(requested-set(covered)),
+            "financial_unreviewed_candidate_count": len((set(codes) if broad else requested)-set(covered)),
             "financial_budget_deferred_count": deferred,
+            "financial_interest_budget_deferred_count": interest_deferred,
             "historical_pit_certified": bool(financial.get("point_in_time_snapshot_verified")),
             "selected_count": len(selected)}
 

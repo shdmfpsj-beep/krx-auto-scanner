@@ -9,7 +9,8 @@ from c3_top5_financial_selection import classify, financial_points, valid_entry
 def image_identity(row, asof):
     identity = {"asof": asof, **{key: row.get(key) for key in (
         "code", "name", "asof_close", "entry_low", "entry_high", "stop_ref",
-        "r1_ref", "r2_ref", "risk_pct", "status", "entry_valid_until", "top5")}}
+        "r1_ref", "r2_ref", "risk_pct", "status", "entry_valid_until", "top5",
+        "ma5", "ma20", "ma60", "volume", "support", "financial_verdict", "rejection_reasons")}}
     if row.get('financial_model'):
         identity.update({key: row.get(key) for key in ('financial_model', 'quality_100', 'risk_flags',
             'financial_evidence_state', 'stop_execution_rule')})
@@ -61,7 +62,9 @@ def main():
     rows=[]
     for rank,x in enumerate(candidates,1):
         valid=bool(x.get('geometry_validated'))
-        state=x.get('entry_status','WATCH') if valid else 'WATCH'
+        verdict=fin.get('financial_verdicts', {}).get(x['code'])
+        state=('ERROR' if verdict=='ERROR' else 'REJECTED' if verdict=='REJECTED_FINANCIAL_RISK' or not valid
+               else 'REVIEW_REQUIRED' if verdict=='REVIEW_REQUIRED' else x.get('entry_status','WATCH'))
         is_fin=x['financial_points'] is not None
         score=round(float(x.get('opportunity_score',x.get('score',0))),2)
         composite=x['composite_score'];top5=x['code'] in approved_top5
@@ -157,7 +160,7 @@ def main():
         quality_label=(f"{quality['score']:.1f}/100"+(' 부분' if not quality.get('complete') else '')) if quality and quality.get('score') is not None else (f"{x['financial_points']}/30" if is_fin else '미검증')
         d.text((50,1415),f"진입 {state} · 위험 "+(f"{risk:.2f}%" if isinstance(risk,(int,float)) else '미확정')+
                f" · 기술 {score:.2f} · 재무 "+quality_label,font=font(29,True),fill=ink)
-        d.text((50,1475),f"기술 기회 {composite:.2f}점 | 전체 {rank}위 / {len(candidates)} | MA60 {sum(prices)/60:,.0f}원(마지막 값)",font=font(24),fill=muted)
+        d.text((50,1475),f"MA5 {sum(prices[-5:])/5:,.0f} · MA20 {sum(prices[-20:])/20:,.0f} · MA60 {sum(prices)/60:,.0f} | 거래량 {bars[-1]['volume']:,.0f}",font=font(24),fill=muted)
         if quality:
             risks=financial_item.get('risk_assessment',{})
             notice='재무 '+financial_item.get('financial_evidence_state','REVIEW_REQUIRED')+' · '+str(quality.get('available_points',0))+'/100점 항목 관측'
@@ -193,6 +196,9 @@ def main():
           'r1_ref':x.get('r1_ref') if valid else None,
           'r2_ref':x.get('r2_ref') if valid else None,
           'entry_valid_until':valid_until,
+          'ma5':sum(prices[-5:])/5,'ma20':sum(prices[-20:])/20,'ma60':sum(prices)/60,
+          'volume':bars[-1]['volume'],'support':x.get('pivot_support'),
+          'financial_verdict':verdict,'rejection_reasons':x.get('rejection_reasons',[]),
           'asof_close':prices[-1]}
         if financial_item.get('financial_model'):
             row.update(financial_model=financial_item['financial_model'],quality_100=quality,

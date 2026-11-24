@@ -205,6 +205,7 @@ def main():
             raise ValueError("INVALID_BALANCED_CANDIDATES")
         result = collect_balanced(day, stocks, key,
             datetime.now(ZoneInfo("Asia/Seoul")).date(), SnapshotCache(args.cache))
+        result['request_scope'] = receipt.get('request_scope', 'EXECUTABLE_ENTRIES')
     else:
         result = bridge(receipt, key)
     args.out.parent.mkdir(parents=True, exist_ok=True)
