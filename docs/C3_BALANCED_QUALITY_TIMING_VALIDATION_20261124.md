@@ -110,3 +110,28 @@ MA5/10/20/60·ATR·RS·RVOL·기술 점수·R1/R2·현재/연간 접수번호·�
 3. **현재 불필요**: 모든 비승인 기업의 재무 완벽 수집, 재무/기술 알고리즘 전면 재개발, 새 유료 API·서버·키움 연결, 수익률 백테스트·가상매매·자동 주문·새 알람. 수행하지 않았다.
 
 main·원장·기존 receipts 파일 변경 없음. 원장 SHA-256 `c6f7cae01241f50e21443b66957115aed4ae711409e7ee67bf8a621a66ee9270`, 기존 20261119 영수증 `9fb797c04cb374d9e3c76607daffc5e7b1df20a94c73f5bdf3fdc9e54f972792`를 유지했다. 기술 계산·재무 엔진·정규화·승인 정책·세션 정책 파일은 시작 코드와 동일하다.
+
+
+## FINAL RELEASE addendum — 2026-11-24
+
+This addendum supersedes earlier approval-pending and alarm-not-updated statements
+above, which describe the earlier validation checkpoint. The user subsequently
+approved release. PR #202 merged as `680a0cb363099669bfaae62d5aef578d7017d703`.
+Post-merge run [45368591531](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45368591531)
+passed 264 tests and the five-stock synthetic PNG/JSON/CSV/DRY_RUN path. A separately
+reserved real Telegram TEST text succeeded once: HTTP200, ok=true, message_id48,
+configured destination matched. Existing stock receipts and paper ledger remain
+unchanged. The existing 08:45 task prompt was updated, with time, weekdays, title
+and enabled state preserved.
+
+The latest actual November 23 run [45367684039](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45367684039)
+again returned 2,771 / valid2,488 / interest9 / PASS3 / rejected2 / review4 / error0 /
+TOP5 0 / CASH_NO_ELIGIBLE. November 24 is not executed before the existing21:00 KST
+cutoff; next existing schedule is November25 08:00 KST and the read-only check is
+08:45. These future observations are not marked successful.
+
+Final verdict: **PRODUCTION_READY_WITH_LIMITATIONS**. Development is complete;
+remaining work is normal operational observation, including the first schedule
+and genuinely eligible production image delivery. See
+[C3_FINAL_RELEASE_20261124.md](C3_FINAL_RELEASE_20261124.md) for verified artifact
+hashes, run links and the distinction between a connection test and stock delivery.

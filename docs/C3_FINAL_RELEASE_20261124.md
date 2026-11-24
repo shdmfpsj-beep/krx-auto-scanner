@@ -66,3 +66,61 @@ First actual schedule, November 24 outcome and first eligible production stock
 image delivery remain operational observations until their actual artifacts and
 Telegram message IDs exist. A successful text connection test is not evidence
 of a real stock image send or market eligibility.
+
+## Final observed deployment outcome — 2026-11-24 KST
+
+**PRODUCTION_READY_WITH_LIMITATIONS. Development is complete and the existing daily
+workflow now uses Balanced as its scheduled default.** The first new
+schedule and the November 24 market result have not happened at this checkpoint.
+
+- [PR #202](https://github.com/shdmfpsj-beep/krx-auto-scanner/pull/202) merged normally
+  with exact approved head `d478326f5ae2f7d484740a6bd6454dd81328cc5d`.
+  Production merge commit: `680a0cb363099669bfaae62d5aef578d7017d703`.
+  Its tree `298d718e05e17c6a8d7df6dbabebaed9c5bb9224` exactly matches the validated
+  PR tree. No protection bypass or force update was used.
+- [Post-merge main run 45368591531](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45368591531)
+  completed **SUCCESS**, push event, 18:47:54–18:48:44 KST. All **264** tests passed.
+  The independent existing Sector First safe CI also succeeded.
+- [Final artifact 14907623471](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45368591531/artifacts/14907623471)
+  was downloaded and verified, SHA-256
+  `13ae7a8271064795d7e7399705a6dc00286f5a500ee886ea4190135974f3baab`.
+  The separately labelled synthetic positive path has five final PNGs, five CSV
+  rows, matching JSON/PNG metadata and hashes, and delivery **DRY_RUN**, not SENT.
+- Telegram **one real TEST text**, HTTP **200**, `ok=true`, `message_id=48`,
+  destination matches configured chat, sent **18:48:38.434 KST**. Actual stock
+  signals sent: **zero**. `telegram_connection_result.json` preserves this response
+  evidence without token/chat identifier. No normal stock receipt was created.
+- The create-only test reservation produced main commit
+  `c73d37a070efa8f2f1d3ecfc1159edbaeb550502`; comparison with the merge commit shows
+  **only** `release_checks/c3_telegram_connection_20261124.json` added. No code,
+  daily reservation, prior receipt or paper ledger changed. This state means a
+  test attempt was reserved; the actual SENT result remains in the artifact.
+- Existing morning task `6ae53e1be3848191b8bdc818036ed09c` was updated at **18:44:55
+  KST** with the exact replacement prompt. API response confirmed enabled=true,
+  identical title and identical Monday–Friday 08:45 schedule. No task was created.
+- [Latest actual KRX/OpenDART PR run 45367684039](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45367684039)
+  also completed SUCCESS: **November 23**, direct 128 responses / 165,932 rows,
+  KOSPI 935 + KOSDAQ 1,836, valid60=2,488, interest9, finance9/9,
+  PASS3 / rejected2 / review4 / error0, ENTRY_READY0 / NEAR_ENTRY0 / WATCH2 /
+  TOP5 0 / **CASH_NO_ELIGIBLE**. Empty entry intersections3, risk>5%4, WATCH2;
+  approval-required0, approval finance complete=true, nonblocking reviews4.
+  Final buy PNG0, diagnostic PNG9, TOP5 CSV0 rows, delivery CASH, stock sends0.
+- [Actual market artifact 14907717041](https://github.com/shdmfpsj-beep/krx-auto-scanner/actions/runs/45367684039/artifacts/14907717041)
+  was downloaded and verified, SHA-256
+  `3109d27fc85b4dfec9d828394946eba3f0c32ed3b1d020114f7d5acdcc358d3c`.
+
+**November 24: pending, no market counts or selection inferred.** It is before
+21:00 KST. Existing next schedule is **November 25 08:00 KST**, expected as-of
+November 24, followed by the unchanged **08:45 read-only check**. Manual/PR/push
+success is not actual schedule success. Older schedule records exist, including
+November 20 success and November 21 failure, but they do not prove the new 08:00
+schedule. GitHub creation delays remain possible; the morning check reports
+waiting/in-progress from actual records and never resends automatically.
+
+Remaining observations: first post-release schedule, actual November 24 outcome,
+and the first genuinely eligible stock-image delivery/normal receipt. Saturday
+has a GitHub scan but no Saturday morning-check task under the preserved weekday
+schedule; adding Saturday requires separate approval. Formal historical PIT and
+corporate-action/adjusted-price certification remain explicitly unverified;
+existing price discontinuity exclusion and disclosure-time guards remain active.
+No extra algorithm research or API development is required for this release.
