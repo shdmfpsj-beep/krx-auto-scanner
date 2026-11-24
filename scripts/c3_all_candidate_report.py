@@ -91,7 +91,8 @@ def main():
         d.rectangle((46,271,1354,318),fill=(239,235,224))
         d.text((700,281),'매수 범위 도달 시에만 관찰 · 미도달 PASS · 직접 매매',font=font(25),fill=(122,97,57),anchor='ma')
         d.rounded_rectangle((42,342,1358,1158),radius=15,fill='white',outline=(216,216,212),width=2)
-        d.text((70,359),'실제 일봉 60거래일 · 거래량',font=font(30,True),fill=ink)
+        synthetic=src.get('fixture_kind')=='SYNTHETIC_NOT_MARKET_SELECTION'
+        d.text((70,359),'합성 검증 60봉 · 실제 선정 아님' if synthetic else '실제 일봉 60거래일 · 거래량',font=font(30,True),fill=ink)
         d.text((1320,364),'MA5 · MA20 · MA60(마지막 값만)',font=font(22),fill=muted,anchor='ra')
         left,right,top,bottom=150,1100,440,957
         highs=[float(z['high']) for z in bars];lows=[float(z['low']) for z in bars]
@@ -182,7 +183,8 @@ def main():
         d.text((50,1580),'종가 < 구조손절 → 다음 거래일 직접 정리 · 미도달 PASS',font=font(24),fill=muted)
         expiry=valid_until[:10]+' 장종료까지' if valid_until else '미확정'
         d.text((50,1620),f"기준 {src['asof']} | 유효 {expiry} | 매수 전 재확인 · 직접 매매",font=font(24),fill=muted)
-        d.text((50,1661),'KRX 일봉 · 정규장 종가/수정주가 미인증 · 추세·지지 눌림 후보',font=font(21),fill=muted)
+        d.text((50,1661),'합성 검증 자료 · 실제 시장 선정 또는 매매용 신호 아님' if synthetic else
+               'KRX 일봉 · 정규장 종가/수정주가 미인증 · 추세·지지 눌림 후보',font=font(21),fill=muted)
         name=f"{rank:02d}_{x['code']}_all_candidate.png"
         row={'rank':rank,'code':x['code'],'name':x['name'],'technical_score':score,
           'score_type':'CHARTIST_TECHNICAL_OPPORTUNITY_ONLY','status':state,'financial_selected':top5,'financial_evidence_scored':is_fin,

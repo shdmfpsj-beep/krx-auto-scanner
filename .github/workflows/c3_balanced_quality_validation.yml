@@ -119,7 +119,7 @@ jobs:
         env:
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
-          PYTHONPATH=scripts python scripts/c3_dart_document_evidence.py --financial output/c3_balanced_validation/financial_pool_gate.json --out output/c3_balanced_validation/document_evidence
+          PYTHONPATH=scripts python scripts/c3_dart_document_evidence.py --financial output/c3_balanced_validation/financial_pool_gate.json --geometry output/c3_balanced_validation/entry_geometry_audit.json --out output/c3_balanced_validation/document_evidence
       - name: Preserve verified snapshots when financial review remains incomplete
         if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_cache/*.json') != '' }}
         uses: actions/cache/save@v4

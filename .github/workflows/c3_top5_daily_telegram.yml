@@ -372,7 +372,7 @@ jobs:
             far_watch=[x for x in qualified if x['entry_status']=='WATCH']
             selected=(ready_watch+near_watch)[:5]
             # Diagnostic evidence even when zero candidates qualify.
-            audit={'schema':'C3_ENTRY_GEOMETRY_AUDIT_V1','asof':days[-1],
+            audit={'schema':'C3_ENTRY_GEOMETRY_AUDIT_V1','asof':days[-1],'entry_valid_until':plan['entry_valid_until'],
               'technical_candidate_count':len(pool),'qualified_count':len(qualified),
               'entry_ready_count':len(ready_watch),'near_entry_count':len(near_watch),'far_entry_count':len(far_watch),
               'rules':{'risk_min_pct':1.5,'risk_max_pct':5,'rr_min':None,'rr_policy':'REFERENCE_ONLY',
@@ -620,6 +620,14 @@ jobs:
           else
             echo 'C3_OUTPUT_NOT_PRESERVED'
           fi
+      - name: Restore validated Balanced financial snapshots
+        if: ${{ env.C3_FINANCIAL_MODEL == 'balanced' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: output/c3_top5/financial_cache
+          key: c3-balanced-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            c3-balanced-main-v1-
       - name: Evaluate dated OpenDART evidence for selected TOP5 (research only)
         if: always()
         continue-on-error: true
@@ -662,6 +670,12 @@ jobs:
           else
             echo 'FINANCIAL_RESEARCH_SKIPPED_NO_RECEIPT'
           fi
+      - name: Preserve receipt-keyed Balanced financial snapshots
+        if: ${{ always() && env.C3_FINANCIAL_MODEL == 'balanced' && hashFiles('output/c3_top5/financial_cache/*.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: output/c3_top5/financial_cache
+          key: c3-balanced-main-v1-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Record non-authorizing TOP5 eligibility audit
         if: always()
         continue-on-error: true
@@ -800,6 +814,7 @@ jobs:
           sys.excepthook=record_failure
           save_delivery()
           manifest=json.loads((root/'finance_first_delivery_manifest.json').read_text())
+          delivery['operational_status']=manifest.get('operational_status')
           if manifest.get('status')=='ERROR_FINANCIAL_EVIDENCE':
             delivery['stage']='FINANCIAL_VERIFICATION'
             raise ValueError('FINANCIAL_EVIDENCE_FAILED_'+str(manifest.get('financial_evidence_status')))

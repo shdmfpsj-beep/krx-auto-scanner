@@ -13,12 +13,17 @@ def report(receipt, geometry, selection, financial):
     for c in geometry.get('candidates', []):
         item = evidence.get(c['code'], {})
         verdict = verdicts.get(c['code'], 'REVIEW_REQUIRED')
+        collection_error = financial.get('error') if not evidence else None
+        if collection_error:
+            verdict = 'ERROR'
         reasons = list(c.get('rejection_reasons', []))
         risk = item.get('risk_assessment', {})
         reasons += item.get('exclusion_reasons', [])
         reasons += risk.get('mandatory_missing', [])
         if item.get('error'):
             reasons.append(item['error'])
+        if collection_error:
+            reasons.append(collection_error)
         if verdict == 'ERROR':
             state = 'ERROR'
         elif verdict == 'REJECTED_FINANCIAL_RISK' or not c.get('geometry_validated'):
@@ -56,6 +61,7 @@ def report(receipt, geometry, selection, financial):
     summary = dict(market_symbols=sum(market.get(k, 0) for k in ('kospi_rows', 'kosdaq_rows')),
         valid_60_session_symbols=receipt.get('valid_60_session_symbols'),
         technical_candidates=len(rows), financial_requested=selection.get('financial_requested_count', 0),
+        financial_processed=len(evidence), financial_collection_error=financial.get('error'),
         financial_decisions=counts,
         invalid_entry_zone=sum('INVALID_ENTRY_ZONE' in r['reasons'] for r in rows),
         risk_above_5pct=sum('RISK_ABOVE_5PCT' in r['reasons'] for r in rows),

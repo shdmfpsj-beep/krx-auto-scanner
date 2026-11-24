@@ -47,6 +47,60 @@ class OperationalTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'CACHE_INTEGRITY'):
                 cache.listed_corps('redacted',fetch)
 
+    def test_observed_noncurrent_loan_bond_tags_include_current_bonds_once(self):
+        import c3_balanced_financials as m
+        from test_c3_balanced_financials import statement
+        p=statement()
+        for r in p['list']:
+            if r['account_id'] in m.DEBT_IDS[2]:r['account_id']='ifrs-full_NoncurrentPortionOfNoncurrentLoansReceived'
+            if r['account_id'] in m.DEBT_IDS[3]:r['account_id']='ifrs-full_NoncurrentPortionOfNoncurrentBondsIssued'
+        self.assertIsNone(m.statement_metrics(p)['interest_bearing_debt_excluding_leases'])
+        p['list'].append(dict(sj_div='BS',account_id='dart_CurrentPortionOfBonds',account_nm='유동성사채',thstrm_amount='5'))
+        self.assertEqual(m.statement_metrics(p)['interest_bearing_debt_excluding_leases'],45)
+
+    def test_uncertain_bond_overlap_and_other_borrowing_lines_stay_unverified(self):
+        import c3_balanced_financials as m
+        from test_c3_balanced_financials import statement
+        p=statement();p['list'].append(dict(sj_div='BS',account_id='dart_CurrentPortionOfBonds',account_nm='유동성사채',thstrm_amount='5'))
+        self.assertIsNone(m.statement_metrics(p)['interest_bearing_debt_excluding_leases'])
+        p=statement()
+        for r in p['list']:
+            if r['account_id'] in m.DEBT_IDS[0]:r.update(account_id='-표준계정코드 미사용-',account_nm='단기차입금')
+        p['list'].append(dict(sj_div='BS',account_id='-표준계정코드 미사용-',account_nm='자산유동화차입금',thstrm_amount='7'))
+        result=m.statement_metrics(p)
+        self.assertIsNone(result['interest_bearing_debt_excluding_leases'])
+        self.assertEqual(result['unresolved_debt_accounts'][0]['account_name'],'자산유동화차입금')
+
+    def test_malformed_document_notes_recover_without_certifying_xbrl(self):
+        import io,zipfile
+        from c3_dart_document_evidence import inspect_archive
+        raw='<DOCUMENT><SECTION-2><TITLE>3. 연결재무제표 주석</TITLE><TABLE><TR><TD>이자비용<br>100</TD></TR></TABLE></SECTION-2></DOCUMENT>'
+        stream=io.BytesIO()
+        with zipfile.ZipFile(stream,'w') as z:z.writestr('report.xml',raw)
+        r=inspect_archive(stream.getvalue(),'CFS')
+        self.assertEqual(r['state'],'SCOPED_NOTE_TABLES_LOCATED_REVIEW_REQUIRED')
+        self.assertFalse(r['automatic_financial_promotion'])
+        self.assertFalse(r['tables'][0]['unit_and_period_validated'])
+        self.assertIn('report.xml',r['recovered_document_files'])
+
+    def test_financial_sector_is_reviewed_before_generic_income_metrics(self):
+        from c3_balanced_financials import collect_balanced
+        from test_c3_balanced_financials import request
+        calls=[]
+        def transport(endpoint,params,key):
+            calls.append(endpoint)
+            if endpoint=='company.json':return dict(status='000',stock_code='111111',induty_code='651')
+            if endpoint=='list.json':return request(endpoint,params,key)
+            raise AssertionError('GENERAL_COMPANY_STATEMENTS_MUST_NOT_CLASSIFY_INSURER')
+        with TemporaryDirectory() as tmp:
+            r=collect_balanced(date(2026,11,20),[dict(ticker='111111',name='보험 검증용')],
+                'a'*40,date(2026,11,20),SnapshotCache(tmp),request=transport,get_corps=lambda k:{'111111':'00000001'})
+        row=r['excluded'][0]
+        self.assertEqual(row['financial_verdict'],'REVIEW_REQUIRED')
+        self.assertEqual(row['sector_profile'],'FINANCIAL_SPECIAL_MODEL_REQUIRED')
+        self.assertEqual(row['risk_assessment']['mandatory_missing'],['SECTOR_MODEL_REQUIRED'])
+        self.assertNotIn('fnlttSinglAcntAll.json',calls)
+
     def test_actual_airline_support_conflicts_with_ceiling(self):
         # Observed 11/23 rounded bounds: 30,350 > 30,200 and 8,180 > 8,110.
         for support, ma20, atr in ((30350, 29856, 1571.43), (8180, 8004, 460)):
@@ -67,6 +121,35 @@ class OperationalTests(unittest.TestCase):
                                  (19999,20000,19990), (49999,50000,49950)):
             self.assertEqual(executable(price,'up'),up)
             self.assertEqual(executable(price,'down'),down)
+
+    def test_nonpositive_stop_is_rejected_without_aborting_other_candidates(self):
+        self.assertIsNone(entry_zone(100, 150, 300)['structural_stop'])
+
+    def test_actual_workflow_requests_watch_finance_and_preserves_legacy_scope(self):
+        from test_c3_top5_pipeline import PipelineTests
+        t=PipelineTests(); t.setUp()
+        try:
+            t.write('entry_geometry_audit.json',dict(asof=ASOF,candidates=[candidate(),
+                candidate('222222','WATCH',close=10300),candidate('333333',geometry_validated=False)]))
+            t.write('qualified_chart_pool.json',dict(candidates=[]))
+            (t.cwd/'receipts/c3_top5_daily').mkdir(parents=True)
+            (t.cwd/'reports/c3_paper').mkdir(parents=True)
+            ledger=t.cwd/'reports/c3_paper/paper_ledger.json';ledger.write_text('{"positions":{}}')
+            t.env['C3_FINANCIAL_MODEL']='balanced'
+            name='Evaluate dated OpenDART evidence for selected TOP5 (research only)'
+            p=t.execute(name)
+            self.assertEqual(p.returncode,0,p.stderr)
+            x=json.loads((t.root/'financial_pool_input.json').read_text())
+            self.assertEqual(len(x['candidates']),3)
+            self.assertEqual(x['request_scope'],REVIEW_SCOPE)
+            self.assertEqual(ledger.read_text(),'{"positions":{}}')
+            t.env['C3_FINANCIAL_MODEL']='legacy'
+            self.assertEqual(t.execute(name).returncode,0)
+            x=json.loads((t.root/'financial_pool_input.json').read_text())
+            self.assertEqual(len(x['candidates']),1)
+            self.assertEqual(x['request_scope'],'EXECUTABLE_ENTRIES')
+        finally:
+            t.doCleanups()
 
     def test_valid_zone_preserves_existing_formula(self):
         z=entry_zone(9800, 10000, 400)
@@ -121,6 +204,14 @@ class OperationalTests(unittest.TestCase):
         self.assertEqual(len(pool),30)
         self.assertEqual(pool[0]['code'],'999999')
 
+    def test_unreviewed_interest_budget_prevents_claim_of_complete_top5(self):
+        g=dict(asof=ASOF,candidates=[candidate(str(100000+i)) for i in range(31)])
+        f=evidence(*(record(c['code']) for c in financial_review_candidates(g)));f['request_scope']=REVIEW_SCOPE
+        x=select(g,f)
+        self.assertEqual(x['operational_status'],'HOLD_FINANCIAL_UNVERIFIED')
+        self.assertEqual(x['selected_count'],0)
+        self.assertEqual(x['financial_unreviewed_candidate_count'],1)
+
     def test_balanced_review_and_api_error_have_distinct_outcomes(self):
         g=dict(asof=ASOF,candidates=[candidate()])
         for verdict, expected in [('REVIEW_REQUIRED','HOLD_FINANCIAL_UNVERIFIED'),('ERROR','ERROR')]:
@@ -149,38 +240,34 @@ def positive_fixture(out):
 
     All input prices and financial statements below are SYNTHETIC fixtures.
     """
-    import shutil, subprocess, sys
-    from test_c3_top5_pipeline import PipelineTests, BUILD, DELIVERY, REPO
+    from unittest.mock import patch
+    from test_c3_top5_pipeline import PipelineTests
     from test_c3_balanced_financials import request
     from c3_balanced_financials import collect_balanced, SnapshotCache, MODEL
-    from c3_balanced_validation import verify_images, write
+    from c3_balanced_validation import run, verify_images, write
     t=PipelineTests(); t.setUp()
     try:
         pool,_=t.prepare(count=5)
+        pool['fixture_kind']='SYNTHETIC_NOT_MARKET_SELECTION'
+        t.write('qualified_chart_pool.json',pool)
         with TemporaryDirectory() as cache:
             f=collect_balanced(date(2026,11,20),[{'ticker':'111111','name':'합성 검증용'}],
                 'a'*40,date(2026,11,20),SnapshotCache(cache),request=request,get_corps=lambda k:{'111111':'00000001'})
-        item=f['researched'][0]
-        f['researched']=[{**copy.deepcopy(item),'ticker':c['code']} for c in pool['candidates']]
-        f.update(model=MODEL,request_scope=REVIEW_SCOPE,fixture_kind='SYNTHETIC_NOT_MARKET_SELECTION')
-        geometry=dict(asof=ASOF,candidates=[candidate(c['code'],name='검증용') for c in pool['candidates']])
-        selection=select(geometry,f)
-        assert selection['selected_count']==5
-        t.write('financial_pool_gate.json',f); t.write('financial_selection_research.json',selection)
-        p=subprocess.run([sys.executable,str(REPO/'scripts/c3_all_candidate_report.py'),
-            '--pool',str(t.root/'qualified_chart_pool.json'),'--selection',str(t.root/'financial_selection_research.json'),
-            '--financial',str(t.root/'financial_pool_gate.json'),'--out',str(t.root/'all_candidate_report')],
-            env=t.env,capture_output=True,text=True)
-        assert p.returncode==0,p.stderr
-        assert t.execute(BUILD).returncode==0
-        assert t.execute(DELIVERY).returncode==0
-        assert t.result()['status']=='DRY_RUN' and t.result()['telegram_photos_sent']==0
-        r=json.loads((t.root/'all_candidate_report/manifest.json').read_text())
-        assert verify_images(t.root,r)==5
-        assert not (t.cwd/'receipts').exists()
-        shutil.copytree(t.root,out,dirs_exist_ok=True)
+            item=f['researched'][0]
+            f['researched']=[{**copy.deepcopy(item),'ticker':c['code']} for c in pool['candidates']]
+            f.update(model=MODEL,request_scope=REVIEW_SCOPE,fixture_kind='SYNTHETIC_NOT_MARKET_SELECTION')
+            geometry=dict(asof=ASOF,entry_valid_until=pool['entry_valid_until'],
+                          candidates=[candidate(c['code'],name='검증용') for c in pool['candidates']])
+            t.write('entry_geometry_audit.json',geometry)
+            with patch('c3_balanced_validation.collect_balanced',return_value=f):
+                result=run(out,Path(cache),source=t.root)
+        assert result['status']=='COMPLETE' and len(result['selected_codes'])==5,result
+        assert result['delivery_status']=='DRY_RUN' and result['telegram_photos_sent']==0
+        r=json.loads((out/'all_candidate_report/manifest.json').read_text())
+        assert verify_images(out,r)==5
+        assert not (out/'delivery_boundary/receipts').exists()
         write(out/'positive_fixture_result.json',dict(status='PASS',input_kind='SYNTHETIC_NOT_MARKET_SELECTION',
-            model=MODEL,selected=5,png=5,png_hash_and_metadata_verified=True,
+            model=MODEL,selected=5,png=5,png_hash_and_metadata_verified=True,csv_json_png_values_verified=True,
             telegram_status='DRY_RUN',telegram_photos_sent=0,receipts_created=False))
     finally:
         t.doCleanups()

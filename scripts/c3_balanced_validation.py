@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 from c3_balanced_financials import collect_balanced, SnapshotCache
 from c3_top5_financial_selection import financial_review_candidates, REVIEW_SCOPE, select
 from c3_all_candidate_report import image_identity
-from c3_entry_geometry import sanitize_archived_geometry
+from c3_entry_geometry import sanitize_archived_geometry, audit_archived_zone
 from c3_candidate_decisions import report as decision_report, save as save_decisions
 
 REPO = Path(__file__).resolve().parents[1]
@@ -114,6 +114,7 @@ def run(root, cache_root, source=None, live=False):
         if len({receipt.get('asof'), geometry.get('asof'), pool.get('asof')}) != 1:
             raise ValueError('SOURCE_ASOF_MISMATCH')
         geometry = {**geometry, 'candidates': [sanitize_archived_geometry(c) for c in geometry.get('candidates', [])]}
+        geometry['entry_valid_until'] = pool.get('entry_valid_until')
         original_geometry={c['code']:c for c in geometry.get('candidates',[])}
         for row in pool.get('candidates',[]):
             source_geometry=original_geometry.get(row['code'],{})
@@ -129,6 +130,19 @@ def run(root, cache_root, source=None, live=False):
         sessions = [x['date'] for x in pool.get('candidates', [{}])[0].get('bars', [])] if pool.get('candidates') else []
         if geometry.get('candidates') and len(sessions) != 60:
             raise ValueError('SIGNAL_SESSION_HISTORY_INCOMPLETE')
+        pool_by_code = {c['code']:c for c in pool.get('candidates',[])}
+        if len(pool_by_code)!=len(pool.get('candidates',[])) or set(pool_by_code)!=set(original_geometry):
+            raise ValueError('SOURCE_CANDIDATE_SET_MISMATCH')
+        # Legacy offline fixtures lack pivot/ATR evidence. Actual KRX audits
+        # always carry it; the live/archive branch must validate those values.
+        zone_audits = [audit_archived_zone(c, pool_by_code[c['code']]['bars'])
+                       for c in geometry['candidates'] if 'atr14' in c]
+        write(root/'entry_zone_replay_audit.json', {'asof':pool['asof'],'candidates':zone_audits,
+            'prices_used_for_selection':'ORIGINAL_VALID_GEOMETRY_ONLY_EMPTY_INTERVALS_SUPPRESSED'})
+        for c in geometry['candidates']:
+            check = next((z for z in zone_audits if z['code']==c['code']),None)
+            if check:
+                c['structural_stop_diagnostic']=check['structural_stop']
         if not (REPO/'receipts/c3_top5_daily').is_dir() or not (REPO/'reports/c3_paper/paper_ledger.json').is_file():
             raise ValueError('SIGNAL_HISTORY_SOURCE_MISSING')
         blocked = recent_signals(pool['asof'], sessions, REPO/'receipts/c3_top5_daily',
@@ -160,7 +174,8 @@ def run(root, cache_root, source=None, live=False):
         subprocess.run(args, check=True, capture_output=True, text=True)
         report = json.loads((root/'all_candidate_report/manifest.json').read_text())
         count = verify_images(root, report)
-        fields = ['code', 'name', 'status', 'asof_close', 'entry_low', 'entry_high', 'stop_ref', 'risk_pct', 'r1_ref', 'r2_ref', 'financial_points']
+        fields = ['code', 'name', 'status', 'asof_close', 'entry_low', 'entry_high', 'stop_ref', 'risk_pct',
+                  'r1_ref', 'r2_ref', 'financial_points', 'ma5', 'ma20', 'ma60', 'volume', 'support', 'entry_valid_until']
         with (root/'top5.csv').open('w', newline='', encoding='utf-8-sig') as stream:
             writer = csv.DictWriter(stream, fieldnames=fields, extrasaction='ignore')
             writer.writeheader()
@@ -172,6 +187,10 @@ def run(root, cache_root, source=None, live=False):
         for saved,row in zip(csv_rows,(r for r in report['candidates'] if r['top5'])):
             if any(saved[field] != (str(row.get(field)) if row.get(field) is not None else '') for field in fields):
                 raise ValueError('CSV_JSON_VALUE_MISMATCH')
+            signal = next(c for c in selection['selected'] if c['code']==row['code'])
+            if any(signal.get(k)!=row.get(k) for k in
+                   ('asof_close','entry_low','entry_high','stop_ref','risk_pct','r1_ref','r2_ref','entry_valid_until')):
+                raise ValueError('SELECTION_JSON_IMAGE_VALUE_MISMATCH')
         # Validate the original manifest/delivery boundary with credentials absent.
         # Its manual branch must terminate at DRY_RUN (or CASH), before reservation.
         work = root/'delivery_boundary'

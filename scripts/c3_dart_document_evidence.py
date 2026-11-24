@@ -17,11 +17,44 @@ import zipfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 from xml.etree import ElementTree as ET
+from html.parser import HTMLParser
 from dart_financial_screen import integer
 
 API='https://opendart.fss.or.kr/api/'
 TERMS=('차입금','사채','이자비용','유동성위험','만기','우발','지급보증','프로젝트파이낸싱','미청구공사','공사손실')
 MAX_BYTES=32*1024*1024
+
+
+class ReviewDocumentParser(HTMLParser):
+    """Recover malformed issuer document markup for manual note discovery only.
+
+    This parser cannot fetch external resources and is never used on XBRL.
+    Recovered tables do not certify periods, units or financial eligibility.
+    """
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.root=ET.Element('RECOVERED_DOCUMENT')
+        self.stack=[self.root]
+
+    def handle_starttag(self,name,attrs):
+        node=ET.SubElement(self.stack[-1],name,dict((k,v or '') for k,v in attrs))
+        if name not in ('br','hr','img','meta','link','input'):
+            self.stack.append(node)
+
+    def handle_startendtag(self,name,attrs):
+        self.handle_starttag(name,attrs)
+        self.handle_endtag(name)
+
+    def handle_endtag(self,name):
+        for i in range(len(self.stack)-1,0,-1):
+            if self.stack[i].tag==name:
+                del self.stack[i:]
+                break
+
+    def handle_data(self,data):
+        node=self.stack[-1]
+        if len(node):node[-1].tail=(node[-1].tail or '')+data
+        else:node.text=(node.text or '')+data
 
 
 def tag(node):
@@ -103,10 +136,16 @@ def inspect_archive(binary, division, fiscal_year=None, corp_code=None, referenc
             raw=re.sub(rb'<!DOCTYPE[^\[>]*>',b'',raw,flags=re.IGNORECASE)
             if b'<!DOCTYPE' in raw.upper():continue
             try:root=ET.fromstring(raw)
-            except ValueError:
-                try:root=ET.fromstring(raw.decode('euc-kr'))
-                except (UnicodeError,ET.ParseError):continue
-            except ET.ParseError:continue
+            except (ValueError,ET.ParseError):
+                # Primary XBRL facts retain strict XML/scope/period validation.
+                if re.search(rb'<(?:\w+:)?xbrl\b',raw,re.I):continue
+                try:text=raw.decode('utf-8')
+                except UnicodeError:
+                    try:text=raw.decode('euc-kr')
+                    except UnicodeError:continue
+                parser=ReviewDocumentParser();parser.feed(text);root=parser.root
+                result.setdefault('recovered_document_files',[]).append(file.filename)
+                result['recovery_use']='MANUAL_NOTES_ONLY_NO_AUTOMATIC_FINANCIAL_PROMOTION'
             if tag(root)=='XBRL' and fiscal_year and corp_code:
                 evidence=xbrl_facts(root,division,fiscal_year,corp_code,references)
                 if evidence['facts']:
@@ -193,16 +232,25 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--financial',type=Path,required=True)
     parser.add_argument('--out',type=Path,required=True)
+    parser.add_argument('--geometry',type=Path)
     args=parser.parse_args()
     financial=json.loads(args.financial.read_text())
     asof=datetime.strptime(financial['asof'],'%Y%m%d').date()
     key=os.environ.get('DART_API_KEY') or os.environ.get('OPENDART_API_KEY') or os.environ.get('OPEN_DART_API_KEY')
     rows=financial.get('researched',[])+financial.get('excluded',[])
+    geometry=json.loads(args.geometry.read_text()) if args.geometry and args.geometry.is_file() else {}
+    watch={r['code'] for r in geometry.get('candidates',[]) if r.get('geometry_validated')}
+    # Spend the bounded note budget on unresolved evidence, not on auxiliary
+    # details of companies already rejected by proven financial risk.
+    rows=[r for r in rows if r.get('financial_verdict') in ('ERROR','REVIEW_REQUIRED')]
+    rows.sort(key=lambda r:(0 if r.get('financial_verdict')=='ERROR' else 1 if r['ticker'] in watch else 2,r['ticker']))
     results=[]
     for row in rows[:3]:
-        if row.get('annual_receipt_no') and row.get('statement_division'):
-            results.append({'ticker':row['ticker'],**probe(row['annual_receipt_no'],'11011',
-                row['statement_division'],asof,key,args.out,fiscal_year=row.get('annual_fiscal_year'),
+        receipt=row.get('annual_receipt_no') or row.get('requested_annual_receipt_no')
+        division=row.get('statement_division') or row.get('statement_division_attempted')
+        if receipt and division:
+            results.append({'ticker':row['ticker'],**probe(receipt,'11011',
+                division,asof,key,args.out,fiscal_year=row.get('annual_fiscal_year'),
                 corp_code=row.get('corp_code'),references={'Assets':row.get('decision_basis',{}).get('annual_assets_krw'),
                     'Liabilities':row.get('liabilities_krw'),'Equity':row.get('equity_krw')})})
     args.out.mkdir(parents=True,exist_ok=True)

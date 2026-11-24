@@ -193,13 +193,15 @@ def select(geometry, financial):
     selected = qualified[:5]
     deferred = sum(valid_entry(c) and c['code'] not in requested for c in candidates)
     interest_deferred = max(0, len(candidates)-len(requested)) if broad else 0
-    incomplete_cash = valid and not selected and (deferred > 0 or interest_deferred > 0)
+    incomplete_cash = valid and ((not selected and deferred > 0) or interest_deferred > 0)
     if incomplete_cash:
         # The existing API budget is unchanged. Unreviewed eligible charts
         # prevent a conclusion that the complete candidate set failed finance.
         valid = False
+        selected = []
     unresolved_review = (balanced and review_pending and not candidate_error and not geometry_error and
                          coverage_ok and financial.get('asof')==asof and financial.get('status') not in ('ERROR',))
+    unresolved_review = unresolved_review or (broad and incomplete_cash)
     signals = [{"code": c["code"], "signal": "BUY_CONSIDER" if c.get("status") == "ENTRY_READY" else "WAIT_FOR_ENTRY",
                 "technical_status": c.get("status"),
                 "financial_flag": classifications.get(c["code"])}
@@ -221,6 +223,8 @@ def select(geometry, financial):
             "signals": signals,
             "selected": [{"code": c["code"], "name": c.get("name"),
                           "technical_status": c.get("status"),
+                          **{k:c.get(k) for k in ('entry_low','entry_high','stop_ref','risk_pct','r1_ref','r2_ref')},
+                          "asof_close": c.get('close'), "entry_valid_until": geometry.get('entry_valid_until'),
                           "financial_quality": by_ticker[c["code"]].get("financial_quality"),
                           "financial_points": financial_points(by_ticker[c["code"]]),
                           **({"financial_ranking_score_100": round(rank_points[c['code']] / .3, 3),

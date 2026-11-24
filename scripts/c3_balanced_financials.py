@@ -50,6 +50,10 @@ DEBT_IDS = (
 )
 DEBT_LABELS = ({'단기차입금'}, {'유동성장기차입금'},
                {'장기차입금'}, {'사채'})
+NONCURRENT_LOAN_IDS = {'ifrs-full_NoncurrentPortionOfOtherNoncurrentBorrowings',
+                      'ifrs-full_NoncurrentPortionOfNoncurrentLoansReceived'}
+NONCURRENT_BOND_IDS = {'ifrs-full_NoncurrentPortionOfNoncurrentBondsIssued'}
+CURRENT_BOND_IDS = {'dart_CurrentPortionOfBonds', 'ifrs-full_CurrentPortionOfNoncurrentBondsIssued'}
 
 
 def retry_network(operation, pause=time.sleep):
@@ -153,7 +157,13 @@ class SnapshotCache:
             self.events.append({"endpoint": endpoint, "state": "HIT", "sha256": record["sha256"],
                                 "observed_at": record["observed_at"]})
             return record["payload"]
-        payload = retry_network(lambda:request(endpoint, params, key))
+        try:
+            payload = retry_network(lambda:request(endpoint, params, key))
+        except Exception as exc:
+            self.events.append({'endpoint':endpoint,'state':'ERROR','expected_receipt':receipt,
+                'observed_at':self.clock().isoformat(),'error_class':type(exc).__name__,
+                'transport_reason_class':type(getattr(exc,'reason',None)).__name__})
+            raise
         if not isinstance(payload, dict):
             raise ValueError("INVALID_DART_RESPONSE")
         stamp = self.clock().isoformat()
@@ -243,19 +253,39 @@ def statement_metrics(payload, interim=False):
     result["period_basis"] = "INTERIM_YTD_CF_AND_IS_CURRENT_BS" if interim else "ANNUAL_FULL_YEAR"
     # A missing borrowing category may mean an omitted zero or an unrecognised
     # custom XBRL tag. Never silently treat it as zero.
+    aliases=[DEBT_IDS[0],DEBT_IDS[1],DEBT_IDS[2]|NONCURRENT_LOAN_IDS,DEBT_IDS[3]|NONCURRENT_BOND_IDS]
     debt_evidence=[direct_account(rows,ids,'BS','thstrm_amount',labels)
-                   for ids,labels in zip(DEBT_IDS,DEBT_LABELS)]
+                   for ids,labels in zip(aliases,DEBT_LABELS)]
     debt=[source['value'] for source in debt_evidence]
+    current_bonds=direct_account(rows,CURRENT_BOND_IDS,'BS','thstrm_amount',{'유동성사채'})
     interest_field='thstrm_add_amount' if interim else 'thstrm_amount'
     interest=direct_account(rows,METRICS['interest_expense'][1],'IS',interest_field,{'이자비용'})
     result['interest_expense']=interest['value']
     result['direct_account_evidence']={'short_term_borrowings':debt_evidence[0],
         'current_portion_long_term_borrowings':debt_evidence[1],
         'long_term_borrowings':debt_evidence[2],'bonds_issued':debt_evidence[3],
-        'interest_expense':interest}
+        'interest_expense':interest,'current_portion_bonds':current_bonds}
     result['account_validation_errors']=[name for name,source in result['direct_account_evidence'].items()
         if source['state']=='CONFLICT_OR_INVALID_SIGN']
-    result["interest_bearing_debt_excluding_leases"] = sum(debt) if all(finite(x) and x >= 0 for x in debt) else None
+    bond_tags={r['account_id'] for r in debt_evidence[3]['sources']}
+    noncurrent_bonds=bool(bond_tags & NONCURRENT_BOND_IDS)
+    bond_scope_ok=(current_bonds['value'] is not None if noncurrent_bonds else current_bonds['value'] in (None,0))
+    known_tags=set.union(*aliases,CURRENT_BOND_IDS)
+    accounted={(r['account_id'],re.sub(r'\s+','',str(r['account_name'] or '')))
+               for e in debt_evidence+[current_bonds] for r in e['sources']}
+    unresolved=[{'account_id':r.get('account_id'),'account_name':r.get('account_nm'),
+                 'value':integer(r.get('thstrm_amount'))} for r in rows if r.get('sj_div')=='BS'
+        and str(r.get('account_detail') or '').strip() in ('','-')
+        and any(term in str(r.get('account_nm') or '') for term in ('차입','사채'))
+        and r.get('account_id') not in known_tags
+        and (r.get('account_id'),re.sub(r'\s+','',str(r.get('account_nm') or ''))) not in accounted]
+    result['unresolved_debt_accounts']=unresolved
+    result['current_portion_bonds']=current_bonds['value']
+    result['debt_scope_state']=('UNCLASSIFIED_BORROWING_ACCOUNTS' if unresolved else
+        'BOND_CLASSIFICATION_RECONCILIATION_REQUIRED' if not bond_scope_ok else 'DIRECT_COMPONENT_SCOPE')
+    result["interest_bearing_debt_excluding_leases"] = (
+        sum(debt)+(current_bonds['value'] if noncurrent_bonds else 0)
+        if all(finite(x) and x>=0 for x in debt) and bond_scope_ok and not unresolved else None)
     result["debt_components"] = debt
     capex = result["capex"]
     # The standard Purchase... tag denotes an outflow. Negative net cash flow
@@ -509,6 +539,7 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
         corps = cache.listed_corps(key, get_corps)
     except Exception as exc:
         result["error"] = "CORPCODE_" + type(exc).__name__
+        result['transport_reason_class'] = type(getattr(exc,'reason',None)).__name__
         return result
     for stock in stocks:
         ticker, name = stock["ticker"], stock.get("name", "")
@@ -521,6 +552,11 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             if not company:
                 raise ValueError("NO_LISTED_CORP_CODE")
             item['corp_code']=company
+            info = cache.request("company.json", {"corp_code": company}, key, request)
+            if info.get("status") != "000" or info.get("stock_code") != ticker:
+                raise ValueError("COMPANY_INDUSTRY_UNVERIFIED")
+            profile = sector_profile(info.get("induty_code"), name)
+            item.update(industry_code=info.get('induty_code'),sector_profile=profile)
             filings = {"status": "000", "list": []}
             page = 1
             while True:
@@ -544,8 +580,15 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             interim_filing = latest_interim_filing(filings, asof)
             if not interim_filing or interim_filing["fiscal_year"] <= year:
                 raise ValueError("CURRENT_INTERIM_UNAVAILABLE_REVIEW")
+            item.update(requested_annual_receipt_no=receipt,requested_annual_filing_date=received.isoformat(),
+                        requested_interim_receipt_no=interim_filing['receipt_no'],annual_fiscal_year=year)
+            if profile=='FINANCIAL_SPECIAL_MODEL_REQUIRED':
+                item['risk_assessment']={'state':'REVIEW_REQUIRED','mandatory_missing':['SECTOR_MODEL_REQUIRED'],
+                    'hard_failures':[],'risk_flags':[],'sector_profile':profile}
+                raise ValueError('FINANCIAL_SECTOR_MODEL_REQUIRED')
             annual = None
             for division in ("CFS", "OFS"):
+                item['statement_division_attempted']=division
                 params = {"corp_code": company, "bsns_year": str(year), "reprt_code": "11011", "fs_div": division}
                 payload = cache.request("fnlttSinglAcntAll.json", params, key, request, receipt)
                 if payload.get("status") in ("013", "014") and division == "CFS":
@@ -579,10 +622,6 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             eq_now = recent_metrics.get("equity")
             if not all(finite(v) for v in (*current_bs.values(), eq_now)) or current_bs["assets"] <= 0 or current_bs["liabilities"] < 0 or abs(current_bs["assets"]-current_bs["liabilities"]-eq_now)/current_bs["assets"] > .01:
                 raise ValueError("RECENT_BALANCE_SHEET_INCOMPLETE_OR_INCONSISTENT")
-            info = cache.request("company.json", {"corp_code": company}, key, request)
-            if info.get("status") != "000" or info.get("stock_code") != ticker:
-                raise ValueError("COMPANY_INDUSTRY_UNVERIFIED")
-            profile = sector_profile(info.get("induty_code"), name)
             audit_payload = cache.request("accnutAdtorNmNdAdtOpinion.json", {"corp_code": company,
                 "bsns_year": str(year), "reprt_code": "11011"}, key, request, receipt)
             if audit_payload.get('status') not in ('000','013','014'):
@@ -625,7 +664,7 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
             if any(word in item['error'] for word in ('MISMATCH','INCONSISTENT','FUTURE_STATEMENT','CACHE_INTEGRITY')):
                 item['financial_evidence_state']='VALIDATION_ERROR'
             unavailable=('NO_LISTED_CORP_CODE','NO_DATED_ANNUAL','CURRENT_INTERIM_UNAVAILABLE_REVIEW',
-                         'DART_NO_DATA','EMPTY_STATEMENT','ANNUAL_UNAVAILABLE')
+                         'DART_NO_DATA','EMPTY_STATEMENT','ANNUAL_UNAVAILABLE','FINANCIAL_SECTOR_MODEL_REQUIRED')
             item['financial_verdict']='REVIEW_REQUIRED' if item['error'] in unavailable or 'INCOMPLETE' in item['error'] else 'ERROR'
             if item['financial_evidence_state'] in ('API_ERROR','VALIDATION_ERROR'):
                 item['financial_verdict']='ERROR'
