@@ -288,8 +288,19 @@ class WatchPipelineTests(unittest.TestCase):
         self.assertIn('timeout-minutes: 35',workflow);self.assertIn("cron: '0 23 * * 1-5'",workflow)
         watch=workflow[workflow.index('      - name: Deliver separate WATCH5 observation images'):]
         self.assertIn('continue-on-error: true',watch)
-        self.assertIn('if: always()',watch);self.assertIn('C3_WATCH_UPSTREAM_SUCCESS: ${{ success() }}',watch)
+        self.assertIn('if: always()',watch);self.assertIn("C3_WATCH_UPSTREAM_SUCCESS: ${{ job.status == 'success' }}",watch)
         self.assertLess(workflow.index('Publish operational outcome without sending'),workflow.index('Deliver separate WATCH5'))
+        # GitHub rejects status-check functions inside env expressions, even
+        # though they are valid in step.if. Reproduce the post-merge parser rule.
+        import re
+        env_indent=None
+        for line in workflow.splitlines():
+            indent=len(line)-len(line.lstrip())
+            if line.strip()=='env:':env_indent=indent;continue
+            if env_indent is not None and line.strip() and indent<=env_indent:env_indent=None
+            if env_indent is not None:
+                self.assertIsNone(re.search(r'\$\{\{\s*(success|failure|cancelled|always)\s*\(',line),line)
+
     def test_balanced_change_detector_works_when_its_own_file_is_sparse_excluded(self):
         name='.github/workflows/c3_balanced_quality_validation.yml'
         path=REPO/name
