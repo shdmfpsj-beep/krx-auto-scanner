@@ -311,6 +311,9 @@ def normalize_notes(document, xbrl, identity, references, finance_costs=None, kn
             interest=note_interest(table,finance_costs)
             for metric,fact in (('interest_bearing_debt_excluding_leases',debt),('interest_expense',interest)):
                 if not fact:continue
+                if metric.startswith('interest_bearing') and references.get('Liabilities') is not None and not (
+                    float(fact['value'])<=references['Liabilities']+table['scale']/2+1):
+                    result['errors'].append('NOTE_DEBT_EXCEEDS_VERIFIED_LIABILITIES');continue
                 if metric.startswith('interest_bearing') and float(fact['value'])+table['scale']/2<known_debt_floor:
                     result['errors'].append('NOTE_DEBT_BELOW_VERIFIED_COMPONENTS');continue
                 if metric.startswith('interest_bearing') and xbrl_total is not None and not close_to(fact['value'],xbrl_total,table['scale']):
@@ -320,7 +323,8 @@ def normalize_notes(document, xbrl, identity, references, finance_costs=None, kn
                     table_index=table['index'],context=table['context'][-500:],method=fact['method'],
                     reconciliation=fact['reconciliation'],verification_state='VALIDATED_ENTITY_PERIOD_SCOPE_UNIT_AND_TOTAL',
                     source_url='https://dart.fss.or.kr/dsaf001/main.do?rcpNo='+identity['receipt_no'])
-                candidates[metric].append(dict(value=float(fact['value']),provenance=provenance))
+                number=fact['value']
+                candidates[metric].append(dict(value=int(number) if number==int(number) else float(number),provenance=provenance))
         for metric,facts in candidates.items():
             if not facts:continue
             # Separate redundant note occurrences from conflicting evidence.

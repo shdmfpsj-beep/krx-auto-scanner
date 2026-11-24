@@ -8,11 +8,33 @@ import hashlib
 import json
 import os
 import zipfile
+import re
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from c3_balanced_financials import SnapshotCache, retry_network, digest, annual_statement_version
 from dart_financial_screen import api_json, annual_receipt, latest_interim_filing
 from c3_dart_document_evidence import download_document, inspect_archive
+
+
+def public_filing_wrapper(receipt, out, fetch=None):
+    """Capture the official viewer's attachment relationship, never qualify it.
+
+    This public HTML path is evidence for unavailable attachment-only API IDs;
+    it contains no authentication key and does not substitute for the original.
+    """
+    if not re.fullmatch(r'\d{14}',receipt):raise ValueError('INVALID_FILING_RECEIPT')
+    url='https://dart.fss.or.kr/dsaf001/main.do?rcpNo='+receipt
+    req=urllib.request.Request(url,headers={'User-Agent':'C3-readonly-filing-evidence/1.0'})
+    if fetch is None:
+        def fetch(request):
+            with urllib.request.urlopen(request,timeout=15) as response:return response.read(4*1024*1024+1)
+    binary=retry_network(lambda:fetch(req))
+    if len(binary)>4*1024*1024:raise ValueError('FILING_VIEWER_TOO_LARGE')
+    filename=receipt+'_official_viewer.html';(out/filename).write_bytes(binary)
+    return dict(receipt_no=receipt,file=filename,bytes=len(binary),sha256=hashlib.sha256(binary).hexdigest(),
+        source_url=url,observed_at=datetime.now(timezone.utc).isoformat(),
+        verification_state='OFFICIAL_VIEWER_CAPTURED_ATTACHMENT_CONTENT_UNVERIFIED',qualification_use=False)
 
 
 class DocumentCache:
@@ -133,6 +155,13 @@ def capture(financial, cache, out, key):
                         source['inspection']=checked
                     except Exception as exc:
                         source.update(state='ERROR',error=type(exc).__name__)
+            if version['attachment_review_required']:
+                item['public_filing_viewers']=[]
+                for actual in [receipt]+[r['rcept_no'] for r in version['attachment_amendments']]:
+                    try:item['public_filing_viewers'].append(public_filing_wrapper(actual,out))
+                    except Exception as exc:
+                        item['public_filing_viewers'].append(dict(receipt_no=actual,state='ERROR',error=type(exc).__name__,
+                            qualification_use=False))
         except Exception as exc:
             item.update(state='ERROR',error=str(exc) if isinstance(exc,ValueError) and str(exc).replace('_','').isalnum() else type(exc).__name__)
     result=dict(asof=financial['asof'],scope='SOURCE_INVESTIGATION_NOT_QUALIFICATION',companies=results,

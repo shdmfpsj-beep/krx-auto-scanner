@@ -215,7 +215,10 @@ def main():
     print("C3_TOP5_FINANCIAL_GATE", json.dumps({
         "status": result["status"], "verified": result.get("financial_verified", False),
         "researched": len(result["researched"]),
-        "excluded": len(result["excluded"]), "decision": "CASH"}))
+        "excluded": len(result["excluded"]), "decision": (
+            'ERROR' if result.get('error') or result.get('status')=='ERROR' else
+            'REVIEW_REQUIRED' if not result.get('financial_data_complete') else
+            'PENDING_TECHNICAL_SELECTION') if args.model=='balanced' else 'CASH'}))
 
 if __name__ == "__main__":
     main()

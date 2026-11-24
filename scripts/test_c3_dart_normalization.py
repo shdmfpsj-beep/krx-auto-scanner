@@ -164,6 +164,26 @@ class SourceRecoveryTests(unittest.TestCase):
         r=normalize_notes(raw_document(FINANCING),xbrl(),IDENTITY,REFERENCES,known_debt_floor=1000)
         self.assertIn('NOTE_DEBT_BELOW_VERIFIED_COMPONENTS',r['errors'])
 
+    def test_note_unit_error_cannot_make_debt_exceed_verified_total_liabilities(self):
+        note=FINANCING.replace('리스부채','단기차입금').replace('<TD>4</TD>','<TD>400</TD>').replace('<TD>3</TD>','<TD>399</TD>')
+        r=normalize_notes(raw_document(note),xbrl(),IDENTITY,REFERENCES)
+        self.assertIn('NOTE_DEBT_EXCEEDS_VERIFIED_LIABILITIES',r['errors'])
+        self.assertEqual(r['metrics'],{})
+
+    def test_balanced_bridge_log_does_not_call_incomplete_finance_cash(self):
+        from contextlib import redirect_stdout
+        from unittest.mock import patch
+        from c3_top5_dart_bridge import main
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp);(p/'receipt.json').write_text(json.dumps(dict(asof='20261123',candidates=[])))
+            result=dict(status='REVIEW_REQUIRED',financial_data_complete=False,researched=[],excluded=[])
+            output=io.StringIO()
+            with patch('sys.argv',['bridge','--model','balanced','--receipt',str(p/'receipt.json'),'--out',str(p/'out.json')]), \
+                 patch('c3_balanced_financials.collect_balanced',return_value=result), redirect_stdout(output):
+                main()
+            logged=json.loads(output.getvalue().split('C3_TOP5_FINANCIAL_GATE ',1)[1])
+            self.assertEqual(logged['decision'],'REVIEW_REQUIRED')
+
     def test_finance_costs_are_not_used_as_interest_and_cf_addbacks_are_rejected(self):
         table=dict(scale=1000,rows=[['구분','당기','전기'],['금융원가','10','9'],['외환차손','10','9']],
                    context='금융비용',metadata='단위:천원')
@@ -267,6 +287,17 @@ class SourceRecoveryTests(unittest.TestCase):
             next(Path(tmp).glob('*.zip')).write_bytes(b'corrupt')
             with self.assertRaisesRegex(ValueError,'CACHE_INTEGRITY'):
                 cache.get('document.xml','20260318000849','11011','key')
+
+    def test_public_attachment_viewer_is_public_evidence_never_a_financial_pass(self):
+        from c3_balanced_source_probe import public_filing_wrapper
+        calls=[]
+        with tempfile.TemporaryDirectory() as tmp:
+            result=public_filing_wrapper('20260326000491',Path(tmp),lambda req:calls.append(req.full_url) or b'<html>public</html>')
+            self.assertEqual(calls,['https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260326000491'])
+            self.assertFalse(result['qualification_use'])
+            self.assertIn('UNVERIFIED',result['verification_state'])
+            self.assertTrue((Path(tmp)/result['file']).is_file())
+            with self.assertRaises(ValueError):public_filing_wrapper('https://other.test',Path(tmp))
 
 
 if __name__=='__main__':unittest.main()
