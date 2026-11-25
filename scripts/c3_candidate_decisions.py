@@ -54,7 +54,9 @@ def report(receipt, geometry, selection, financial):
             structural_stop_diagnostic=c.get('structural_stop_diagnostic'),
             technical_status=c.get('entry_status'), status=state,
             approval_scope='REQUIRED' if scope.get('required') else 'NOT_REQUIRED' if scope.get('verified') else 'UNVERIFIED',
-            financial_blocks_execution=c['code'] in selection.get('approval_required_codes',[]) and verdict in ('ERROR','REVIEW_REQUIRED'),
+            financial_blocks_execution=(c['code'] in selection.get('approval_required_codes',[]) and verdict in ('ERROR','REVIEW_REQUIRED')
+                and selection.get('aggregate_policy')!='INDEPENDENT_ISSUER_FINANCIAL_APPROVAL_V2'),
+            financial_excludes_issuer=verdict in ('ERROR','REVIEW_REQUIRED','REJECTED_FINANCIAL_RISK'),
             approval_scope_reason=scope.get('reason'),
             top5=any(x['code']==c['code'] for x in selection.get('selected', [])),
             reasons=list(dict.fromkeys(reasons))))
@@ -76,6 +78,9 @@ def report(receipt, geometry, selection, financial):
         final_top5=selection.get('selected_count', 0))
     summary.update(approval_required=selection.get('approval_required_count'),
         approval_financial_complete=selection.get('approval_financial_complete'),
+        selected_financial_complete=selection.get('selected_financial_complete'),
+        selection_approval_complete=selection.get('selection_approval_complete'),
+        all_interest_financial_complete=selection.get('all_interest_financial_complete'),
         nonblocking_financial_unverified=len(selection.get('nonblocking_financial_unverified_codes',[])),
         comparison_conservative_operational_status=selection.get('comparison_conservative_operational_status'))
     outcome = selection.get('operational_status', 'ERROR')
