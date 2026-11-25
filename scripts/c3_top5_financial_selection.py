@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """TOP5: executable entries, dated financial risk gate and existing quality ranks."""
 import argparse
+import hashlib
 import json
 import math
 from datetime import datetime
@@ -136,7 +137,23 @@ def classify(item, asof=None):
         return "REVIEW_FAILED_FINANCIAL_GATE"
     return "QUALIFIED_BASIC_FINANCIAL_RISK"
 
-def approval_scope(c):
+def attach_support_evidence(geometry, pool):
+    """Attach original candles only for a missing-support decision; never alter prices."""
+    if geometry.get('asof')!=pool.get('asof'):
+        raise ValueError('SUPPORT_SOURCE_DATE_MISMATCH')
+    sources={c['code']:c for c in pool.get('candidates',[])}
+    if len(sources)!=len(pool.get('candidates',[])):
+        raise ValueError('SUPPORT_SOURCE_DUPLICATE_CODE')
+    rows=[]
+    for candidate in geometry.get('candidates',[]):
+        row=dict(candidate)
+        if 'NO_NEARBY_CONFIRMED_SUPPORT' in row.get('rejection_reasons',[]) and row['code'] in sources:
+            row['support_search_bars']=sources[row['code']].get('bars')
+        rows.append(row)
+    return {**geometry,'candidates':rows}
+
+
+def approval_scope(c, asof=None):
     """Prove today's non-entry from prices; an uncomputed chart is not CASH.
 
     This never changes a range, stop or proximity threshold. Rejected-stop
@@ -150,6 +167,28 @@ def approval_scope(c):
     if c.get('geometry_validated') is not False or c.get('status') not in ('PASS_RISK_GEOMETRY','REJECTED'):
         return result
     reasons=c.get('rejection_reasons',[])
+    bars=c.get('support_search_bars')
+    if ('NO_NEARBY_CONFIRMED_SUPPORT' in reasons and isinstance(bars,list) and len(bars)==60
+        and asof and finite(c.get('atr14')) and c['atr14']>0
+        and c.get('pivot_support') is None and all(c.get(k) is None for k in ('entry_low','entry_high','stop_ref'))):
+        try:
+            dates=[b['date'] for b in bars]
+            if dates!=sorted(set(dates)) or dates[-1]!=asof:raise ValueError('SUPPORT_BAR_DATE')
+            for bar in bars:
+                datetime.strptime(bar['date'],'%Y%m%d')
+                if not all(finite(bar.get(k)) and bar[k]>0 for k in ('open','high','low','close','volume')):
+                    raise ValueError('SUPPORT_BAR_VALUE')
+                if not bar['low']<=min(bar['open'],bar['close'])<=max(bar['open'],bar['close'])<=bar['high']:
+                    raise ValueError('SUPPORT_OHLC_ORDER')
+            if bars[-1]['close']!=c['close']:raise ValueError('SUPPORT_CLOSE_MISMATCH')
+            from c3_entry_geometry import audit_archived_zone
+            proof=audit_archived_zone(c,bars)
+            if proof['pivot_support'] is None and proof['rejection_reason']=='NO_NEARBY_CONFIRMED_SUPPORT':
+                return dict(required=False,verified=True,reason='NO_SUPPORT_RECOMPUTED_FROM_60_VALID_BARS',
+                    ma20=proof['ma20'],atr14=proof['atr14'],source_session_count=60,
+                    source_bars_sha256=hashlib.sha256(json.dumps(bars,sort_keys=True,separators=(',',':')).encode()).hexdigest())
+        except (ValueError,KeyError,TypeError,IndexError):
+            pass
     low=c.get('attempted_entry_low',c.get('entry_low'))
     high=c.get('attempted_entry_high',c.get('entry_high'))
     if ('EMPTY_ENTRY_INTERSECTION' in reasons or 'NO_EXECUTABLE_TICK_INTERVAL' in reasons) and all(
@@ -176,7 +215,7 @@ def select_approval_scoped(geometry, financial):
     previous={**financial,'aggregate_policy':'ISOLATED_ISSUER_FAILURES_V1'}
     baseline=select(geometry,previous)
     candidates=geometry.get('candidates',[])
-    scope={c['code']:approval_scope(c) for c in candidates if isinstance(c,dict) and c.get('code')}
+    scope={c['code']:approval_scope(c,geometry.get('asof')) for c in candidates if isinstance(c,dict) and c.get('code')}
     required={code for code,s in scope.items() if s['required']}
     unknown=[code for code,s in scope.items() if not s['verified']]
     rows=financial.get('researched',[])+financial.get('excluded',[])
@@ -372,7 +411,10 @@ def main():
     p.add_argument("--financial", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
     a = p.parse_args()
-    result = select(json.loads(a.geometry.read_text()), json.loads(a.financial.read_text()))
+    geometry=json.loads(a.geometry.read_text())
+    pool=a.geometry.parent/'qualified_chart_pool.json'
+    if pool.is_file():geometry=attach_support_evidence(geometry,json.loads(pool.read_text()))
+    result = select(geometry, json.loads(a.financial.read_text()))
     a.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
     print("FINANCIAL_SELECTION", result["selected_count"], "decision="+result["decision"])
 
