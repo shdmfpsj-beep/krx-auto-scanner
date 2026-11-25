@@ -62,7 +62,7 @@ jobs:
       - name: Run all existing regressions and recovery authorization tests without sends
         run: |
           set -o pipefail
-          PYTHONPATH=scripts python -m unittest -v test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_operating_recovery/regression.log
+          PYTHONPATH=scripts python -m unittest -v test_c3_technical_preflight test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_operating_recovery/regression.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

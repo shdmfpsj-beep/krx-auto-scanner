@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from c3_top5_financial_selection import select, approval_scope, APPROVAL_POLICY, REVIEW_SCOPE
+from c3_top5_financial_selection import select, approval_scope, APPROVAL_POLICY, REVIEW_SCOPE, attach_support_evidence
 from c3_balanced_validation import exit_code, run
 from test_c3_top5_financial_selection import candidate, record, evidence, ASOF
 
@@ -33,6 +33,43 @@ def rejected_chart(code='111111'):
 
 class ApprovalScopeTests(unittest.TestCase):
     def result(self,charts,*rows):return select(dict(asof=ASOF,candidates=charts),financial(*rows))
+
+
+    def support_fixture(self):
+        from datetime import datetime,timedelta
+        end=datetime.strptime(ASOF,'%Y%m%d')
+        bars=[dict(date=(end-timedelta(days=59-i)).strftime('%Y%m%d'),open=9900,high=10000,low=9800,close=9900,volume=1000) for i in range(60)]
+        row=candidate(status='PASS_RISK_GEOMETRY',entry_status='WATCH',geometry_validated=False,
+            entry_low=None,entry_high=None,stop_ref=None,risk_pct=None,close=9900,
+            pivot_support=None,atr14=200,rejection_reasons=['NO_NEARBY_CONFIRMED_SUPPORT'])
+        geometry=dict(asof=ASOF,candidates=[row]);pool=dict(asof=ASOF,candidates=[dict(code=row['code'],bars=bars)])
+        return attach_support_evidence(geometry,pool)
+
+    def test_absent_support_recomputed_from_complete_bars_is_not_data_missing(self):
+        g=self.support_fixture();r=select(g,financial(fact(verdict='REVIEW_REQUIRED')))
+        self.assertEqual(r['operational_status'],'CASH_NO_ELIGIBLE')
+        self.assertEqual(r['financial_verdicts']['111111'],'REVIEW_REQUIRED')
+        self.assertEqual(r['technical_approval_scope']['111111']['reason'],'NO_SUPPORT_RECOMPUTED_FROM_60_VALID_BARS')
+        self.assertFalse(r['selected'])
+
+    def test_absent_support_label_without_valid_prices_remains_data_hold(self):
+        for change in ('missing','date','price','pivot'):
+            g=self.support_fixture();row=g['candidates'][0]
+            if change=='missing':row.pop('support_search_bars')
+            elif change=='date':row['support_search_bars'][-1]['date']='20990101'
+            elif change=='price':row['support_search_bars'][-1]['low']=20000
+            else:
+                row['support_search_bars'][45]['low']=9799
+                row['support_search_bars'][45]['high']=10001
+            r=select(g,financial(fact(verdict='REVIEW_REQUIRED')))
+            self.assertEqual(r['operational_status'],'HOLD_DATA_INCOMPLETE',change)
+
+    def test_support_source_must_match_asof_and_unambiguous_codes(self):
+        g=self.support_fixture()
+        with self.assertRaisesRegex(ValueError,'SUPPORT_SOURCE_DATE_MISMATCH'):
+            attach_support_evidence(g,dict(asof='20990101',candidates=[]))
+        pool=dict(asof=ASOF,candidates=[dict(code='111111'),dict(code='111111')])
+        with self.assertRaisesRegex(ValueError,'SUPPORT_SOURCE_DUPLICATE_CODE'):attach_support_evidence(g,pool)
 
     def test_three_financial_pass_no_entry_is_cash(self):
         charts=[rejected_chart(),candidate('222222','WATCH',close=10300),candidate('333333','WATCH',close=10400)]

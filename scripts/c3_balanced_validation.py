@@ -17,7 +17,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from c3_balanced_financials import collect_balanced, SnapshotCache
-from c3_top5_financial_selection import financial_review_candidates, REVIEW_SCOPE, APPROVAL_POLICY, select
+from c3_top5_financial_selection import financial_review_candidates, REVIEW_SCOPE, APPROVAL_POLICY, select, attach_support_evidence
 from c3_all_candidate_report import image_identity
 from c3_entry_geometry import sanitize_archived_geometry, audit_archived_zone
 from c3_candidate_decisions import report as decision_report, save as save_decisions
@@ -189,6 +189,7 @@ def run(root, cache_root, source=None, live=False, asof=None):
         financial['aggregate_policy']=APPROVAL_POLICY
         write(root/'financial_pool_input.json', {'asof':pool['asof'], 'request_scope':REVIEW_SCOPE,
             'candidates':[{'code':s['ticker'],'name':s['name']} for s in stocks]})
+        geometry = attach_support_evidence(geometry,pool)
         selection = select(geometry, financial)
         synthetic = pool.get('fixture_kind')=='SYNTHETIC_NOT_MARKET_SELECTION'
         selection.update(system_name='강현AI PRO · C3 TOP5 — Balanced Quality & Timing',
