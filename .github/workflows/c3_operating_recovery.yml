@@ -107,6 +107,11 @@ jobs:
             /scripts/c3_top5_session_policy.py
           sparse-checkout-cone-mode: false
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install existing reference calendar for the current-session gate
+        run: python -m pip install pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
       - name: Enable only if disabled and dispatch the approved real main workflow once
         env:
           GH_TOKEN: ${{ github.token }}
