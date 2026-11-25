@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 from c3_delivery_authorization import approved_manual_delivery, RECOVERY_PREFIX, REQUEST_PREFIX, REPOSITORY
-from c3_operating_recovery import diagnose, recover
+from c3_operating_recovery import diagnose, recover, recover_after_upstream
 from test_c3_top5_pipeline import PipelineTests, DELIVERY
 
 CLOCK=datetime(2026,11,25,9,tzinfo=ZoneInfo('Asia/Seoul'))
@@ -66,7 +66,7 @@ class FakeGitHub:
 
 class ControllerTests(unittest.TestCase):
     def env(self):return dict(GITHUB_EVENT_NAME='push',GITHUB_REF_NAME='main',GITHUB_REPOSITORY=REPOSITORY,
-                              GITHUB_RUN_ATTEMPT='1',GITHUB_RUN_ID='555')
+                              GITHUB_RUN_ATTEMPT='1',GITHUB_RUN_ID='555',GITHUB_SHA='verified-main')
     def event(self):return dict(head_commit=dict(message=RECOVERY_PREFIX+' (#205)\nApproved recovery'))
     def test_active_no_event_is_not_invented_as_a_code_cause(self):
         gh=FakeGitHub();report=diagnose(gh)
@@ -108,6 +108,42 @@ class ControllerTests(unittest.TestCase):
         with patch.object(gh,'call',side_effect=fail) as mocked:
             with self.assertRaises(TimeoutError):recover(gh,self.env(),self.event(),report,CLOCK)
             self.assertEqual(mocked.call_count,1)
+
+    def test_late_schedule_finishes_before_one_first_dispatch(self):
+        gh=FakeGitHub(running=True);report=diagnose(gh);waits=[]
+        def pause(seconds):waits.append(seconds);gh.running=False
+        result=recover_after_upstream(gh,self.env(),self.event(),report,pause=pause,clock=CLOCK)
+        self.assertEqual(result['status'],'DISPATCH_ACCEPTED');self.assertEqual(waits,[10])
+        self.assertEqual(sum(method=='POST' for _,method,_ in gh.calls),1)
+
+    def test_late_schedule_receipt_appearing_during_wait_blocks_dispatch(self):
+        gh=FakeGitHub(running=True);report=diagnose(gh)
+        def pause(seconds):gh.running=False;gh.reserved=True
+        result=recover_after_upstream(gh,self.env(),self.event(),report,pause=pause,clock=CLOCK)
+        self.assertEqual(result['status'],'BLOCKED_EXISTING_RESERVATION_REVIEW_REQUIRED')
+        self.assertFalse(any(method=='POST' for _,method,_ in gh.calls))
+
+    def test_wait_is_bounded_and_never_cancels_an_existing_run(self):
+        gh=FakeGitHub(running=True);report=diagnose(gh);waits=[]
+        result=recover_after_upstream(gh,self.env(),self.event(),report,pause=waits.append,max_waits=1,clock=CLOCK)
+        self.assertEqual(result['status'],'WAIT_EXISTING_OPERATING_RUN');self.assertEqual(waits,[10])
+        self.assertTrue(all(method=='GET' for _,method,_ in gh.calls))
+
+    def test_changed_main_head_never_dispatches_unverified_code(self):
+        gh=FakeGitHub();report=diagnose(gh);report['main_sha']='another-head'
+        with self.assertRaisesRegex(ValueError,'MAIN_HEAD_CHANGED'):
+            recover_after_upstream(gh,self.env(),self.event(),report,pause=lambda n:self.fail('wait called'),clock=CLOCK)
+        self.assertFalse(any(method=='POST' for _,method,_ in gh.calls))
+
+    def test_uncertain_dispatch_does_not_enter_wait_or_post_again(self):
+        gh=FakeGitHub();report=diagnose(gh);base=gh.call;posts=[]
+        def fail(path,method='GET',**kwargs):
+            if method=='POST':posts.append(path);raise TimeoutError('uncertain dispatch')
+            return base(path,method=method,**kwargs)
+        with patch.object(gh,'call',side_effect=fail):
+            with self.assertRaises(TimeoutError):
+                recover_after_upstream(gh,self.env(),self.event(),report,pause=lambda n:self.fail('wait called'),clock=CLOCK)
+        self.assertEqual(len(posts),1)
 
 
 class EmbeddedDeliveryRecoveryTests(PipelineTests):
