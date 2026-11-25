@@ -86,7 +86,7 @@ DEBT_LABELS = ({'단기차입금'}, {'유동성장기차입금'},
 NONCURRENT_LOAN_IDS = {'ifrs-full_NoncurrentPortionOfOtherNoncurrentBorrowings',
                       'ifrs-full_NoncurrentPortionOfNoncurrentLoansReceived'}
 NONCURRENT_BOND_IDS = {'ifrs-full_NoncurrentPortionOfNoncurrentBondsIssued'}
-CURRENT_BOND_IDS = {'dart_CurrentPortionOfBonds', 'ifrs-full_CurrentPortionOfNoncurrentBondsIssued'}
+CURRENT_BOND_IDS = {'dart_CurrentPortionOfBonds', 'dart_CurrentPortionOfConvertibleBonds', 'ifrs-full_CurrentPortionOfNoncurrentBondsIssued'}
 
 
 def retry_network(operation, pause=time.sleep):

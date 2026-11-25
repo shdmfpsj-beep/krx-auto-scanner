@@ -65,6 +65,42 @@ def normalized(node):
     return re.sub(r'\s+',' ',''.join(node.itertext())).strip()
 
 
+def reported_finance_facts(root, division, year, corp_code):
+    """Exact whole-issuer IS expense facts; never CF adjustments or segments.
+
+    DART renders financial-expense notes with a ReportedAmountMember axis.
+    This is a presentation axis, not a business segment to be summed.
+    """
+    ns='{http://www.xbrl.org/2003/instance}'
+    base=('ifrs-full:ConsolidatedAndSeparateFinancialStatementsAxis',
+          'ifrs-full:ConsolidatedMember' if division=='CFS' else 'ifrs-full:SeparateMember')
+    reported=('ifrs-full:CarryingAmountAccumulatedDepreciationAmortisationAndImpairmentAndGrossCarryingAmountAxis',
+              'dart:ReportedAmountMember')
+    units={n.attrib.get('id') for n in root.findall(ns+'unit') if n.findtext(ns+'measure')=='iso4217:KRW'}
+    contexts=set()
+    for c in root.findall(ns+'context'):
+        members=[(n.attrib.get('dimension'),n.text) for n in c.iter() if tag(n)=='EXPLICITMEMBER']
+        period=c.find(ns+'period')
+        if (c.findtext('.//'+ns+'identifier')!=corp_code or any(tag(n)=='TYPEDMEMBER' for n in c.iter())
+            or len(members)!=len(set(members)) or set(members) not in ({base},{base,reported}) or period is None):continue
+        if {tag(n):n.text for n in period}=={'STARTDATE':f'{year}-01-01','ENDDATE':f'{year}-12-31'}:
+            contexts.add(c.attrib['id'])
+    facts=[]
+    for f in root:
+        local=f.tag.split('}')[-1];namespace=f.tag.split('}')[0].lstrip('{')
+        standard=(local=='InterestExpenseFinanceExpense' and namespace.startswith(('http://dart.fss.or.kr/taxonomy/','https://dart.fss.or.kr/taxonomy/'))
+            or local in ('FinanceCosts','InterestExpense') and namespace.startswith(('http://xbrl.ifrs.org/taxonomy/','https://xbrl.ifrs.org/taxonomy/')))
+        value=integer(f.text)
+        if standard and f.attrib.get('contextRef') in contexts and f.attrib.get('unitRef') in units and value is not None:
+            decimals=f.attrib.get('decimals','')
+            precision=(1 if decimals=='INF' else 10**max(0,-int(decimals))
+                       if re.fullmatch(r'-?\d{1,2}',decimals) and abs(int(decimals))<=12 else None)
+            if precision is None:continue
+            facts.append(dict(account=local,concept=f.tag,value=value,context=f.attrib['contextRef'],
+                entity=corp_code,division=division,fiscal_year=year,unit='KRW',decimals=decimals,precision_krw=precision))
+    return facts
+
+
 def xbrl_facts(root, division, year, corp_code, references):
     """Expose exact entity/period/currency/scope facts; no dimension summation."""
     ns='{http://www.xbrl.org/2003/instance}'
@@ -108,6 +144,7 @@ def xbrl_facts(root, division, year, corp_code, references):
                        'qualification_use':'NOT_AUTOMATICALLY_PROMOTED; loan component classification and maturity review remain separate'}
     return {'entity':corp_code,'fiscal_year':year,'division':division,'currency':'KRW',
             'reference_balance_matches':anchors,'facts':interesting,'disclosed_totals':disclosed,
+            'reported_finance_facts':reported_finance_facts(root,division,year,corp_code) if anchors else [],
             'formal_is_interest_expense_verified':False,'automatic_financial_promotion':False}
 
 

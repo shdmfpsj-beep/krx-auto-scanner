@@ -124,6 +124,11 @@ def current_column(table):
     meta=compact(table['metadata'])
     if '당기' in meta and '전기' not in meta:
         widths={len(r) for r in table['rows']}
+        # Hierarchical labels can occupy several columns. A single explicitly
+        # labelled amount column still belongs to this verified current period.
+        headers=[r for r in table['rows'][:2] if r and compact(r[-1])=='공시금액'
+                 and not any(compact(c) for c in r[:-1])]
+        if len(headers)==1 and len(headers[0])==max(widths):return len(headers[0])-1
         return max(widths)-1 if max(widths)<=3 else None
     return None
 
@@ -269,8 +274,18 @@ def note_interest(table, finance_costs):
                     maximum_rounding_error_krw=len(interests)*scale/2,expense_sign='MATCHED_COST_SUBTOTAL'))
 
 
-def audit_note(root, division):
+def audit_note(root, division, fiscal_year=None):
     results=[]
+    terms=set()
+    for cover in (n for n in root.iter() if tag(n)=='COVER'):
+        dates={}
+        for n in cover.iter():
+            attrs={k.upper():v for k,v in n.attrib.items()}
+            if attrs.get('AUNIT') in ('PERIODFROM','PERIODTO'):
+                dates.setdefault(attrs['AUNIT'],set()).add(attrs.get('AUNITVALUE'))
+        if dates=={'PERIODFROM':{f'{fiscal_year}0101'},'PERIODTO':{f'{fiscal_year}1231'}}:
+            terms.update(re.findall(r'제\s*(\d+)\s*기',normalized(cover)))
+    current_term=next(iter(terms)) if len(terms)==1 else None
     for table in (n for n in root.iter() if tag(n)=='TABLE'):
         rows=grid(table)
         if not rows:continue
@@ -285,17 +300,21 @@ def audit_note(root, division):
         target='연결감사보고서' if division=='CFS' else '감사보고서'
         for row in rows:
             if len(row)<=max(opinion,concern,emphasis,kind):continue
-            if not re.search(r'당기|\(당\)',compact(row[0])) or compact(row[kind])!=target:continue
+            period=compact(row[0])
+            current=bool(re.search(r'당기|\(당\)',period)) or (current_term is not None and period==f'제{current_term}기')
+            if not current or compact(row[kind])!=target:continue
             empty={'-','해당사항없음','해당없음','없음'}
             clean=compact(row[opinion]) in ('적정','적정의견')
             no_concern=compact(row[concern]) in empty and compact(row[emphasis]) in empty
             modified=compact(row[opinion]) in ('한정','한정의견','부적정','부적정의견','의견거절')
             results.append(dict(state='FAIL' if modified else 'PASS' if clean and no_concern else 'REVIEW_REQUIRED',
-                opinion=row[opinion],going_concern=row[concern],emphasis=row[emphasis],scope=target))
+                opinion=row[opinion],going_concern=row[concern],emphasis=row[emphasis],scope=target,
+                period_label=row[0],cover_fiscal_term=current_term))
     return results[0] if len(results)==1 else dict(state='REVIEW_REQUIRED',reason='AUDIT_NOTE_SCOPE_AMBIGUOUS')
 
 
 def normalize_notes(document, xbrl, identity, references, finance_costs=None, known_debt_floor=0):
+    from c3_dart_note_reconciliation import column_financing_debt, standard_interest_breakdown
     result=dict(identity=identity,metrics={},findings=[],errors=[])
     try:
         root,section,name=original_document(document,identity)
@@ -307,18 +326,19 @@ def normalize_notes(document, xbrl, identity, references, finance_costs=None, kn
         candidates={name:[] for name in ('interest_expense','interest_bearing_debt_excluding_leases')}
         for table in tables_with_context(section):
             if table['scale'] is None:continue
-            debt=capital_debt(table,references) or financing_debt(table) or transposed_financing_debt(table)
-            interest=note_interest(table,finance_costs)
+            debt=capital_debt(table,references) or financing_debt(table) or transposed_financing_debt(table) or column_financing_debt(table)
+            interest=standard_interest_breakdown(table,finance_costs,verified.get('xbrl_evidence',{}).get('reported_finance_facts',[])) or note_interest(table,finance_costs)
             for metric,fact in (('interest_bearing_debt_excluding_leases',debt),('interest_expense',interest)):
                 if not fact:continue
+                precision=fact.get('precision_krw',table['scale'])
                 if metric.startswith('interest_bearing') and references.get('Liabilities') is not None and not (
-                    float(fact['value'])<=references['Liabilities']+table['scale']/2+1):
+                    float(fact['value'])<=references['Liabilities']+precision/2+1):
                     result['errors'].append('NOTE_DEBT_EXCEEDS_VERIFIED_LIABILITIES');continue
-                if metric.startswith('interest_bearing') and float(fact['value'])+table['scale']/2<known_debt_floor:
+                if metric.startswith('interest_bearing') and float(fact['value'])+precision/2<known_debt_floor:
                     result['errors'].append('NOTE_DEBT_BELOW_VERIFIED_COMPONENTS');continue
-                if metric.startswith('interest_bearing') and xbrl_total is not None and not close_to(fact['value'],xbrl_total,table['scale']):
+                if metric.startswith('interest_bearing') and xbrl_total is not None and not close_to(fact['value'],xbrl_total,precision):
                     result['errors'].append('NOTE_DEBT_XBRL_TOTAL_MISMATCH');continue
-                provenance=dict(**identity,account_name=fact['label'],unit=table['unit'],precision_krw=table['scale'],
+                provenance=dict(**identity,account_name=fact['label'],unit=table['unit'],precision_krw=precision,source_table_scale=table['scale'],
                     receipt_source_file=name,document_sha256=source_sha,xbrl_sha256=hashlib.sha256(xbrl).hexdigest(),
                     table_index=table['index'],context=table['context'][-500:],method=fact['method'],
                     reconciliation=fact['reconciliation'],verification_state='VALIDATED_ENTITY_PERIOD_SCOPE_UNIT_AND_TOTAL',
@@ -333,7 +353,7 @@ def normalize_notes(document, xbrl, identity, references, finance_costs=None, kn
                    (f['provenance']['precision_krw']+first['provenance']['precision_krw'])/2+1 for f in facts):
                 result['errors'].append('CONFLICTING_NOTE_'+metric.upper());continue
             result['metrics'][metric]=min(facts,key=lambda f:f['provenance']['precision_krw'])
-        result['audit']=audit_note(root,identity['division'])
+        result['audit']=audit_note(root,identity['division'],identity['fiscal_year'])
         result['state']='VALIDATED_ORIGINAL_NOTE_EVIDENCE'
     except (ValueError,KeyError,zipfile.BadZipFile,UnicodeError) as exc:
         result.update(state='REVIEW_REQUIRED',reason=str(exc) if isinstance(exc,ValueError) else type(exc).__name__)
@@ -341,6 +361,7 @@ def normalize_notes(document, xbrl, identity, references, finance_costs=None, kn
 
 
 def enrich_financial_notes(cache, key, identity, references, metrics, audit, document_fetch=None):
+    from c3_dart_note_reconciliation import primary_debt_covered
     from c3_balanced_source_probe import DocumentCache
     from c3_dart_document_evidence import download_document
     docs=DocumentCache(cache.root/'documents')
@@ -365,7 +386,9 @@ def enrich_financial_notes(cache, key, identity, references, metrics, audit, doc
             if existing is not None and not close_to(fact['value'],existing,fact['provenance']['precision_krw']):
                 raise ValueError('DIRECT_AND_NOTE_FINANCIAL_MISMATCH')
             if name=='interest_bearing_debt_excluding_leases' and metrics.get('unresolved_debt_accounts'):
-                fact['qualification_use']='BLOCKED_UNCLASSIFIED_PRIMARY_DEBT';continue
+                if not primary_debt_covered(metrics,fact):
+                    fact['qualification_use']='BLOCKED_UNCLASSIFIED_PRIMARY_DEBT';continue
+                fact['resolved_primary_debt_accounts']=metrics['unresolved_debt_accounts']
             if existing is None:
                 metrics[name]=fact['value']
                 metrics.setdefault('metric_sources',{})[name]=fact['provenance']
