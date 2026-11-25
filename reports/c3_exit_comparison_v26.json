@@ -4,6 +4,766 @@
   "warning": "Overlapping historical candidate selection may have survivorship bias. No trading fees, slippage or certified session prices. Results are not forward performance.",
   "items": [
     {
+      "ticker": "134380",
+      "name": "미원화학",
+      "status": "RESEARCH_ONLY",
+      "buy_approved": false,
+      "fixed20": {
+        "trades": [
+          {
+            "signal_date": "2025-12-08",
+            "entry_date": "2025-12-09",
+            "exit_date": "2026-01-09",
+            "entry": 9300.0,
+            "exit": 9600.0,
+            "return_pct": 3.226,
+            "max_favorable_pct": 5.376,
+            "max_adverse_pct": -2.043,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-01-12",
+            "entry_date": "2026-01-13",
+            "exit_date": "2026-02-10",
+            "entry": 9530.0,
+            "exit": 10490.0,
+            "return_pct": 10.073,
+            "max_favorable_pct": 29.486,
+            "max_adverse_pct": -0.735,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-02-11",
+            "entry_date": "2026-02-12",
+            "exit_date": "2026-03-18",
+            "entry": 10700.0,
+            "exit": 11050.0,
+            "return_pct": 3.271,
+            "max_favorable_pct": 17.29,
+            "max_adverse_pct": -1.869,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-03-19",
+            "entry_date": "2026-03-20",
+            "exit_date": "2026-04-17",
+            "entry": 11100.0,
+            "exit": 15300.0,
+            "return_pct": 37.838,
+            "max_favorable_pct": 36.937,
+            "max_adverse_pct": -1.982,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-04-20",
+            "entry_date": "2026-04-21",
+            "exit_date": "2026-05-21",
+            "entry": 13620.0,
+            "exit": 11500.0,
+            "return_pct": -15.565,
+            "max_favorable_pct": 0.0,
+            "max_adverse_pct": -15.932,
+            "holding_sessions": 20,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-08-07",
+            "entry_date": "2026-08-10",
+            "exit_date": "2026-09-08",
+            "entry": 10590.0,
+            "exit": 10290.0,
+            "return_pct": -2.833,
+            "max_favorable_pct": 14.164,
+            "max_adverse_pct": -3.683,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-09-17",
+            "entry_date": "2026-09-18",
+            "exit_date": "2026-09-22",
+            "entry": 10400.0,
+            "exit": 10150.0,
+            "return_pct": -2.404,
+            "max_favorable_pct": 3.365,
+            "max_adverse_pct": -2.308,
+            "holding_sessions": 2,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-10-26",
+            "entry_date": "2026-10-27",
+            "exit_date": "2026-11-24",
+            "entry": 11330.0,
+            "exit": 11830.0,
+            "return_pct": 4.413,
+            "max_favorable_pct": 6.09,
+            "max_adverse_pct": -3.795,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          }
+        ],
+        "count": 8,
+        "mean_return_pct": 4.752,
+        "win_rate_pct": 62.5,
+        "mean_holding_sessions": 17.75
+      },
+      "trend60": {
+        "trades": [
+          {
+            "signal_date": "2025-12-08",
+            "entry_date": "2025-12-09",
+            "exit_date": "2025-12-30",
+            "entry": 9300.0,
+            "exit": 9120.0,
+            "return_pct": -1.935,
+            "max_favorable_pct": 5.269,
+            "max_adverse_pct": -2.043,
+            "holding_sessions": 14,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-01-02",
+            "entry_date": "2026-01-05",
+            "exit_date": "2026-02-03",
+            "entry": 9470.0,
+            "exit": 9550.0,
+            "return_pct": 0.845,
+            "max_favorable_pct": 5.491,
+            "max_adverse_pct": -0.634,
+            "holding_sessions": 21,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-02-06",
+            "entry_date": "2026-02-09",
+            "exit_date": "2026-03-10",
+            "entry": 10690.0,
+            "exit": 10650.0,
+            "return_pct": -0.374,
+            "max_favorable_pct": 17.399,
+            "max_adverse_pct": -2.9,
+            "holding_sessions": 17,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-03-18",
+            "entry_date": "2026-03-19",
+            "exit_date": "2026-04-14",
+            "entry": 11100.0,
+            "exit": 11060.0,
+            "return_pct": -0.36,
+            "max_favorable_pct": 8.108,
+            "max_adverse_pct": -1.982,
+            "holding_sessions": 18,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-04-15",
+            "entry_date": "2026-04-16",
+            "exit_date": "2026-05-08",
+            "entry": 12880.0,
+            "exit": 12300.0,
+            "return_pct": -4.503,
+            "max_favorable_pct": 19.565,
+            "max_adverse_pct": -6.988,
+            "holding_sessions": 14,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-05-11",
+            "entry_date": "2026-05-12",
+            "exit_date": "2026-05-15",
+            "entry": 13060.0,
+            "exit": 12450.0,
+            "return_pct": -4.671,
+            "max_favorable_pct": 0.306,
+            "max_adverse_pct": -6.049,
+            "holding_sessions": 3,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-08-07",
+            "entry_date": "2026-08-10",
+            "exit_date": "2026-08-26",
+            "entry": 10590.0,
+            "exit": 10900.0,
+            "return_pct": 2.927,
+            "max_favorable_pct": 14.164,
+            "max_adverse_pct": -1.983,
+            "holding_sessions": 11,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-08-27",
+            "entry_date": "2026-08-28",
+            "exit_date": "2026-09-01",
+            "entry": 11230.0,
+            "exit": 10350.0,
+            "return_pct": -7.836,
+            "max_favorable_pct": 0.0,
+            "max_adverse_pct": -8.281,
+            "holding_sessions": 2,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-09-17",
+            "entry_date": "2026-09-18",
+            "exit_date": "2026-09-22",
+            "entry": 10400.0,
+            "exit": 10150.0,
+            "return_pct": -2.404,
+            "max_favorable_pct": 3.365,
+            "max_adverse_pct": -2.308,
+            "holding_sessions": 2,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-10-26",
+            "entry_date": "2026-10-27",
+            "exit_date": "2026-11-25",
+            "entry": 11330.0,
+            "exit": 11900.0,
+            "return_pct": 5.031,
+            "max_favorable_pct": 6.09,
+            "max_adverse_pct": -3.795,
+            "holding_sessions": 21,
+            "exit_reason": "MAX_HOLD_OR_DATA_END"
+          }
+        ],
+        "count": 10,
+        "mean_return_pct": -1.328,
+        "win_rate_pct": 30.0,
+        "mean_holding_sessions": 12.3
+      }
+    },
+    {
+      "ticker": "169330",
+      "name": "엠브레인",
+      "status": "RESEARCH_ONLY",
+      "buy_approved": false,
+      "fixed20": {
+        "trades": [
+          {
+            "signal_date": "2026-02-09",
+            "entry_date": "2026-02-10",
+            "exit_date": "2026-02-19",
+            "entry": 1962.0,
+            "exit": 1934.0,
+            "return_pct": -1.427,
+            "max_favorable_pct": 0.204,
+            "max_adverse_pct": -2.65,
+            "holding_sessions": 4,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-04-07",
+            "entry_date": "2026-04-08",
+            "exit_date": "2026-04-10",
+            "entry": 2010.0,
+            "exit": 1960.0,
+            "return_pct": -2.488,
+            "max_favorable_pct": 0.0,
+            "max_adverse_pct": -3.93,
+            "holding_sessions": 2,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-04-13",
+            "entry_date": "2026-04-14",
+            "exit_date": "2026-05-14",
+            "entry": 1978.0,
+            "exit": 1991.0,
+            "return_pct": 0.657,
+            "max_favorable_pct": 11.223,
+            "max_adverse_pct": -3.943,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-05-18",
+            "entry_date": "2026-05-19",
+            "exit_date": "2026-05-20",
+            "entry": 2100.0,
+            "exit": 1990.0,
+            "return_pct": -5.238,
+            "max_favorable_pct": 2.381,
+            "max_adverse_pct": -5.19,
+            "holding_sessions": 1,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-09-23",
+            "entry_date": "2026-09-28",
+            "exit_date": "2026-10-28",
+            "entry": 1630.0,
+            "exit": 1780.0,
+            "return_pct": 9.202,
+            "max_favorable_pct": 19.632,
+            "max_adverse_pct": -22.945,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-11-04",
+            "entry_date": "2026-11-05",
+            "exit_date": "2026-11-25",
+            "entry": 1779.0,
+            "exit": 1799.0,
+            "return_pct": 1.124,
+            "max_favorable_pct": 3.485,
+            "max_adverse_pct": -5.902,
+            "holding_sessions": 14,
+            "exit_reason": "MAX_HOLD_OR_DATA_END"
+          }
+        ],
+        "count": 6,
+        "mean_return_pct": 0.305,
+        "win_rate_pct": 50.0,
+        "mean_holding_sessions": 10.17
+      },
+      "trend60": {
+        "trades": [
+          {
+            "signal_date": "2026-02-09",
+            "entry_date": "2026-02-10",
+            "exit_date": "2026-02-19",
+            "entry": 1962.0,
+            "exit": 1934.0,
+            "return_pct": -1.427,
+            "max_favorable_pct": 0.204,
+            "max_adverse_pct": -2.65,
+            "holding_sessions": 4,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-04-07",
+            "entry_date": "2026-04-08",
+            "exit_date": "2026-04-10",
+            "entry": 2010.0,
+            "exit": 1960.0,
+            "return_pct": -2.488,
+            "max_favorable_pct": 0.0,
+            "max_adverse_pct": -3.93,
+            "holding_sessions": 2,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-04-13",
+            "entry_date": "2026-04-14",
+            "exit_date": "2026-05-12",
+            "entry": 1978.0,
+            "exit": 2025.0,
+            "return_pct": 2.376,
+            "max_favorable_pct": 11.223,
+            "max_adverse_pct": -3.943,
+            "holding_sessions": 18,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-05-18",
+            "entry_date": "2026-05-19",
+            "exit_date": "2026-05-20",
+            "entry": 2100.0,
+            "exit": 1990.0,
+            "return_pct": -5.238,
+            "max_favorable_pct": 2.381,
+            "max_adverse_pct": -5.19,
+            "holding_sessions": 1,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-09-23",
+            "entry_date": "2026-09-28",
+            "exit_date": "2026-10-02",
+            "entry": 1630.0,
+            "exit": 1772.0,
+            "return_pct": 8.712,
+            "max_favorable_pct": 16.196,
+            "max_adverse_pct": -2.393,
+            "holding_sessions": 4,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-10-06",
+            "entry_date": "2026-10-07",
+            "exit_date": "2026-10-13",
+            "entry": 1842.0,
+            "exit": 1672.0,
+            "return_pct": -9.229,
+            "max_favorable_pct": 2.172,
+            "max_adverse_pct": -7.6,
+            "holding_sessions": 3,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-10-14",
+            "entry_date": "2026-10-15",
+            "exit_date": "2026-10-27",
+            "entry": 1748.0,
+            "exit": 1773.0,
+            "return_pct": 1.43,
+            "max_favorable_pct": 6.693,
+            "max_adverse_pct": -28.146,
+            "holding_sessions": 8,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-10-28",
+            "entry_date": "2026-10-29",
+            "exit_date": "2026-11-10",
+            "entry": 1782.0,
+            "exit": 1768.0,
+            "return_pct": -0.786,
+            "max_favorable_pct": 11.897,
+            "max_adverse_pct": -4.602,
+            "holding_sessions": 8,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-11-18",
+            "entry_date": "2026-11-19",
+            "exit_date": "2026-11-24",
+            "entry": 1800.0,
+            "exit": 1749.0,
+            "return_pct": -2.833,
+            "max_favorable_pct": 2.278,
+            "max_adverse_pct": -7.0,
+            "holding_sessions": 3,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          }
+        ],
+        "count": 9,
+        "mean_return_pct": -1.054,
+        "win_rate_pct": 33.33,
+        "mean_holding_sessions": 5.67
+      }
+    },
+    {
+      "ticker": "035610",
+      "name": "솔본",
+      "status": "RESEARCH_ONLY",
+      "buy_approved": false,
+      "fixed20": {
+        "trades": [
+          {
+            "signal_date": "2026-02-03",
+            "entry_date": "2026-02-04",
+            "exit_date": "2026-03-05",
+            "entry": 3770.0,
+            "exit": 3650.0,
+            "return_pct": -3.183,
+            "max_favorable_pct": 9.947,
+            "max_adverse_pct": -4.775,
+            "holding_sessions": 17,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-05-08",
+            "entry_date": "2026-05-11",
+            "exit_date": "2026-05-12",
+            "entry": 3710.0,
+            "exit": 3640.0,
+            "return_pct": -1.887,
+            "max_favorable_pct": 0.0,
+            "max_adverse_pct": -1.887,
+            "holding_sessions": 1,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-07-09",
+            "entry_date": "2026-07-10",
+            "exit_date": "2026-08-10",
+            "entry": 3905.0,
+            "exit": 4815.0,
+            "return_pct": 23.303,
+            "max_favorable_pct": 26.761,
+            "max_adverse_pct": -1.793,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-08-11",
+            "entry_date": "2026-08-12",
+            "exit_date": "2026-09-10",
+            "entry": 4875.0,
+            "exit": 4900.0,
+            "return_pct": 0.513,
+            "max_favorable_pct": 5.231,
+            "max_adverse_pct": -8.718,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-09-11",
+            "entry_date": "2026-09-14",
+            "exit_date": "2026-10-13",
+            "entry": 5190.0,
+            "exit": 4605.0,
+            "return_pct": -11.272,
+            "max_favorable_pct": 7.9,
+            "max_adverse_pct": -10.405,
+            "holding_sessions": 17,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          }
+        ],
+        "count": 5,
+        "mean_return_pct": 1.495,
+        "win_rate_pct": 40.0,
+        "mean_holding_sessions": 15
+      },
+      "trend60": {
+        "trades": [
+          {
+            "signal_date": "2026-02-03",
+            "entry_date": "2026-02-04",
+            "exit_date": "2026-02-27",
+            "entry": 3770.0,
+            "exit": 3915.0,
+            "return_pct": 3.846,
+            "max_favorable_pct": 9.947,
+            "max_adverse_pct": -2.122,
+            "holding_sessions": 14,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-03-03",
+            "entry_date": "2026-03-04",
+            "exit_date": "2026-03-05",
+            "entry": 3910.0,
+            "exit": 3650.0,
+            "return_pct": -6.65,
+            "max_favorable_pct": 0.0,
+            "max_adverse_pct": -8.184,
+            "holding_sessions": 1,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-05-08",
+            "entry_date": "2026-05-11",
+            "exit_date": "2026-05-12",
+            "entry": 3710.0,
+            "exit": 3640.0,
+            "return_pct": -1.887,
+            "max_favorable_pct": 0.0,
+            "max_adverse_pct": -1.887,
+            "holding_sessions": 1,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-07-09",
+            "entry_date": "2026-07-10",
+            "exit_date": "2026-10-12",
+            "entry": 3905.0,
+            "exit": 4965.0,
+            "return_pct": 27.145,
+            "max_favorable_pct": 43.406,
+            "max_adverse_pct": -1.793,
+            "holding_sessions": 60,
+            "exit_reason": "MAX_HOLD_OR_DATA_END"
+          }
+        ],
+        "count": 4,
+        "mean_return_pct": 5.614,
+        "win_rate_pct": 50.0,
+        "mean_holding_sessions": 19
+      }
+    },
+    {
+      "ticker": "068930",
+      "name": "디지털대성",
+      "status": "RESEARCH_ONLY",
+      "buy_approved": false,
+      "fixed20": {
+        "trades": [
+          {
+            "signal_date": "2025-12-08",
+            "entry_date": "2025-12-09",
+            "exit_date": "2026-01-09",
+            "entry": 7960.0,
+            "exit": 7650.0,
+            "return_pct": -3.894,
+            "max_favorable_pct": 2.387,
+            "max_adverse_pct": -6.658,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-01-15",
+            "entry_date": "2026-01-16",
+            "exit_date": "2026-02-13",
+            "entry": 7800.0,
+            "exit": 8560.0,
+            "return_pct": 9.744,
+            "max_favorable_pct": 11.795,
+            "max_adverse_pct": -0.769,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-02-19",
+            "entry_date": "2026-02-20",
+            "exit_date": "2026-03-23",
+            "entry": 8480.0,
+            "exit": 8980.0,
+            "return_pct": 5.896,
+            "max_favorable_pct": 8.255,
+            "max_adverse_pct": -4.835,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-03-24",
+            "entry_date": "2026-03-25",
+            "exit_date": "2026-03-31",
+            "entry": 8950.0,
+            "exit": 8630.0,
+            "return_pct": -3.575,
+            "max_favorable_pct": 1.564,
+            "max_adverse_pct": -9.721,
+            "holding_sessions": 4,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-08-07",
+            "entry_date": "2026-08-10",
+            "exit_date": "2026-08-14",
+            "entry": 8300.0,
+            "exit": 7950.0,
+            "return_pct": -4.217,
+            "max_favorable_pct": 2.651,
+            "max_adverse_pct": -4.578,
+            "holding_sessions": 4,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-08-18",
+            "entry_date": "2026-08-19",
+            "exit_date": "2026-09-16",
+            "entry": 7970.0,
+            "exit": 8760.0,
+            "return_pct": 9.912,
+            "max_favorable_pct": 11.543,
+            "max_adverse_pct": -2.258,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-09-17",
+            "entry_date": "2026-09-18",
+            "exit_date": "2026-10-22",
+            "entry": 8900.0,
+            "exit": 9450.0,
+            "return_pct": 6.18,
+            "max_favorable_pct": 12.36,
+            "max_adverse_pct": -2.022,
+            "holding_sessions": 20,
+            "exit_reason": "HORIZON_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-11-03",
+            "entry_date": "2026-11-04",
+            "exit_date": "2026-11-25",
+            "entry": 9410.0,
+            "exit": 9440.0,
+            "return_pct": 0.319,
+            "max_favorable_pct": 5.951,
+            "max_adverse_pct": -3.188,
+            "holding_sessions": 15,
+            "exit_reason": "MAX_HOLD_OR_DATA_END"
+          }
+        ],
+        "count": 8,
+        "mean_return_pct": 2.546,
+        "win_rate_pct": 62.5,
+        "mean_holding_sessions": 15.38
+      },
+      "trend60": {
+        "trades": [
+          {
+            "signal_date": "2025-12-08",
+            "entry_date": "2025-12-09",
+            "exit_date": "2026-01-05",
+            "entry": 7960.0,
+            "exit": 7600.0,
+            "return_pct": -4.523,
+            "max_favorable_pct": 2.387,
+            "max_adverse_pct": -4.899,
+            "holding_sessions": 16,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-01-15",
+            "entry_date": "2026-01-16",
+            "exit_date": "2026-03-05",
+            "entry": 7800.0,
+            "exit": 8540.0,
+            "return_pct": 9.487,
+            "max_favorable_pct": 17.692,
+            "max_adverse_pct": -0.769,
+            "holding_sessions": 30,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-03-06",
+            "entry_date": "2026-03-09",
+            "exit_date": "2026-03-31",
+            "entry": 8710.0,
+            "exit": 8630.0,
+            "return_pct": -0.918,
+            "max_favorable_pct": 5.396,
+            "max_adverse_pct": -7.233,
+            "holding_sessions": 16,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-08-07",
+            "entry_date": "2026-08-10",
+            "exit_date": "2026-08-14",
+            "entry": 8300.0,
+            "exit": 7950.0,
+            "return_pct": -4.217,
+            "max_favorable_pct": 2.651,
+            "max_adverse_pct": -4.578,
+            "holding_sessions": 4,
+            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
+          },
+          {
+            "signal_date": "2026-08-18",
+            "entry_date": "2026-08-19",
+            "exit_date": "2026-11-17",
+            "entry": 7970.0,
+            "exit": 9520.0,
+            "return_pct": 19.448,
+            "max_favorable_pct": 25.471,
+            "max_adverse_pct": -2.258,
+            "holding_sessions": 60,
+            "exit_reason": "MAX_HOLD_OR_DATA_END"
+          },
+          {
+            "signal_date": "2026-11-18",
+            "entry_date": "2026-11-19",
+            "exit_date": "2026-11-25",
+            "entry": 9660.0,
+            "exit": 9440.0,
+            "return_pct": -2.277,
+            "max_favorable_pct": 0.828,
+            "max_adverse_pct": -3.83,
+            "holding_sessions": 4,
+            "exit_reason": "MAX_HOLD_OR_DATA_END"
+          }
+        ],
+        "count": 6,
+        "mean_return_pct": 2.833,
+        "win_rate_pct": 33.33,
+        "mean_holding_sessions": 21.67
+      }
+    },
+    {
       "ticker": "130580",
       "name": "나이스디앤비",
       "status": "RESEARCH_ONLY",
@@ -61,20 +821,20 @@
           {
             "signal_date": "2026-11-03",
             "entry_date": "2026-11-04",
-            "exit_date": "2026-11-24",
+            "exit_date": "2026-11-25",
             "entry": 6920.0,
-            "exit": 6830.0,
-            "return_pct": -1.301,
-            "max_favorable_pct": 1.734,
+            "exit": 7130.0,
+            "return_pct": 3.035,
+            "max_favorable_pct": 2.601,
             "max_adverse_pct": -6.069,
-            "holding_sessions": 14,
+            "holding_sessions": 15,
             "exit_reason": "MAX_HOLD_OR_DATA_END"
           }
         ],
         "count": 5,
-        "mean_return_pct": 1.744,
-        "win_rate_pct": 20.0,
-        "mean_holding_sessions": 16.2
+        "mean_return_pct": 2.611,
+        "win_rate_pct": 40.0,
+        "mean_holding_sessions": 16.4
       },
       "trend60": {
         "trades": [
@@ -153,888 +913,20 @@
           {
             "signal_date": "2026-11-20",
             "entry_date": "2026-11-23",
-            "exit_date": "2026-11-24",
+            "exit_date": "2026-11-25",
             "entry": 6820.0,
-            "exit": 6830.0,
-            "return_pct": 0.147,
-            "max_favorable_pct": 0.587,
+            "exit": 7130.0,
+            "return_pct": 4.545,
+            "max_favorable_pct": 4.106,
             "max_adverse_pct": -1.613,
-            "holding_sessions": 1,
+            "holding_sessions": 2,
             "exit_reason": "MAX_HOLD_OR_DATA_END"
           }
         ],
         "count": 7,
-        "mean_return_pct": 2.342,
+        "mean_return_pct": 2.97,
         "win_rate_pct": 42.86,
-        "mean_holding_sessions": 11.57
-      }
-    },
-    {
-      "ticker": "071200",
-      "name": "인피니트헬스케어",
-      "status": "RESEARCH_ONLY",
-      "buy_approved": false,
-      "fixed20": {
-        "trades": [
-          {
-            "signal_date": "2026-01-28",
-            "entry_date": "2026-01-29",
-            "exit_date": "2026-03-04",
-            "entry": 7000.0,
-            "exit": 6550.0,
-            "return_pct": -6.429,
-            "max_favorable_pct": 11.857,
-            "max_adverse_pct": -8.143,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-03-12",
-            "entry_date": "2026-03-13",
-            "exit_date": "2026-03-20",
-            "entry": 6850.0,
-            "exit": 6410.0,
-            "return_pct": -6.423,
-            "max_favorable_pct": 4.38,
-            "max_adverse_pct": -5.401,
-            "holding_sessions": 5,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-04-30",
-            "entry_date": "2026-05-04",
-            "exit_date": "2026-06-04",
-            "entry": 7460.0,
-            "exit": 7240.0,
-            "return_pct": -2.949,
-            "max_favorable_pct": 23.056,
-            "max_adverse_pct": -11.126,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-07-22",
-            "entry_date": "2026-07-23",
-            "exit_date": "2026-08-21",
-            "entry": 8590.0,
-            "exit": 9590.0,
-            "return_pct": 11.641,
-            "max_favorable_pct": 27.823,
-            "max_adverse_pct": -16.065,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-08-24",
-            "entry_date": "2026-08-25",
-            "exit_date": "2026-09-22",
-            "entry": 9400.0,
-            "exit": 12040.0,
-            "return_pct": 28.085,
-            "max_favorable_pct": 49.787,
-            "max_adverse_pct": -10.0,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-09-23",
-            "entry_date": "2026-09-28",
-            "exit_date": "2026-10-28",
-            "entry": 11820.0,
-            "exit": 10460.0,
-            "return_pct": -11.506,
-            "max_favorable_pct": 4.569,
-            "max_adverse_pct": -15.398,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-10-29",
-            "entry_date": "2026-10-30",
-            "exit_date": "2026-11-24",
-            "entry": 11040.0,
-            "exit": 11440.0,
-            "return_pct": 3.623,
-            "max_favorable_pct": 7.609,
-            "max_adverse_pct": -7.337,
-            "holding_sessions": 17,
-            "exit_reason": "MAX_HOLD_OR_DATA_END"
-          }
-        ],
-        "count": 7,
-        "mean_return_pct": 2.292,
-        "win_rate_pct": 42.86,
-        "mean_holding_sessions": 17.43
-      },
-      "trend60": {
-        "trades": [
-          {
-            "signal_date": "2026-01-28",
-            "entry_date": "2026-01-29",
-            "exit_date": "2026-03-05",
-            "entry": 7000.0,
-            "exit": 6450.0,
-            "return_pct": -7.857,
-            "max_favorable_pct": 11.857,
-            "max_adverse_pct": -18.429,
-            "holding_sessions": 21,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-03-12",
-            "entry_date": "2026-03-13",
-            "exit_date": "2026-03-20",
-            "entry": 6850.0,
-            "exit": 6410.0,
-            "return_pct": -6.423,
-            "max_favorable_pct": 4.38,
-            "max_adverse_pct": -5.401,
-            "holding_sessions": 5,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-04-30",
-            "entry_date": "2026-05-04",
-            "exit_date": "2026-06-09",
-            "entry": 7460.0,
-            "exit": 6860.0,
-            "return_pct": -8.043,
-            "max_favorable_pct": 23.056,
-            "max_adverse_pct": -11.126,
-            "holding_sessions": 23,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-07-22",
-            "entry_date": "2026-07-23",
-            "exit_date": "2026-09-09",
-            "entry": 8590.0,
-            "exit": 8700.0,
-            "return_pct": 1.281,
-            "max_favorable_pct": 27.823,
-            "max_adverse_pct": -16.065,
-            "holding_sessions": 33,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-09-14",
-            "entry_date": "2026-09-15",
-            "exit_date": "2026-10-08",
-            "entry": 12490.0,
-            "exit": 11000.0,
-            "return_pct": -11.93,
-            "max_favorable_pct": 12.73,
-            "max_adverse_pct": -15.452,
-            "holding_sessions": 14,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-10-29",
-            "entry_date": "2026-10-30",
-            "exit_date": "2026-11-17",
-            "entry": 11040.0,
-            "exit": 10300.0,
-            "return_pct": -6.703,
-            "max_favorable_pct": 7.609,
-            "max_adverse_pct": -4.891,
-            "holding_sessions": 12,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          }
-        ],
-        "count": 6,
-        "mean_return_pct": -6.612,
-        "win_rate_pct": 16.67,
-        "mean_holding_sessions": 18
-      }
-    },
-    {
-      "ticker": "067280",
-      "name": "멀티캠퍼스",
-      "status": "RESEARCH_ONLY",
-      "buy_approved": false,
-      "fixed20": {
-        "trades": [
-          {
-            "signal_date": "2025-12-08",
-            "entry_date": "2025-12-09",
-            "exit_date": "2025-12-30",
-            "entry": 32900.0,
-            "exit": 31700.0,
-            "return_pct": -3.647,
-            "max_favorable_pct": 1.824,
-            "max_adverse_pct": -4.559,
-            "holding_sessions": 14,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-04-28",
-            "entry_date": "2026-04-29",
-            "exit_date": "2026-05-06",
-            "entry": 29750.0,
-            "exit": 28000.0,
-            "return_pct": -5.882,
-            "max_favorable_pct": 0.504,
-            "max_adverse_pct": -9.412,
-            "holding_sessions": 3,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-08-11",
-            "entry_date": "2026-08-12",
-            "exit_date": "2026-08-19",
-            "entry": 25000.0,
-            "exit": 23950.0,
-            "return_pct": -4.2,
-            "max_favorable_pct": 0.4,
-            "max_adverse_pct": -4.0,
-            "holding_sessions": 4,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-10-02",
-            "entry_date": "2026-10-06",
-            "exit_date": "2026-11-04",
-            "entry": 26400.0,
-            "exit": 27250.0,
-            "return_pct": 3.22,
-            "max_favorable_pct": 3.03,
-            "max_adverse_pct": -7.765,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-05",
-            "entry_date": "2026-11-06",
-            "exit_date": "2026-11-09",
-            "entry": 26900.0,
-            "exit": 26700.0,
-            "return_pct": -0.743,
-            "max_favorable_pct": 1.115,
-            "max_adverse_pct": -2.416,
-            "holding_sessions": 1,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-10",
-            "entry_date": "2026-11-11",
-            "exit_date": "2026-11-24",
-            "entry": 27500.0,
-            "exit": 27500.0,
-            "return_pct": 0.0,
-            "max_favorable_pct": 3.636,
-            "max_adverse_pct": -4.545,
-            "holding_sessions": 9,
-            "exit_reason": "MAX_HOLD_OR_DATA_END"
-          }
-        ],
-        "count": 6,
-        "mean_return_pct": -1.875,
-        "win_rate_pct": 16.67,
-        "mean_holding_sessions": 8.5
-      },
-      "trend60": {
-        "trades": [
-          {
-            "signal_date": "2025-12-08",
-            "entry_date": "2025-12-09",
-            "exit_date": "2025-12-30",
-            "entry": 32900.0,
-            "exit": 31700.0,
-            "return_pct": -3.647,
-            "max_favorable_pct": 1.824,
-            "max_adverse_pct": -4.559,
-            "holding_sessions": 14,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-04-28",
-            "entry_date": "2026-04-29",
-            "exit_date": "2026-05-06",
-            "entry": 29750.0,
-            "exit": 28000.0,
-            "return_pct": -5.882,
-            "max_favorable_pct": 0.504,
-            "max_adverse_pct": -9.412,
-            "holding_sessions": 3,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-08-11",
-            "entry_date": "2026-08-12",
-            "exit_date": "2026-08-19",
-            "entry": 25000.0,
-            "exit": 23950.0,
-            "return_pct": -4.2,
-            "max_favorable_pct": 0.4,
-            "max_adverse_pct": -4.0,
-            "holding_sessions": 4,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-10-02",
-            "entry_date": "2026-10-06",
-            "exit_date": "2026-11-09",
-            "entry": 26400.0,
-            "exit": 26700.0,
-            "return_pct": 1.136,
-            "max_favorable_pct": 3.977,
-            "max_adverse_pct": -7.765,
-            "holding_sessions": 23,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-10",
-            "entry_date": "2026-11-11",
-            "exit_date": "2026-11-24",
-            "entry": 27500.0,
-            "exit": 27500.0,
-            "return_pct": 0.0,
-            "max_favorable_pct": 3.636,
-            "max_adverse_pct": -4.545,
-            "holding_sessions": 9,
-            "exit_reason": "MAX_HOLD_OR_DATA_END"
-          }
-        ],
-        "count": 5,
-        "mean_return_pct": -2.519,
-        "win_rate_pct": 20.0,
-        "mean_holding_sessions": 10.6
-      }
-    },
-    {
-      "ticker": "192390",
-      "name": "윈하이텍",
-      "status": "RESEARCH_ONLY",
-      "buy_approved": false,
-      "fixed20": {
-        "trades": [
-          {
-            "signal_date": "2026-01-15",
-            "entry_date": "2026-01-16",
-            "exit_date": "2026-02-05",
-            "entry": 2195.0,
-            "exit": 2075.0,
-            "return_pct": -5.467,
-            "max_favorable_pct": 2.05,
-            "max_adverse_pct": -10.251,
-            "holding_sessions": 14,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-07-22",
-            "entry_date": "2026-07-23",
-            "exit_date": "2026-08-21",
-            "entry": 1874.0,
-            "exit": 1838.0,
-            "return_pct": -1.921,
-            "max_favorable_pct": 10.192,
-            "max_adverse_pct": -25.293,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-08-24",
-            "entry_date": "2026-08-25",
-            "exit_date": "2026-09-10",
-            "entry": 1799.0,
-            "exit": 1744.0,
-            "return_pct": -3.057,
-            "max_favorable_pct": 7.282,
-            "max_adverse_pct": -4.669,
-            "holding_sessions": 12,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-09-21",
-            "entry_date": "2026-09-22",
-            "exit_date": "2026-10-01",
-            "entry": 1886.0,
-            "exit": 1824.0,
-            "return_pct": -3.287,
-            "max_favorable_pct": 3.393,
-            "max_adverse_pct": -6.628,
-            "holding_sessions": 5,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-10-02",
-            "entry_date": "2026-10-06",
-            "exit_date": "2026-11-03",
-            "entry": 1870.0,
-            "exit": 1829.0,
-            "return_pct": -2.193,
-            "max_favorable_pct": 3.048,
-            "max_adverse_pct": -7.166,
-            "holding_sessions": 19,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-10",
-            "entry_date": "2026-11-11",
-            "exit_date": "2026-11-12",
-            "entry": 1856.0,
-            "exit": 1744.0,
-            "return_pct": -6.034,
-            "max_favorable_pct": 0.0,
-            "max_adverse_pct": -8.405,
-            "holding_sessions": 1,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-13",
-            "entry_date": "2026-11-16",
-            "exit_date": "2026-11-17",
-            "entry": 1844.0,
-            "exit": 1850.0,
-            "return_pct": 0.325,
-            "max_favorable_pct": 1.844,
-            "max_adverse_pct": -2.278,
-            "holding_sessions": 1,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-18",
-            "entry_date": "2026-11-19",
-            "exit_date": "2026-11-24",
-            "entry": 1879.0,
-            "exit": 1820.0,
-            "return_pct": -3.14,
-            "max_favorable_pct": 2.022,
-            "max_adverse_pct": -6.067,
-            "holding_sessions": 3,
-            "exit_reason": "MAX_HOLD_OR_DATA_END"
-          }
-        ],
-        "count": 8,
-        "mean_return_pct": -3.097,
-        "win_rate_pct": 12.5,
-        "mean_holding_sessions": 9.38
-      },
-      "trend60": {
-        "trades": [
-          {
-            "signal_date": "2026-01-15",
-            "entry_date": "2026-01-16",
-            "exit_date": "2026-02-05",
-            "entry": 2195.0,
-            "exit": 2075.0,
-            "return_pct": -5.467,
-            "max_favorable_pct": 2.05,
-            "max_adverse_pct": -10.251,
-            "holding_sessions": 14,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-07-22",
-            "entry_date": "2026-07-23",
-            "exit_date": "2026-07-28",
-            "entry": 1874.0,
-            "exit": 1733.0,
-            "return_pct": -7.524,
-            "max_favorable_pct": 10.192,
-            "max_adverse_pct": -7.951,
-            "holding_sessions": 3,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-08-03",
-            "entry_date": "2026-08-04",
-            "exit_date": "2026-08-19",
-            "entry": 1819.0,
-            "exit": 1795.0,
-            "return_pct": -1.319,
-            "max_favorable_pct": 9.896,
-            "max_adverse_pct": -4.893,
-            "holding_sessions": 10,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-08-21",
-            "entry_date": "2026-08-24",
-            "exit_date": "2026-08-31",
-            "entry": 1811.0,
-            "exit": 1745.0,
-            "return_pct": -3.644,
-            "max_favorable_pct": 6.571,
-            "max_adverse_pct": -5.301,
-            "holding_sessions": 5,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-09-01",
-            "entry_date": "2026-09-02",
-            "exit_date": "2026-09-10",
-            "entry": 1826.0,
-            "exit": 1744.0,
-            "return_pct": -4.491,
-            "max_favorable_pct": 3.669,
-            "max_adverse_pct": -5.312,
-            "holding_sessions": 6,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-09-21",
-            "entry_date": "2026-09-22",
-            "exit_date": "2026-10-01",
-            "entry": 1886.0,
-            "exit": 1824.0,
-            "return_pct": -3.287,
-            "max_favorable_pct": 3.393,
-            "max_adverse_pct": -6.628,
-            "holding_sessions": 5,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-10-02",
-            "entry_date": "2026-10-06",
-            "exit_date": "2026-11-02",
-            "entry": 1870.0,
-            "exit": 1736.0,
-            "return_pct": -7.166,
-            "max_favorable_pct": 3.048,
-            "max_adverse_pct": -5.829,
-            "holding_sessions": 18,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-10",
-            "entry_date": "2026-11-11",
-            "exit_date": "2026-11-12",
-            "entry": 1856.0,
-            "exit": 1744.0,
-            "return_pct": -6.034,
-            "max_favorable_pct": 0.0,
-            "max_adverse_pct": -8.405,
-            "holding_sessions": 1,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-13",
-            "entry_date": "2026-11-16",
-            "exit_date": "2026-11-17",
-            "entry": 1844.0,
-            "exit": 1850.0,
-            "return_pct": 0.325,
-            "max_favorable_pct": 1.844,
-            "max_adverse_pct": -2.278,
-            "holding_sessions": 1,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-18",
-            "entry_date": "2026-11-19",
-            "exit_date": "2026-11-24",
-            "entry": 1879.0,
-            "exit": 1820.0,
-            "return_pct": -3.14,
-            "max_favorable_pct": 2.022,
-            "max_adverse_pct": -6.067,
-            "holding_sessions": 3,
-            "exit_reason": "MAX_HOLD_OR_DATA_END"
-          }
-        ],
-        "count": 10,
-        "mean_return_pct": -4.175,
-        "win_rate_pct": 10.0,
-        "mean_holding_sessions": 6.6
-      }
-    },
-    {
-      "ticker": "012750",
-      "name": "에스원",
-      "status": "RESEARCH_ONLY",
-      "buy_approved": false,
-      "fixed20": {
-        "trades": [
-          {
-            "signal_date": "2025-12-19",
-            "entry_date": "2025-12-22",
-            "exit_date": "2025-12-30",
-            "entry": 77800.0,
-            "exit": 72200.0,
-            "return_pct": -7.198,
-            "max_favorable_pct": 2.571,
-            "max_adverse_pct": -6.427,
-            "holding_sessions": 5,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-01-15",
-            "entry_date": "2026-01-16",
-            "exit_date": "2026-01-19",
-            "entry": 78800.0,
-            "exit": 75500.0,
-            "return_pct": -4.188,
-            "max_favorable_pct": 0.0,
-            "max_adverse_pct": -2.792,
-            "holding_sessions": 1,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-01-20",
-            "entry_date": "2026-01-21",
-            "exit_date": "2026-01-23",
-            "entry": 81000.0,
-            "exit": 77900.0,
-            "return_pct": -3.827,
-            "max_favorable_pct": 0.247,
-            "max_adverse_pct": -5.556,
-            "holding_sessions": 2,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-01-30",
-            "entry_date": "2026-02-02",
-            "exit_date": "2026-03-06",
-            "entry": 80300.0,
-            "exit": 80000.0,
-            "return_pct": -0.374,
-            "max_favorable_pct": 17.31,
-            "max_adverse_pct": -0.996,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-03-18",
-            "entry_date": "2026-03-19",
-            "exit_date": "2026-04-16",
-            "entry": 85400.0,
-            "exit": 92000.0,
-            "return_pct": 7.728,
-            "max_favorable_pct": 20.609,
-            "max_adverse_pct": -3.396,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-04-17",
-            "entry_date": "2026-04-20",
-            "exit_date": "2026-04-23",
-            "entry": 95500.0,
-            "exit": 89400.0,
-            "return_pct": -6.387,
-            "max_favorable_pct": 0.0,
-            "max_adverse_pct": -8.691,
-            "holding_sessions": 3,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-07-27",
-            "entry_date": "2026-07-28",
-            "exit_date": "2026-07-30",
-            "entry": 72500.0,
-            "exit": 72100.0,
-            "return_pct": -0.552,
-            "max_favorable_pct": 3.034,
-            "max_adverse_pct": -2.483,
-            "holding_sessions": 2,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-08-06",
-            "entry_date": "2026-08-07",
-            "exit_date": "2026-09-07",
-            "entry": 74700.0,
-            "exit": 80200.0,
-            "return_pct": 7.363,
-            "max_favorable_pct": 19.143,
-            "max_adverse_pct": -0.803,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-09-09",
-            "entry_date": "2026-09-10",
-            "exit_date": "2026-10-14",
-            "entry": 80800.0,
-            "exit": 86300.0,
-            "return_pct": 6.807,
-            "max_favorable_pct": 9.158,
-            "max_adverse_pct": -2.104,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-10-15",
-            "entry_date": "2026-10-16",
-            "exit_date": "2026-11-13",
-            "entry": 97600.0,
-            "exit": 98400.0,
-            "return_pct": 0.82,
-            "max_favorable_pct": 4.098,
-            "max_adverse_pct": -5.02,
-            "holding_sessions": 20,
-            "exit_reason": "HORIZON_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-11-16",
-            "entry_date": "2026-11-17",
-            "exit_date": "2026-11-24",
-            "entry": 102900.0,
-            "exit": 101100.0,
-            "return_pct": -1.749,
-            "max_favorable_pct": 4.568,
-            "max_adverse_pct": -2.721,
-            "holding_sessions": 5,
-            "exit_reason": "MAX_HOLD_OR_DATA_END"
-          }
-        ],
-        "count": 11,
-        "mean_return_pct": -0.142,
-        "win_rate_pct": 36.36,
-        "mean_holding_sessions": 10.73
-      },
-      "trend60": {
-        "trades": [
-          {
-            "signal_date": "2025-12-19",
-            "entry_date": "2025-12-22",
-            "exit_date": "2025-12-30",
-            "entry": 77800.0,
-            "exit": 72200.0,
-            "return_pct": -7.198,
-            "max_favorable_pct": 2.571,
-            "max_adverse_pct": -6.427,
-            "holding_sessions": 5,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-01-15",
-            "entry_date": "2026-01-16",
-            "exit_date": "2026-01-19",
-            "entry": 78800.0,
-            "exit": 75500.0,
-            "return_pct": -4.188,
-            "max_favorable_pct": 0.0,
-            "max_adverse_pct": -2.792,
-            "holding_sessions": 1,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-01-20",
-            "entry_date": "2026-01-21",
-            "exit_date": "2026-01-23",
-            "entry": 81000.0,
-            "exit": 77900.0,
-            "return_pct": -3.827,
-            "max_favorable_pct": 0.247,
-            "max_adverse_pct": -5.556,
-            "holding_sessions": 2,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-01-30",
-            "entry_date": "2026-02-02",
-            "exit_date": "2026-03-03",
-            "entry": 80300.0,
-            "exit": 89200.0,
-            "return_pct": 11.083,
-            "max_favorable_pct": 17.31,
-            "max_adverse_pct": -0.996,
-            "holding_sessions": 17,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-03-18",
-            "entry_date": "2026-03-19",
-            "exit_date": "2026-04-14",
-            "entry": 85400.0,
-            "exit": 88100.0,
-            "return_pct": 3.162,
-            "max_favorable_pct": 20.609,
-            "max_adverse_pct": -3.396,
-            "holding_sessions": 18,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-04-15",
-            "entry_date": "2026-04-16",
-            "exit_date": "2026-04-23",
-            "entry": 92000.0,
-            "exit": 89400.0,
-            "return_pct": -2.826,
-            "max_favorable_pct": 3.804,
-            "max_adverse_pct": -5.217,
-            "holding_sessions": 5,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-07-27",
-            "entry_date": "2026-07-28",
-            "exit_date": "2026-07-30",
-            "entry": 72500.0,
-            "exit": 72100.0,
-            "return_pct": -0.552,
-            "max_favorable_pct": 3.034,
-            "max_adverse_pct": -2.483,
-            "holding_sessions": 2,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-08-06",
-            "entry_date": "2026-08-07",
-            "exit_date": "2026-08-31",
-            "entry": 74700.0,
-            "exit": 83600.0,
-            "return_pct": 11.914,
-            "max_favorable_pct": 19.143,
-            "max_adverse_pct": -0.803,
-            "holding_sessions": 15,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-09-01",
-            "entry_date": "2026-09-02",
-            "exit_date": "2026-09-07",
-            "entry": 80100.0,
-            "exit": 80200.0,
-            "return_pct": 0.125,
-            "max_favorable_pct": 2.247,
-            "max_adverse_pct": -1.748,
-            "holding_sessions": 3,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-09-09",
-            "entry_date": "2026-09-10",
-            "exit_date": "2026-09-16",
-            "entry": 80800.0,
-            "exit": 83600.0,
-            "return_pct": 3.465,
-            "max_favorable_pct": 9.158,
-            "max_adverse_pct": -2.104,
-            "holding_sessions": 4,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-09-17",
-            "entry_date": "2026-09-18",
-            "exit_date": "2026-10-01",
-            "entry": 84800.0,
-            "exit": 83400.0,
-            "return_pct": -1.651,
-            "max_favorable_pct": 0.118,
-            "max_adverse_pct": -3.892,
-            "holding_sessions": 7,
-            "exit_reason": "CLOSE_STOP_NEXT_OPEN"
-          },
-          {
-            "signal_date": "2026-10-02",
-            "entry_date": "2026-10-06",
-            "exit_date": "2026-11-24",
-            "entry": 84500.0,
-            "exit": 101100.0,
-            "return_pct": 19.645,
-            "max_favorable_pct": 27.337,
-            "max_adverse_pct": -3.314,
-            "holding_sessions": 34,
-            "exit_reason": "MAX_HOLD_OR_DATA_END"
-          }
-        ],
-        "count": 12,
-        "mean_return_pct": 2.429,
-        "win_rate_pct": 50.0,
-        "mean_holding_sessions": 9.42
+        "mean_holding_sessions": 11.71
       }
     }
   ],
