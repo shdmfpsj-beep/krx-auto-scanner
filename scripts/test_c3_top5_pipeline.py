@@ -305,7 +305,7 @@ def fake(req, **kwargs):
         return Response(201, {})
     assert req.full_url=='https://api.telegram.org/botfake/sendPhoto'
     assert b'name="caption"' not in req.data
-    return Response(200, {'ok':True,'result':{'message_id':123}})
+    return Response(200, {'ok':True,'result':{'message_id':123,'chat':{'id':'fake'}}})
 urllib.request.urlopen=fake
 '''
         p = self.execute(DELIVERY, prefix)
@@ -330,7 +330,7 @@ calls=[]
 def fake(req, **kwargs):
     calls.append(req.full_url)
     if len(calls)==1: return Response(201, {})
-    if len(calls)==2: return Response(200, {'ok':True,'result':{'message_id':123}})
+    if len(calls)==2: return Response(200, {'ok':True,'result':{'message_id':123,'chat':{'id':'fake'}}})
     raise urllib.error.URLError('credential-bearing URL must not enter receipt')
 urllib.request.urlopen=fake
 '''

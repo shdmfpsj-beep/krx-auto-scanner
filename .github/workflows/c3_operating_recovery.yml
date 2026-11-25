@@ -1,0 +1,98 @@
+name: C3 operating incident verification and approved manual dispatch
+on:
+  pull_request:
+    paths:
+      - 'scripts/c3_delivery_authorization.py'
+      - 'scripts/c3_operating_recovery.py'
+      - 'scripts/test_c3_operating_recovery.py'
+      - '.github/workflows/c3_top5_daily_telegram.yml'
+      - '.github/workflows/c3_operating_recovery.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c3_delivery_authorization.py'
+      - 'scripts/c3_operating_recovery.py'
+      - 'scripts/test_c3_operating_recovery.py'
+      - '.github/workflows/c3_operating_recovery.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-operating-incident-20261125
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            /scripts/*.py
+            /.github/workflows/c3_top5_daily_telegram.yml
+            /.github/workflows/c3_operating_recovery.yml
+            /.github/workflows/c3_top5_dart_bridge_tests.yml
+            /receipts/c3_top5_daily/
+            /reports/c3_paper/paper_ledger.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate the complete operating workflow with verified official actionlint
+        run: |
+          set -o pipefail
+          mkdir -p output/c3_operating_recovery
+          curl -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o /tmp/c3-actionlint.tar.gz
+          echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  /tmp/c3-actionlint.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/c3-actionlint.tar.gz -C /tmp actionlint
+          /tmp/actionlint --version > output/c3_operating_recovery/actionlint_version.txt
+          /tmp/actionlint -shellcheck= -pyflakes= .github/workflows/c3_top5_daily_telegram.yml .github/workflows/c3_operating_recovery.yml .github/workflows/c3_top5_dart_bridge_tests.yml 2>&1 | tee output/c3_operating_recovery/actionlint.log
+      - name: Read actual workflow state, schedule history, permissions and reservations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=scripts python scripts/c3_operating_recovery.py
+      - name: Install existing chart and calendar runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Run all existing regressions and recovery authorization tests without sends
+        run: |
+          set -o pipefail
+          PYTHONPATH=scripts python -m unittest -v test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_operating_recovery/regression.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-operating-recovery-verification
+          path: output/c3_operating_recovery/
+          retention-days: 30
+  dispatch:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'C3 approved operational recovery 20261125')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /scripts/c3_operating_recovery.py
+            /scripts/c3_delivery_authorization.py
+            /scripts/c3_top5_session_policy.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Enable only if disabled and dispatch the approved real main workflow once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=scripts python scripts/c3_operating_recovery.py --dispatch --out output/c3_operating_dispatch
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-operating-manual-dispatch
+          path: output/c3_operating_dispatch/
+          retention-days: 30
