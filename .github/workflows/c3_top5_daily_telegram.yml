@@ -1,4 +1,5 @@
 name: C3 TOP5 classic per-stock Telegram (user trades)
+run-name: C3 TOP5 + WATCH5 ${{ inputs.asof || 'latest' }} · ${{ inputs.operation_request_id || github.event_name }}
 on:
   push:
     branches: [main]
@@ -7,6 +8,15 @@ on:
     inputs:
       asof:
         description: 'KRX as-of YYYYMMDD; manual preview unless test_send_telegram is true'
+        required: false
+        type: string
+      live_delivery:
+        description: 'Explicitly approved 20261125 recovery for 20261124; default previews never send'
+        required: false
+        default: false
+        type: boolean
+      operation_request_id:
+        description: 'Approved recovery correlation ID; not a credential'
         required: false
         type: string
       test_send_telegram:
@@ -42,6 +52,10 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       GH_TOKEN: ${{ github.token }}
       C3_FINANCIAL_MODEL: ${{ inputs.financial_model || 'balanced' }}
+      C3_MANUAL_ASOF: ${{ inputs.asof }}
+      C3_MANUAL_LIVE_DELIVERY: ${{ inputs.live_delivery || 'false' }}
+      C3_OPERATION_REQUEST_ID: ${{ inputs.operation_request_id }}
+      C3_KRX_CAPTURE_DIR: ${{ inputs.live_delivery && 'output/c3_top5/krx_source' || '' }}
     steps:
       - name: Use the validated Python runtime
         uses: actions/setup-python@v5
@@ -604,6 +618,7 @@ jobs:
             scripts/c3_top5_dart_bridge.py
             scripts/c3_all_candidate_report.py
             scripts/c3_watch5_delivery.py
+            scripts/c3_delivery_authorization.py
             scripts/c3_top5_eligibility_audit.py
             scripts/c3_top5_financial_selection.py
             scripts/c3_top5_financial_preview.py
@@ -818,6 +833,7 @@ jobs:
           from PIL import Image
           sys.path.insert(0,'scripts')
           from c3_top5_financial_selection import valid_entry
+          from c3_delivery_authorization import approved_manual_delivery
           from c3_all_candidate_report import image_identity
           root=Path('output/c3_top5')
           root.mkdir(parents=True,exist_ok=True)
@@ -831,7 +847,7 @@ jobs:
             # HTTP exception strings may contain credential-bearing request URLs.
             safe=str(error)[:160] if kind is ValueError else kind.__name__
             save_delivery('ERROR',error=safe)
-            sys.__excepthook__(kind,error,tb)
+            print('C3_DELIVERY_FAILURE',kind.__name__,delivery.get('stage'),safe,file=sys.stderr)
           sys.excepthook=record_failure
           save_delivery()
           manifest=json.loads((root/'finance_first_delivery_manifest.json').read_text())
@@ -843,6 +859,10 @@ jobs:
           source=receipt.get('source_integrity',{})
           report=json.loads((root/'all_candidate_report'/'manifest.json').read_text())
           delivery['asof']=report.get('asof')
+          manual_live=approved_manual_delivery(os.environ,report.get('asof'),receipt.get('entry_valid_until'))
+          delivery.update(execution_event=os.environ.get('GITHUB_EVENT_NAME'),
+            operation_request_id=os.environ.get('C3_OPERATION_REQUEST_ID',''),
+            delivery_mode='MANUAL_USER_APPROVED' if manual_live else 'SCHEDULED_PRODUCTION' if os.environ.get('GITHUB_EVENT_NAME')=='schedule' else 'PREVIEW')
           if report.get('asof')!=receipt.get('asof'):
             raise ValueError('ALL_CANDIDATE_DATE_MISMATCH')
           if source.get('session_count',0)<60 or source.get('last_session')!=report.get('asof'):
@@ -915,7 +935,7 @@ jobs:
           is_test=(event=='workflow_dispatch' and test_requested and
             os.environ.get('GITHUB_REF_NAME')=='fix/c3-top5-confirmed-chart-20261120' and
             os.environ.get('C3_MANUAL_ASOF','').strip()=='20261119' and report['asof']=='20261119')
-          is_production=(event=='schedule' and on_main)
+          is_production=(event=='schedule' and on_main) or manual_live
           if test_requested and not is_test:
             raise ValueError('TEST_SEND_REQUIRES_CORRECTED_CHART_BRANCH_ASOF_20261119')
           if not (is_test or is_production):
@@ -933,7 +953,7 @@ jobs:
           date=report['asof']
           marker_path=('receipts/c3_top5_classic_final_test_v2/'+date+'.json' if is_test else 'receipts/c3_top5_daily/'+date+'.json')
           marker={'schema':'C3_FINANCE_FIRST_SEND_RESERVATION_V1','asof':date,
-                  'mode':'EXPLICIT_CLASSIC_FINAL_TEST_V2' if is_test else 'SCHEDULED_PRODUCTION',
+                  'mode':'EXPLICIT_CLASSIC_FINAL_TEST_V2' if is_test else delivery['delivery_mode'],
                   'run_id':os.environ['GITHUB_RUN_ID'],'status':'RESERVED_BEFORE_SEND',
                   'selected_codes':[x['code'] for x in selected],
                   'image_sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in validated},
@@ -968,10 +988,13 @@ jobs:
             message_id=answer.get('result',{}).get('message_id')
             if not isinstance(message_id,int) or isinstance(message_id,bool) or message_id<=0:
               raise ValueError('TELEGRAM_MESSAGE_ID_MISSING_'+str(i))
+            destination_matches=str(answer.get('result',{}).get('chat',{}).get('id'))==chat
             delivery['photos'].append({'code':item['code'],'image':p.name,
               'image_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),
-              'telegram_message_id':message_id})
+              'telegram_message_id':message_id,'destination_matches':destination_matches})
             save_delivery(telegram_photos_sent=len(delivery['photos']))
+            if not destination_matches:
+              raise ValueError('TELEGRAM_DESTINATION_MISMATCH_'+str(i))
             print('C3_FINANCE_FIRST_PHOTO_SENT',i,item['code'],'telegram_message_id',answer.get('result',{}).get('message_id'),'mode','TEST' if is_test else 'PRODUCTION')
           save_delivery('SENT',asof=date,stage='COMPLETE')
           print('C3_ALL_CANDIDATES_DELIVERED',date,len(validated),'mode','TEST' if is_test else 'PRODUCTION')

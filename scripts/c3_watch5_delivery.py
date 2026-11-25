@@ -16,6 +16,7 @@ from PIL.PngImagePlugin import PngInfo
 from c3_all_candidate_report import image_identity
 from c3_top5_financial_selection import valid_entry, classify, finite
 from c3_top5_session_policy import session_plan
+from c3_delivery_authorization import approved_manual_delivery
 
 ALLOWED = ('TOP5_READY', 'CASH_NO_ELIGIBLE')
 LABEL = 'WATCH5 관찰용 — 매수 승인 아님'
@@ -220,8 +221,12 @@ def run(root, env=None, opener=None, clock=None):
         prepared = [image_bytes(root, item) for item in result['selected']]
         if not rows:
             result.update(status='EMPTY', stage='COMPLETE'); save(); return result
-        if not (env.get('GITHUB_EVENT_NAME') == 'schedule' and env.get('GITHUB_REF_NAME') == 'main'
-                and env.get('GITHUB_REPOSITORY') == 'shdmfpsj-beep/krx-auto-scanner'):
+        manual_live = approved_manual_delivery(env, date, expiry, clock)
+        result['execution_event'] = env.get('GITHUB_EVENT_NAME')
+        result['delivery_mode'] = 'MANUAL_USER_APPROVED' if manual_live else 'SCHEDULED_PRODUCTION' if env.get('GITHUB_EVENT_NAME') == 'schedule' else 'PREVIEW'
+        result['operation_request_id'] = env.get('C3_OPERATION_REQUEST_ID', '')
+        if not (manual_live or (env.get('GITHUB_EVENT_NAME') == 'schedule' and env.get('GITHUB_REF_NAME') == 'main'
+                and env.get('GITHUB_REPOSITORY') == 'shdmfpsj-beep/krx-auto-scanner')):
             result.update(status='DRY_RUN', stage='COMPLETE'); save(); return result
         if session_plan(clock)['asof'] != date or datetime.fromisoformat(expiry) <= clock:
             raise ValueError('WATCH_PRODUCTION_DATE_OR_VALIDITY_MISMATCH')
