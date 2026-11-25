@@ -71,6 +71,8 @@ def recover(client, env, event, report, clock=None):
         raise ValueError('RECOVERY_EXECUTION_NOT_AUTHORIZED')
     if report.get('default_branch')!='main' or report.get('archived') or report.get('disabled'):
         raise ValueError('RECOVERY_REPOSITORY_NOT_OPERABLE')
+    if not env.get('GITHUB_SHA') or report.get('main_sha')!=env['GITHUB_SHA']:
+        raise ValueError('RECOVERY_VERIFIED_MAIN_HEAD_CHANGED')
     if any(r['http_status'] not in (200,404) for r in report['receipt_observations'].values()):
         raise ValueError('RECOVERY_RECEIPT_STATE_UNVERIFIED')
     if any(r['exists'] for r in report['receipt_observations'].values()):
@@ -94,6 +96,22 @@ def recover(client, env, event, report, clock=None):
                 dispatched_at=datetime.now(timezone.utc).isoformat())
 
 
+def recover_after_upstream(client, env, event, report, pause=None, max_waits=12, clock=None):
+    """Wait before the first dispatch, never retry an accepted or uncertain POST.
+
+    A late schedule can overlap the verified main release. Refresh reservations
+    and head identity after every short wait; existing sends still stop recovery.
+    The bound fits the existing five-minute controller timeout.
+    """
+    import time
+    pause=pause or time.sleep
+    for attempt in range(max_waits+1):
+        result=recover(client,env,event,report,clock)
+        if result['status']!='WAIT_EXISTING_OPERATING_RUN' or attempt==max_waits:return result
+        pause(10)
+        report.update(diagnose(client))
+
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--dispatch',action='store_true')
     parser.add_argument('--out',type=Path,default=Path('output/c3_operating_recovery'))
@@ -104,7 +122,7 @@ def main():
         result['status']='DIAGNOSED'
         if args.dispatch:
             event=json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
-            result['recovery']=recover(client,os.environ,event,result['diagnostics'])
+            result['recovery']=recover_after_upstream(client,os.environ,event,result['diagnostics'])
             result['status']=result['recovery']['status']
     except Exception as exc:
         result.update(status='ERROR',exception_type=type(exc).__name__,
