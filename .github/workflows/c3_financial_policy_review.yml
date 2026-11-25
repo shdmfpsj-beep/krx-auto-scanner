@@ -101,9 +101,10 @@ jobs:
                   if Path(viewer['file']).name!=viewer['file']:raise ValueError('VIEWER_SOURCE_PATH')
                   results.append(capture(source/viewer['file'],viewer['sha256'],viewer['receipt_no'],selection['asof'],
                       Path('output/c3_financial_policy_review/official_attachments')/viewer['receipt_no']))
-          if not results or any(s['state']=='ERROR' for r in results for s in r['sections']):
+          if not results or any(s['state']=='ERROR' for r in results for s in r['sections']+r.get('images',[])):
               raise ValueError('OFFICIAL_ATTACHMENT_CAPTURE_INCOMPLETE')
           print('OFFICIAL_ATTACHMENT_SECTIONS_CAPTURED',sum(len(r['sections']) for r in results),'NO_FINANCIAL_PROMOTION_OR_SEND')
+          print('OFFICIAL_LINKED_IMAGES_CAPTURED',sum(len(r.get('images',[])) for r in results),'NO_FINANCIAL_PROMOTION_OR_SEND')
           PY
       - name: Preserve real source review and non-operating comparison evidence
         if: always()
