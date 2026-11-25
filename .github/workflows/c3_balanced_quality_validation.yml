@@ -50,6 +50,10 @@ jobs:
           import os,subprocess
           before=os.environ.get('BEFORE_SHA','')
           execute=True;archive_only=False
+          if before and subprocess.run(['git','cat-file','-e',before+'^{commit}'],capture_output=True).returncode!=0:
+              # A shallow head checkout need not contain the PR base. Fetch the
+              # exact public base before deciding whether collection changed.
+              subprocess.run(['git','fetch','--no-tags','--depth=1','origin',before],check=True,capture_output=True)
           if before and subprocess.run(['git','cat-file','-e',before+'^{commit}'],capture_output=True).returncode==0:
               paths=subprocess.check_output(['git','diff','--name-only',before,'HEAD']).decode().splitlines()
               # WATCH delivery changes have their own full regression/artifact
