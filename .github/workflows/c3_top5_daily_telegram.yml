@@ -296,7 +296,7 @@ jobs:
               # No valid support -> no invented entry/stop.
               # Exchange tick ladder for ordinary KOSPI/KOSDAQ shares.
               # Rounding is directional: do not raise entry ceiling or lower stop.
-              from c3_entry_geometry import entry_zone, executable
+              from c3_entry_geometry import entry_zone, executable, tick
               zone=entry_zone(support,ma20,atr14)
               raw_lo,raw_hi,raw_stop=zone['raw_low'],zone['raw_high'],zone['raw_stop']
               entry_lo,entry_hi,stop=zone['entry_low'],zone['entry_high'],zone['structural_stop']
