@@ -52,6 +52,7 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       GH_TOKEN: ${{ github.token }}
       C3_FINANCIAL_MODEL: ${{ inputs.financial_model || 'balanced' }}
+      C3_APPROVAL_POLICY: INDEPENDENT_ISSUER_FINANCIAL_APPROVAL_V2
       C3_MANUAL_ASOF: ${{ inputs.asof }}
       C3_MANUAL_LIVE_DELIVERY: ${{ inputs.live_delivery || 'false' }}
       C3_OPERATION_REQUEST_ID: ${{ inputs.operation_request_id }}
@@ -618,6 +619,8 @@ jobs:
             scripts/c3_top5_dart_bridge.py
             scripts/c3_all_candidate_report.py
             scripts/c3_watch5_delivery.py
+            scripts/c3_review_delivery.py
+            scripts/c3_delivery_outcome.py
             scripts/c3_delivery_authorization.py
             scripts/c3_top5_eligibility_audit.py
             scripts/c3_top5_financial_selection.py
@@ -755,8 +758,10 @@ jobs:
         if: always()
         run: |
           python - <<'PY'
-          import json
+          import json,sys
           from pathlib import Path
+          sys.path.insert(0,'scripts')
+          from c3_top5_financial_selection import selection_approval_complete, validate_selection_approval, INDEPENDENT_POLICY
           root=Path('output/c3_top5')
           result={'schema':'C3_FINANCE_FIRST_MANIFEST_V1','status':'ERROR_MANIFEST','decision':'ERROR',
                   'selected':[],'images':[],'telegram_photos_sent':0,'trade_approved':False}
@@ -781,8 +786,11 @@ jobs:
             images=preview.get('images',[])
             if not (selection.get('asof')==preview.get('asof')==receipt.get('asof')):
               raise ValueError('ASOF_MISMATCH')
-            if selection.get('status')!='CONDITIONAL_SIGNALS' or not selection.get('coverage_complete'):
+            if selection.get('status')!='CONDITIONAL_SIGNALS' or not selection_approval_complete(selection):
               raise ValueError('FINANCIAL_SELECTION_NOT_VALID')
+            if selection.get('aggregate_policy')==INDEPENDENT_POLICY and not validate_selection_approval(selection,json.loads((root/'entry_geometry_audit.json').read_text()),
+                json.loads((root/'financial_pool_gate.json').read_text()),json.loads((root/'qualified_chart_pool.json').read_text())):
+              raise ValueError('SELECTED_FINANCIAL_APPROVAL_NOT_VALID')
             if len(selected)>5 or len(selected)!=len(images):
               raise ValueError('SELECTION_IMAGE_COUNT_MISMATCH')
             if len({x['code'] for x in selected})!=len(selected):
@@ -806,6 +814,9 @@ jobs:
                 raise ValueError('SIGNAL_STATUS_MISMATCH')
             result.update(asof=selection['asof'],selected=selected,images=images,
                           financial_coverage_complete=selection.get('coverage_complete',False),
+                          selection_approval_complete=selection_approval_complete(selection),
+                          selected_financial_complete=selection.get('selected_financial_complete'),
+                          aggregate_policy=selection.get('aggregate_policy'),
                           decision=selection.get('decision','CASH'),
                           signals=selection.get('signals',[]),
                           point_in_time_certification_required=False,
@@ -830,11 +841,12 @@ jobs:
         run: |
           python - <<'PY'
           import base64,hashlib,json,os,sys,urllib.request,urllib.error,uuid
+          from datetime import datetime,timezone
           from pathlib import Path
           from PIL import Image
           sys.path.insert(0,'scripts')
-          from c3_top5_financial_selection import valid_entry
-          from c3_delivery_authorization import approved_manual_delivery
+          from c3_top5_financial_selection import valid_entry, INDEPENDENT_POLICY, validate_selection_approval
+          from c3_delivery_authorization import approved_manual_delivery, validate_current_signal
           from c3_all_candidate_report import image_identity
           root=Path('output/c3_top5')
           root.mkdir(parents=True,exist_ok=True)
@@ -880,8 +892,15 @@ jobs:
             raise SystemExit(0)
           if manifest.get('status') not in ('FINANCE_FIRST_PREVIEW_READY_NO_SEND','CASH_NO_FINANCIAL_CANDIDATES'):
             raise ValueError('FINANCE_FIRST_MANIFEST_NOT_VALID')
-          if manifest.get('asof')!=report.get('asof') or not manifest.get('financial_coverage_complete'):
+          approved_scope=(manifest.get('selection_approval_complete') is True and manifest.get('selected_financial_complete') is True
+            if manifest.get('aggregate_policy')==INDEPENDENT_POLICY else manifest.get('financial_coverage_complete') is True)
+          if manifest.get('asof')!=report.get('asof') or not approved_scope:
             raise ValueError('FINANCIAL_COVERAGE_OR_DATE_NOT_VALID')
+          if manifest.get('aggregate_policy')==INDEPENDENT_POLICY:
+            if not validate_selection_approval(json.loads((root/'financial_selection_research.json').read_text()),
+                json.loads((root/'entry_geometry_audit.json').read_text()),json.loads((root/'financial_pool_gate.json').read_text()),
+                json.loads((root/'qualified_chart_pool.json').read_text())):
+              raise ValueError('INDEPENDENT_SELECTED_FINANCE_NOT_VALID')
           all_candidates=report.get('candidates',[])
           selected=[x for x in all_candidates if x.get('top5')]
           approved_codes=[x.get('code') for x in manifest.get('selected',[])]
@@ -943,6 +962,8 @@ jobs:
             save_delivery('DRY_RUN',asof=report['asof'],stage='COMPLETE',selected_codes=approved_codes)
             print('C3_FINAL_DELIVERY_DRY_RUN_NO_TELEGRAM')
             raise SystemExit(0)
+          if is_production and manifest.get('aggregate_policy')==INDEPENDENT_POLICY:
+            validate_current_signal(report['asof'],receipt.get('entry_valid_until'))
           if is_test:
             print('C3_TEST_SEND_EXPLICITLY_AUTHORIZED_20261119')
           token=os.environ.get('TELEGRAM_BOT_TOKEN','')
@@ -992,7 +1013,8 @@ jobs:
             destination_matches=str(answer.get('result',{}).get('chat',{}).get('id'))==chat
             delivery['photos'].append({'code':item['code'],'image':p.name,
               'image_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),
-              'telegram_message_id':message_id,'destination_matches':destination_matches})
+              'telegram_message_id':message_id,'destination_matches':destination_matches,
+              'sent_at':datetime.now(timezone.utc).isoformat()})
             save_delivery(telegram_photos_sent=len(delivery['photos']))
             if not destination_matches:
               raise ValueError('TELEGRAM_DESTINATION_MISMATCH_'+str(i))
@@ -1020,6 +1042,12 @@ jobs:
               'selected_count':selection.get('selected_count',0),
               'financial_decision_counts':selection.get('financial_decision_counts',{}),
               'approval_required_count':selection.get('approval_required_count'),
+              'aggregate_policy':selection.get('aggregate_policy'),
+              'approval_financial_complete':selection.get('approval_financial_complete'),
+              'all_interest_financial_complete':selection.get('all_interest_financial_complete'),
+              'selected_financial_complete':selection.get('selected_financial_complete'),
+              'selection_approval_complete':selection.get('selection_approval_complete'),
+              'financial_unverified_excluded_codes':selection.get('financial_unverified_excluded_codes',[]),
               'nonblocking_financial_unverified_codes':selection.get('nonblocking_financial_unverified_codes',[])}
           except (OSError,ValueError,TypeError,AttributeError):
             outcome={'operational_status':'ERROR','program_status':'ERROR','error':'OPERATING_RESULT_UNAVAILABLE'}
@@ -1036,6 +1064,15 @@ jobs:
         env:
           C3_WATCH_UPSTREAM_SUCCESS: ${{ job.status == 'success' }}
         run: PYTHONPATH=scripts python scripts/c3_watch5_delivery.py
+      - name: Deliver separate financially unverified reference images
+        if: always()
+        continue-on-error: true
+        env:
+          C3_REVIEW_UPSTREAM_SUCCESS: ${{ job.status == 'success' }}
+        run: PYTHONPATH=scripts python scripts/c3_review_delivery.py
+      - name: Reconcile all three delivery channels and preserve failures
+        if: always()
+        run: PYTHONPATH=scripts python scripts/c3_delivery_outcome.py --root output/c3_top5
       - name: Upload individual classic images and audit receipt
         if: always()
         uses: actions/upload-artifact@v4

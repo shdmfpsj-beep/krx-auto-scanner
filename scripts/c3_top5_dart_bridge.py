@@ -206,8 +206,10 @@ def main():
         result = collect_balanced(day, stocks, key,
             datetime.now(ZoneInfo("Asia/Seoul")).date(), SnapshotCache(args.cache))
         result['request_scope'] = receipt.get('request_scope', 'EXECUTABLE_ENTRIES')
-        from c3_top5_financial_selection import APPROVAL_POLICY
-        result['aggregate_policy']=APPROVAL_POLICY
+        from c3_top5_financial_selection import APPROVAL_POLICY, INDEPENDENT_POLICY
+        policy=os.environ.get('C3_APPROVAL_POLICY',APPROVAL_POLICY)
+        if policy not in (APPROVAL_POLICY,INDEPENDENT_POLICY):raise ValueError('UNKNOWN_FINANCIAL_APPROVAL_POLICY')
+        result['aggregate_policy']=policy
     else:
         result = bridge(receipt, key)
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -32,10 +32,11 @@ def production_checks(root):
                      "is_production=(event=='schedule' and on_main)"):
         if required not in workflow:
             raise ValueError('PRODUCTION_BOUNDARY_CHANGED')
-    from c3_top5_financial_selection import APPROVAL_POLICY
+    from c3_top5_financial_selection import APPROVAL_POLICY, INDEPENDENT_POLICY
     if APPROVAL_POLICY != 'EXECUTABLE_FINANCIAL_APPROVAL_V1':
         raise ValueError('APPROVAL_POLICY_CHANGED')
-    return dict(model='balanced', approval_policy=APPROVAL_POLICY,
+    policy=INDEPENDENT_POLICY if 'C3_APPROVAL_POLICY: '+INDEPENDENT_POLICY in workflow else APPROVAL_POLICY
+    return dict(model='balanced', approval_policy=policy,legacy_approval_policy=APPROVAL_POLICY,
                 protected_files_verified=list(PROTECTED), cron='0 23 * * 1-5')
 
 

@@ -14,6 +14,7 @@ ACCEPTED = {"FINANCIAL_RESEARCH_GATE_PASSED",
 FINANCIAL_CANDIDATE_LIMIT = 30
 REVIEW_SCOPE = 'TECHNICAL_INTEREST_POOL_V1'
 APPROVAL_POLICY = 'EXECUTABLE_FINANCIAL_APPROVAL_V1'
+INDEPENDENT_POLICY = 'INDEPENDENT_ISSUER_FINANCIAL_APPROVAL_V2'
 ANNUAL_POINTS = {"ANNUAL_GROWTH_AND_MARGIN_OBSERVED": 16,
                  "ANNUAL_POSITIVE_MIXED": 11, "ANNUAL_RISK_OR_SLOWDOWN": 5}
 INTERIM_POINTS = {"INTERIM_SALES_AND_PROFIT_GROWTH_OBSERVED": 14,
@@ -265,7 +266,94 @@ def select_approval_scoped(geometry, financial):
     return result
 
 
+def independent_transport_failure(item, rows):
+    """Isolate only an observed issuer transport failure with same-endpoint success.
+
+    Authentication/rate limits, unknown exceptions, identity or original-data
+    failures are never downgraded into issuer-local missing evidence.
+    """
+    if item.get('error') not in ('TimeoutError','URLError','ConnectionError','ConnectionResetError'):
+        return False
+    errors=[e for e in item.get('source_observations',[]) if e.get('state')=='ERROR']
+    if not errors or any(e.get('http_status') not in (None,408,500,502,503,504) for e in errors):return False
+    for event in errors:
+        if not event.get('endpoint'):return False
+        if not any(other.get('ticker')!=item.get('ticker') and classify(other)=='QUALIFIED_BASIC_FINANCIAL_RISK' and
+            any(e.get('endpoint')==event['endpoint'] and (e.get('state')=='FETCH' and e.get('api_status')=='000'
+                or e.get('state')=='HIT' and bool(e.get('sha256'))) for e in other.get('source_observations',[])) for other in rows):
+            return False
+    return True
+
+
+def selection_approval_complete(selection):
+    if selection.get('aggregate_policy')!=INDEPENDENT_POLICY:return selection.get('coverage_complete') is True
+    selected=selection.get('selected',[])
+    codes=[c.get('code') for c in selected]
+    return (selection.get('selection_approval_complete') is True and selection.get('selected_financial_complete') is True
+        and selection.get('financial_observation_coverage_complete') is True and not selection.get('shared_system_error')
+        and not selection.get('technical_scope_unverified_codes') and len(codes)==len(set(codes))<=5
+        and all(selection.get('financial_verdicts',{}).get(code)=='PASS' for code in codes))
+
+
+def validate_selection_approval(selection, geometry, financial, pool):
+    """A new approval flag is evidence only when reproduced from original inputs."""
+    if selection.get('aggregate_policy')!=INDEPENDENT_POLICY:return selection_approval_complete(selection)
+    expected=select(attach_support_evidence(geometry,pool),financial)
+    if expected!=selection:raise ValueError('INDEPENDENT_SELECTION_SOURCE_MISMATCH')
+    return selection_approval_complete(expected)
+
+
+def select_independently(geometry, financial):
+    """Approved issuer-level scope; financial criteria and ranking are unchanged."""
+    observed=select_approval_scoped(geometry,{**financial,'aggregate_policy':APPROVAL_POLICY})
+    rows=financial.get('researched',[])+financial.get('excluded',[])
+    classes=observed.get('financial_classifications',{})
+    approved={code for code,value in classes.items() if value=='QUALIFIED_BASIC_FINANCIAL_RISK'}
+    errors=[r for r in rows if classes.get(r['ticker'])=='ERROR_FINANCIAL_EVIDENCE']
+    unexplained=[r['ticker'] for r in errors if not independent_transport_failure(r,rows)]
+    dated_sources_valid=True
+    for row in rows:
+        for key in ('filing_date','interim_filing_date'):
+            if row.get(key):
+                try:
+                    if datetime.strptime(row[key],'%Y-%m-%d').date()>datetime.strptime(geometry['asof'],'%Y%m%d').date():
+                        dated_sources_valid=False
+                except (ValueError,TypeError):dated_sources_valid=False
+    system_error=bool(observed.get('shared_system_error') or unexplained or not dated_sources_valid)
+    data_hold=bool(observed.get('technical_scope_unverified_codes'))
+    subset={**geometry,'candidates':[c for c in geometry.get('candidates',[]) if c['code'] in approved]}
+    effective={**financial,'aggregate_policy':'ISOLATED_ISSUER_FAILURES_V1',
+        'researched':[r for r in financial.get('researched',[]) if r['ticker'] in approved],
+        'excluded':[r for r in financial.get('excluded',[]) if r['ticker'] in approved],
+        'status':'FINANCIAL_RESEARCH_GATE_PASSED' if approved else 'NO_CANDIDATES'}
+    result=select(subset,effective)
+    if system_error or data_hold:
+        result.update(operational_status='ERROR' if system_error else 'HOLD_DATA_INCOMPLETE',
+            status='ERROR_FINANCIAL_EVIDENCE' if system_error else 'REVIEW_REQUIRED',
+            decision='ERROR' if system_error else 'REVIEW_REQUIRED',selected=[],signals=[],selected_count=0)
+    for field in ('financial_classifications','financial_verdicts','financial_decision_counts','financial_pass_count',
+        'review_count','excluded_count','issuer_error_codes','all_interest_financial_complete','financial_requested_count',
+        'financial_unreviewed_candidate_count','financial_interest_budget_deferred_count','financial_budget_deferred_count',
+        'watch_count','technical_approval_scope','approval_required_codes','approval_required_count','approval_financial_complete',
+        'financial_evidence_status','financial_observation_coverage_complete','nonblocking_financial_unverified_codes',
+        'technical_scope_unverified_codes','coverage_complete'):
+        result[field]=observed.get(field)
+    selected_ok=not system_error and not data_hold and all(classes.get(c['code'])=='QUALIFIED_BASIC_FINANCIAL_RISK' for c in result['selected'])
+    pending={code for code,value in classes.items() if value in ('REVIEW_INSUFFICIENT_EVIDENCE','ERROR_FINANCIAL_EVIDENCE')}
+    pending.update(set(observed.get('technical_approval_scope',{}))-set(classes))
+    result.update(aggregate_policy=INDEPENDENT_POLICY,selected_financial_complete=selected_ok,
+        selection_approval_complete=selected_ok and result.get('operational_status') in ('TOP5_READY','CASH_NO_ELIGIBLE'),
+        shared_system_error=system_error,unclassified_issuer_error_codes=unexplained,
+        financial_unverified_excluded_codes=sorted(pending),
+        financial_exclusion_scope='ISSUER_ONLY_UNLESS_SHARED_SYSTEM_OR_INTEGRITY_FAILURE',
+        comparison_whole_approval_operational_status=observed['operational_status'],
+        comparison_conservative_operational_status=observed['comparison_conservative_operational_status'])
+    return result
+
+
 def select(geometry, financial):
+    if financial.get('model')=='BALANCED_QUALITY_TIMING_V1' and financial.get('aggregate_policy')==INDEPENDENT_POLICY:
+        return select_independently(geometry,financial)
     if financial.get('model')=='BALANCED_QUALITY_TIMING_V1' and financial.get('aggregate_policy')==APPROVAL_POLICY:
         return select_approval_scoped(geometry,financial)
     asof = geometry.get("asof")

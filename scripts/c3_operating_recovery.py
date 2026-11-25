@@ -7,7 +7,9 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
-from c3_delivery_authorization import RECOVERY_ASOF, RECOVERY_PREFIX, REQUEST_PREFIX, REPOSITORY
+from c3_delivery_authorization import (RECOVERY_ASOF, RECOVERY_PREFIX, REQUEST_PREFIX, REPOSITORY,
+    INDEPENDENT_RELEASE_PREFIX, INDEPENDENT_REQUEST_PREFIX)
+from c3_top5_session_policy import session_plan
 
 WORKFLOW = 'c3_top5_daily_telegram.yml'
 
@@ -28,7 +30,7 @@ class GitHub:
             raise
 
 
-def diagnose(client):
+def diagnose(client, asof=RECOVERY_ASOF):
     repo = client.call('')
     workflow = client.call('actions/workflows/' + WORKFLOW)
     runs = client.call('actions/workflows/' + WORKFLOW + '/runs?per_page=50').get('workflow_runs', [])
@@ -45,8 +47,10 @@ def diagnose(client):
         runners=runner_summary,
         runs=[{k:r.get(k) for k in ('id','event','head_sha','status','conclusion','created_at','run_started_at','updated_at','display_title')} for r in runs],
         receipt_observations={})
-    for family in ('c3_top5_daily','c3_watch5_daily'):
-        for day in (RECOVERY_ASOF,'2026-11-24'):
+    families=('c3_top5_daily','c3_watch5_daily','c3_review_daily') if asof=='20261125' else ('c3_top5_daily','c3_watch5_daily')
+    report['target_asof']=asof
+    for family in families:
+        for day in (asof,datetime.strptime(asof,'%Y%m%d').strftime('%Y-%m-%d')):
             path='receipts/' + family + '/' + day + '.json'
             value=client.call('contents/' + path + '?ref=main',optional=True)
             report['receipt_observations'][path] = dict(exists='content' in value, http_status=value.get('http_status',200))
@@ -57,6 +61,39 @@ def diagnose(client):
         'EVENT_CREATED' if report['schedule_event_created_20261125'] else
         'ACTIVE_WORKFLOW_NO_EVENT_CAUSE_NOT_ESTABLISHED')
     return report
+
+
+def release_independent(client, env, event, report, clock=None):
+    """One approved release; defer before the existing 21:00 KST source cutoff."""
+    clock=clock or datetime.now(timezone.utc)
+    local=clock.astimezone(ZoneInfo('Asia/Seoul'))
+    title=event.get('head_commit',{}).get('message','').split('\n')[0]
+    if (env.get('GITHUB_EVENT_NAME')!='push' or env.get('GITHUB_REF_NAME')!='main'
+        or env.get('GITHUB_REPOSITORY')!=REPOSITORY or env.get('GITHUB_RUN_ATTEMPT')!='1'
+        or not title.startswith(INDEPENDENT_RELEASE_PREFIX) or local.date().isoformat()!='2026-11-25'):
+        raise ValueError('RECOVERY_EXECUTION_NOT_AUTHORIZED')
+    if report.get('default_branch')!='main' or report.get('archived') or report.get('disabled'):
+        raise ValueError('RECOVERY_REPOSITORY_NOT_OPERABLE')
+    if not env.get('GITHUB_SHA') or report.get('main_sha')!=env['GITHUB_SHA']:
+        raise ValueError('RECOVERY_VERIFIED_MAIN_HEAD_CHANGED')
+    if report.get('target_asof')!='20261125' or report.get('workflow',{}).get('state')!='active':
+        raise ValueError('RECOVERY_WORKFLOW_NOT_ACTIVE_OR_WRONG_TARGET')
+    if any(r['http_status'] not in (200,404) for r in report['receipt_observations'].values()):
+        raise ValueError('RECOVERY_RECEIPT_STATE_UNVERIFIED')
+    if any(r['exists'] for r in report['receipt_observations'].values()):
+        return dict(status='BLOCKED_EXISTING_RESERVATION_REVIEW_REQUIRED',automatic_retry=False)
+    if session_plan(clock)['asof']!='20261125':
+        return dict(status='DEFERRED_TO_EXISTING_SCHEDULE',asof='20261125',
+            reason='EXISTING_2100_KST_SOURCE_CUTOFF_NOT_REACHED',source_collected=False,
+            next_schedule_kst='2026-11-26T08:00:00+09:00',automatic_retry=False)
+    running=[r['id'] for r in report['runs'] if r['status'] in ('queued','in_progress','waiting','requested','pending')]
+    if running:return dict(status='WAIT_EXISTING_OPERATING_RUN',run_ids=running,automatic_retry=False)
+    request_id=INDEPENDENT_REQUEST_PREFIX+env['GITHUB_RUN_ID']
+    response=client.call('actions/workflows/'+WORKFLOW+'/dispatches',method='POST',payload=dict(ref='main',
+        inputs=dict(asof='20261125',financial_model='balanced',live_delivery=True,operation_request_id=request_id)))
+    if response.get('http_status')!=204:raise ValueError('RECOVERY_DISPATCH_NOT_ACCEPTED')
+    return dict(status='DISPATCH_ACCEPTED',asof='20261125',operation_request_id=request_id,
+        dispatch_http_status=204,event='workflow_dispatch',automatic_retry=False)
 
 
 def recover(client, env, event, report, clock=None):
@@ -118,11 +155,13 @@ def main():
     args=parser.parse_args();args.out.mkdir(parents=True,exist_ok=True)
     result=dict(status='ERROR',checked_at=datetime.now(timezone.utc).isoformat(),automatic_retry=False)
     try:
-        client=GitHub(os.environ['GH_TOKEN']);result['diagnostics']=diagnose(client)
+        event=json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text()) if args.dispatch else {}
+        independent=event.get('head_commit',{}).get('message','').startswith(INDEPENDENT_RELEASE_PREFIX)
+        client=GitHub(os.environ['GH_TOKEN']);result['diagnostics']=diagnose(client,'20261125' if independent else RECOVERY_ASOF)
         result['status']='DIAGNOSED'
         if args.dispatch:
-            event=json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
-            result['recovery']=recover_after_upstream(client,os.environ,event,result['diagnostics'])
+            result['recovery']=(release_independent(client,os.environ,event,result['diagnostics']) if independent
+                else recover_after_upstream(client,os.environ,event,result['diagnostics']))
             result['status']=result['recovery']['status']
     except Exception as exc:
         result.update(status='ERROR',exception_type=type(exc).__name__,

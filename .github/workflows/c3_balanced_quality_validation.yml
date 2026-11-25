@@ -49,7 +49,11 @@ jobs:
           python - <<'PY'
           import os,subprocess
           before=os.environ.get('BEFORE_SHA','')
-          execute=True
+          execute=True;archive_only=False
+          if before and subprocess.run(['git','cat-file','-e',before+'^{commit}'],capture_output=True).returncode!=0:
+              # A shallow head checkout need not contain the PR base. Fetch the
+              # exact public base before deciding whether collection changed.
+              subprocess.run(['git','fetch','--no-tags','--depth=1','origin',before],check=True,capture_output=True)
           if before and subprocess.run(['git','cat-file','-e',before+'^{commit}'],capture_output=True).returncode==0:
               paths=subprocess.check_output(['git','diff','--name-only',before,'HEAD']).decode().splitlines()
               # WATCH delivery changes have their own full regression/artifact
@@ -65,6 +69,33 @@ jobs:
                   elif path.endswith('c3_balanced_quality_validation.yml'):
                       body=re.sub(r'^      - name: Detect executable changes and avoid repeating APIs for documentation\n.*?(?=^      - uses: actions/setup-python)','',body,flags=re.M|re.S)
                   return body
+              # Connection-only changes reuse the pinned actual November 24 archive
+              # in the mandatory independent-operation workflow. Financial metrics,
+              # source collection and geometry remain byte-identical to main.
+              connection={
+                  'scripts/c3_top5_financial_selection.py','scripts/c3_top5_dart_bridge.py',
+                  'scripts/c3_candidate_decisions.py','scripts/c3_watch5_delivery.py',
+                  'scripts/c3_review_delivery.py','scripts/c3_delivery_outcome.py',
+                  'scripts/c3_delivery_authorization.py','scripts/c3_operating_recovery.py',
+                  'scripts/c3_release_connection_check.py','scripts/c3_independent_release_validation.py',
+                  'scripts/test_c3_independent_operation.py','scripts/c3_official_attachment_review.py',
+                  'scripts/c3_financial_policy_comparison.py','scripts/test_c3_official_attachment_review.py',
+                  'scripts/test_c3_financial_policy_comparison.py','.github/workflows/c3_financial_policy_review.yml',
+                  '.github/workflows/c3_operating_recovery.yml','.github/workflows/c3_top5_daily_telegram.yml',
+                  '.github/workflows/c3_balanced_quality_validation.yml'}
+              archive_only=all(path in connection or path.startswith('docs/') for path in paths)
+              if archive_only:
+                  # A collector change must still run the live-source CI path.
+                  old=subprocess.check_output(['git','show',before+':.github/workflows/c3_top5_daily_telegram.yml']).decode()
+                  # Compare the collection/calculation block up to financial screening.
+                  current=open('.github/workflows/c3_top5_daily_telegram.yml').read()
+                  # The actual original block is extracted by its executable name.
+                  step=next((line.strip()[8:] for line in current.splitlines() if line.strip().startswith('- name: ') and 'Collect' in line and 'KRX' in line),None)
+                  def block(text):
+                      begin=text.index('      - name: '+step)
+                      finish=text.find('\n      - name: ',begin+1)
+                      return text[begin:finish if finish>=0 else len(text)]
+                  archive_only=bool(step) and block(old)==block(current)
               execute=False
               for path in paths:
                   if path.startswith('docs/') or path in delivery:continue
@@ -74,7 +105,7 @@ jobs:
                       if old.returncode==current.returncode==0 and normalized(path,old.stdout)==normalized(path,current.stdout):continue
                   execute=True
           with open(os.environ['GITHUB_OUTPUT'],'a') as out:
-              out.write('execute='+str(execute).lower()+'\n')
+              out.write('execute='+str(execute).lower()+'\narchive_only='+str(archive_only).lower()+'\n')
           print('C3_EXECUTABLE_VALIDATION_REQUIRED',execute)
           PY
       - uses: actions/setup-python@v5
@@ -96,7 +127,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python scripts/test_c3_operational_integration.py --write-positive-fixture output/c3_positive_fixture
       - name: Restore receipt-keyed financial snapshots
-        if: steps.changes.outputs.execute == 'true'
+        if: steps.changes.outputs.execute == 'true' && steps.changes.outputs.archive_only != 'true'
         uses: actions/cache/restore@v4
         with:
           path: output/c3_balanced_cache
@@ -104,7 +135,7 @@ jobs:
           restore-keys: |
             c3-balanced-pr-${{ github.event.pull_request.number }}-
       - name: Reuse verified KRX source artifact without another full-market collection
-        if: steps.changes.outputs.execute == 'true'
+        if: steps.changes.outputs.execute == 'true' && steps.changes.outputs.archive_only != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -141,7 +172,7 @@ jobs:
                   z.extractall('output/recovery_seed_'+str(i))
           PY
       - name: Recollect fixed 20261123 KRX full market and validate live OpenDART without send
-        if: steps.changes.outputs.execute == 'true'
+        if: steps.changes.outputs.execute == 'true' && steps.changes.outputs.archive_only != 'true'
         env:
           KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
@@ -150,7 +181,7 @@ jobs:
         run: |
           PYTHONPATH=scripts python scripts/c3_balanced_validation.py --live --asof 20261123 --out output/c3_balanced_validation --cache output/c3_balanced_cache --operational-exit-codes
       - name: Investigate financial evidence only for executable pending candidates
-        if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_validation/financial_pool_gate.json') != '' }}
+        if: ${{ always() && steps.changes.outputs.execute == 'true' && steps.changes.outputs.archive_only != 'true' && hashFiles('output/c3_balanced_validation/financial_pool_gate.json') != '' }}
         env:
           DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
@@ -172,7 +203,7 @@ jobs:
               print('NO_EXECUTABLE_PENDING_FINANCE_ADDITIONAL_PROBE_SKIPPED')
           PY
       - name: Preserve verified snapshots when financial review remains incomplete
-        if: ${{ always() && steps.changes.outputs.execute == 'true' && hashFiles('output/c3_balanced_cache/*.json') != '' }}
+        if: ${{ always() && steps.changes.outputs.execute == 'true' && steps.changes.outputs.archive_only != 'true' && hashFiles('output/c3_balanced_cache/*.json') != '' }}
         uses: actions/cache/save@v4
         with:
           path: output/c3_balanced_cache

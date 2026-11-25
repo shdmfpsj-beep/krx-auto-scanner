@@ -37,6 +37,7 @@ jobs:
             /.github/workflows/c3_top5_daily_telegram.yml
             /.github/workflows/c3_operating_recovery.yml
             /.github/workflows/c3_top5_dart_bridge_tests.yml
+            /.github/workflows/c3_financial_policy_review.yml
             /receipts/c3_top5_daily/
             /reports/c3_paper/paper_ledger.json
           sparse-checkout-cone-mode: false
@@ -65,38 +66,24 @@ jobs:
       - name: Run all existing regressions and recovery authorization tests without sends
         run: |
           set -o pipefail
-          PYTHONPATH=scripts python -m unittest -v test_c3_technical_preflight test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_dart_note_reconciliation test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_operating_recovery/regression.log
-      - name: Requery actual required financial evidence using verified November 24 source
-        timeout-minutes: 7
+          PYTHONPATH=scripts python -m unittest -v test_c3_independent_operation test_c3_financial_policy_comparison test_c3_official_attachment_review test_c3_technical_preflight test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_dart_note_reconciliation test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_operating_recovery/regression.log
+      - name: Verify existing actual source and replay production without financial recollection or sends
         env:
           GH_TOKEN: ${{ github.token }}
-          DART_API_KEY: ${{ secrets.OPENDART_API_KEY || secrets.OPEN_DART_API_KEY || secrets.DART_API_KEY }}
         run: |
-          python - <<'PY'
-          import hashlib, os, urllib.request, urllib.error, zipfile
+          gh api repos/${{ github.repository }}/actions/artifacts/14994912183/zip > /tmp/c3-release-source.zip
+          python - <<'PYCODE'
+          import hashlib,zipfile
           from pathlib import Path
-          class NoRedirect(urllib.request.HTTPRedirectHandler):
-              def redirect_request(self,*args):return None
-          request=urllib.request.Request('https://api.github.com/repos/shdmfpsj-beep/krx-auto-scanner/actions/artifacts/14982160548/zip',
-              headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
-          try:
-              with urllib.request.build_opener(NoRedirect).open(request,timeout=30) as response:binary=response.read()
-          except urllib.error.HTTPError as error:
-              if error.code!=302:raise RuntimeError('SOURCE_ARTIFACT_HTTP_'+str(error.code)) from None
-              location=error.headers['Location']
-              if not location.startswith('https://'):raise ValueError('UNSAFE_ARTIFACT_REDIRECT')
-              with urllib.request.urlopen(location,timeout=60) as response:binary=response.read()
-          if hashlib.sha256(binary).hexdigest()!='fde8b82f94eb962abf9688dac666ad6ba7e906cc23c743af31995d39cad1c8df':
-              raise ValueError('SOURCE_ARTIFACT_SHA_MISMATCH')
-          archive=Path('/tmp/c3-required-source.zip');archive.write_bytes(binary)
-          destination=Path('/tmp/c3-required-source')
-          with zipfile.ZipFile(archive) as z:
-              if any(Path(n).is_absolute() or '..' in Path(n).parts for n in z.namelist()):raise ValueError('UNSAFE_ARCHIVE_PATH')
-              z.extractall(destination)
-          print('VERIFIED_REAL_SOURCE_ARTIFACT',14982160548,hashlib.sha256(binary).hexdigest())
-          PY
-          PYTHONPATH=scripts python scripts/c3_required_financial_validation.py --live \
-            --source /tmp/c3-required-source --out output/c3_operating_recovery/required_financial_evidence
+          path=Path('/tmp/c3-release-source.zip')
+          if hashlib.sha256(path.read_bytes()).hexdigest()!='1720ea8890e8cce336ece09c7be8c44501e4a3bcb5379e3f9ab888ca8ea34c89':
+              raise ValueError('SOURCE_ARCHIVE_SHA_MISMATCH')
+          with zipfile.ZipFile(path) as source:
+              if any(Path(n).is_absolute() or '..' in Path(n).parts for n in source.namelist()):raise ValueError('SOURCE_ARCHIVE_PATH')
+              source.extractall('/tmp/c3-release-source')
+          PYCODE
+          PYTHONPATH=scripts python scripts/c3_independent_release_validation.py \
+            --source /tmp/c3-release-source --out output/c3_operating_recovery/production_replay
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -105,7 +92,7 @@ jobs:
           retention-days: 30
   dispatch:
     needs: verify
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'C3 approved operational recovery 20261125')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (startsWith(github.event.head_commit.message, 'C3 approved operational recovery 20261125') || startsWith(github.event.head_commit.message, 'C3 approved independent financial release 20261125'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

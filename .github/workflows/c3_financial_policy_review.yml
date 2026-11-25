@@ -1,0 +1,89 @@
+name: C3 approved independent operation validation (NO SEND)
+on:
+  pull_request:
+    paths:
+      - 'scripts/c3_independent_release_validation.py'
+      - 'scripts/c3_review_delivery.py'
+      - 'scripts/c3_delivery_outcome.py'
+      - 'scripts/test_c3_independent_operation.py'
+      - 'scripts/c3_top5_financial_selection.py'
+      - 'scripts/c3_watch5_delivery.py'
+      - '.github/workflows/c3_top5_daily_telegram.yml'
+      - 'scripts/c3_official_attachment_review.py'
+      - 'scripts/c3_financial_policy_comparison.py'
+      - 'scripts/test_c3_official_attachment_review.py'
+      - 'scripts/test_c3_financial_policy_comparison.py'
+      - '.github/workflows/c3_financial_policy_review.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c3-financial-policy-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          sparse-checkout: |
+            /scripts/*.py
+            /.github/workflows/c3_top5_daily_telegram.yml
+            /.github/workflows/c3_operating_recovery.yml
+            /.github/workflows/c3_top5_dart_bridge_tests.yml
+            /.github/workflows/c3_financial_policy_review.yml
+            /.github/workflows/c3_balanced_quality_validation.yml
+            /receipts/c3_top5_daily/
+            /reports/c3_paper/paper_ledger.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate review and existing operating workflows
+        run: |
+          set -o pipefail
+          mkdir -p output/c3_financial_policy_review
+          curl -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o /tmp/c3-actionlint.tar.gz
+          echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  /tmp/c3-actionlint.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/c3-actionlint.tar.gz -C /tmp actionlint
+          /tmp/actionlint -shellcheck= -pyflakes= .github/workflows/c3_top5_daily_telegram.yml .github/workflows/c3_operating_recovery.yml .github/workflows/c3_top5_dart_bridge_tests.yml .github/workflows/c3_financial_policy_review.yml .github/workflows/c3_balanced_quality_validation.yml 2>&1 | tee output/c3_financial_policy_review/actionlint.log
+      - name: Install the existing regression runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-nanum >/dev/null
+          python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Run all existing and approved operating connection regressions
+        run: |
+          set -o pipefail
+          PYTHONPATH=scripts python -m unittest -v test_c3_independent_operation test_c3_financial_policy_comparison test_c3_official_attachment_review test_c3_technical_preflight test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_dart_note_reconciliation test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_financial_policy_review/regression.log
+      - name: Verify and reuse existing real sources without another KRX or financial API collection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/artifacts/14994912183/zip > /tmp/c3-policy-source.zip
+          python - <<'PYCODE'
+          import hashlib,zipfile
+          from pathlib import Path
+          path=Path('/tmp/c3-policy-source.zip')
+          if hashlib.sha256(path.read_bytes()).hexdigest()!='1720ea8890e8cce336ece09c7be8c44501e4a3bcb5379e3f9ab888ca8ea34c89':
+              raise ValueError('SOURCE_ARCHIVE_SHA_MISMATCH')
+          with zipfile.ZipFile(path) as source:
+              if any(Path(n).is_absolute() or '..' in Path(n).parts for n in source.namelist()):raise ValueError('SOURCE_ARCHIVE_PATH')
+              source.extractall('/tmp/c3-policy-source')
+          print('VERIFIED_REAL_SOURCE_ARTIFACT',14994912183)
+          PYCODE
+      - name: Execute production selection, all three image channels and DRY_RUN without network
+        run: |
+          PYTHONPATH=scripts python scripts/c3_independent_release_validation.py \
+            --source /tmp/c3-policy-source --out output/c3_financial_policy_review/production_replay
+      - name: Preserve actual-source production replay, expired reference images and regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c3-independent-operation-validation-NO-SEND
+          path: output/c3_financial_policy_review/
+          retention-days: 30
