@@ -93,6 +93,12 @@ class NoteReconciliationTests(unittest.TestCase):
         t=debt_table();t['rows'].insert(3,['변동','변동','(1)','3','0'])
         self.assertIsNone(column_financing_debt(t))
 
+    def test_zero_debt_without_explicit_total_keeps_existing_review_policy(self):
+        t=debt_table()
+        for row in t['rows'][1:]:
+            if any(row[2:]):row[3:]=['0','0']
+        self.assertIsNone(column_financing_debt(t))
+
     def metrics(self):
         return dict(unresolved_debt_accounts=[dict(account_id='ifrs-full_CurrentLoansReceivedAndCurrentPortionOfNoncurrentLoansReceived',value=5000)],
             direct_account_evidence=dict(long_term_borrowings=dict(state='VALID',value=8000,sources=[dict(account_id='long',value=8000)]),

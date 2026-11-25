@@ -45,6 +45,7 @@ def column_financing_debt(table):
     count=sum(borrow)
     if not count:return None  # zero-debt recovery continues to require the existing explicit total
     value=sum(v for v,b in zip(closing,borrow) if b)*table['scale']
+    if value==0:return None  # keep the existing explicit-total requirement for zero debt
     return dict(value=value,precision_krw=count*table['scale'],label='완전한 재무활동 부채 변동표의 리스 제외 차입·사채 합계',
         method='RECONCILED_COMPLETE_COLUMN_FINANCING_LIABILITIES',reconciliation=dict(
             total_column_present=False,all_columns_classified=True,movements_reconciled=True,
