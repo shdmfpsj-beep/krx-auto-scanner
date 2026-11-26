@@ -1,7 +1,7 @@
 {
   "schema": "C3_REGISTRY_INTEGRITY_V22",
-  "total_registered": 48,
-  "excluded_from_eligible_performance": 37,
+  "total_registered": 50,
+  "excluded_from_eligible_performance": 38,
   "items": [
     {
       "key": "3460383b8d48830635c50a30070ec0300f7fd71a4568e4807974772ccb7d9bd8",
@@ -22,8 +22,8 @@
       "registered_utc": "2026-11-03T01:23:50.479529+00:00",
       "original_status": "RESEARCH_ONLY",
       "audit_reasons": [
-        "EVIDENCE_MISSING",
-        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+        "EXCLUDED_INSTRUMENT_EVIDENCE",
+        "SPECIAL_INSTRUMENT_NAME"
       ],
       "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
@@ -213,11 +213,8 @@
       "ticker": "086060",
       "registered_utc": "2026-11-04T12:41:00.505940+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [
-        "EVIDENCE_MISSING",
-        "NAME_NOT_IN_CURRENT_PRELIMINARY"
-      ],
-      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
+      "audit_reasons": [],
+      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
     },
     {
       "key": "d37e9694f6ac06d08d8214b1d64b83064d1d6de0902ed3bd717493797cb3fe91",
@@ -357,11 +354,8 @@
       "ticker": "110020",
       "registered_utc": "2026-11-12T19:29:26.848829+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [
-        "EVIDENCE_MISSING",
-        "NAME_NOT_IN_CURRENT_PRELIMINARY"
-      ],
-      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
+      "audit_reasons": [],
+      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
     },
     {
       "key": "58b6c1be1c3141fed12adcbf292e91bf9d40f07e067bde8840d8cb954e9bdb57",
@@ -447,8 +441,11 @@
       "ticker": "188040",
       "registered_utc": "2026-11-18T19:56:36.801818+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [],
-      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+      "audit_reasons": [
+        "EVIDENCE_MISSING",
+        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+      ],
+      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
     {
       "key": "69925f41b6e2629f137405c5b8a860cebba9af64907ae1d0bc1d6f96db003099",
@@ -486,8 +483,11 @@
       "ticker": "016580",
       "registered_utc": "2026-11-20T19:39:03.574683+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [],
-      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+      "audit_reasons": [
+        "EVIDENCE_MISSING",
+        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+      ],
+      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
     {
       "key": "ccdc472f1661eed82d273e6af229ee4ebe731c3de18809911561ce77143d8062",
@@ -516,8 +516,11 @@
       "ticker": "130580",
       "registered_utc": "2026-11-24T21:54:17.355304+00:00",
       "original_status": "RESEARCH_ONLY",
-      "audit_reasons": [],
-      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+      "audit_reasons": [
+        "EVIDENCE_MISSING",
+        "NAME_NOT_IN_CURRENT_PRELIMINARY"
+      ],
+      "evaluation_group": "EXCLUDE_FROM_ELIGIBLE_PERFORMANCE"
     },
     {
       "key": "8eaf4132dedb979338b75ff153b91c6ca6ad614d0f0ad74b9a70869d660f485a",
@@ -542,6 +545,24 @@
       "run": "45695468432",
       "ticker": "169330",
       "registered_utc": "2026-11-25T21:09:44.633528+00:00",
+      "original_status": "RESEARCH_ONLY",
+      "audit_reasons": [],
+      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+    },
+    {
+      "key": "55784def5fad70ff4dbcce6aa52d4472f14897999c46b1677a367b40740fed7f",
+      "run": "45889442244",
+      "ticker": "068930",
+      "registered_utc": "2026-11-26T20:47:36.578822+00:00",
+      "original_status": "RESEARCH_ONLY",
+      "audit_reasons": [],
+      "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
+    },
+    {
+      "key": "55784def5fad70ff4dbcce6aa52d4472f14897999c46b1677a367b40740fed7f",
+      "run": "45889442244",
+      "ticker": "211050",
+      "registered_utc": "2026-11-26T20:47:36.578822+00:00",
       "original_status": "RESEARCH_ONLY",
       "audit_reasons": [],
       "evaluation_group": "RESEARCH_ONLY_UNCERTIFIED"
