@@ -284,6 +284,13 @@ def sector_profile(industry, name=""):
     return "OTHER_NONFINANCIAL"
 
 
+class UnsupportedReportingCurrency(ValueError):
+    """Identity-validated USD reporting is unavailable to the KRW-only model."""
+    def __init__(self,payload):
+        super().__init__('UNSUPPORTED_USD_REPORTING_REQUIRES_VERIFIED_KRW_EVIDENCE')
+        self.payload_sha256=digest(payload)
+
+
 def validate_payload(payload, division, year, report, receipt, asof, corp_code=None):
     """Reject restatements/other periods before assigning a filing date to values."""
     if payload.get("status") != "000" or not isinstance(payload.get("list"), list):
@@ -300,8 +307,14 @@ def validate_payload(payload, division, year, report, receipt, asof, corp_code=N
             raise ValueError("FUTURE_STATEMENT_RECEIPT")
         if str(row.get("bsns_year")) != str(year) or row.get("reprt_code") != report:
             raise ValueError("STATEMENT_PERIOD_MISMATCH")
-        if row.get("fs_div") not in (None, "", division) or row.get("currency") not in (None, "", "KRW"):
+        if row.get("fs_div") not in (None, "", division):
             raise ValueError("STATEMENT_DIVISION_OR_CURRENCY_MISMATCH")
+    # Check every original identity/period/division before distinguishing a
+    # supported currency from a known model limitation. Never calculate KRW
+    # amounts from USD, and never downgrade mixed/unknown currency data.
+    currencies={row.get('currency') for row in payload['list']}
+    if currencies=={'USD'}:raise UnsupportedReportingCurrency(payload)
+    if not currencies.issubset({None,'','KRW'}):raise ValueError('STATEMENT_DIVISION_OR_CURRENCY_MISMATCH')
 
 
 def statement_metrics(payload, interim=False, ticker=None, division=None):
@@ -804,6 +817,12 @@ def collect_balanced(asof, stocks, key, today, cache, request=api_json, get_corp
                 audit=audit, recent_metrics=recent_metrics, annual_trend={k: m.get(k) for k in ("revenue", "previous_revenue", "before_previous_revenue",
                     "operating_profit", "previous_operating_profit", "before_previous_operating_profit")},
                 recent_slowdown_flag=interim.get("quality") == "INTERIM_PROFIT_OR_SALES_WEAKENING")
+        except UnsupportedReportingCurrency as exc:
+            item.update(financial_verdict='REVIEW_REQUIRED',financial_evidence_state='REVIEW_REQUIRED',
+                statement_currency='USD',currency_normalization_performed=False,
+                financial_unavailable_reason=str(exc),unsupported_statement_sha256=exc.payload_sha256,
+                risk_assessment=dict(state='REVIEW_REQUIRED',hard_failures=[],
+                    mandatory_missing=['VERIFIED_KRW_REPORTING_OR_CURRENCY_NORMALIZATION'],risk_flags=[]))
         except Exception as exc:
             # Never print exceptions containing authenticated request URLs.
             item["error"] = str(exc) if isinstance(exc, ValueError) and re.fullmatch(r"[A-Z0-9_]+", str(exc)) else type(exc).__name__

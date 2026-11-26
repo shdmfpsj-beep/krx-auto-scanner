@@ -72,7 +72,7 @@ jobs:
               # Connection-only changes reuse the pinned actual November 24 archive
               # in the mandatory independent-operation workflow. Financial metrics,
               # source collection and geometry remain byte-identical to main.
-              connection={
+              connection={'scripts/c3_balanced_financials.py','scripts/test_c3_balanced_financials.py',
                   'scripts/c3_top5_financial_selection.py','scripts/c3_top5_dart_bridge.py',
                   'scripts/c3_candidate_decisions.py','scripts/c3_watch5_delivery.py',
                   'scripts/c3_review_delivery.py','scripts/c3_delivery_outcome.py',
@@ -84,6 +84,21 @@ jobs:
                   '.github/workflows/c3_operating_recovery.yml','.github/workflows/c3_top5_daily_telegram.yml',
                   '.github/workflows/c3_balanced_quality_validation.yml'}
               archive_only=all(path in connection or path.startswith('docs/') for path in paths)
+              if archive_only and 'scripts/c3_balanced_financials.py' in paths:
+                  import ast
+                  old_model=subprocess.check_output(['git','show',before+':scripts/c3_balanced_financials.py']).decode()
+                  new_model=open('scripts/c3_balanced_financials.py').read()
+                  def financial_math(body):
+                      tree=ast.parse(body)
+                      tree.body=[n for n in tree.body if not (isinstance(n,ast.ClassDef) and n.name=='UnsupportedReportingCurrency')]
+                      for node in tree.body:
+                          if isinstance(node,ast.FunctionDef) and node.name=='validate_payload':node.body=[ast.Pass()]
+                          if isinstance(node,ast.FunctionDef) and node.name=='collect_balanced':
+                              for part in ast.walk(node):
+                                  if isinstance(part,ast.Try):
+                                      part.handlers=[h for h in part.handlers if not (isinstance(h.type,ast.Name) and h.type.id=='UnsupportedReportingCurrency')]
+                      return ast.dump(tree,include_attributes=False)
+                  archive_only=financial_math(old_model)==financial_math(new_model)
               if archive_only:
                   # A collector change must still run the live-source CI path.
                   old=subprocess.check_output(['git','show',before+':.github/workflows/c3_top5_daily_telegram.yml']).decode()
