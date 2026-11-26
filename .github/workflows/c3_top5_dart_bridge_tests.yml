@@ -48,6 +48,7 @@ jobs:
             scripts/test_dart_interim_periods.py
             scripts/dart_interim_periods.py
             .github/workflows/c3_top5_daily_telegram.yml
+            .github/workflows/c3_operating_recovery.yml
           sparse-checkout-cone-mode: false
       - name: Use the same Python runtime as production
         uses: actions/setup-python@v5

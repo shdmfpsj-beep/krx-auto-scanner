@@ -26,18 +26,25 @@ def production_checks(root):
             raise ValueError('PROTECTED_FILE_CHANGED')
     workflow = (root / '.github/workflows/c3_top5_daily_telegram.yml').read_text()
     for required in ('default: balanced', "inputs.financial_model || 'balanced'",
-                     "cron: '0 23 * * 1-5'", 'timeout-minutes: 35',
+                     'timeout-minutes: 35',
                      'group: c3-top5-daily-classic-per-stock', 'cancel-in-progress: false',
                      "on_main=os.environ.get('GITHUB_REF_NAME')=='main'",
                      "is_production=(event=='schedule' and on_main)"):
         if required not in workflow:
             raise ValueError('PRODUCTION_BOUNDARY_CHANGED')
+    cron='0 23 * * 1-5'
+    if "cron: '17 22 * * 1-5'" in workflow:
+        recovery=(root/'.github/workflows/c3_operating_recovery.yml').read_text()
+        if any("cron: '"+c+"'" not in recovery for c in ('47 22 * * 1-5','27 23 * * 1-5')):
+            raise ValueError('APPROVED_RECOVERY_SCHEDULE_MISSING')
+        cron='17 22 * * 1-5'
+    elif "cron: '0 23 * * 1-5'" not in workflow:raise ValueError('PRODUCTION_SCHEDULE_UNRECOGNIZED')
     from c3_top5_financial_selection import APPROVAL_POLICY, INDEPENDENT_POLICY
     if APPROVAL_POLICY != 'EXECUTABLE_FINANCIAL_APPROVAL_V1':
         raise ValueError('APPROVAL_POLICY_CHANGED')
     policy=INDEPENDENT_POLICY if 'C3_APPROVAL_POLICY: '+INDEPENDENT_POLICY in workflow else APPROVAL_POLICY
     return dict(model='balanced', approval_policy=policy,legacy_approval_policy=APPROVAL_POLICY,
-                protected_files_verified=list(PROTECTED), cron='0 23 * * 1-5')
+                protected_files_verified=list(PROTECTED), cron=cron)
 
 
 def request_json(url, payload, headers, opener):

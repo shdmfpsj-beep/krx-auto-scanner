@@ -33,6 +33,10 @@ def approved_manual_delivery(env, asof, expiry, clock=None):
     original=asof==RECOVERY_ASOF and re.fullmatch(re.escape(REQUEST_PREFIX)+r'\d+',request)
     release=(asof=='20261125' and env.get('C3_APPROVAL_POLICY')=='INDEPENDENT_ISSUER_FINANCIAL_APPROVAL_V2'
         and re.fullmatch(re.escape(INDEPENDENT_REQUEST_PREFIX)+r'\d+',request))
-    if not (original or release):raise ValueError('MANUAL_RECOVERY_CONTEXT_NOT_AUTHORIZED')
+    scheduled=False
+    if env.get('C3_OPERATION_REQUEST_ID','').startswith('scheduled-recovery-') and env.get('C3_APPROVAL_POLICY')=='INDEPENDENT_ISSUER_FINANCIAL_APPROVAL_V2':
+        from c3_schedule_guard import verify_parent
+        scheduled=verify_parent(env,asof)
+    if not (original or release or scheduled):raise ValueError('MANUAL_RECOVERY_CONTEXT_NOT_AUTHORIZED')
     validate_current_signal(asof,expiry,clock)
     return True
