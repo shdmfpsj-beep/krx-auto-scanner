@@ -1,11 +1,16 @@
 name: C3 operating incident verification and approved manual dispatch
 on:
+  schedule:
+    - cron: '47 22 * * 1-5'
+    - cron: '27 23 * * 1-5'
   pull_request:
     paths:
       - 'scripts/c3_delivery_authorization.py'
       - 'scripts/c3_operating_recovery.py'
       - 'scripts/c3_balanced_financials.py'
       - 'scripts/test_c3_balanced_financials.py'
+      - 'scripts/c3_schedule_guard.py'
+      - 'scripts/test_c3_schedule_guard.py'
       - 'scripts/test_c3_operating_recovery.py'
       - 'scripts/c3_required_financial_validation.py'
       - 'scripts/c3_dart_note_reconciliation.py'
@@ -19,6 +24,8 @@ on:
       - 'scripts/c3_operating_recovery.py'
       - 'scripts/c3_balanced_financials.py'
       - 'scripts/test_c3_balanced_financials.py'
+      - 'scripts/c3_schedule_guard.py'
+      - 'scripts/test_c3_schedule_guard.py'
       - 'scripts/test_c3_operating_recovery.py'
       - '.github/workflows/c3_operating_recovery.yml'
 permissions:
@@ -67,10 +74,28 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y fonts-nanum >/dev/null
           python -m pip install pillow pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Inspect guarded recovery against real current-day records without dispatch or sends
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PYTHONPATH=scripts python - <<'PYCODE'
+          import json,os
+          from pathlib import Path
+          from c3_operating_recovery import GitHub
+          from c3_schedule_guard import assess
+          # Evaluate a hypothetical recovery check; this calls GET only.
+          context=dict(os.environ,GITHUB_EVENT_NAME='schedule')
+          result=assess(GitHub(os.environ['GH_TOKEN']),context,recover=True)
+          evidence=dict(mode='READ_ONLY_RECOVERY_COMPARISON',actual_event=os.environ['GITHUB_EVENT_NAME'],
+              dispatches=0,telegram_sends=0,result=result)
+          Path('output/c3_operating_recovery/schedule_guard_readonly.json').write_text(json.dumps(evidence,ensure_ascii=False,indent=2)+'\n')
+          print('C3_READ_ONLY_RECOVERY_EVIDENCE',json.dumps(evidence,ensure_ascii=False))
+          PYCODE
       - name: Run all existing regressions and recovery authorization tests without sends
         run: |
           set -o pipefail
-          PYTHONPATH=scripts python -m unittest -v test_c3_independent_operation test_c3_financial_policy_comparison test_c3_official_attachment_review test_c3_technical_preflight test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_dart_note_reconciliation test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_operating_recovery/regression.log
+          PYTHONPATH=scripts python -m unittest -v test_c3_schedule_guard test_c3_independent_operation test_c3_financial_policy_comparison test_c3_official_attachment_review test_c3_technical_preflight test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_dart_note_reconciliation test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_operating_recovery/regression.log
       - name: Verify existing actual source and replay production without financial recollection or sends
         env:
           GH_TOKEN: ${{ github.token }}
@@ -125,4 +150,37 @@ jobs:
         with:
           name: c3-operating-manual-dispatch
           path: output/c3_operating_dispatch/
+          retention-days: 30
+  scheduled_recovery:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: |
+            /scripts/c3_schedule_guard.py
+            /scripts/c3_operating_recovery.py
+            /scripts/c3_delivery_authorization.py
+            /scripts/c3_top5_session_policy.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the existing reference-calendar runtime
+        run: python -m pip install pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Recover only a missing day; never retry uncertain dispatches or sends
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=scripts python scripts/c3_schedule_guard.py --recover
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-scheduled-missing-event-check
+          path: output/c3_schedule_guard/
           retention-days: 30

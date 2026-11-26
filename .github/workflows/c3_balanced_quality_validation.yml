@@ -72,7 +72,8 @@ jobs:
               # Connection-only changes reuse the pinned actual November 24 archive
               # in the mandatory independent-operation workflow. Financial metrics,
               # source collection and geometry remain byte-identical to main.
-              connection={'scripts/c3_balanced_financials.py','scripts/test_c3_balanced_financials.py',
+              connection={'scripts/c3_schedule_guard.py','scripts/test_c3_schedule_guard.py','scripts/test_c3_watch5_delivery.py',
+                  '.github/workflows/c3_balanced_final_release.yml','.github/workflows/c3_top5_dart_bridge_tests.yml','.github/workflows/c3_watch5_validation.yml','scripts/c3_balanced_financials.py','scripts/test_c3_balanced_financials.py',
                   'scripts/c3_top5_financial_selection.py','scripts/c3_top5_dart_bridge.py',
                   'scripts/c3_candidate_decisions.py','scripts/c3_watch5_delivery.py',
                   'scripts/c3_review_delivery.py','scripts/c3_delivery_outcome.py',

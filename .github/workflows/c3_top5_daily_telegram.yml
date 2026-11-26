@@ -11,7 +11,7 @@ on:
         required: false
         type: string
       live_delivery:
-        description: 'Explicitly approved 20261125 recovery for 20261124; default previews never send'
+        description: 'Explicit approved current-session recovery only; default manual previews never send'
         required: false
         default: false
         type: boolean
@@ -31,19 +31,59 @@ on:
         type: choice
         options: [legacy, balanced]
   schedule:
-    # KST 08:00 Tuesday-Saturday (previous KRX trading day); GitHub scheduling can be delayed.
-    # 23:00 UTC Monday-Friday = 08:00 KST next calendar day.
-    - cron: '0 23 * * 1-5'
+    # KST 07:17 Tuesday-Saturday; missing-event checks use the existing controller.
+    # GitHub may delay all three schedules; no time-of-day success is presumed.
+    - cron: '17 22 * * 1-5'
 permissions:
   contents: write
+  actions: read
 concurrency:
   group: c3-top5-daily-classic-per-stock
   cancel-in-progress: false
 jobs:
+  admit:
+    if: github.event_name != 'push' || startsWith(github.event.head_commit.message, 'C3 operational verification 20261121')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      execute: ${{ steps.gate.outputs.execute }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: |
+            /scripts/c3_schedule_guard.py
+            /scripts/c3_operating_recovery.py
+            /scripts/c3_delivery_authorization.py
+            /scripts/c3_top5_session_policy.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the existing reference-calendar runtime
+        run: python -m pip install pandas==2.2.3 exchange-calendars==4.13.2 --disable-pip-version-check
+      - name: Admit only a missing, current, unreserved daily operation
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          C3_MANUAL_ASOF: ${{ inputs.asof }}
+          C3_MANUAL_LIVE_DELIVERY: ${{ inputs.live_delivery || 'false' }}
+          C3_OPERATION_REQUEST_ID: ${{ inputs.operation_request_id }}
+          C3_FINANCIAL_MODEL: ${{ inputs.financial_model || 'balanced' }}
+          C3_APPROVAL_POLICY: INDEPENDENT_ISSUER_FINANCIAL_APPROVAL_V2
+        run: PYTHONPATH=scripts python scripts/c3_schedule_guard.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c3-daily-admission
+          path: output/c3_schedule_guard/
+          retention-days: 30
   top5:
+    needs: admit
     # One explicitly marked deployment verifies live data without enabling send.
     # Other pushes never execute this job; the existing schedule is unchanged.
-    if: github.event_name != 'push' || startsWith(github.event.head_commit.message, 'C3 operational verification 20261121')
+    if: needs.admit.outputs.execute == 'true' && (github.event_name != 'push' || startsWith(github.event.head_commit.message, 'C3 operational verification 20261121'))
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -622,6 +662,7 @@ jobs:
             scripts/c3_review_delivery.py
             scripts/c3_delivery_outcome.py
             scripts/c3_delivery_authorization.py
+            scripts/c3_schedule_guard.py
             scripts/c3_top5_eligibility_audit.py
             scripts/c3_top5_financial_selection.py
             scripts/c3_top5_financial_preview.py

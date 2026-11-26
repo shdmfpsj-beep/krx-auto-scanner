@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'scripts/c3_independent_release_validation.py'
+      - 'scripts/c3_schedule_guard.py'
+      - 'scripts/test_c3_schedule_guard.py'
       - 'scripts/c3_review_delivery.py'
       - 'scripts/c3_delivery_outcome.py'
       - 'scripts/test_c3_independent_operation.py'
@@ -61,7 +63,7 @@ jobs:
       - name: Run all existing and approved operating connection regressions
         run: |
           set -o pipefail
-          PYTHONPATH=scripts python -m unittest -v test_c3_independent_operation test_c3_financial_policy_comparison test_c3_official_attachment_review test_c3_technical_preflight test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_dart_note_reconciliation test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_financial_policy_review/regression.log
+          PYTHONPATH=scripts python -m unittest -v test_c3_schedule_guard test_c3_independent_operation test_c3_financial_policy_comparison test_c3_official_attachment_review test_c3_technical_preflight test_c3_operating_recovery test_c3_watch5_delivery test_c3_release_connection_check test_c3_approval_scope test_c3_dart_normalization test_c3_dart_note_reconciliation test_c3_operational_integration test_c3_balanced_financials test_c3_dart_document_evidence test_c3_top5_dart_bridge test_c3_top5_financial_selection test_c3_top5_pipeline test_dart_financial_screen test_dart_interim_periods test_c3_top5_session_policy test_c3_top5_eligibility_audit test_c3_top5_independent_price_evidence 2>&1 | tee output/c3_financial_policy_review/regression.log
       - name: Verify and reuse existing real sources without another KRX or financial API collection
         env:
           GH_TOKEN: ${{ github.token }}

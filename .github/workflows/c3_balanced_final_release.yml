@@ -30,6 +30,7 @@ jobs:
           sparse-checkout: |
             /scripts/*.py
             /.github/workflows/c3_top5_daily_telegram.yml
+            /.github/workflows/c3_operating_recovery.yml
             /receipts/c3_top5_daily/
             /reports/c3_paper/paper_ledger.json
           sparse-checkout-cone-mode: false
