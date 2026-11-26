@@ -239,6 +239,23 @@ class ApprovedReleaseTests(unittest.TestCase):
         self.assertEqual(r['status'],'DEFERRED_TO_EXISTING_SCHEDULE');self.assertFalse(r['source_collected'])
         self.assertTrue(all(method=='GET' for _,method,_ in gh.calls))
         self.assertTrue(any('/c3_review_daily/' in path for path,_,_ in gh.calls))
+    def test_approved_november26_morning_uses_existing_live_path_once(self):
+        from c3_operating_recovery import MORNING_RECOVERY_PREFIX
+        gh=FakeGitHub();report=diagnose(gh,'20261125')
+        event=dict(head_commit=dict(message=MORNING_RECOVERY_PREFIX+' (#211)'))
+        clock=datetime(2026,11,26,9,15,tzinfo=ZoneInfo('Asia/Seoul'))
+        result=release_independent(gh,self.env(),event,report,clock)
+        self.assertEqual(result['status'],'DISPATCH_ACCEPTED')
+        inputs=next(c[2]['inputs'] for c in gh.calls if c[1]=='POST')
+        env=manual_env();env.update(C3_MANUAL_ASOF='20261125',C3_APPROVAL_POLICY=INDEPENDENT_POLICY,C3_OPERATION_REQUEST_ID=inputs['operation_request_id'])
+        self.assertTrue(approved_manual_delivery(env,'20261125','2026-11-26T15:30:00+09:00',clock))
+    def test_morning_recovery_cannot_dispatch_after_signal_expiry(self):
+        from c3_operating_recovery import MORNING_RECOVERY_PREFIX
+        gh=FakeGitHub();report=diagnose(gh,'20261125')
+        with self.assertRaises(ValueError):
+            release_independent(gh,self.env(),dict(head_commit=dict(message=MORNING_RECOVERY_PREFIX)),report,
+                datetime(2026,11,26,15,31,tzinfo=ZoneInfo('Asia/Seoul')))
+        self.assertFalse(any(c[1]=='POST' for c in gh.calls))
     def test_after_cutoff_once_main_only_explicit_request_and_no_uncertain_retry(self):
         gh=FakeGitHub();report=diagnose(gh,'20261125')
         clock=datetime(2026,11,25,21,1,tzinfo=ZoneInfo('Asia/Seoul'))

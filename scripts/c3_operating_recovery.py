@@ -12,6 +12,7 @@ from c3_delivery_authorization import (RECOVERY_ASOF, RECOVERY_PREFIX, REQUEST_P
 from c3_top5_session_policy import session_plan
 
 WORKFLOW = 'c3_top5_daily_telegram.yml'
+MORNING_RECOVERY_PREFIX = 'C3 approved morning recovery 20261126'
 
 
 class GitHub:
@@ -68,9 +69,12 @@ def release_independent(client, env, event, report, clock=None):
     clock=clock or datetime.now(timezone.utc)
     local=clock.astimezone(ZoneInfo('Asia/Seoul'))
     title=event.get('head_commit',{}).get('message','').split('\n')[0]
+    release=title.startswith(INDEPENDENT_RELEASE_PREFIX) and local.date().isoformat()=='2026-11-25'
+    morning=(title.startswith(MORNING_RECOVERY_PREFIX) and local.date().isoformat()=='2026-11-26'
+        and local<datetime(2026,11,26,15,30,tzinfo=ZoneInfo('Asia/Seoul')))
     if (env.get('GITHUB_EVENT_NAME')!='push' or env.get('GITHUB_REF_NAME')!='main'
         or env.get('GITHUB_REPOSITORY')!=REPOSITORY or env.get('GITHUB_RUN_ATTEMPT')!='1'
-        or not title.startswith(INDEPENDENT_RELEASE_PREFIX) or local.date().isoformat()!='2026-11-25'):
+        or not (release or morning)):
         raise ValueError('RECOVERY_EXECUTION_NOT_AUTHORIZED')
     if report.get('default_branch')!='main' or report.get('archived') or report.get('disabled'):
         raise ValueError('RECOVERY_REPOSITORY_NOT_OPERABLE')
@@ -156,7 +160,7 @@ def main():
     result=dict(status='ERROR',checked_at=datetime.now(timezone.utc).isoformat(),automatic_retry=False)
     try:
         event=json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text()) if args.dispatch else {}
-        independent=event.get('head_commit',{}).get('message','').startswith(INDEPENDENT_RELEASE_PREFIX)
+        independent=event.get('head_commit',{}).get('message','').startswith((INDEPENDENT_RELEASE_PREFIX,MORNING_RECOVERY_PREFIX))
         client=GitHub(os.environ['GH_TOKEN']);result['diagnostics']=diagnose(client,'20261125' if independent else RECOVERY_ASOF)
         result['status']='DIAGNOSED'
         if args.dispatch:
