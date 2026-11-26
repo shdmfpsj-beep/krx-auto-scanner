@@ -65,6 +65,29 @@ class BalancedFinancialTests(unittest.TestCase):
         return model.collect_balanced(DAY,[dict(ticker='111111',name='제조기업')], 'a'*40,
             DAY,self.cache,custom,lambda key: {'111111':'00111111'})
 
+    def test_identity_valid_uniform_usd_is_review_without_krw_values_or_pass(self):
+        def usd(endpoint,params,key):
+            payload=request(endpoint,params,key)
+            if endpoint=='fnlttSinglAcntAll.json':
+                for row in payload['list']:row['currency']='USD'
+            return payload
+        result=self.collect(usd);item=result['excluded'][0]
+        self.assertEqual(item['financial_verdict'],'REVIEW_REQUIRED');self.assertEqual(result['status'],'REVIEW_REQUIRED')
+        self.assertFalse(item['financial_risk_gate_pass']);self.assertFalse(item['financial_evidence_complete'])
+        self.assertEqual(item['statement_currency'],'USD');self.assertFalse(item['currency_normalization_performed'])
+        self.assertNotIn('metrics',item);self.assertNotIn('equity_krw',item);self.assertNotIn('error',item)
+        self.assertEqual(item['risk_assessment']['mandatory_missing'],['VERIFIED_KRW_REPORTING_OR_CURRENCY_NORMALIZATION'])
+
+    def test_usd_cannot_hide_identity_period_division_future_or_mixed_currency_errors(self):
+        for changes in (dict(corp_code='00999999'),dict(bsns_year='2024'),dict(fs_div='OFS'),
+                        dict(rcept_no='20261123000001'),dict(currency='KRW')):
+            payload=statement()
+            for row in payload['list']:row['currency']='USD'
+            payload['list'][-1].update(changes)
+            with self.assertRaises(ValueError) as caught:
+                model.validate_payload(payload,'CFS',2025,'11011',ANNUAL_RECEIPT,DAY,'00111111')
+            self.assertNotIsInstance(caught.exception,model.UnsupportedReportingCurrency)
+
     def test_cash_flow_capex_and_fcf_definition(self):
         m=model.statement_metrics(statement())
         self.assertEqual(m['ocf'],14)
