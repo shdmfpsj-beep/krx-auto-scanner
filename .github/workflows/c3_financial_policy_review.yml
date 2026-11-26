@@ -9,6 +9,8 @@ on:
       - 'scripts/c3_top5_financial_selection.py'
       - 'scripts/c3_watch5_delivery.py'
       - '.github/workflows/c3_top5_daily_telegram.yml'
+      - 'scripts/c3_balanced_financials.py'
+      - 'scripts/test_c3_balanced_financials.py'
       - 'scripts/c3_official_attachment_review.py'
       - 'scripts/c3_financial_policy_comparison.py'
       - 'scripts/test_c3_official_attachment_review.py'
@@ -80,6 +82,39 @@ jobs:
         run: |
           PYTHONPATH=scripts python scripts/c3_independent_release_validation.py \
             --source /tmp/c3-policy-source --out output/c3_financial_policy_review/production_replay
+      - name: Verify the observed USD-reporting limitation from original cached sources without network
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/artifacts/15075442865/zip > /tmp/c3-currency-source.zip
+          PYTHONPATH=scripts python - <<'PYCODE'
+          import hashlib,json,zipfile,tempfile,shutil
+          from pathlib import Path
+          from datetime import date
+          from c3_balanced_financials import collect_balanced,SnapshotCache
+          path=Path('/tmp/c3-currency-source.zip')
+          assert hashlib.sha256(path.read_bytes()).hexdigest()=='278f2030f95bbd7a0cbce1e4f03bb792c34b4964ebf93cfbabd83f414a1e164d'
+          root=Path('/tmp/c3-currency-source')
+          with zipfile.ZipFile(path) as source:
+              assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in source.namelist())
+              source.extractall(root)
+          from c3_balanced_financials import validate_payload,UnsupportedReportingCurrency,digest
+          records=[json.loads(p.read_text()) for p in (root/'financial_cache').glob('*.json')]
+          expected='19ad9c36ed1cc25104f3537658b5531a253b34702b45908e045582fcb5e783e1'
+          record=next(r for r in records if r.get('sha256')==expected)
+          assert digest(record['payload'])==expected
+          identity=record['identity'];params=identity['params']
+          try:
+              validate_payload(record['payload'],params['fs_div'],int(params['bsns_year']),params['reprt_code'],identity['receipt'],date(2026,11,25),params['corp_code'])
+          except UnsupportedReportingCurrency as error:
+              assert error.payload_sha256==expected
+              evidence=dict(source_mode='IMMUTABLE_ARCHIVE_VALIDATION_NO_API',source_run_id=45728023784,
+                  payload_sha256=expected,row_count=len(record['payload']['list']),currency='USD',
+                  identity_period_and_receipt_validated=True,currency_normalization_performed=False,financial_pass=False)
+              Path('output/c3_financial_policy_review/actual_currency_review.json').write_text(json.dumps(evidence,indent=2)+'\n')
+              print('ACTUAL_USD_SOURCE_VALIDATED_UNSUPPORTED_NO_CONVERSION_NO_PASS_NO_NEW_API',expected)
+          else:raise ValueError('UNSUPPORTED_USD_MUST_NOT_ENTER_KRW_MODEL')
+          PYCODE
       - name: Preserve actual-source production replay, expired reference images and regression evidence
         if: always()
         uses: actions/upload-artifact@v4
