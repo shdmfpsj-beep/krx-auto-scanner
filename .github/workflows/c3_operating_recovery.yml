@@ -92,7 +92,7 @@ jobs:
           retention-days: 30
   dispatch:
     needs: verify
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (startsWith(github.event.head_commit.message, 'C3 approved operational recovery 20261125') || startsWith(github.event.head_commit.message, 'C3 approved independent financial release 20261125'))
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (startsWith(github.event.head_commit.message, 'C3 approved operational recovery 20261125') || startsWith(github.event.head_commit.message, 'C3 approved independent financial release 20261125') || startsWith(github.event.head_commit.message, 'C3 approved morning recovery 20261126'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
