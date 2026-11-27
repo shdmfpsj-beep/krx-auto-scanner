@@ -7,16 +7,16 @@ on:
   workflow_dispatch:
     inputs:
       asof:
-        description: 'KRX as-of YYYYMMDD; manual preview unless test_send_telegram is true'
+        description: 'Leave blank for latest session; dated runs require separate approval'
         required: false
         type: string
       live_delivery:
-        description: 'Explicit approved current-session recovery only; default manual previews never send'
+        description: 'Owner current-session live delivery; uncheck for preview'
         required: false
-        default: false
+        default: true
         type: boolean
       operation_request_id:
-        description: 'Approved recovery correlation ID; not a credential'
+        description: 'Leave blank for normal owner run; legacy recovery ID only'
         required: false
         type: string
       test_send_telegram:
@@ -30,10 +30,6 @@ on:
         default: balanced
         type: choice
         options: [legacy, balanced]
-  schedule:
-    # KST 07:17 Tuesday-Saturday; missing-event checks use the existing controller.
-    # GitHub may delay all three schedules; no time-of-day success is presumed.
-    - cron: '17 22 * * 1-5'
 permissions:
   contents: write
   actions: read
