@@ -158,6 +158,25 @@ class ScheduleGuardTests(unittest.TestCase):
         client.markers.clear()
         with self.assertRaisesRegex(ValueError,'RESERVATION_MISMATCH'):verify_parent(context,'20261125',client)
 
+    def test_owner_default_manual_daily_admission(self):
+        context=env()
+        context.update(GITHUB_EVENT_NAME='workflow_dispatch',GITHUB_ACTOR='shdmfpsj-beep',
+            GITHUB_TRIGGERING_ACTOR='shdmfpsj-beep',C3_MANUAL_ASOF='',C3_OPERATION_REQUEST_ID='',
+            C3_MANUAL_LIVE_DELIVERY='true',C3_FINANCIAL_MODEL='balanced',
+            C3_APPROVAL_POLICY='INDEPENDENT_ISSUER_FINANCIAL_APPROVAL_V2')
+        client=Fake()
+        self.assertTrue(assess(client,context,CLOCK,load_archive=client.load)['execute'])
+        client.markers['receipts/c3_watch5_daily/20261125.json']=dict(asof='20261125')
+        self.assertEqual(assess(client,context,CLOCK,load_archive=client.load)['status'],'SKIP_EXISTING_DELIVERY_RESERVATION')
+        for changes in (dict(GITHUB_ACTOR='other'),dict(GITHUB_TRIGGERING_ACTOR='other'),
+                        dict(GITHUB_RUN_ATTEMPT='2'),dict(GITHUB_REF_NAME='feature'),
+                        dict(C3_MANUAL_ASOF='20261125'),dict(C3_FINANCIAL_MODEL='legacy')):
+            with self.assertRaises(ValueError):
+                approved_manual_delivery(dict(context,**changes),'20261125','2026-11-26T15:30:00+09:00',CLOCK)
+        with self.assertRaises(ValueError):
+            approved_manual_delivery(context,'20261125','2026-11-26T15:30:00+09:00',
+                datetime(2026,11,26,15,31,tzinfo=ZoneInfo('Asia/Seoul')))
+
     def test_expired_manual_signal_cannot_scan_or_dispatch(self):
         client=Fake();context=env();context.update(GITHUB_EVENT_NAME='workflow_dispatch',C3_MANUAL_ASOF='20261125',C3_MANUAL_LIVE_DELIVERY='true')
         with self.assertRaisesRegex(ValueError,'EXPIRED'):

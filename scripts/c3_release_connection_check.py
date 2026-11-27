@@ -38,7 +38,13 @@ def production_checks(root):
         if any("cron: '"+c+"'" not in recovery for c in ('47 22 * * 1-5','27 23 * * 1-5')):
             raise ValueError('APPROVED_RECOVERY_SCHEDULE_MISSING')
         cron='17 22 * * 1-5'
-    elif "cron: '0 23 * * 1-5'" not in workflow:raise ValueError('PRODUCTION_SCHEDULE_UNRECOGNIZED')
+    elif "cron: '0 23 * * 1-5'" not in workflow:
+        recovery=(root/'.github/workflows/c3_operating_recovery.yml').read_text()
+        if '  schedule:' in workflow or '  schedule:' in recovery or '  workflow_dispatch:' not in workflow:
+            raise ValueError('PRODUCTION_SCHEDULE_UNRECOGNIZED')
+        if not __import__('re').search(r'live_delivery:\n(?:[^\n]*\n){2}        default: true',workflow):
+            raise ValueError('MANUAL_LIVE_DEFAULT_MISSING')
+        cron=None
     from c3_top5_financial_selection import APPROVAL_POLICY, INDEPENDENT_POLICY
     if APPROVAL_POLICY != 'EXECUTABLE_FINANCIAL_APPROVAL_V1':
         raise ValueError('APPROVAL_POLICY_CHANGED')

@@ -285,7 +285,8 @@ class WatchPipelineTests(unittest.TestCase):
         start=workflow.index('      - name: Checkout minimal OpenDART research adapter')
         end=workflow.index('      - name: Restore KRX research outputs after checkout')
         self.assertIn('scripts/c3_watch5_delivery.py',workflow[start:end])
-        self.assertIn('timeout-minutes: 35',workflow);self.assertIn("cron: '17 22 * * 1-5'",workflow)
+        self.assertIn('timeout-minutes: 35',workflow);self.assertNotIn('  schedule:',workflow);self.assertIn('  workflow_dispatch:',workflow)
+        self.assertNotIn('  schedule:',(REPO/'.github/workflows/c3_operating_recovery.yml').read_text())
         watch=workflow[workflow.index('      - name: Deliver separate WATCH5 observation images'):]
         self.assertIn('continue-on-error: true',watch)
         self.assertIn('if: always()',watch);self.assertIn("C3_WATCH_UPSTREAM_SUCCESS: ${{ job.status == 'success' }}",watch)
