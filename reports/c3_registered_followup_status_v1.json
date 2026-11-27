@@ -1,12 +1,12 @@
 {
   "schema": "C3_REGISTERED_FOLLOWUP_CAPTURE_V1",
   "capture_completed": true,
-  "asof": "2026-11-26",
-  "requested_cutoff": "2026-11-26",
+  "asof": "2026-11-27",
+  "requested_cutoff": "2026-11-27",
   "run_context": {
-    "run_id": "45889442244",
+    "run_id": "46060526168",
     "run_attempt": "1",
-    "commit": "37d91f11cab065ee842278157b5f63ed1ae30e85"
+    "commit": "fdc1716f86a06dbdccc9a86ed4371915cd45549b"
   },
   "registry_id": "675a40a12a668f0c4b87f3bdd39d6f167a66e16908a0583f143c51fc841f5f55",
   "registered_count": 36,
@@ -20,20 +20,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "000990",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:14:42.918909+00:00",
-        "response_received_at_utc": "2026-11-26T20:14:43.437945+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:01:12.474796+00:00",
+        "response_received_at_utc": "2026-11-27T20:01:13.069797+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -42,11 +42,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 66600.0,
-        "raw_response_csv_sha256": "2ae6a224367b217c15197c759a92af1cbc45194dc8c2922a90aed6a630d6ba9b",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 70700.0,
+        "raw_response_csv_sha256": "7c696eece9070dc2f0dfb7a6148335bf221a76c5c8d90bcb6d6e8486b6706c83",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -63,14 +63,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "18aa6942195138dbcba26bb241f6fa8ae3703f8498241ad2729f298618377fc9",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "5a5dbbbac23bba46e8d2a8ce3aa4b30e1720514432ae1d2b23658f2409a09442",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "ef5f936482986aa1f3e82b6fc6193d553a8ed55fda3785ff1cb66211dfcb363b"
+      "canonical_history_sha256": "15c32111db68bc097ce36667cfd86f31d8427b49564c70abfdc04bf668d59c67"
     },
     {
       "ticker": "003670",
@@ -79,20 +79,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "003670",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:16:28.108756+00:00",
-        "response_received_at_utc": "2026-11-26T20:16:28.650048+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:03:10.341825+00:00",
+        "response_received_at_utc": "2026-11-27T20:03:10.950629+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -101,11 +101,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 163700.0,
-        "raw_response_csv_sha256": "e83ab9decf12ef31256d8460cf9ee53492e55df08958e658013d9378184f943e",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 174200.0,
+        "raw_response_csv_sha256": "a78c1e9b1e0c2b957cf63a26bf402491d8ea57b3a3d54509a1ed1ce470ad3163",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -126,10 +126,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "5c6befe7359822b9590787050867d83a06474b80f5a1a8fa276501fc85588df1",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "0a1eab9fff4cce2c76cf56176f2450b7914aedd0cd4474e53e3a84d7052c57b6",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "3aec2d8eb7fab20760c674c874f0c26a473a92e13acbeffb2938272bfa065fba"
+      "canonical_history_sha256": "1b30dd946ab2cac7acd9bd8adb4546e1b4b434d3b4a90baa945a89132ce919f9"
     },
     {
       "ticker": "005290",
@@ -138,20 +138,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "005290",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:17:16.883469+00:00",
-        "response_received_at_utc": "2026-11-26T20:17:17.545169+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:04:04.281113+00:00",
+        "response_received_at_utc": "2026-11-27T20:04:04.874209+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -160,11 +160,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 31750.0,
-        "raw_response_csv_sha256": "6d408e45b918327caffab36a5ad2ab142550fb4f33106ae019ceb884525c0f18",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 34650.0,
+        "raw_response_csv_sha256": "96f84e11d951c45ae9ec99c6f0cc792763af76328db505958bc32a2a0d9a79fb",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -181,14 +181,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "3e53f8887f6953baf27bd6a7f6a573c6c808ec591e4e9bb9bad941c66e81d4cf",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "d1ba40e7634803133b8d902c3d820d9e277a7b14d32dcecf41d2aeac5b338857",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "f183503a34f5813a8e6c2183814bdfc17a599265180c5c276e2306e5c6f4721b"
+      "canonical_history_sha256": "390f6288d28d9c08c338f2266e08b0723ead745ccff0afaf14f0ed6289e59846"
     },
     {
       "ticker": "005930",
@@ -197,20 +197,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "005930",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:17:40.360896+00:00",
-        "response_received_at_utc": "2026-11-26T20:17:40.876252+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:04:32.010282+00:00",
+        "response_received_at_utc": "2026-11-27T20:04:32.802772+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -219,11 +219,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 171500.0,
-        "raw_response_csv_sha256": "8327a4b6d7a23feeffe954b9e8a175fe905077de31d2835d8520623b94af3bef",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 179500.0,
+        "raw_response_csv_sha256": "baa754ae71c407fbb4e70a91bdd9392e2f66fae487f755acec58724c057bcce3",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -244,10 +244,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "c29de3873af8c7451a53f4b1c1949027dc1c566eceeddb281675ff8151a996de",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "89cf8c3ba47915aa54bb2715e26395236464d139a03a2e01d8c5b41d1d8dbf3c",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "182bcd5395f988c179840287a07ee4f768e54aa47a8573cc10cccd68453ea848"
+      "canonical_history_sha256": "f7c832b094c665f1768174b91e58dac6d62764253d7aba82b5b8090903a296ed"
     },
     {
       "ticker": "006360",
@@ -256,20 +256,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "006360",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:17:57.197764+00:00",
-        "response_received_at_utc": "2026-11-26T20:17:57.861205+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:04:52.475994+00:00",
+        "response_received_at_utc": "2026-11-27T20:04:53.257333+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -278,11 +278,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 25400.0,
-        "raw_response_csv_sha256": "c5f6728a3b344a15b3f03255f6c798730011655aa9bf8ba22d20e015f3226aa4",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 26950.0,
+        "raw_response_csv_sha256": "c4841788a0541f5a1125bd4c10b244a5f01d7a89fa25c34ea9a0399e4f0c8d74",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -303,10 +303,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "c7f468963017e519ab9fc9ea432dd621e8a459130b6ba1106411f4f816ec4f1a",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "3d0fa12614f983273844a22fc8e3322bd2dd488e40a5e6fdeea312580ff53af8",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "1ba11e5217f21d6b8aa7f17df788ee0524033ad15f58d02177e5200ffbe811b1"
+      "canonical_history_sha256": "0446678804cf7e57de930ca22bf509a85ba9592be81aff9446bd6feb836fa468"
     },
     {
       "ticker": "006400",
@@ -315,20 +315,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "006400",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:17:58.787778+00:00",
-        "response_received_at_utc": "2026-11-26T20:17:59.454245+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:04:54.260011+00:00",
+        "response_received_at_utc": "2026-11-27T20:04:55.049219+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -337,11 +337,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 421000.0,
-        "raw_response_csv_sha256": "c62a4ae5ae55d4fe2fb09a4586cfb63fd8b4d1feb6371461339525bcb567d87c",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 452500.0,
+        "raw_response_csv_sha256": "4bfda213f7df7046747cf594e7cbd27a5262d9a9aacf831f6503e8f0b1d4adab",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -362,10 +362,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "ee4fffc83514c808846466d561cc925ae14bc21b02f45f64afee90eb4439bcca",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "54d098a47430dbd8c3ae0fd558d85e87850be57051b5acf28cdb48be603aa624",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "73247b629be7a843d6a243e35d599fc306debd64fd697db8092b82b3aed23747"
+      "canonical_history_sha256": "40062e6dc35d44618f723b40718e73194eff427aacfcdebc270ef5bd429897b2"
     },
     {
       "ticker": "009150",
@@ -374,20 +374,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "009150",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:18:47.201078+00:00",
-        "response_received_at_utc": "2026-11-26T20:18:47.713071+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:05:50.144951+00:00",
+        "response_received_at_utc": "2026-11-27T20:05:50.756813+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -396,11 +396,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 785000.0,
-        "raw_response_csv_sha256": "bddda67a905c6f883dddf5439206c7e883801a971fb9d50a2f4b8e9199279421",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 823000.0,
+        "raw_response_csv_sha256": "bbb9cf7855605a461cbbbf5e5f40f231ced263fedc57a97cc359220812df7bd6",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -417,14 +417,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "7d6ee487c303690b68f410cbf7cef9dc94eeb51cb3f0b7935caf262ffc94cbd7",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "cf214ebb8ece04b46aa8b6a3c64d17e82b2abbe6207e9e5c0ae72b8fff75daea",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "7a7bf8a4db282bb28b967148b6f0b1116144d7ab1d58bb307e4a604f7d27033f"
+      "canonical_history_sha256": "f4e27b272ee481cd3dd33edecd5db638c2a7fd8578dd28a268d21a028a2f0791"
     },
     {
       "ticker": "009450",
@@ -433,20 +433,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "009450",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:18:58.664340+00:00",
-        "response_received_at_utc": "2026-11-26T20:18:59.174495+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:06:02.973322+00:00",
+        "response_received_at_utc": "2026-11-27T20:06:03.573406+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -455,11 +455,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 60400.0,
-        "raw_response_csv_sha256": "76408a480fdecfac5879a36dce677dbbb329068e0fc29ee69d8f645b861b112a",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 62300.0,
+        "raw_response_csv_sha256": "ebdda6a1dccf774590eb17dae10f792848e4836db0724515e15f83d670269083",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -476,14 +476,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "e41c507ed37ff515dbfdaa50de2426e3c98efd05bfe0c5253075dced78e3ec15",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "ed58c0874efb890805be6b8b4a4760f3a291d6a06d5830f2573979d141175654",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "3e0ca8b4208f4e093231735582e2666cc74d7e98adb40dde310192b53317a071"
+      "canonical_history_sha256": "0da00c603bc73641af0399ab7001be1bb7c9497a926085511fc352985a199978"
     },
     {
       "ticker": "011210",
@@ -492,20 +492,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "011210",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:19:30.335442+00:00",
-        "response_received_at_utc": "2026-11-26T20:19:30.843637+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:06:38.393155+00:00",
+        "response_received_at_utc": "2026-11-27T20:06:38.990956+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -514,11 +514,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 49100.0,
-        "raw_response_csv_sha256": "025c5aa381274498dece565790713c84b6f4ebfe726c0c0893dd81d9e9664e24",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 50300.0,
+        "raw_response_csv_sha256": "c351530d6c6410a9700edab6550f6f1eac0b949a72a7d597882fc38ae1f784f0",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -539,10 +539,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "79bfcb8db31947a8bc84066a5539e524a456890e42f637a684ad866b08363460",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "347ec881383ec37995b44ead5003537185b0feca736ebb8e6a3f61e78cb70103",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "9985a235bce6837c3bb04b8b2a4baa8f711636ec86b09b49e1f2112d51b73701"
+      "canonical_history_sha256": "ad307bf77785fc1bfb9c08428c9d53ef8665825d016ce187a5ce3a7afc080f06"
     },
     {
       "ticker": "011780",
@@ -551,20 +551,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "011780",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:19:40.385647+00:00",
-        "response_received_at_utc": "2026-11-26T20:19:40.920499+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:06:49.613648+00:00",
+        "response_received_at_utc": "2026-11-27T20:06:50.220643+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -573,11 +573,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 91800.0,
-        "raw_response_csv_sha256": "fdacac702b8fa2fb78d8b11c1fb91b9f5a78b16b1765add73a04e0b532deefaa",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 94500.0,
+        "raw_response_csv_sha256": "fb346a8dc5a01b28dd0b44a93e74ce35c1fe75d4479383c6baa88e8e5cdda85c",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -598,10 +598,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "8a918eb4c8e8fe2368068a6a9df7b9aba8b0b256dd28720a48b3c41fb96c6368",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "60db1476671d21f2cf35f04bef9bb8c0f208c36af98c6d18ef94f0a48f6fd213",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "5bd64327c3dab017e0568b62693b51da81f72453c3603663e2b7750ba4f070d0"
+      "canonical_history_sha256": "d8f02aae3d1bc5ef3963fe855586d78464e6d8e6a36ce9a7825ec81a6c06f272"
     },
     {
       "ticker": "012330",
@@ -610,20 +610,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "012330",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:19:49.754414+00:00",
-        "response_received_at_utc": "2026-11-26T20:19:50.271280+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:07:00.110495+00:00",
+        "response_received_at_utc": "2026-11-27T20:07:00.713924+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -632,11 +632,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 332000.0,
-        "raw_response_csv_sha256": "93a9655f909330e565a18cab5103ad3c8e5c4f7e9468878a2a7ff63340ebf015",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 340000.0,
+        "raw_response_csv_sha256": "0ff3ce7ba5875a28990afbf6b9ad50c854846516311a8bc67f09b7b372d43d65",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -657,10 +657,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "1999bd130d40b6630e4a8dada9e9cd0e6aaf49e95e194f3bc3fa3eaae3765b3d",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "02fd7f9415b50f53408c0347ad65572b84195be469904e49ba4c9e8274e15c5e",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "dc0835561e11f837a4fa7fed147a72c731fbd2d2371d432321bb0eaae8a72fe3"
+      "canonical_history_sha256": "36d0edf7793280bb5b9f2215a5ee8f8a1fc51c5ea9196361376e10882f1c8171"
     },
     {
       "ticker": "012630",
@@ -669,20 +669,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "012630",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:19:53.341113+00:00",
-        "response_received_at_utc": "2026-11-26T20:19:53.850324+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:07:04.128368+00:00",
+        "response_received_at_utc": "2026-11-27T20:07:04.724393+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -691,11 +691,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 19050.0,
-        "raw_response_csv_sha256": "0d08716abb43793c8543ef0880980d651a59edc07f478e0b0b73c148f9a6f529",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 21050.0,
+        "raw_response_csv_sha256": "df1101b512e4d125ada69ccdff3227a73631e6da13c4178a71b7e4433ac5a54a",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -712,14 +712,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "025f515d4e5ae9826f3186d8b161084bd63342593315410fcd1a1797eab43075",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "0f48566aefc396f0f0f6de34d3f2ff28a5f03b6c0527f6590aafd5cc21fefd10",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "bc8fdd93175d33d994f541308bbf211d064c039d4d72b3340704f5ec7ac91091"
+      "canonical_history_sha256": "2e1d139a9c29e0a4ccca3d06c01788de8e727ac7f82444450ff816a0c43f6c4b"
     },
     {
       "ticker": "014680",
@@ -728,20 +728,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "014680",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:20:16.537188+00:00",
-        "response_received_at_utc": "2026-11-26T20:20:17.057366+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:07:29.803991+00:00",
+        "response_received_at_utc": "2026-11-27T20:07:30.418834+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -750,11 +750,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 182500.0,
-        "raw_response_csv_sha256": "c36b985f9f1155700bb775b9fbc73c6af655ef061fcc70a69299c6d5c22cd141",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 192000.0,
+        "raw_response_csv_sha256": "b78e1640dd166af8c25cc5457469f430aa4a01a685347285e56bc4e84e9eff97",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -775,10 +775,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "6a278a8f99b6be914f96b48241236b61405e0ecfe9da0924293050b9261417e0",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "a04a2b76985e7a21a483cdcd22a2cb930c0ebc44d8caaa6659ea143216e2ba2c",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "3c0e3c3446c738c60f9bdbedd887a319e9e30a5abb1c0c4bedfbd655b4dde69b"
+      "canonical_history_sha256": "4122a8a78d48889777207071b2d6ea9b55db62aa7065b687c972ca915f2e39e5"
     },
     {
       "ticker": "018260",
@@ -787,20 +787,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "018260",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:21:00.085884+00:00",
-        "response_received_at_utc": "2026-11-26T20:21:00.601697+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:08:20.791641+00:00",
+        "response_received_at_utc": "2026-11-27T20:08:21.575262+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -809,11 +809,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 193300.0,
-        "raw_response_csv_sha256": "f44e35ba2a004b207fab67cb3c5f5a132c2d463b14c7905f824dba93157a442e",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 201000.0,
+        "raw_response_csv_sha256": "9b4561d3228264ff9b713a75dcb882cc5511849e00396a2090d522c21167c7a8",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -830,14 +830,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "7006f4236f7287e0c1ad0a88be1109b234568e5a57b7025131cca6f83586ce42",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "0c5bf266df0039336d375726c12174adfafc06d6cddb3988c90ffe3f54a77158",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "78066f589cd27b698d84b00e853baf401cfced62ac803f977248d02a87922ba2"
+      "canonical_history_sha256": "274d5057c401e28e8c20e2a63a52c7fc5cbd71f6d55ae96532a4bacb1c7312e0"
     },
     {
       "ticker": "028260",
@@ -846,20 +846,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "028260",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:22:23.769368+00:00",
-        "response_received_at_utc": "2026-11-26T20:22:24.289303+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:09:55.722359+00:00",
+        "response_received_at_utc": "2026-11-27T20:09:56.336005+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -868,11 +868,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 245000.0,
-        "raw_response_csv_sha256": "be260d3c293282431fb54967a0b36805f689c28b831be06350421ca25f031812",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 259000.0,
+        "raw_response_csv_sha256": "967ff4033eefa58d0ac61e8bcdf2ebfa67f56b66d69b5556c5949202808b2193",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -889,14 +889,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "fdcef0df9220a2df91905f0a1c6908ae9b49c114e1037842f47f64b55e471e6f",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "fd036f053ed70e875791a8653b3e20756d41fe5b28713c5ba08600f58178fdff",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "39ecdc1aa1860d41f04dd9a2164fc7be71f38299284a06a21a03f340f7e8b18e"
+      "canonical_history_sha256": "21cdf0caa669fb7895a8cf0b5202569306a2e3858f0a1b38c6191b30315b9c04"
     },
     {
       "ticker": "034220",
@@ -905,20 +905,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "034220",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:23:14.413393+00:00",
-        "response_received_at_utc": "2026-11-26T20:23:14.924025+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:10:52.161128+00:00",
+        "response_received_at_utc": "2026-11-27T20:10:52.760101+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -927,11 +927,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 6470.0,
-        "raw_response_csv_sha256": "77dc1d66bb770febf7c2b646a1fe57e094da7a13bb7f11b195db2f9227d4ff73",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 6780.0,
+        "raw_response_csv_sha256": "4596cd980c8d03d46949aef3ea62b67c90819ab8260348f86accac47751aeb74",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -948,14 +948,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "8970dbb6fb368ae4d19643048e2696304788083b14a1be55c9f35cdfbd4646ab",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "e8502301393bdea686e1223e5b10066e9c78c1dcd4640978a564e9982f9a5a95",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "accc1afde842b517568c1a59761132c5c75ed7f587dd4661a6024a8797a12a4e"
+      "canonical_history_sha256": "d52738afdd2923f382bd42c8ad1d48c65f07a08bbadf989256801ef2f7b6a865"
     },
     {
       "ticker": "036200",
@@ -964,20 +964,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "036200",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:23:36.637847+00:00",
-        "response_received_at_utc": "2026-11-26T20:23:37.141560+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:11:17.071757+00:00",
+        "response_received_at_utc": "2026-11-27T20:11:17.661880+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -986,11 +986,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 7570.0,
-        "raw_response_csv_sha256": "820d9ed1fcada18a0fe80b520d9cfeb78e169482556485d92749791d18da697f",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 8140.0,
+        "raw_response_csv_sha256": "0af90889e5f3ff39456fc6ec329cf1a2d1793ccd4f6b67ec143c2512e7c1767a",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -1011,10 +1011,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "ce177212154bac5df87126584fea8d68b5063e83f812d53d68851b649bdfde1f",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "e7f8c9d9e9ded70a737cc0d9234f02278b39b4256418ac4275bd2203d0b1649f",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "cd7916833c537c1a4b2a62385350b8bf96c2f7c2eee4300953c884f908189c1f"
+      "canonical_history_sha256": "880a31ec6d468211ecf8a00618ab69a9f44df74e0c62870d4ff1e996a4809534"
     },
     {
       "ticker": "036460",
@@ -1023,20 +1023,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "036460",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:23:38.778659+00:00",
-        "response_received_at_utc": "2026-11-26T20:23:39.287009+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:11:19.478747+00:00",
+        "response_received_at_utc": "2026-11-27T20:11:20.072407+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -1045,11 +1045,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 35650.0,
-        "raw_response_csv_sha256": "ec933e9460a9c77807b756b851d759451eebe2adcca43f19a1cd9ae4401ae3be",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 35600.0,
+        "raw_response_csv_sha256": "0cb1726b5118e18fca8a6ae6193e5197217b3421b3222f333a086d89a8349a64",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -1066,14 +1066,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "79cdd2d6ac75d850fccb808f3d932713ac4cb6ba3b4a7f3968a0a2b9d28a23ba",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "ef9a651922c34d335e122ed612463d808a5b35e5123a1be5c0324e5ad9341aa3",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "2ec21ebaffdcd76653e3034da3a897fc622c7da6e8604363e8796974e677b048"
+      "canonical_history_sha256": "d763e7ec1ffbafbf233d8fab48c28fc4bc5601428da6483660771d6e382d488e"
     },
     {
       "ticker": "036810",
@@ -1082,20 +1082,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "036810",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:23:48.787501+00:00",
-        "response_received_at_utc": "2026-11-26T20:23:49.300092+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:11:31.020375+00:00",
+        "response_received_at_utc": "2026-11-27T20:11:31.614142+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -1104,11 +1104,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 20800.0,
-        "raw_response_csv_sha256": "c1818926e4d6a36093d8e987edfce332825f4f05ef67f060928cd7441bce0cb5",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 23850.0,
+        "raw_response_csv_sha256": "8c68f9aebd66deb7955bbc0006d654f51efe10eb9b8cb3c0e9042eceabe40191",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -1125,14 +1125,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": true,
+      "current_price_stage_pass": false,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "dd402b421be2327e5794901b3530191d0be5faa815bd1c57a3a74afd9681a504",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "34b40039ebb6f6a3fdc9b02e24c974a986979542aa751233da79435ea794371e",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "4417dfb9d8286b4e600f6496069d7c91b34d2a7c3c5faaa50c55722a95eb43db"
+      "canonical_history_sha256": "33a98688785738a2dbc3e89dc1a310ddd62d933b852c346854cc441de43f609f"
     },
     {
       "ticker": "039030",
@@ -1141,20 +1141,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "039030",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:24:11.642297+00:00",
-        "response_received_at_utc": "2026-11-26T20:24:12.157008+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:11:57.503803+00:00",
+        "response_received_at_utc": "2026-11-27T20:11:58.290349+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -1163,11 +1163,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 286000.0,
-        "raw_response_csv_sha256": "9437800b54063cdeb3749798008277cf1d857f036ffacd3f0538bd8995dd14fd",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 307000.0,
+        "raw_response_csv_sha256": "29069b6a4152a9cf63459f940b47ef09891e561a5df8b27328353c3008cd4f7f",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -1188,10 +1188,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "de0a17d1e9f4c047ae8fdf782b0965552ee9bfe064d64e5b6da8ef2f1ac1d2bf",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "1f1a2443533f5fef0d0860a159a8f31641a2b753bf63cba3374d603d1815db95",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "48bb1b71266f3c58d574e6ec434eb57edb9f53696c93ba7f1d1260d78c824c41"
+      "canonical_history_sha256": "b685c442508a2f978c8da7c63dce138d732c823e63da8b9a08e9ef7bc7f6bfc4"
     },
     {
       "ticker": "067310",
@@ -1200,20 +1200,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "067310",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:27:57.389013+00:00",
-        "response_received_at_utc": "2026-11-26T20:27:57.905298+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:16:14.526655+00:00",
+        "response_received_at_utc": "2026-11-27T20:16:15.134761+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -1222,601 +1222,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 20350.0,
-        "raw_response_csv_sha256": "3e1f4057afccac396470db59ace814364679d0a72a8d412f07ff3e7060950af6",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 22850.0,
+        "raw_response_csv_sha256": "89ed75dd213e23c5b92d664a461f1e6bce82a5bf68b45f2ddae57ff60eee812e",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "56ac4f57b0b609ab0548e66067747113f90bc06f95de4c65f96a7dd5bc932f5a",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "54dcf654afb8a641919a9f948e11ad6d69b7f31937b0a007b9f1bab1bdb578c1"
-    },
-    {
-      "ticker": "074600",
-      "setup_id": "abda272fb9b92d51fee68690f27b9d6955a7016cce33ac5ea68a61253312065d",
-      "name": "원익QnC",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "074600",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:28:44.057460+00:00",
-        "response_received_at_utc": "2026-11-26T20:28:44.629438+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 23400.0,
-        "raw_response_csv_sha256": "5c188d6f6b03d34ad62704636e73a4b03ce2ed73139e9dac39237c965df2b0c8",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "fdb284377e3dc698164b1226421c8d48b66aece142ea9874e96f4661b3249fe6",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "31aa4bb206a904362a8def89209a95d92f99701afd96bba8e094556ee664a2db"
-    },
-    {
-      "ticker": "083450",
-      "setup_id": "542735359b42ec4119bf9bd07158d33af816279033546c44fbc75a7ced1fc748",
-      "name": "글로벌스탠다드테크놀로지",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "083450",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:29:30.351653+00:00",
-        "response_received_at_utc": "2026-11-26T20:29:31.039353+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 39150.0,
-        "raw_response_csv_sha256": "a01c850a77102d82afb180f127942e6eb3a937fa034929ea1916495027f5924f",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "de6d40c5254cc394ec8c48b06d85cddfc97735a78876454f27cfed58354a4e63",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "01552120e350269ec8427b95b08f8a0ab8b11effd84872042cdd726a901941c4"
-    },
-    {
-      "ticker": "084370",
-      "setup_id": "f36a75957bd47fe3a4b4daad8e9e1dc73989bc52d77f4e2d67436fcab4e9c564",
-      "name": "유진테크",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "084370",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:29:38.446989+00:00",
-        "response_received_at_utc": "2026-11-26T20:29:38.959884+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 69900.0,
-        "raw_response_csv_sha256": "a3a786711a850fa50eb2928e68449c58f0b13ee33c4ffe0d17c1b477cfa5dfcc",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "67a1a40fed2c60c0092618c425007dfb3505562e74ce98114fb7fbaacf3fd74e",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "96bcf2036f55850f56e39be465e49a52792b13f074366b03fcc72ca836747a66"
-    },
-    {
-      "ticker": "086280",
-      "setup_id": "6e41461f656b8b15d2cccd5f92ac35810b2149ce960efef512ae46d91b8cbd66",
-      "name": "현대글로비스",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "086280",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:29:52.186105+00:00",
-        "response_received_at_utc": "2026-11-26T20:29:52.704419+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 197400.0,
-        "raw_response_csv_sha256": "a1fbd49afd6feeac8d3abdcc65fd9480314486190be4a91e80597b2babf4f10a",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "48109c363692ac7900b1639f5a8c9c89a6e7c4c8664649f8538d424512d6eab2",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "3d7501dfcec11e0c9d60d3d4d4b2103cf2c44b1f31623d0161a5fa3f964a2003"
-    },
-    {
-      "ticker": "089030",
-      "setup_id": "128f20e3234edfbc2078cd79062b5a4259f5fd2676d78f062a4504665d8ddb44",
-      "name": "테크윙",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "089030",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:30:11.932350+00:00",
-        "response_received_at_utc": "2026-11-26T20:30:12.452027+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 32250.0,
-        "raw_response_csv_sha256": "2e1183539b2092350e29f0d4c915fa1c46031cdb2aa980f2a02b296bda94d3cd",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "f9d736d7b8400e00feb15c47547be3c4ab901042c6352f14154081cb7344c645",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "620dcec35ef531dfba02bf856da3affeb389f1befbaafc5658525c25b3456ba0"
-    },
-    {
-      "ticker": "090360",
-      "setup_id": "f7350fd3af2c07aa73543ffd5bb969c5d85676559fcb1416408830d416f9a435",
-      "name": "로보스타",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "090360",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:30:25.202310+00:00",
-        "response_received_at_utc": "2026-11-26T20:30:25.710791+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 60600.0,
-        "raw_response_csv_sha256": "b1169c1cc7b34605280545f4e689d19a2e691be7b444e82086a8cc73a54a195f",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "593b8375f6886401bf0bc3098d303d68606af3d640c5d117a07ccf5a1c4bb1eb",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "f51c1e78f78f82fc8ff4f4ca444fc79602982887580884435410fcbe47037439"
-    },
-    {
-      "ticker": "095340",
-      "setup_id": "b2291a711cd93b7e209991b5cd8f593ebb19a1b77bf5203f8eb5bb0958271fca",
-      "name": "ISC",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "095340",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:31:04.147968+00:00",
-        "response_received_at_utc": "2026-11-26T20:31:04.664266+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 117200.0,
-        "raw_response_csv_sha256": "43d796a6067a2ba90eb3574856ee228b85c145b5e2a3008c9a22195bbd4da430",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "0b04abf924d4c0357ce6514da2bd3a3bf7e5d5216adf36e8149a986c5ee4c8af",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "b184fd494e33b6ca65f4d57c3d4f99264efd1a043a170511cb54d8b10f18a321"
-    },
-    {
-      "ticker": "102710",
-      "setup_id": "07c4133dab61f220542b1d197a523d175866644b49d9f1f79d738bc7b4cef241",
-      "name": "이엔에프테크놀로지",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "102710",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:31:50.067073+00:00",
-        "response_received_at_utc": "2026-11-26T20:31:50.578529+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 36650.0,
-        "raw_response_csv_sha256": "9dcb2ba30dfa5adeb56685374b544bd97c68a29abf862423c1a6f03fb2531b47",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "e4f9585415f31c34f9d2ccd8a1162b9e1d61c3dcb686532e5b2f32c99cec383a",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "e73bf4faeee623e0d1b144d3418b967774799df5adae010b244295e570200d02"
-    },
-    {
-      "ticker": "104830",
-      "setup_id": "add73b869d3f930f456b6feb6e98282ac51d729879295ffe62b7fda9bf5eec16",
-      "name": "원익머트리얼즈",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "104830",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:31:59.413048+00:00",
-        "response_received_at_utc": "2026-11-26T20:31:59.925476+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 30750.0,
-        "raw_response_csv_sha256": "04275bdc91438bbb71d1d0632dd1651869aeff58e5878dafb3bdc07be7fc7055",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
-        "route": {
-          "actual_provider_calls": [
-            {
-              "module": "pykrx.website.naver.wrap",
-              "function": "get_market_ohlcv_by_date"
-            }
-          ],
-          "trace_completed": true,
-          "trace_skipped_existing_profiler": false
-        },
-        "regular_only_scope_verified": false,
-        "source_reported_turnover_field_present": false,
-        "turnover_unit_and_regular_scope_verified": false,
-        "orders_enabled": false
-      },
-      "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
-      "raw_history_is_not_buy_approval": true,
-      "source_label": "pykrx",
-      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "ca484e839278b236289d712fd3acfd5fa9460c715f43d8fef657466e257bd3e1",
-      "latest_raw_date": "2026-11-26",
-      "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "ff7dc0b25f6b075c9dad3fc67c9c380da7a161f5d2344bc9d5a403c2d322c586"
-    },
-    {
-      "ticker": "271560",
-      "setup_id": "565d4eab2548ffa44f34fbd2717e950996ee5d4e32dadb09f5d7838256ce78f0",
-      "name": "오리온",
-      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
-      "baseline_price_asof": "2026-10-29",
-      "observed": true,
-      "history_rows": 369,
-      "source_response": {
-        "schema": "C3_SOURCE_RESPONSE_V1",
-        "ticker": "271560",
-        "source_label": "pykrx",
-        "api": "get_market_ohlcv_by_date",
-        "request": {
-          "start": "20250525",
-          "end": "20261126",
-          "adjusted": true
-        },
-        "fetch_started_at_utc": "2026-11-26T20:38:26.828097+00:00",
-        "response_received_at_utc": "2026-11-26T20:38:27.345494+00:00",
-        "rows": 369,
-        "response_columns": [
-          "시가",
-          "고가",
-          "저가",
-          "종가",
-          "거래량",
-          "등락률"
-        ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 119900.0,
-        "raw_response_csv_sha256": "ed5c9a67c3d3033dccc726c523def05811e5627b9f28b830b48bb199b062a841",
-        "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -1837,10 +1247,600 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "5d0cf1bed13e88b9fa7534a13f4ba818abe19fcd937054cc95a31c1f09241017",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "a0937b4965e28cdd73fedfcea65c9d19f4f225a917a59921bf91c2cab3a01ccb",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "23e7f44bb81a71da1bb6d12e8f8f933c3b700afc6a920226fe6fe8ca037cdc76"
+      "canonical_history_sha256": "b74a31c4ab9e1c058b26a418abbea335a685b6cbae3569f2e61691aee6bb95f4"
+    },
+    {
+      "ticker": "074600",
+      "setup_id": "abda272fb9b92d51fee68690f27b9d6955a7016cce33ac5ea68a61253312065d",
+      "name": "원익QnC",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "074600",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:17:11.539852+00:00",
+        "response_received_at_utc": "2026-11-27T20:17:12.138655+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 25500.0,
+        "raw_response_csv_sha256": "8b47ded77b407e05e0ae41f7edbb91680527c1354945c2737d7f3a1a3480ac88",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": false,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "0489043087e0e97f5d63b6ef484fedfdbf43f487c1be1c93fcfc82364af70172",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "db0b58e4f9817a157f194cb96c5cb8b40319c2aa19e714eb53c02064f5f80d50"
+    },
+    {
+      "ticker": "083450",
+      "setup_id": "542735359b42ec4119bf9bd07158d33af816279033546c44fbc75a7ced1fc748",
+      "name": "글로벌스탠다드테크놀로지",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "083450",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:18:02.484946+00:00",
+        "response_received_at_utc": "2026-11-27T20:18:03.081580+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 42500.0,
+        "raw_response_csv_sha256": "cb74c2cc1ce6a701ce90ff92bb8ba99c2bf88027c85fdfd613d444c689529d2a",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": false,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "b06f7c58211be5480f140248299a08651b6a28515f5ce6b344157e2b2c845bc2",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "53a8cf1790540ad16061d9281506b1fa5311007b1ea7cce007b9e8b1cf4604f6"
+    },
+    {
+      "ticker": "084370",
+      "setup_id": "f36a75957bd47fe3a4b4daad8e9e1dc73989bc52d77f4e2d67436fcab4e9c564",
+      "name": "유진테크",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "084370",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:18:11.502455+00:00",
+        "response_received_at_utc": "2026-11-27T20:18:12.100818+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 76000.0,
+        "raw_response_csv_sha256": "bae36247d1bad8265544d5dab2785872954b51975abe9beab2d9f2c877629ff8",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": true,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "4aeab4542d44c5dd4fb7d1e8cadb4b4d50ab3114ee73fc11acae29b8c3345d7b",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "3f2d73bea1523c71b79e5a493b6e40751c4d16416a13374ffe311122db97dfb2"
+    },
+    {
+      "ticker": "086280",
+      "setup_id": "6e41461f656b8b15d2cccd5f92ac35810b2149ce960efef512ae46d91b8cbd66",
+      "name": "현대글로비스",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "086280",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:18:26.959488+00:00",
+        "response_received_at_utc": "2026-11-27T20:18:27.568997+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 201500.0,
+        "raw_response_csv_sha256": "a349b3725399a7ab023be8d91dd7d4ddf22397505790f937aa16d29ca4905147",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": true,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "eec7dccc8f153ba9d6777ca045588ffd74961edf9d32655d6fdc520037d21d45",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "6bf261f2b16714d8b45669e11812ca79e002aaf28ef0aa1cac34ab7c6528c55b"
+    },
+    {
+      "ticker": "089030",
+      "setup_id": "128f20e3234edfbc2078cd79062b5a4259f5fd2676d78f062a4504665d8ddb44",
+      "name": "테크윙",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "089030",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:18:47.107576+00:00",
+        "response_received_at_utc": "2026-11-27T20:18:47.701635+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 35100.0,
+        "raw_response_csv_sha256": "3447ebac4d130377ca0b4f3ca74a81a5b2dcd15fed3f58518e5330053a54241c",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": false,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "587f0147d02d79781d5f31ff1fc12b2534b4567b51f9491be9a95f0e6b37bf8b",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "23ed0a0c0ce9a6ebe3ceebacee851558a148d659003c808452127fb48023d899"
+    },
+    {
+      "ticker": "090360",
+      "setup_id": "f7350fd3af2c07aa73543ffd5bb969c5d85676559fcb1416408830d416f9a435",
+      "name": "로보스타",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "090360",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:19:00.770780+00:00",
+        "response_received_at_utc": "2026-11-27T20:19:01.383752+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 65100.0,
+        "raw_response_csv_sha256": "d052c5ac6e5202e24a623ee0e69d0a89b1624289a34402d882ed3291a3483061",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": false,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "e07ebd36033bcc639da5eacbd20c59288456b5431309c3a3e0806adfb87e0d5b",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "ccdd1045a1d489daf4d0107a9bdd19f27e0c4c1af9596b4f90b4043f2ce484bc"
+    },
+    {
+      "ticker": "095340",
+      "setup_id": "b2291a711cd93b7e209991b5cd8f593ebb19a1b77bf5203f8eb5bb0958271fca",
+      "name": "ISC",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "095340",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:19:44.424827+00:00",
+        "response_received_at_utc": "2026-11-27T20:19:45.027876+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 126400.0,
+        "raw_response_csv_sha256": "29441ad70cd041e07e3f03f129c9ab20bf42729fcf4dd82d9356c4ae6b18f873",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": false,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "1c4f4e4a6f8d64ee05ec58b9606fa1762d3ee36ae1dc8ca6d2a365b459eac93c",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "4c9f641ec8d97d45b02f9b38af5cbf8723e9f9adaa426c183a9c52324143d000"
+    },
+    {
+      "ticker": "102710",
+      "setup_id": "07c4133dab61f220542b1d197a523d175866644b49d9f1f79d738bc7b4cef241",
+      "name": "이엔에프테크놀로지",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "102710",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:20:39.467043+00:00",
+        "response_received_at_utc": "2026-11-27T20:20:40.065488+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 39450.0,
+        "raw_response_csv_sha256": "1dfb92eb1283472a2e7842406aa7bcc698910caee29cfe870f9bf218d681bcd5",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": false,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "be7f86cd9009f945bffb6400a9df40c5ea7cdbe22689d24b862a938e3e7f8912",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "714d73de9ef9a84b83d63ff9736bb92c51de6dc07655cc3301412bac452b2a4c"
+    },
+    {
+      "ticker": "104830",
+      "setup_id": "add73b869d3f930f456b6feb6e98282ac51d729879295ffe62b7fda9bf5eec16",
+      "name": "원익머트리얼즈",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "104830",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:20:51.402564+00:00",
+        "response_received_at_utc": "2026-11-27T20:20:52.173259+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 33100.0,
+        "raw_response_csv_sha256": "917202642bcea32d446fdf9972311de98ba91335ee63342d9334335c13794a87",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": false,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "006c87480887838dc1ba4d0d8d6b8a9bc1999dad1fd9d617ffbcbc6373d325e9",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "a992105a042f84815e7634735668ea1adfe833190558aca7d3c308604f463202"
+    },
+    {
+      "ticker": "271560",
+      "setup_id": "565d4eab2548ffa44f34fbd2717e950996ee5d4e32dadb09f5d7838256ce78f0",
+      "name": "오리온",
+      "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
+      "baseline_price_asof": "2026-10-29",
+      "observed": true,
+      "history_rows": 370,
+      "source_response": {
+        "schema": "C3_SOURCE_RESPONSE_V1",
+        "ticker": "271560",
+        "source_label": "pykrx",
+        "api": "get_market_ohlcv_by_date",
+        "request": {
+          "start": "20250526",
+          "end": "20261127",
+          "adjusted": true
+        },
+        "fetch_started_at_utc": "2026-11-27T20:28:06.158664+00:00",
+        "response_received_at_utc": "2026-11-27T20:28:06.760678+00:00",
+        "rows": 370,
+        "response_columns": [
+          "시가",
+          "고가",
+          "저가",
+          "종가",
+          "거래량",
+          "등락률"
+        ],
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 115000.0,
+        "raw_response_csv_sha256": "c2af2f2e701de2f73d3f49c6a13050a7eed2949b5b27ab002b15221ee0fde510",
+        "runtime_manifest": "c3_source_runtime_v1.json",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
+        "route": {
+          "actual_provider_calls": [
+            {
+              "module": "pykrx.website.naver.wrap",
+              "function": "get_market_ohlcv_by_date"
+            }
+          ],
+          "trace_completed": true,
+          "trace_skipped_existing_profiler": false
+        },
+        "regular_only_scope_verified": false,
+        "source_reported_turnover_field_present": false,
+        "turnover_unit_and_regular_scope_verified": false,
+        "orders_enabled": false
+      },
+      "regular_only_scope_verified": false,
+      "current_price_stage_pass": false,
+      "raw_history_is_not_buy_approval": true,
+      "source_label": "pykrx",
+      "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
+      "raw_frame_csv_sha256": "7c3a44892c17bd7df1c55600309a64842e68dc504c44962735a8877c99974b20",
+      "latest_raw_date": "2026-11-27",
+      "price_tail_state": "PRICE_ONLY_OBSERVED",
+      "canonical_history_sha256": "6647749a3760b236ec281afe68849b20647a5bd86e2c3b39da8125ffff2e2d72"
     },
     {
       "ticker": "281820",
@@ -1849,20 +1849,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "281820",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:38:45.289683+00:00",
-        "response_received_at_utc": "2026-11-26T20:38:45.802370+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:28:27.681922+00:00",
+        "response_received_at_utc": "2026-11-27T20:28:28.475609+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -1871,11 +1871,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 75100.0,
-        "raw_response_csv_sha256": "f8cfcb3114465de7803f59310559b4ace824368087d1801c5af4c8166f66c619",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 83800.0,
+        "raw_response_csv_sha256": "8bc9700c878a43a622093c36811f90dd658108b9dca1ef68cdd9819030c63065",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -1896,10 +1896,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "25cae5b14054fc3aa2af6806a291f63963efcba0e0d2a87a810feb37f10d448b",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "ebb234b235367ef852ca94f0244e3e1b6e069c06d9324119eabcb5d96d871375",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "12a99d722dc90153276be2ea0d7307bf007ec1e0b18c199d6d55606dd299dd97"
+      "canonical_history_sha256": "028c401bdbcaa930897105bd72528f102dcfd5fafe2fbd06ce7d5d34272fdc78"
     },
     {
       "ticker": "319660",
@@ -1908,20 +1908,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "319660",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:40:12.893861+00:00",
-        "response_received_at_utc": "2026-11-26T20:40:13.402213+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:30:11.064181+00:00",
+        "response_received_at_utc": "2026-11-27T20:30:11.659088+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -1930,11 +1930,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 76000.0,
-        "raw_response_csv_sha256": "e7ee6c851908b5a2140dff85ab336b4c468952be0b3e05f1a8635d70d52ccecc",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 81700.0,
+        "raw_response_csv_sha256": "57385bd4ef153c9cc95500477955860cc402bc7596d5d29c06e30f359b4c3c92",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -1955,10 +1955,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "fc97ad46ee63d9082dfa627ec004d157181add3c7266eb309238b7b3fe7689fa",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "0cd8155e8ee934d27f530144a3087981b05cddf60d41120769e1fddc6e74e34f",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "283f48fbbe01f5166608f6cc80f3474b46603c94ea7ac4279bd3646df889c440"
+      "canonical_history_sha256": "5887defddfbb8c5cb6981e2f829065dfcd0238bf02458de74e4f52341a7f2517"
     },
     {
       "ticker": "353200",
@@ -1967,20 +1967,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "353200",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:41:15.439524+00:00",
-        "response_received_at_utc": "2026-11-26T20:41:15.982982+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:31:19.790025+00:00",
+        "response_received_at_utc": "2026-11-27T20:31:20.384038+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -1989,11 +1989,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 69700.0,
-        "raw_response_csv_sha256": "a967aacf21a229977a4c1f4f2e514d63b4f15f7fcd5b64eb1cda341d07631a34",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 73600.0,
+        "raw_response_csv_sha256": "ddeb3025e15de524a0b2a007555716a718dbc014a6ca8da0f5ee72e0f3d1e998",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -2014,10 +2014,10 @@
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "ad2b19267a55bbe433efdb421186c9c7618381275dac4abcf51f8636d28c7e37",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "6c724805550ba1433948c91c7e1cd26031011c73a446bf6a67889bd59501f9c8",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "9d0ca7788dc0783a0c103cb61942d342f0ea42e69a912988264d269a618c073f"
+      "canonical_history_sha256": "c8803e1ed985e5197a4d7e0ff311c748c7b33cd68b2137c6213fa417d6aabf69"
     },
     {
       "ticker": "375500",
@@ -2026,20 +2026,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "375500",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:41:57.016046+00:00",
-        "response_received_at_utc": "2026-11-26T20:41:57.523754+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:32:05.757096+00:00",
+        "response_received_at_utc": "2026-11-27T20:32:06.536049+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -2048,11 +2048,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 43900.0,
-        "raw_response_csv_sha256": "6df30f55d74af7a4b91bf255c456c28de7e91200359e921865ef3e25b8d224c3",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 45550.0,
+        "raw_response_csv_sha256": "520338e7e7dfbd471202f12a55091b515e665952941ffd6182ead7050ec18023",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -2069,14 +2069,14 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "9350e9da89d19184e2563b815e1e7bbeeafad9a649db1126a76000e2dd30c008",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "ffd9f0cd404b4204b3b968cf5cd4e384ab16e397bf7867b925f10d2344cfa7de",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "e90af1b155963240284cf34ec29e9b5b9ae669b5a84068c7b9ed40e4330be9a4"
+      "canonical_history_sha256": "292b7c445b7e5df3fe6ac4f3f7eb4da7ece4baf02ef517042ced3cf9dd1e64e7"
     },
     {
       "ticker": "440110",
@@ -2085,20 +2085,20 @@
       "registered_at_utc": "2026-10-29T14:30:46.980117+00:00",
       "baseline_price_asof": "2026-10-29",
       "observed": true,
-      "history_rows": 369,
+      "history_rows": 370,
       "source_response": {
         "schema": "C3_SOURCE_RESPONSE_V1",
         "ticker": "440110",
         "source_label": "pykrx",
         "api": "get_market_ohlcv_by_date",
         "request": {
-          "start": "20250525",
-          "end": "20261126",
+          "start": "20250526",
+          "end": "20261127",
           "adjusted": true
         },
-        "fetch_started_at_utc": "2026-11-26T20:43:36.372019+00:00",
-        "response_received_at_utc": "2026-11-26T20:43:36.878247+00:00",
-        "rows": 369,
+        "fetch_started_at_utc": "2026-11-27T20:33:59.906262+00:00",
+        "response_received_at_utc": "2026-11-27T20:34:00.498462+00:00",
+        "rows": 370,
         "response_columns": [
           "시가",
           "고가",
@@ -2107,11 +2107,11 @@
           "거래량",
           "등락률"
         ],
-        "latest_observed_date": "2026-11-26",
-        "latest_raw_close": 26250.0,
-        "raw_response_csv_sha256": "a2fd0aed485726bcb0ae7079e6ccf9b3653560d19180e10645cb3e1a13cbed39",
+        "latest_observed_date": "2026-11-27",
+        "latest_raw_close": 29300.0,
+        "raw_response_csv_sha256": "d7ef4143d4277c12b36ac8cd6f9fb22528a3b3e44217060607f938a359e6e093",
         "runtime_manifest": "c3_source_runtime_v1.json",
-        "runtime_manifest_sha256": "18daabce2fec64ce1d8c0cbbc1ab530d78a2eb334064026977b935e1b7f87595",
+        "runtime_manifest_sha256": "1fc9d8d597e4f9786a2de08e12b08622ef1234ea4b9502d05be39003fe64f77a",
         "route": {
           "actual_provider_calls": [
             {
@@ -2128,17 +2128,17 @@
         "orders_enabled": false
       },
       "regular_only_scope_verified": false,
-      "current_price_stage_pass": false,
+      "current_price_stage_pass": true,
       "raw_history_is_not_buy_approval": true,
       "source_label": "pykrx",
       "state": "RAW_HISTORY_RECORDED_INDEPENDENT_OF_STAGE",
-      "raw_frame_csv_sha256": "c6ef43ec8bc0fd4fb3a27b5c0e5f8c5943b2e4c0a17c5332822659d8c20e54d4",
-      "latest_raw_date": "2026-11-26",
+      "raw_frame_csv_sha256": "f074eba940c7f8be676d126b89aa9ed6d0c395e810f80a60f1c350546bb1c19a",
+      "latest_raw_date": "2026-11-27",
       "price_tail_state": "PRICE_ONLY_OBSERVED",
-      "canonical_history_sha256": "980b388d521bfc369592ee652f0f8d0ed1d992e742b1ab0179134ad58511ab87"
+      "canonical_history_sha256": "ce2b8cef31fb7dadfe18e1f673900b436e5f86597eeff6f835191761e3441757"
     }
   ],
-  "history_rows": 13284,
+  "history_rows": 13320,
   "observed_reference_dates": [
     "2025-05-26",
     "2025-05-27",
@@ -2508,7 +2508,8 @@
     "2026-11-23",
     "2026-11-24",
     "2026-11-25",
-    "2026-11-26"
+    "2026-11-26",
+    "2026-11-27"
   ],
   "reference_calendar_valid": true,
   "calendar_reference": {
@@ -2524,7 +2525,7 @@
   "approved_buy_count": 0,
   "orders_enabled": false,
   "output_sha256": {
-    "c3_registered_followup_history_v1.csv.gz": "9d8dde52db924d1fecf50f09a43000bcd8a584b199349d4249da5b09b4424ee3",
+    "c3_registered_followup_history_v1.csv.gz": "aebeabd5b3872ba665ad5eff77bd12de483c54f84dd3645169b2a400649c22c9",
     "c3_registered_reclaim_registry_v1.json": "778f2b6f970792ad6e6a693401ce0153dcb2fc759c0e238b523a2ee48956bc61"
   }
 }
