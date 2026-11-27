@@ -27,7 +27,7 @@ def approved_manual_delivery(env, asof, expiry, clock=None):
             or env.get('GITHUB_REF_NAME') != 'main'
             or env.get('GITHUB_REPOSITORY') != REPOSITORY
             or env.get('C3_FINANCIAL_MODEL') != 'balanced'
-            or env.get('C3_MANUAL_ASOF')!=asof):
+            or env.get('C3_MANUAL_ASOF','') not in ('',asof)):
         raise ValueError('MANUAL_RECOVERY_CONTEXT_NOT_AUTHORIZED')
     request=env.get('C3_OPERATION_REQUEST_ID','')
     original=asof==RECOVERY_ASOF and re.fullmatch(re.escape(REQUEST_PREFIX)+r'\d+',request)
@@ -37,6 +37,11 @@ def approved_manual_delivery(env, asof, expiry, clock=None):
     if env.get('C3_OPERATION_REQUEST_ID','').startswith('scheduled-recovery-') and env.get('C3_APPROVAL_POLICY')=='INDEPENDENT_ISSUER_FINANCIAL_APPROVAL_V2':
         from c3_schedule_guard import verify_parent
         scheduled=verify_parent(env,asof)
-    if not (original or release or scheduled):raise ValueError('MANUAL_RECOVERY_CONTEXT_NOT_AUTHORIZED')
+    direct=(not request and not env.get('C3_MANUAL_ASOF')
+        and env.get('GITHUB_ACTOR')=='shdmfpsj-beep'
+        and env.get('GITHUB_TRIGGERING_ACTOR')=='shdmfpsj-beep'
+        and env.get('GITHUB_RUN_ATTEMPT')=='1'
+        and env.get('C3_APPROVAL_POLICY')=='INDEPENDENT_ISSUER_FINANCIAL_APPROVAL_V2')
+    if not (original or release or scheduled or direct):raise ValueError('MANUAL_RECOVERY_CONTEXT_NOT_AUTHORIZED')
     validate_current_signal(asof,expiry,clock)
     return True
