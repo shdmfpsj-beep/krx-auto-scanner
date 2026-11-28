@@ -30,6 +30,20 @@ def evidence(*rows, status='FINANCIAL_RESEARCH_GATE_PASSED'):
     return dict(asof=ASOF, status=status, researched=list(rows), excluded=[])
 
 class GeometryTests(unittest.TestCase):
+    def test_archived_far_entry_rejection_is_verified_not_selected(self):
+        from c3_top5_financial_selection import approval_scope
+        c=dict(code='122900',close=8690,atr14=220,geometry_validated=False,
+               status='PASS_RISK_GEOMETRY',rejection_reasons=['ENTRY_TOO_FAR_FROM_CLOSE'],
+               attempted_entry_low=8150,attempted_entry_high=8280,
+               rejected_structural_stop_ref=8040,risk_pct=2.90)
+        self.assertEqual(approval_scope(c)['reason'],'EXACT_ENTRY_TOO_FAR_FROM_CLOSE')
+        self.assertFalse(approval_scope(c)['required'])
+        self.assertFalse(valid_entry(c,allow_watch=True))
+        for change in (dict(atr14=300),dict(risk_pct=4),dict(atr14=None),
+                       dict(rejected_structural_stop_ref=None),dict(attempted_entry_high=8281),
+                       dict(rejection_reasons=['ENTRY_TOO_FAR_FROM_CLOSE','OTHER_GEOMETRY_FAILURE'])):
+            self.assertFalse(approval_scope(dict(c,**change))['verified'])
+
     def test_ready_boundaries_and_near_direction(self):
         for close in (9800, 9900, 10000):
             self.assertEqual(entry_state(9800, 10000, close), 'ENTRY_READY')
