@@ -177,6 +177,22 @@ class ScheduleGuardTests(unittest.TestCase):
             approved_manual_delivery(context,'20261125','2026-11-26T15:30:00+09:00',
                 datetime(2026,11,26,15,31,tzinfo=ZoneInfo('Asia/Seoul')))
 
+    def test_verified_incident_hold_no_send_only(self):
+        from c3_schedule_guard import verified_hold_no_send
+        data=bundle('HOLD_DATA_INCOMPLETE','HOLD')
+        data['execution_outcome.json']['telegram_photos_sent']=0
+        data['financial_selection_research.json'].update(operational_status='HOLD_DATA_INCOMPLETE',selected=[],signals=[])
+        for name in ('watch_delivery_result.json','review_delivery_result.json'):
+            data[name]['status']='BLOCKED'
+        self.assertTrue(verified_hold_no_send(data,'20261125'))
+        for name,change in [('delivery_result.json',dict(telegram_photos_sent=1)),
+                            ('watch_delivery_result.json',dict(reservation_path='reserved')),
+                            ('review_delivery_result.json',dict(photos=[{}])),
+                            ('financial_selection_research.json',dict(selected=[{}]))]:
+            bad=copy.deepcopy(data);bad[name].update(change)
+            self.assertFalse(verified_hold_no_send(bad,'20261125'))
+        self.assertFalse(verified_hold_no_send(data,'20261127'))
+
     def test_expired_manual_signal_cannot_scan_or_dispatch(self):
         client=Fake();context=env();context.update(GITHUB_EVENT_NAME='workflow_dispatch',C3_MANUAL_ASOF='20261125',C3_MANUAL_LIVE_DELIVERY='true')
         with self.assertRaisesRegex(ValueError,'EXPIRED'):
