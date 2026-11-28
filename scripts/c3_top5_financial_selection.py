@@ -201,7 +201,9 @@ def approval_scope(c, asof=None):
         stop=c.get('rejected_structural_stop_ref')
         close=c['close']
         if all(finite(p) and p>0 for p in (low,high,stop,atr)) and stop<low<high<close:
-            from c3_entry_geometry import tick
+            def tick(p):
+                return (1 if p < 2000 else 5 if p < 5000 else 10 if p < 20000 else
+                        50 if p < 50000 else 100 if p < 200000 else 500 if p < 500000 else 1000)
             risk=(high-stop)/high*100
             if (all(p%tick(p)==0 for p in (low,high,stop)) and
                 finite(c.get('risk_pct')) and 1.5<=risk<=5 and
