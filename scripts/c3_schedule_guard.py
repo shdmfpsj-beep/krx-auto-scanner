@@ -29,9 +29,9 @@ def marker(client,path):
     except (ValueError,TypeError,KeyError):raise ValueError('GUARD_RECEIPT_INTEGRITY') from None
 
 
-def archive_outcome(client,run):
+def archive_outcome(client,run,admission=False):
     artifacts=client.call('actions/runs/'+str(run['id'])+'/artifacts?per_page=100').get('artifacts',[])
-    matches=[a for a in artifacts if a['name']=='c3-top5-daily-classic-per-stock' and not a.get('expired')]
+    matches=[a for a in artifacts if a['name']==('c3-daily-admission' if admission else 'c3-top5-daily-classic-per-stock') and not a.get('expired')]
     if len(matches)!=1:raise ValueError('GUARD_PRIOR_ARTIFACT_UNVERIFIED')
     item=matches[0];expected=item.get('digest','')
     if not re.fullmatch(r'sha256:[0-9a-f]{64}',expected):raise ValueError('GUARD_PRIOR_ARCHIVE_DIGEST_MISSING')
@@ -50,6 +50,7 @@ def archive_outcome(client,run):
         with urllib.request.urlopen(url,timeout=60) as response:binary=response.read(100_000_001)
     if len(binary)>100_000_000 or hashlib.sha256(binary).hexdigest()!=expected[7:]:raise ValueError('GUARD_PRIOR_ARCHIVE_INTEGRITY')
     names=['execution_outcome.json','receipt.json','financial_selection_research.json','delivery_result.json','watch_delivery_result.json','review_delivery_result.json']
+    if admission:names=['admission.json']
     with zipfile.ZipFile(io.BytesIO(binary)) as source:
         if any(Path(n).is_absolute() or '..' in Path(n).parts for n in source.namelist()):raise ValueError('GUARD_PRIOR_ARCHIVE_PATH')
         result={}
@@ -78,6 +79,25 @@ def completed_state(data,asof):
             p.get('destination_matches') is not True or not re.fullmatch(r'[0-9a-f]{64}',p.get('image_sha256','')) for p in photos):
             raise ValueError('GUARD_PRIOR_SEND_EVIDENCE_INVALID')
     return 'PREVIEW_ONLY' if preview else 'SKIP_COMPLETED'
+
+
+def verified_hold_no_send(data,asof):
+    outcome=data['execution_outcome.json']
+    selection=data['financial_selection_research.json']
+    if (data['receipt.json'].get('asof')!=asof or outcome.get('asof')!=asof or
+        selection.get('asof')!=asof or outcome.get('program_status')!='COMPLETED' or
+        outcome.get('operational_status')!='HOLD_DATA_INCOMPLETE' or
+        selection.get('operational_status')!='HOLD_DATA_INCOMPLETE' or
+        selection.get('selected_count')!=0 or selection.get('selected')!=[] or
+        selection.get('signals')!=[] or outcome.get('telegram_photos_sent')!=0):
+        return False
+    for name,expected in [('delivery_result','HOLD'),('watch_delivery_result','BLOCKED'),('review_delivery_result','BLOCKED')]:
+        row=data[name+'.json']
+        if (row.get('asof')!=asof or row.get('status')!=expected or
+            row.get('telegram_photos_sent')!=0 or row.get('photos',[])!=[] or
+            row.get('message_ids',[])!=[] or row.get('reservation_path') or row.get('sent_receipt_path')):
+            return False
+    return True
 
 
 def assess(client,env,clock=None,recover=False,load_archive=archive_outcome):
@@ -118,6 +138,11 @@ def assess(client,env,clock=None,recover=False,load_archive=archive_outcome):
         r.get('event') in ('schedule','workflow_dispatch') and datetime.fromisoformat(r['created_at'].replace('Z','+00:00'))>=since]
     if len(runs)>=100 and datetime.fromisoformat(runs[-1]['created_at'].replace('Z','+00:00'))>=since:
         raise ValueError('GUARD_RUN_HISTORY_INCOMPLETE')
+    # One explicitly approved incident, never a generic HOLD/ERROR bypass.
+    incident=(not recover and event=='workflow_dispatch' and plan['asof']=='20261127'
+        and env.get('GITHUB_ACTOR')=='shdmfpsj-beep' and env.get('GITHUB_TRIGGERING_ACTOR')=='shdmfpsj-beep'
+        and env.get('GITHUB_RUN_ATTEMPT')=='1' and not env.get('C3_OPERATION_REQUEST_ID')
+        and not env.get('C3_MANUAL_ASOF'))
     for run in relevant:
         if run['status']!='completed':
             if not recover and int(run['id'])>int(own or '0'):continue
@@ -126,7 +151,20 @@ def assess(client,env,clock=None,recover=False,load_archive=archive_outcome):
         title=run.get('display_title','');dated=re.search(r'C3 TOP5 \+ WATCH5 (\d{8})',title)
         if dated and dated.group(1)!=plan['asof']:continue
         if run.get('conclusion')!='success':return dict(result,status='BLOCKED_PREVIOUS_FAILED_RUN',source_run_id=run['id'])
-        state=completed_state(load_archive(client,run),plan['asof'])
+        if incident and run['id']==46148869937 and run.get('head_sha')=='999fd0a697bede1a92090d5f477858f0c755d9fc':
+            admission=archive_outcome(client,run,admission=True)['admission.json']
+            jobs=client.call('actions/runs/46148869937/jobs?per_page=100').get('jobs',[])
+            if (admission.get('asof')==plan['asof'] and admission.get('execute') is False
+                and admission.get('status')=='BLOCKED_PREVIOUS_HOLD_OR_ERROR'
+                and admission.get('source_run_id')==46145202937
+                and sorted((j['name'],j['conclusion']) for j in jobs)==[('admit','success'),('top5','skipped')]):
+                continue
+            return dict(result,status='BLOCKED_PREVIOUS_SEND_UNCERTAIN',source_run_id=run['id'])
+        data=load_archive(client,run)
+        state=completed_state(data,plan['asof'])
+        if (incident and run['id']==46145202937 and run.get('head_sha')=='171e4d8ccf12b40c9a9535c2e7ee3b39651448ce'
+            and state=='BLOCKED_PREVIOUS_HOLD_OR_ERROR' and verified_hold_no_send(data,plan['asof'])):
+            continue
         if state not in ('OTHER_DATE','PREVIEW_ONLY'):return dict(result,status=state,source_run_id=run['id'])
     return dict(result,status='RUN',execute=True)
 
